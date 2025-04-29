@@ -1,0 +1,163 @@
+.ProfileNavPill{
+    background: #fff7f1;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
+    border: 1px solid rgba(0, 0, 0, .05) ;
+    border-radius: .6rem;
+    padding: 1rem !important;
+    gap: 10px;
+}
+.ProfileNavPill .nav-item:hover{
+    background: #e5e5e5;
+    border-radius: .375rem;
+}
+.ProfileNavPill .nav-item a{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #262626;
+    font-size: 16px;
+    line-height: 1.375;
+    font-weight: 400;
+    letter-spacing: -0.4px;
+}
+.ProfileNavPill .nav-item a svg{
+    color: var(--chillyred);
+}
+
+.ProfInfo{
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+.avtar img{
+    border-radius: 50%;
+    object-fit: cover;
+}
+.ProfDiv{
+    background: #fff7f1;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
+    border: 1px solid rgba(0, 0, 0, .05) ;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 30px;
+    border-radius: .5rem;
+}
+.AvtarText h5{
+    color: #262626;
+    font-weight: 600;
+    margin: 0;
+    font-size: 18px;
+}
+.AvtarText p{
+    color: #26262686;
+    font-weight: 400;
+    margin: 0;
+    font-size: 14px;
+}
+
+
+.Proft .toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+}
+.Proft .toggle-switch input {
+    display: none;
+}
+.Proft .toggle-switch .slider {
+    position: relative;
+    height: .9375rem;
+    width: 1.875rem;
+    background-color: #262626; 
+    border-radius: 34px;
+    transition: 0.4s;
+}
+.Proft .toggle-switch .slider::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    bottom: 2px;
+    border: 1px solid #a3a3a3;
+    background-color: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, .1), 0 2px 4px -1px rgba(0, 0, 0, .06);
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    transition: transform .25s ease-in-out, background-color .25s ease-in-out;
+}
+.Proft .toggle-switch input:checked + .slider {
+    background-color: #6c757d; /* Bootstrap secondary */
+}
+.Proft .toggle-switch input:checked + .slider::before {
+    transform: translateX(20px);
+}
+.Proft .label-text {
+    font-size: 14px;
+    color: #333;
+}
+  
+/* BasicInfoDiv */
+
+.BasicInfoDiv{
+    background: #fff7f1;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
+    border: 1px solid rgba(0, 0, 0, .05) ;
+    padding: 20px 30px;
+    border-radius: .5rem;   
+}
+.BasicInfoDiv h5{
+    color: #262626;
+    font-weight: 600;
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: 0.9px;
+}
+.PrfFormControl label{
+    color: var(--chillyred);
+    font-size: 14px;
+    font-weight: 500;
+}
+.PrfFormControl input{
+    color: #262626;
+    font-size: 14px;
+    font-weight: 500;
+    outline: none !important;
+    height: 47px;
+    background: transparent !important;
+    border: none;
+    border-bottom: 1.5px solid #26262650;
+    border-radius: 0;
+    transition: .2s ease;
+}
+.PrfFormControl input::placeholder{
+    color: #262626;
+    font-size: 12px;
+    font-weight: 400;
+}
+
+/* BasicInfoDiv */
+
+
+/* ProfPassword */
+
+.ProfPassword{
+    background: #fff7f1;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05);
+    border: 1px solid rgba(0, 0, 0, .05) ;
+    padding: 20px 30px;
+    border-radius: .5rem;   
+}
+.ProfPassword h5{
+    color: #262626;
+    font-weight: 600;
+    margin: 0;
+    font-size: 18px;
+    letter-spacing: 0.9px;
+}
+
+
+
+/* ProfPassword */

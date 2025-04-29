@@ -1,0 +1,105 @@
+.SignSec{
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: url(/public/Images/SignUp1.png)no-repeat;
+    background-size: cover;
+    background-position: center;
+}
+.SignSec::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    background-color: rgb(0 0 0 / 16%);
+}
+
+.SignFormDiv{
+    display: flex;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+}
+.SignUpForm{
+    background: #ffffff3f;
+    backdrop-filter: blur(10px);
+    border: 1px solid #ffffff3f;
+    box-shadow: 0px 10px 20px 0px #47382729;
+    width: 100%;
+    max-width: 630px;
+    border-radius: 12px;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.LogoPicture{
+    text-align: center;
+}
+.SignHead{
+    text-align: center;
+}
+.SignHead h2{
+    font-weight: 600;
+    font-size: 40px;
+    line-height: 48px;
+    letter-spacing: -2%;
+    color: #302F2E;
+}
+.SignHead p{
+    font-weight: 100;
+    font-size: 16px;
+    line-height: 18px;
+    color: #000000a4;
+}
+.SignFormControl input{
+    background-color: #ffffff8e !important;
+    box-shadow: none;
+}
+.SignFormControl input:focus {
+    border-color: #D04122;
+    box-shadow: none;
+}
+.SignFormControl label{
+   color: #D04122;
+   font-weight: 100;
+    font-size: 16px;
+    line-height: 18px;
+}
+/* .form-floating>.form-control-plaintext~label::after, .form-floating>.form-control:focus~label::after, .form-floating>.form-control:not(:placeholder-shown)~label::after, .form-floating>.form-select~label::after {
+    position: absolute;
+    inset: 1rem 0.375rem;
+    background-color: #D04122 !important;
+    color: #FFFEFE !important;
+} */
+.form-floating>.form-control-plaintext~label, .form-floating>.form-control:focus~label, .form-floating>.form-control:not(:placeholder-shown)~label, .form-floating>.form-select~label {
+    color: #302F2E !important;
+}
+
+.SignBTN{
+    width: 100%;
+    text-align: center;
+}
+.SignBTN button{
+    width: 100%;
+    max-width: 350px;
+    min-height: 47px;
+    border-radius: 12px;
+    background: #D04122;
+    border: 1px solid #D04122 !important;
+    font-size: 16px;
+    font-weight: 500;
+    color: #FFFEFE;
+}
+.SignBTN button:hover{
+    width: 100%;
+    max-width: 350px;
+    min-height: 47px;
+    border-radius: 12px;
+    background: transparent !important;
+    color: #D04122;
+}
