@@ -138,7 +138,7 @@
 }
 
 .btn-search:focus{
-  color: var(--text-color);
+  color: #FFFFFF;
 }
 .search-box.active .btn-search {
   color: var(--text-color);
