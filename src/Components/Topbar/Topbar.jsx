@@ -15,11 +15,11 @@ import { BiSearch } from 'react-icons/bi';
 
 
 
-function Topbar({ toggleSidebar }) {
+function Topbar({ toggleSidebar , DashName }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   
-  const [theme, setTheme] = useState('light');
+  const [theme] = useState('light');
 
   // Toggle Sidebar & Icon Change
   const handleToggleSidebar = () => {
@@ -44,7 +44,7 @@ function Topbar({ toggleSidebar }) {
         <Button type="button" onClick={handleToggleSidebar}>
           {isSidebarOpen ? <FaBars className="toggle-sidebar-btn" /> : <FaBarsStaggered className="toggle-sidebar-btn" />}
         </Button>
-        <h4>Admin DashBoard</h4>
+        <h4>{DashName}</h4>
       </div>
       <div className="RytTpBar">
 

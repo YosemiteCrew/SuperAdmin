@@ -71,19 +71,19 @@ function Sidebar({ isActive }) {
           <div className={`collapse UserProfileDiv ${profileDropdownOpen ? 'show' : ''}`} >
             <ul>
               <li>
-                <Link to="#">
+                <Link to="/Adminprofile">
                   <span> MP </span>
                   <span> My Profile </span>
                 </Link>
               </li>
               <li>
-                <Link to="#">
+                <Link to="/settingprofile">
                   <span> S </span>
                   <span> Settings </span>
                 </Link>
               </li>
               <li>
-                <Link to="#">
+                <Link to="/signin">
                   <span> L </span>
                   <span> Logout </span>
                 </Link>

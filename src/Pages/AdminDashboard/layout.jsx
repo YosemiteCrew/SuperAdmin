@@ -3,7 +3,7 @@ import "./AdminDashboard.css"
 import Sidebar from '../../Components/Sidebar/Sidebar'
 import Topbar from '../../Components/Topbar/Topbar'
 
-export default function AdminDashboardLayout({ children }) {
+export default function AdminDashboardLayout({ children, dashName = "Admin DashBoard" }) {
 
   
   // Add Active class heasder nd sidebar 
@@ -20,7 +20,7 @@ export default function AdminDashboardLayout({ children }) {
     <section className={`AdminDashboardSec ${isSidebarActive ? "active" : ""}`} >
       <Sidebar isActive={isSidebarActive}/>
       <div className="Main_Content">
-        <Topbar toggleSidebar={toggleSidebar}/>
+        <Topbar toggleSidebar={toggleSidebar} DashName={dashName} />
         <div className="DashContent">
           {children}
         </div>

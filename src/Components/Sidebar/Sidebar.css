@@ -190,6 +190,9 @@
 .sidebar.active .UserProfileDiv ul li a span:last-child{
   display: none;
 }
+.collapse.UserProfileDiv.show {
+  padding-left: 10px !important;
+}
 
 
 /* UserProfileDiv */

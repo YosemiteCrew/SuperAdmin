@@ -13,8 +13,9 @@
     "web-vitals": "^4.2.4"
   },
   "scripts": {
-    "start": "react-scripts start port-5008",
+    "start": "PORT=5008 react-scripts start",
     "build": "react-scripts build",
+    "dev": "cross-env PORT=5008 react-scripts start",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
@@ -37,6 +38,7 @@
     ]
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "react-router-dom": "^7.2.0"
   }
 }
