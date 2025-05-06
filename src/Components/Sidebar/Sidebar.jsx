@@ -6,15 +6,26 @@ import { FiUsers } from 'react-icons/fi';
 import { LiaIndustrySolid } from 'react-icons/lia';
 import { MdInterests, MdDomain } from 'react-icons/md';
 import { GoChevronDown } from 'react-icons/go';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Image } from 'react-bootstrap';
+import authService from '../../services/authService';
 
 function Sidebar({ isActive }) {
-  const location = useLocation();
-  const currentPath = location.pathname;
+    const location = useLocation();
+    const currentPath = location.pathname;
 
-  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState(null);
+
+
+
+    const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+    const [openDropdown, setOpenDropdown] = useState(null);
+
+    const navigate = useNavigate();
+    const handleLogout = () => {
+      authService.logout(); // Clear token
+      navigate('/login'); // Redirect to login page
+    };
+
 
   const toggleProfileDropdown = () => {
     setProfileDropdownOpen((prev) => !prev);
@@ -83,7 +94,7 @@ function Sidebar({ isActive }) {
                 </Link>
               </li>
               <li>
-                <Link to="/signin">
+                <Link onClick={handleLogout}>
                   <span> L </span>
                   <span> Logout </span>
                 </Link>
