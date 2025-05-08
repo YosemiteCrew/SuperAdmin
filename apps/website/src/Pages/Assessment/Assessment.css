@@ -1,0 +1,203 @@
+/* AssessmentListing page  */
+.AssessmentListing{
+    padding: 40px 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+}
+.AssmntList{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.AssmntList h2{
+    color: var(--text-color);
+    font-size: 21px;
+}
+.AssmntList a{
+    background: var(--btnbgg);
+    color: var(--white-color);
+    text-decoration: none;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--text-color);
+}
+.AssmntList a svg{
+    font-size: 18px;
+    font-weight: 500;
+}
+.AssmntList a:hover{
+    background: var(--sidebarbg);
+    color: var(--text-color);
+}
+/* AssessmentListing page  */
+
+
+.AssessmentSection{
+    padding: 80px 0px;
+}
+.ss{
+    display: flex;
+    flex-direction: column;
+    gap: 50px;
+}
+.AssessmentDiv{
+    width: 100%;
+    max-width: 650px;
+    margin: 0 auto;
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    border-radius: .5rem;
+    padding: 20px 30px;  
+}
+.AssessmentDiv form .AsstHeading {
+   text-align: center;
+   padding: 20px ;
+}
+.AssessmentDiv form .AsstHeading h2{
+   color: var(--text-color);
+   font-size: 21px;
+   font-weight: 600;
+   line-height: 120%;
+   text-transform: uppercase;
+   position: relative;
+   display: inline-block;
+}
+.AssessmentDiv form .AsstHeading h2::after{
+   position: absolute;
+   content: " ";
+   bottom: -5px;
+   left: 0;
+   width: 48%;
+   background: var(--text-color);
+   height: 2px;
+}
+.AssessmentDiv form .AsstHeading h2::before{
+   position: absolute;
+   content: " ";
+   bottom: -5px;
+   right: 0;
+   width: 48%;
+   background: var(--text-color);
+   height: 2px;
+}
+
+.AssmtSub{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.AssmtSub button{
+    background: var(--text-color);
+    color: var(--white-color);
+    font-size: 16px;
+    font-weight: 500;
+    border: none;
+}
+.AssmtSub button:hover{
+    background: var(--text-color);
+    box-shadow: 0px 0px 4px var(--text-color);
+}
+
+
+/* AssessmentFormQest */
+.AssessmentFormQest{
+    display: grid;
+    grid-template-columns: 60% 40%;
+    grid-gap: 50px;
+
+}
+.AssmentQuestions{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    border-radius: 18px;
+    padding: 20px 30px;
+    min-height: 500px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 42px;
+}
+.QustHead h6{
+    color: var(--text-color);
+    font-size: 18px;
+    font-weight: 500;
+}
+.Questions_Here{
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.AstQuestTabs{
+    height: 100%;
+}
+.adqestbtn{
+    display: flex;
+    align-items: center;
+    justify-content: end;
+}
+.adqestbtn button{
+    background: var(--btnbgg) !important;
+    color: var(--white-color) !important;
+    text-decoration: none;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--text-color) !important;
+}
+.adqestbtn button svg{
+    font-size: 18px;
+    font-weight: 500;
+}
+.adqestbtn button:hover{
+    background: var(--sidebarbg) !important;
+    color: var(--text-color) !important;
+}
+.QustInpt{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.QustInpt h6{
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+    margin: 0;
+}
+.QustInpt{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+
+
+
+
+
+
+.AsstQuestPerview{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    border-radius: 18px;
+    padding: 20px 20px;
+}
+/* AssessmentFormQest */
