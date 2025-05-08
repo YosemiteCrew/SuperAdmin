@@ -1,10 +1,40 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom';
 import "./SignIn.css"
 import { Button, Col, Container, FloatingLabel, Form, Image, Row } from 'react-bootstrap'
 // import Image from 'next/image'
+import  authService from '../../services/authService';
 
 
 function SignIn() {
+
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+
+  const navigate = useNavigate(); // Get the navigate function from React Router
+
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const result = await authService.login(email, password);
+      if(result.status ===200){
+        authService.saveToken(result.data.token);
+        setMessage(result.data.message);
+        navigate('/'); // Navigate to the Home page after successful login
+      } else{
+          
+        setMessage(result.data.message);
+
+      }
+    } catch (err) {
+      setMessage(err.response?.data?.message || 'Login failed');
+    }
+  };
+
+
   return (
     <>
 
@@ -24,12 +54,12 @@ function SignIn() {
                 <p>Make a new doc to bring your words, data, <br /> and teams together. For free</p>
               </div>
 
-              <Form>
+              <Form onSubmit={handleLogin}>
 
                 <Row className='mb-3'>
                   <Col md={12}>
                     <FloatingLabel controlId="floatingInput" label="Email " className="SignFormControl">
-                      <Form.Control type="email" placeholder="name@example.com"  />
+                      <Form.Control type="email" placeholder="name@example.com"  onChange={(e) => setEmail(e.target.value)} required />
                     </FloatingLabel>
                   </Col>
                 </Row>
@@ -37,8 +67,9 @@ function SignIn() {
                 <Row className='mb-3'>
                   <Col md={12}>
                     <FloatingLabel controlId="floatingPassword" label="Password" className="SignFormControl">
-                      <Form.Control type="password" placeholder="Password" />
+                      <Form.Control type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} required />
                     </FloatingLabel>
+                    <div className="error"> {message}</div>
                   </Col>
                 </Row>
 

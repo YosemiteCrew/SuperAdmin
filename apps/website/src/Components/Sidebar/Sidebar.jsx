@@ -6,8 +6,9 @@ import { FiUsers } from 'react-icons/fi';
 import { LiaIndustrySolid } from 'react-icons/lia';
 import { MdInterests, MdDomain } from 'react-icons/md';
 import { GoChevronDown } from 'react-icons/go';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Image } from 'react-bootstrap';
+import authService from '../../services/authService';
 
 function Sidebar({ isActive }) {
   const location = useLocation();
@@ -18,6 +19,15 @@ function Sidebar({ isActive }) {
 
   const toggleProfileDropdown = () => {
     setProfileDropdownOpen((prev) => !prev);
+  };
+
+
+  const navigate = useNavigate();
+
+  const handleLogout = (e) => {
+    e.preventDefault(); // Prevents the Link from navigating
+    authService.logout();
+    navigate('/signin');
   };
 
   const toggleDropdown = (label) => {
@@ -41,7 +51,7 @@ function Sidebar({ isActive }) {
     { path: '/interests', icon: <MdInterests />, label: 'Manage Finance' },
     { path: '/assessment', icon: <MdInterests />, label: 'Assessment' },
     { path: '/interests', icon: <MdInterests />, label: 'Account Settings' },
-    { path: '/signin', icon: <MdDomain />, label: 'Sign In' },
+    // { path: '/signin', icon: <MdDomain />, label: 'Sign In' },
   ];
 
   return (
@@ -83,7 +93,7 @@ function Sidebar({ isActive }) {
                 </Link>
               </li>
               <li>
-                <Link to="/signin">
+                <Link onClick={handleLogout}>
                   <span> L </span>
                   <span> Logout </span>
                 </Link>
