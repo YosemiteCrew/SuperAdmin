@@ -1,0 +1,145 @@
+/* Topbar.css */
+.TopBar{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-height: 80px;
+  padding: 0px 20px;
+  border-radius: 8px;
+  -webkit-backdrop-filter: saturate(100%) blur(16px);
+  backdrop-filter: saturate(100%) blur(16px);
+  border: 1px solid #e5e5e5;
+  background-color: #FFFFFF !important;
+  box-shadow: inset 0 0 1px 1px hsla(0, 0%, 100%, .7), 0 3px 12px 0 rgba(0, 0, 0, .05) !important;
+}
+
+/* Dark Mode Css  */
+/* .theme-toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  padding: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.theme-toggle-btn:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  transform: scale(1.1);
+}
+.theme-toggle-btn:active {
+  transform: scale(1);
+} */
+/* Dark Mode Css  */
+
+.LftTpBar{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.LftTpBar button{
+  padding: 0px;
+  background: transparent !important;
+  border: none;
+}
+.LftTpBar button svg{
+  transition: all .15s ease;
+  color: #737373;
+  font-size: 20px;
+}
+.LftTpBar button .toggle-sidebar-btn {
+  transition: transform 0.3s ease-in-out;
+}
+
+.LftTpBar button .toggle-sidebar-btn:hover {
+  transform:scale(1.1);
+}
+.LftTpBar h4{
+  background: var(--bgcolor);
+  -webkit-background-clip: text; 
+  -webkit-text-fill-color: transparent; 
+  font-size: 1.5rem;
+  line-height: 1.375;
+  margin: 0;
+  font-weight: 400;
+  letter-spacing: -0.4px;
+}
+
+.RytTpBar{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+
+.search-box{
+  width: fit-content;
+  height: fit-content;
+  position: relative;
+}
+.input-search{
+  height: 32px;
+  width: 32px;
+  border-style: none;
+  padding: 10px;
+  font-size: 14px;
+  letter-spacing: 2px;
+  outline: none;
+  border-radius: 25px;
+  transition: all .5s ease-in-out;
+  background-color: var(--bgcolor);
+  color:var(--text-color);
+}
+.input-search::placeholder{
+  color:var(--text-color);
+  font-size: 14px;
+  letter-spacing: 2px;
+  font-weight: 100;
+}
+.btn-search{
+  width: 32px;
+  height: 32px;
+  border-style: none;
+  font-size: 20px;
+  font-weight: bold;
+  outline: none;
+  cursor: pointer;
+  border-radius: 50%;
+  position: absolute;
+  right: 0px;
+  color: #fff ;
+  background:var(--bgcolor);
+  pointer-events: painted;  
+  transition: color 0.3s;
+}
+.search-box.active .search-icon {
+  color: var(--text-color);
+}
+.btn-search:focus ~ .input-search {
+  width: 300px;
+  border-radius: 0px;
+  background-color: var(--bgcolor);
+  border-bottom:1px solid var(--text-color);
+  transition: all 500ms cubic-bezier(0, 0.110, 0.35, 2);
+  padding-right: 40px;
+}
+.input-search:focus{
+  width: 300px;
+  border-radius: 0px;
+  background-color: transparent;
+  border-bottom:1px solid var(--text-color);
+  transition: all 500ms cubic-bezier(0, 0.110, 0.35, 2);
+}
+.input-search:focus ~ .btn-search{
+  color: var(--text-color);
+}
+
+.btn-search:focus{
+  color: #FFFFFF;
+}
+.search-box.active .btn-search {
+  color: var(--text-color);
+}

@@ -1,68 +1,212 @@
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap');
+/* Default Light Mode */
+/* :root {
+  --background-color:  #ffe7cd;
+  --text-color: #262626;
+  --sidebarbg:#FFF2E3;
+  --heading-color: #262626;
+  --paragraph-color: #737373;
+  --chillyred: #D04122;
+} */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  --background-color:  #f5f5f5;
+  --text-color: #262626;
+  --btnbgg: #262626;
+  --sidebarbg:#FFFFFF;
+  --white-color:#FFFFFF;
+  --heading-color: #262626;
+  --paragraph-color: #737373;
+  --chillyred: #D04122;
+  --bgcolor: linear-gradient(195deg, #262626, #262626);
 }
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Dark Mode */
+[data-theme='dark'] {
+  --background-color: #000000 ;
+  --text-color: #ffffff ;
+  --sidebarbg:#000000;
+  --sideshadow: #fff;
 }
-a:hover {
-  color: #535bf2;
-}
-
-body {
+*{
   margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Rubik", sans-serif;
+}
+body {
+  background-color: var(--background-color) !important;
+  color: var(--text-color) !important;
+  width: 100%;
+  height: 100%;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+hr.horizontal {
+  background-color: transparent;
+}
+hr.horizontal.dark {
+  background-image: linear-gradient(90deg, transparent, rgba(0, 0, 0, .4), transparent);
+}
+.form-control:focus , .form-select:focus {
+  border-color: transparent !important;
+  box-shadow: none !important;
+  border-color: var(--text-color) !important;
+}
+hr.horizontal.dark {
+  background-image: linear-gradient(90deg, transparent, rgba(0, 0, 0, .4), transparent);
+}
+hr.horizontal {
+  background-color: transparent;
+}
+
+
+/* Notification  */
+
+.NotifyDiv a{
+  color: #262626;
+  font-size: 24px;
+  position: relative;
+}
+.NotifyDiv a .notiBadge{
+  position: absolute;
+  top: 0px;
+  right: 0;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: var(--chillyred);
   display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* AnalysticData */
+.AnalysticData h3{
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.375;
+  color: var(--heading-color);
+  font-weight: 700;
 }
+.AnalysticData p{
+  margin: 0;
+  font-size: .875rem;
+  line-height: 1.5;
+  color: var(--paragraph-color);
+  font-weight: 400;
+}
+/* AnalysticData */
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+
+
+/* AssmentTableDiv */
+
+.AssmentTableDiv{
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.AssmnetLabel{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 30px;
+}
+.AssmnetLabel .leftAssment h4{
+  margin: 0;
+  color: var(--text-color);
   font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+}
+.AssmnetLabel .RytAssment{
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.AssmnetLabel .RytAssment .tblesearch{
+  position: relative;
+  border: 1px solid var(--text-color);
+  border-radius: 24px;
+  padding: 0px 20px;
+  min-height: 45px;
+  display: flex;
+  align-items: center;
+}
+.AssmnetLabel .RytAssment .tblesearch input{
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  outline: none;
+  background: transparent;
+  width: 75%;
+  margin: 0 auto;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--text-color);
+}
+.AssmnetLabel .RytAssment .tblesearch input::placeholder{
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--paragraph-color);
+  letter-spacing: 1.1px;
+}
+.AssmnetLabel .RytAssment .tblesearch svg{
+  position: absolute;
+  left: 20px;
+  top: 15px;
+}
+.AssmnetLabel .RytAssment .tbleCheck{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+input[type="checkbox"]{
+  width: 18px;
+  height: 18px;
+  accent-color: var(--text-color);
   cursor: pointer;
-  transition: border-color 0.25s;
 }
-button:hover {
-  border-color: #646cff;
+.form-check-input:checked {
+  background-color: var(--text-color) !important ;
+  border-color: var(--text-color) !important;
 }
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.form-check-input:focus {
+  box-shadow: none !important;
+  border-color: var(--text-color) !important;
+}
+.AssmnetLabel .RytAssment .tbleCheck p{
+  margin: 0;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+
+.AssmtTable {
+  --bs-table-bg: #FFFFFF !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+  backdrop-filter: saturate(100%) blur(16px);
+  border: 1px solid #e5e5e5 !important;
+  border-radius: .5rem !important;
 }
+.AssmtTable thead tr{
+  height: 60px;
+  vertical-align: middle;
+}
+.AssmtTable thead tr th{
+  background: #2626266b !important;
+  color: var(--sidebarbg);
+}
+.AssmtTable tbody tr{
+  vertical-align: middle;
+}
+.AssmtTable tbody tr td:first-child , .AssmtTable tbody tr td:last-child , .AssmtTable thead tr th:first-child , .AssmtTable thead tr th:last-child{
+  text-align: center;
+}
+.AssmtTable tbody tr td.Action button{
+  background: transparent !important;
+  border: none;
+}
+.AssmtTable tbody tr td.Action button svg{
+  color: var(--text-color);
+}
+
+
+/* AssmentTableDiv */
