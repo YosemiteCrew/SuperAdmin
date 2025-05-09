@@ -42,7 +42,7 @@
 .AssessmentSection{
     padding: 80px 0px;
 }
-.ss{
+.AstDetlForm{
     display: flex;
     flex-direction: column;
     gap: 50px;
@@ -109,90 +109,8 @@
 
 
 /* AssessmentFormQest */
+
 .AssessmentFormQest{
-    display: grid;
-    grid-template-columns: 60% 40%;
-    grid-gap: 50px;
-
-}
-.AssmentQuestions{
-    backdrop-filter: saturate(100%) blur(16px);
-    background-color: #FFFFFF !important;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
-    border: 1px solid #e5e5e5;
-    border-radius: 18px;
-    padding: 20px 30px;
-    min-height: 500px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 42px;
-}
-.QustHead h6{
-    color: var(--text-color);
-    font-size: 18px;
-    font-weight: 500;
-}
-.Questions_Here{
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.AstQuestTabs{
-    height: 100%;
-}
-.adqestbtn{
-    display: flex;
-    align-items: center;
-    justify-content: end;
-}
-.adqestbtn button{
-    background: var(--btnbgg) !important;
-    color: var(--white-color) !important;
-    text-decoration: none;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 16px;
-    font-weight: 500;
-    border-radius: 8px;
-    border: 1px solid var(--text-color) !important;
-}
-.adqestbtn button svg{
-    font-size: 18px;
-    font-weight: 500;
-}
-.adqestbtn button:hover{
-    background: var(--sidebarbg) !important;
-    color: var(--text-color) !important;
-}
-.QustInpt{
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.QustInpt h6{
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-color);
-    margin: 0;
-}
-.QustInpt{
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-
-
-
-
-
-
-.AsstQuestPerview{
     backdrop-filter: saturate(100%) blur(16px);
     background-color: #FFFFFF !important;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
@@ -200,4 +118,64 @@
     border-radius: 18px;
     padding: 20px 20px;
 }
+.QuestionHead{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.QuestionHead h4{
+    margin: 0;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.QuestionHead button{
+   background: transparent;
+   border: 1px solid var(--btnbgg);
+   padding: 8px 20px;
+   color: var(--text-color);
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   font-size: 16px;
+   font-weight: 400;
+}
+.QuestionHead button:hover{
+   background: var(--btnbgg);
+   color: var(--white-color);
+}
+.QuestionListDiv{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+}
+.QuestionListDiv .QuestionFilterDiv{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.QuestionListDiv .QuestionFilterDiv .serch{
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    padding: 0px 8px;
+}
+.QuestionListDiv .QuestionFilterDiv .serch svg{
+    
+}
+.QuestionListDiv .QuestionFilterDiv .serch input{
+    border: none;
+    width: 80%;
+}
+
+
+
+
+
+
 /* AssessmentFormQest */

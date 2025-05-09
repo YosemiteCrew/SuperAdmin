@@ -7,10 +7,13 @@ import { Link } from 'react-router-dom';
 import { MdOutlineAdd } from 'react-icons/md';
 import  {postData} from '../../services/apiServices';
 import Swal from 'sweetalert2';
+import { FiPlusCircle, FiSearch } from 'react-icons/fi';
+import { FaList, FaPlus } from 'react-icons/fa';
+import { IoGrid } from 'react-icons/io5';
 
 function AddAssessment() {
   const [showQuestions, setShowQuestions] = useState(false);
-  const [showTabs, setShowTabs] = useState(false);
+  // const [showTabs, setShowTabs] = useState(false);
 
 
 
@@ -77,104 +80,102 @@ function AddAssessment() {
       <AdminDashboardLayout dashName="Assessment">
         <section className='AssessmentSection'>
           <Container>
-            <div className="ss">
+            <div className="AstDetlForm">
 
               <div className="AssessmentDiv">
-              <Form onSubmit={handleSubmit}>
-              <div className="AsstHeading">
-                <h2>Assessment Details</h2>
-              </div>
-              <Row>
-                <Col md={12}>
-                  <Form.Group className="mb-3" controlId="formAssessmentName">
-                    <Form.Label>Assessment Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      isInvalid={!!errors.name}
-                      required
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.name}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <Form.Group className="mb-3" controlId="formAssessmentType">
-                    <Form.Label>Assessment Type</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Enter type"
-                      name="type"
-                      value={formData.type}
-                      onChange={handleChange}
-                      isInvalid={!!errors.type}
-                      required
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.type}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-                </Col>
-                <Col md={12}>
-                  <div className="AssmtSub">
-                    <Button type="submit">Submit</Button>
+                <Form onSubmit={handleSubmit}>
+                  <div className="AsstHeading">
+                    <h2>Assessment Details</h2>
                   </div>
-                </Col>
-              </Row>
-            </Form>
+                  <Row>
+                    <Col md={12}>
+                      <Form.Group className="mb-3" controlId="formAssessmentName">
+                        <Form.Label>Assessment Name</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="Enter name"
+                          name="name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          isInvalid={!!errors.name}
+                          required
+                        />
+                        <Form.Control.Feedback type="invalid">
+                          {errors.name}
+                        </Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <Form.Group className="mb-3" controlId="formAssessmentType">
+                        <Form.Label>Assessment Type</Form.Label>
+                        <Form.Control
+                          type="text"
+                          placeholder="Enter type"
+                          name="type"
+                          value={formData.type}
+                          onChange={handleChange}
+                          isInvalid={!!errors.type}
+                          required
+                        />
+                        <Form.Control.Feedback type="invalid">
+                          {errors.type}
+                        </Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                    <Col md={12}>
+                      <div className="AssmtSub">
+                        <Button type="submit">Submit</Button>
+                      </div>
+                    </Col>
+                  </Row>
+                </Form>
               </div>
 
               {showQuestions && (
                 <div className="AssessmentFormQest">
-                  <div className="AssmentQuestions">
-                    <div className="QustHead" onClick={() => setShowTabs(false)}>
-                      <h6><BiArrowBack /> Questions</h6>
+
+                  <div className="QuestionHead">
+                    <h4>All Questions</h4>
+                    <Button> <FaPlus/> Create New Question</Button>
+                  </div>
+
+                  <div className="QuestionListDiv">
+
+                    <div className="QuestionFilterDiv">
+                      <div className="serch">
+                        <FiSearch />
+                        <Form.Control type="search" id="inputsearch" aria-describedby="searchblock"/>
+                      </div>
+                      <div className="qustype">
+                        <Form.Select aria-label="Default select example">
+                          <option>Question type</option>
+                          <option value="1">One</option>
+                          <option value="2">Two</option>
+                          <option value="3">Three</option>
+                        </Form.Select>
+                      </div>
+                      <div className="quscate">
+                        <Form.Select aria-label="Default select example">
+                          <option>category</option>
+                          <option value="1">One</option>
+                          <option value="2">Two</option>
+                          <option value="3">Three</option>
+                        </Form.Select>
+                      </div>
+                      <Button>Search</Button>
+                    </div>
+                    <div className="QuestionGridDiv">
+                      <Button><FaList/></Button>
+                      <Button><IoGrid/></Button>
                     </div>
 
-                    {!showTabs && (
-                      <div className="Questions_Here" onClick={() => setShowTabs(true)}>
-                        <p>
-                          <Link to="#" onClick={(e) => e.preventDefault()}>Click Here</Link> to add questions
-                        </p>
-                      </div>
-                    )}
-
-                    {showTabs && (
-                      <div className="AstQuestTabs">
-                        <Tabs defaultActiveKey="mcq" id="uncontrolled-tab-example" className="mb-3">
-                          <Tab eventKey="summry" title="Summary">
-                            <p>Tab content for Summary</p>
-                          </Tab>
-                          <Tab eventKey="mcq" title="MCQ">
-                            <p>Tab content for MCQ</p>
-                          </Tab>
-                          <Tab eventKey="truefalse" title="T/F">
-
-                              <div className="QustInpt">
-                                <h6>1.</h6>
-                                <Form.Control as="textarea"/>
-                              </div>
-                            
-                          </Tab>
-                        </Tabs>
-                      </div>
-                    )}
-
-                    {showTabs && (
-                      <div className="adqestbtn">
-                        <Button> <MdOutlineAdd/> Add Question </Button>
-                      </div>
-                    )}
-                    
                   </div>
 
-                  <div className="AsstQuestPerview">
-                    {/* Optional: Add preview area here */}
-                  </div>
+
+
+                  
+
+                 
                 </div>
               )}
 
