@@ -42,7 +42,7 @@
 .AssessmentSection{
     padding: 80px 0px;
 }
-.ss{
+.AstDetlForm{
     display: flex;
     flex-direction: column;
     gap: 50px;
@@ -107,97 +107,333 @@
     box-shadow: 0px 0px 4px var(--text-color);
 }
 
-
 /* AssessmentFormQest */
+
 .AssessmentFormQest{
-    display: grid;
-    grid-template-columns: 60% 40%;
-    grid-gap: 50px;
-
-}
-.AssmentQuestions{
-    backdrop-filter: saturate(100%) blur(16px);
-    background-color: #FFFFFF !important;
-    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
-    border: 1px solid #e5e5e5;
-    border-radius: 18px;
-    padding: 20px 30px;
-    min-height: 500px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 42px;
-}
-.QustHead h6{
-    color: var(--text-color);
-    font-size: 18px;
-    font-weight: 500;
-}
-.Questions_Here{
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.AstQuestTabs{
-    height: 100%;
-}
-.adqestbtn{
-    display: flex;
-    align-items: center;
-    justify-content: end;
-}
-.adqestbtn button{
-    background: var(--btnbgg) !important;
-    color: var(--white-color) !important;
-    text-decoration: none;
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 16px;
-    font-weight: 500;
-    border-radius: 8px;
-    border: 1px solid var(--text-color) !important;
-}
-.adqestbtn button svg{
-    font-size: 18px;
-    font-weight: 500;
-}
-.adqestbtn button:hover{
-    background: var(--sidebarbg) !important;
-    color: var(--text-color) !important;
-}
-.QustInpt{
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-.QustInpt h6{
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-color);
-    margin: 0;
-}
-.QustInpt{
-    display: flex;
-    align-items: center;
-    gap: 5px;
-}
-
-
-
-
-
-
-
-.AsstQuestPerview{
     backdrop-filter: saturate(100%) blur(16px);
     background-color: #FFFFFF !important;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
     border: 1px solid #e5e5e5;
     border-radius: 18px;
     padding: 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
 }
+.QuestionHead{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.QuestionHead h4{
+    margin: 0;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.QuestionHead button{
+    background: var(--btnbgg) !important;
+    border: 1px solid var(--btnbgg) !important;
+    padding: 8px 20px;
+    color: var(--white-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 400;
+}
+.QuestionHead button:hover{
+   background: transparent !important;
+   color: var(--text-color);
+}
+
+.TotalQuestDiv{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: var(--background-color) !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    padding: 10px 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    border-radius: 8px;
+}
+.TotalItems{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    padding: 8px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 8px;
+}
+.TotalItems .user{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #26262617;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+}
+.TotalItems .user svg{
+    color: var(--btnbgg);
+}
+.TotQstTxt p{
+    margin: 0;
+    font-size: 14px;
+    font-weight: 100;
+    color: var(--text-color);
+}
+.TotQstTxt h4{
+    margin: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.QuestionCardData{
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.QuestionListDiv{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: space-between;
+}
+.QuestionListDiv .QuestionFilterDiv{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.QuestionListDiv .QuestionFilterDiv .serch{
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    padding: 0px 0px 0px 8px;
+    width: 100%;
+    max-width: 210px;
+    border-radius: 8px;
+}
+.QuestionListDiv .QuestionFilterDiv .serch svg{
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.QuestionListDiv .QuestionFilterDiv .serch input{
+    border: none;
+    padding-right: 4px;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+.QuestionListDiv .QuestionFilterDiv .serch input::placeholder{
+    font-size: 14px;
+    font-weight: 100;
+    color: var(--text-color);
+}
+.QuestionListDiv .QuestionGridDiv{
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+.QuestCardItems{
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    grid-gap: 25px;
+}
+
+.QstCard{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    padding: 10px;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 180px;
+}
+.QstCard .TpQst , .QstCard .MdQst , .QstCard .BtQst{
+    display: flex;
+    justify-content: space-between;
+}
+.QstCard .TpQst .text h4{
+    margin: 0;
+    color: var(--text-color);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 600;
+}
+.QstCard .TpQst .text p{
+   margin: 0;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 100;
+}
+.QstCard .TpQst .filtbtn button{
+   padding: 0px;
+   border: none;
+   background: transparent !important;
+}
+.QstCard .TpQst .filtbtn button svg{
+   color: var(--btnbgg);
+}
+.QstCard .TpQst .filtbtn button::after{
+   display: none !important;
+}
+
+.QstCard .MdQst h6{
+    margin: 0;
+    color: var(--text-color);
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 500;
+}
+.QstCard .MdQst span{
+    margin: 0;
+    color: var(--white-color);
+    font-size: 14px;
+    line-height: 22px;
+    font-weight: 400;
+    background: var(--btnbgg);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.QstCard .BtQst{
+    border-top: 1px solid #e5e5e5; 
+    padding: 8px 0px;
+}
+.QstCard .BtQst .lftname{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.QstCard .BtQst .lftname img{
+    border: 1px solid var(--btnbgg);
+}
+.QstCard .BtQst .lftname h5{
+    margin: 0;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 500;
+}
+.QstCard .BtQst .rytTag{
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.QstCard .BtQst .rytTag h6{
+    margin: 0;
+    color: var(--text-color);
+    font-size: 14px;
+    line-height: 18px;
+    font-weight: 600;
+}
+.QstCard .BtQst .rytTag span{
+    display: flex;
+    align-items: center;
+    gap: 5px;
+
+}
+.QstCard .BtQst .rytTag span p{
+    margin: 0;
+    color: rgb(13 109 250);
+    font-size: 10px;
+    line-height: 18px;
+    font-weight: 400;
+    background: #2c7ff870;
+    border-radius: 24px;
+    padding: 2px 5px;
+    text-align: center;
+}
+
+
+
 /* AssessmentFormQest */
+
+/* .AssessmentControl */
+
+.AssessmentControl{
+    backdrop-filter: saturate(100%) blur(16px);
+    background-color: #FFFFFF !important;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, .05) !important;
+    border: 1px solid #e5e5e5;
+    border-radius: 18px;
+    padding: 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 35px;
+}
+
+.QuestTabs {
+    justify-content: space-between;
+}
+.QuestTabs .nav-item button{
+    border-radius: 8px !important;
+    min-height: 85px !important;
+}
+.QuestTabs .nav-item button span{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    font-size: 16px;
+    font-weight: 400;
+    color: #262626d2;
+}
+.QuestTabs .nav-item button span svg{
+    font-size: 28px;
+    color: #262626ab;
+}
+.QuestTabs .nav-item .nav-link.active{
+    background: var(--btnbgg);
+    color: var(--white-color);
+}
+.QuestTabs .nav-item .nav-link.active span , .QuestTabs .nav-item .nav-link.active span svg{
+    color: var(--white-color);
+}
+.QuestionFormInpt{
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.QuestionFormInpt label{
+   margin: 0;
+   font-size: 16px;
+   font-weight: 500;
+   color: var(--text-color);
+   letter-spacing: 1.1px;
+}
+.OptionCross{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.OptionCross button{
+    padding: 0;
+    background: transparent !important;
+    border: none;
+
+}
+.OptionCross button svg{
+    color: var(--btnbgg);
+    font-size: 18px;
+}
+
+/* .AssessmentControl */
