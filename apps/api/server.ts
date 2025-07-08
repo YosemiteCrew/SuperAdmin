@@ -1,3 +1,5 @@
+import { Request, Response } from "express";
+
 require('dotenv').config();
 const express = require('express');
 const { connectToDocumentDB } = require('./config/connect');
@@ -19,12 +21,12 @@ app.use('/fhir/v1', adminRoutes);
 // Connect to the database
 connectToDocumentDB()
   .then(() => console.log('DB connected'))
-  .catch((err) => {
+  .catch((err: Error) => {
     console.error('Database connection failed:', err.message);
     process.exit(1);
   });
 
-app.get('/', (req, res) => {
+app.get('/', (req: Request, res: Response) => {
   res.send('Hello from the API!');
 });
 
