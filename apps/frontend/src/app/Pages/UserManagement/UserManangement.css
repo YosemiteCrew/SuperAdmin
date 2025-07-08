@@ -1,0 +1,13 @@
+.UserManangementSec{
+    padding: 60px 0px;
+}
+.UserMemberData{
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+}
+.userTeamTableDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}

@@ -1,0 +1,64 @@
+.CRMDashBoardCard{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+.DashInfoCd{
+    border: 1px solid var(--popupbg);
+    background: var(--whitebg);
+    padding: 24px 20px;
+    border-radius: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    min-width: 244px;
+    min-height: 113px;
+}
+.DashInfoCd svg{
+    font-size: 20px;
+    color: var(--black-bg);
+}
+.DashInfoCd p{
+    font-family: var(--satoshi-font);
+    margin: 0;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 120%;
+    color: var(--black-grey);
+}
+.DashInfoCd .RatioDiv{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.DashInfoCd .RatioDiv h3{
+    font-size: 23px;
+    font-weight: 500;
+    margin: 0;
+    color: var(--black-text);
+    font-family: var(--grotesk-font);
+}
+.DashInfoCd .RatioDiv span{
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 24px;
+    font-family: var(--satoshi-font);
+}
+.DashInfoCd .RatioDiv span svg{
+    font-size: 20px;
+}
+.DashInfoCd .RatioDiv span.Done{
+    color: var(--checkText);
+}
+.DashInfoCd .RatioDiv span.Done svg{
+    color: var(--checkText);
+}
+.DashInfoCd .RatioDiv span.Error{
+    color: var(--error-color);
+}
+.DashInfoCd .RatioDiv span.Error svg{
+    color: var(--error-color);
+}
