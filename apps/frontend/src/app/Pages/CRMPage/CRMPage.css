@@ -1,0 +1,88 @@
+.CRMPageData{
+  display: flex;
+  flex-direction: column;
+  gap: 80px;
+}
+
+.CRMDashTopHead{
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.CRMDashTopHead h2{
+  color: var(--black-text);
+  font-size: 40px;
+  font-weight: 500;
+  margin: 0;
+  font-family: var(--grotesk-font);
+}
+.CRMDashTopHead span{
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  min-height: 46px;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 120%;
+}
+.CRMDashTopHead span.red{
+  background: var(--errorbg);
+  color: var(--error-color);
+}
+.CRMDashTopHead span.green{
+  background: var(--checkbg);
+  color: var(--checkText);
+}
+.CRMDashTopHead svg{
+  font-size: 20px;
+}
+
+
+
+
+.HospitalVerifyDiv{
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.HospitalVerifyDiv h5{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--grotesk-font);
+    font-weight: 500;
+    font-size: 23px;
+    line-height: 120%;
+    margin: 0;
+}
+.HospitalVerifyDiv h5 span{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--delete);
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 28px;
+    font-family: var(--satoshi-font);
+    color: var(--white-text);
+
+}
+
+
+/* SupportTicketsData Started  */
+
+.CRMSupportSec{
+  padding: 80px 0px;
+}
+.SupportTicketsData{
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* SupportTicketsData Ended  */
