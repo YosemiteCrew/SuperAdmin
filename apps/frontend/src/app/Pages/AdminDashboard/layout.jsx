@@ -8,6 +8,8 @@ import Topbar from '@/app/Components/Topbar/Topbar';
 export default function AdminDashboardLayout({ children, dashName = "Admin DashBoard" }) {
 
   
+
+  
   // Add Active class heasder nd sidebar 
   const [isSidebarActive, setIsSidebarActive] = useState(false);
   const toggleSidebar = () => {
