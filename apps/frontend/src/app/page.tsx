@@ -18,7 +18,7 @@ export default function Home() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      router.push('/Pages/AdminDashboard');
+      router.push('/AdminDashboard');
     } else {
       router.push('/Auth/Login');
     }

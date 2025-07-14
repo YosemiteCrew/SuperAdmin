@@ -10,7 +10,7 @@ export default function Login() {
   const handleLogin = () => {
     if (email && password) {
       localStorage.setItem("token", "mockToken123"); // Replace with real token logic
-      router.push("/Pages/AdminDashboard");
+      router.push("/AdminDashboard");
     } else {
       alert("Enter email & password");
     }
