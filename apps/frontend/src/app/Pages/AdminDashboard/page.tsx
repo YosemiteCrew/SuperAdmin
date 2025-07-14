@@ -1,5 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useRouter } from 'next/navigation';
+
 import AdminDashboardLayout from './layout'
 import {Col, Container, Row } from 'react-bootstrap'
 import { BiSolidBellRing } from 'react-icons/bi';
@@ -16,9 +18,24 @@ const AdminDashboard = () => {
   const [selectedRange1, setSelectedRange1] = useState("All"); // graphSelected 
   const [selectedRange2, setSelectedRange2] = useState("Hospitals"); // graphSelected 
 
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/Auth/Login");
+    }
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    router.push("/Auth/Login");
+  };
+
 
   return (
     <>
+    <button className="btn btn-danger mt-3" onClick={logout}>Logout</button>
     <AdminDashboardLayout>
       
       <section className='DashBoardSec'>
