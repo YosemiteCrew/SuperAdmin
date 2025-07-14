@@ -27,15 +27,11 @@ const AdminDashboard = () => {
     }
   }, []);
 
-  const logout = () => {
-    localStorage.removeItem("token");
-    router.push("/Auth/Login");
-  };
+
 
 
   return (
     <>
-    <button className="btn btn-danger mt-3" onClick={logout}>Logout</button>
     <AdminDashboardLayout>
       
       <section className='DashBoardSec'>

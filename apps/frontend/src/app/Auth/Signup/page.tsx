@@ -39,7 +39,7 @@ const Signup = () => {
       if (formData.authCode === generatedCode) {
         alert("Account created!");
         localStorage.setItem("token", "mockToken123");
-        router.push("/Pages/AdminDashboard");
+        router.push("/AdminDashboard");
       } else {
         alert("Invalid code");
       }
