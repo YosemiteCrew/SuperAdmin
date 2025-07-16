@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import './Topbar.css';
 import { Button } from 'react-bootstrap';
-import { FaBars, FaBarsStaggered } from "react-icons/fa6";
+import { FaBars, FaBarsStaggered, FaUser } from "react-icons/fa6";
 import { BiSearch } from 'react-icons/bi';
 import Link from 'next/link';
 import { GoChevronDown } from 'react-icons/go';
 import Image from 'next/image';
+import { IoSettings } from 'react-icons/io5';
+import { LuLogOut } from 'react-icons/lu';
 
 
 
@@ -56,7 +58,7 @@ function Topbar({ toggleSidebar , DashName }) {
         <h4>{DashName}</h4>
       </div>
       <div className="RytTpBar">
-        <div className="ass">
+        <div className="AdminUser">
           {/* Admin Profile */}
             <div className="AdminProfile">
               <Link href="#" onClick={toggleProfileDropdown} className="UserDiv">
@@ -72,17 +74,17 @@ function Topbar({ toggleSidebar , DashName }) {
               <ul>
                 <li>
                   <Link href="/Adminprofile">
-                    <span> My Profile </span>
+                    <span> <FaUser size={22} /> My Profile </span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/settingprofile">
-                    <span> Settings </span>
+                    <span><IoSettings size={22} /> Settings </span>
                   </Link>
                 </li>
                 <li>
                   <Link href="/Auth/Login" onClick={logout}>
-                    <span> Logout </span>
+                    <span><LuLogOut size={22} /> Logout </span>
                   </Link>
                 </li>
               </ul>
