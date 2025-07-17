@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
-
 // React Bootstrap Started 
 import 'bootstrap/dist/css/bootstrap.min.css';
+
+///for Toast
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 
 
@@ -20,6 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         {children}
+        <ToastContainer position="top-right" autoClose={3000} />
       </body>
     </html>
   );

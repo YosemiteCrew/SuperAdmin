@@ -1,22 +1,25 @@
 import { Request, Response } from "express";
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
+import authRoutes from './routes/auth';
 
-require('dotenv').config();
-const express = require('express');
-const { connectToDocumentDB } = require('./config/connect');
-const cors = require('cors');
+import { connectToDocumentDB } from './config/connect';
+
+
+
 const app = express();
-const port = 3000;
-
-const authRoutes = require('./routes/auth');
-const adminRoutes = require('./routes/admin');
+const port = process.env.PORT || 4000;
 
 app.use(cors()); // Allow all origins
 
 // Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use('/fhir/v1/auth', authRoutes);
-app.use('/fhir/v1', adminRoutes);
+app.use('/api', authRoutes);
+
 
 // Connect to the database
 connectToDocumentDB()
