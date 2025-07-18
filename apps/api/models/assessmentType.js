@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const assessmentTypeSchema = new mongoose.Schema({
     name:{

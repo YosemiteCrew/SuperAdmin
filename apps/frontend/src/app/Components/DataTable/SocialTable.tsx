@@ -99,7 +99,7 @@ function SocialTable() {
     <>
 
         <div className="table-wrapper">
-            <GenericTable data={Activity} columns={columns} bordered={false} />
+            <GenericTable data={Activity} columns={columns as any} bordered={false} />
         </div>
 
 

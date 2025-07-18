@@ -155,7 +155,7 @@ function PracticeActivityTable() {
     <>
 
       <div className="table-wrapper">
-          <GenericTable data={Practice} columns={columns} bordered={false} />
+          <GenericTable data={Practice} columns={columns as any} bordered={false} />
           <div className="table-footerBtn ">
               <Button>See All</Button>
           </div>

@@ -1,0 +1,36 @@
+name: CD API
+
+on:
+    push:
+      branches:
+        - main
+        - dev
+      paths:
+        - 'apps/api/**'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Deploy to AWS
+jobs:
+    deploy-api:
+      runs-on: ubuntu-latest  
+      steps:
+        - uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+        - uses: ./.github/actions/setup-pnpm-node
+        - name: Lint API
+          run: pnpm turbo lint --filter api
+        - name: Type-check API
+          run: pnpm turbo type-check --filter api
+        - name: Build API
+          run: pnpm turbo build --filter api
+        # - name: Deploy API
+        #   run: |
+        #     pnpm turbo run deploy --filter api

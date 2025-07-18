@@ -44,14 +44,17 @@ const Signup = () => {
   const router = useRouter();
 
   
-  const handleInputChange = (e: any) => {
+  type FieldName = "email" | "password" | "confirmPassword" | "authCode" | "twofaCode" | "agreeTerms";
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, type, value, checked } = e.target;
     const fieldValue = type === "checkbox" ? checked : value;
+    const fieldName = name as FieldName;
 
-    setFormData({ ...formData, [name]: fieldValue });
+    setFormData({ ...formData, [fieldName]: fieldValue });
 
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: "" });
+    if (errors[fieldName]) {
+      setErrors({ ...errors, [fieldName]: "" });
     }
   };
 
@@ -334,7 +337,7 @@ const Signup = () => {
             { className: "toast-error" }
           );
           }
-      } catch (error) {
+      } catch (error: any) {
           console.error("Email error:", error);
           const message = error.response?.data?.message || "Something went wrong while sending the code.";
           //toast.warning(message);

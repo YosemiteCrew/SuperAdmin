@@ -121,7 +121,7 @@ function Sidebar({ isActive }: SidebarProps) {
 
                 </>
               ) : (
-                <Link href={item.path} className="sidebar-link">
+                <Link href={item.path as string} className="sidebar-link">
                   <div className="sidebar-left">
                     {item.icon}
                     <span>{item.label}</span>

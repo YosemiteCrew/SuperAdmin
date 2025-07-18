@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
 import CustomToast from "../../Components/Toasts/CustomToast";
-import { MailCheck, Lock, Check, ShieldCheck, ChevronLeft, Eye, EyeOff } from "lucide-react";
+import { Lock, Check, Eye, EyeOff } from "lucide-react";
 import { Container, Row, Col, Button, Form } from "react-bootstrap";
 import axios from "axios";
 
@@ -32,14 +32,17 @@ export default function ForgotPassword() {
   const [generatedCode, setGeneratedCode] = useState("");
   const [isCodeSent, setIsCodeSent] = useState(false);
 
+  type FieldName = "email" | "password" | "confirmPassword" | "authCode";
+
   const handleInputChange = (e: any) => {
     const { name, type, value, checked } = e.target;
     const fieldValue = type === "checkbox" ? checked : value;
+    const fieldName = name as FieldName;
 
-    setFormData({ ...formData, [name]: fieldValue });
+    setFormData({ ...formData, [fieldName]: fieldValue });
 
-    if (errors[name]) {
-      setErrors({ ...errors, [name]: "" });
+    if (errors[fieldName]) {
+      setErrors({ ...errors, [fieldName]: "" });
     }
   };
 
@@ -193,7 +196,7 @@ export default function ForgotPassword() {
             { className: "toast-error" }
           );
           }
-      } catch (error) {
+      } catch (error: any) {
           console.error("Email error:", error);
           const message = error.response?.data?.message || "Something went wrong while sending the code.";
           //toast.warning(message);
@@ -214,7 +217,7 @@ export default function ForgotPassword() {
 
   const goBack = () => {
     setStep(1);
-    setErrors({ email: "", authCode: "" });
+    setErrors({ email: "", authCode: "", password: "", confirmPassword: "" });
   };
 
   const getStepImage = () => {

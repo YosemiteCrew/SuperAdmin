@@ -47,7 +47,7 @@ function CRMBusinessLead() {
 
     // select 
     const [country, setCountry] = useState<string>('');
-      const options: Option[] = [
+      const options = [
     { value: 'us', label: '🇺🇸 United States' },
     { value: 'in', label: '🇮🇳 India' },
     { value: 'uk', label: '🇬🇧 United Kingdom' },

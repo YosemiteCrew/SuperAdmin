@@ -6,6 +6,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  TooltipProps
 } from 'recharts';
 import "./BarGraph.css";
 
@@ -18,7 +19,8 @@ const defaultData = [
   { month: 'August', value: 15000 },
 ];
 
-const CustomTooltip = ({ active, payload }) => {
+
+const CustomTooltip = ({ active, payload }: TooltipProps<number, string> & { payload: any[] }) => {
   if (active && payload && payload.length) {
     return (
       <div style={{ background: '#fff', padding: 6, borderRadius: 4, boxShadow: '0 2px 8px #0001' }}>

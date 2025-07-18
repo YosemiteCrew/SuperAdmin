@@ -17,7 +17,7 @@
       "dependsOn": []
     },
     "lint": {
-      "dependsOn": ["^build", "^lint"]
+      "dependsOn": ["^lint"]
     },
     "dev": {
       "dependsOn": ["^build"],
@@ -25,7 +25,7 @@
       "persistent": true
     },
     "type-check": {
-      "dependsOn": ["^build", "^type-check"]
+      "dependsOn": ["^type-check"]
     },
     "start": {
       "dependsOn": ["^build"],

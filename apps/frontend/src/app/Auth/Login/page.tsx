@@ -48,7 +48,7 @@ export default function Login() {
         
       } 
 
-    } catch (error) {
+    } catch (error: any) {
       const apiError = error?.response?.data;
       
           if (apiError?.errors?.length > 0) {
