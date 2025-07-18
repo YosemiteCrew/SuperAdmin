@@ -270,7 +270,7 @@ function UserManagementTable() {
   return (
     <>
       <div className="table-wrapper">
-        <GenericTable data={User} columns={columns} bordered={false} />
+        <GenericTable data={User} columns={columns as any} bordered={false} />
       </div>
 
       <DeleteModal show={deltemodalShow} onHide={() => setDelteModalShow(false)} />

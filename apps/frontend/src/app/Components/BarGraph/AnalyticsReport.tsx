@@ -2,8 +2,8 @@ import React from 'react';
 import { BarChart, Bar, YAxis, ResponsiveContainer } from 'recharts';
 
 const defaultData = [
-  { name: 'A', full: 30, value: 170 }, // full + value = total height (200)
-  { name: 'B', full: 80, value: 120 }, // 80 + 120 = 200
+  { name: 'A', total: 30, value: 170 }, // full + value = total height (200)
+  { name: 'B', total: 80, value: 120 }, // 80 + 120 = 200
 ];
 
 function AnalyticsReport({ data = defaultData }) {

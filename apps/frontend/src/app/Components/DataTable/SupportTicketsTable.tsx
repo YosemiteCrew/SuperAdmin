@@ -193,7 +193,7 @@ function SupportTicketsTable() {
     <>
 
         <div className="table-wrapper">
-            <GenericTable data={Pending} columns={columns} bordered={false} />
+            <GenericTable data={Pending} columns={columns as any} bordered={false} />
             <div className="table-footerBtn ">
                 <Button>See All</Button>
             </div>

@@ -241,7 +241,7 @@ function BuisnessLeadsTable() {
     <>
 
         <div className="table-wrapper">
-            <GenericTable data={Buisness} columns={columns} bordered={false} />
+            <GenericTable data={Buisness} columns={columns as any} bordered={false} />
             <div className="table-footerBtn ">
                 <Button>See All</Button>
             </div>

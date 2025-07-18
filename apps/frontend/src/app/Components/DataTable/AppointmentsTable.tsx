@@ -191,7 +191,7 @@ function AppointmentsTable() {
     <>
 
         <div className="table-wrapper">
-            <GenericTable data={appointments} columns={columns} bordered={false} />
+            <GenericTable data={appointments} columns={columns as any} bordered={false} />
             {/* <div className="table-footerBtn ">
                 <Button>Sell All</Button>
             </div> */}

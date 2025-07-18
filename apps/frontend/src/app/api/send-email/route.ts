@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   };
 
   try {
-    await ses.sendEmail(params).promise();
+    await ses.sendEmail(params as any).promise();
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("Email sending error:", err);
