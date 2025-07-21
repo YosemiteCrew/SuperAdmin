@@ -11,7 +11,7 @@ import axios from "axios";
 
 
 const Signup = () => {
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState(3);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -506,11 +506,15 @@ const Signup = () => {
              {step === 3 && (
               <div>
                 <div className="d-flex align-items-center mb-3">
-                  <QrCode className="text-primary ms-2" />
-                  <h5 className="ms-2">Scan QR Code</h5>
+                  {/* <QrCode className="text-primary ms-2" /> */}
+                  <h5 className="ms-2">Scan the QR Code</h5>
                 </div>
                 <p className="text-muted text-center mb-3">
-                  Use your Authenticator App to scan and continue
+                  Use the Google Authenticator App to Scan the QR Code. 
+                  This will connect the Authenticator with app
+                </p>
+                <p className="text-muted text-center mb-3">
+                  After you scan the code,  choose “Next” ,
                 </p>
 
                 {qrCode && <img src={qrCode} alt="QR Code" className="mb-4 w-100" />}
