@@ -27,7 +27,7 @@ function CRMSitters() {
 
                     <div className='HospitalVerifyDiv'>
                         <h5>Pending Verifications <span>5</span></h5>
-                        <PendingVerfyTable/>
+                        <PendingVerfyTable type="sitters"/>
                     </div>
 
 
@@ -39,7 +39,7 @@ function CRMSitters() {
                             </div>
                         </div>
                         <h5>Pending Verifications <span>5</span></h5>
-                        <PendingVerfyTable/>
+                        <PendingVerfyTable type="sitters"/>
                     </div>
 
 
