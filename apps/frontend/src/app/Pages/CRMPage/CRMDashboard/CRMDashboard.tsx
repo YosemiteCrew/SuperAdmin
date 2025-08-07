@@ -1,18 +1,54 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Col, Container, Dropdown, Row } from 'react-bootstrap'
 import AdminDashboardLayout from '../../AdminDashboard/layout'
 import "./CRMDashboard.css"
 import { BiSolidBellRing } from 'react-icons/bi'
 import { TbGraphFilled } from 'react-icons/tb'
 import CommonTabs from '@/app/Components/CommonTabs/CommonTabs'
-import { CrmDashTabs, PendingTabs, PracticeTabs, SuportTicketTabs} from './CRMConst'
+import { CrmDashTabs, getPendingTabs, PracticeTabs, SuportTicketTabs} from './CRMConst'
+import axios from "axios";
 
 function CRMDashboard() {
     const [selectedRange1, setSelectedRange1] = useState("All");// graphSelected 
     const [selectedRange2, setSelectedRange2] = useState("30D");// graphSelected 
-    
+    const [filter, setFilter] = useState<'30' | '60' | '90'>('30');
 
+    const [pendingVerificationCounts, setPendingVerificationCounts] = useState({
+      hospitals: 0,
+      groomers: 0,
+      breeders: 0,
+      sitters: 0,
+    });
+
+    useEffect(() => {
+      const fetchPendingVerificationCounts = async () => {
+        try {
+          const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/business/pendingVerifications`, {
+            businessType: "all",
+            countOnly: "yes",
+          });
+          const counts = res.data?.counts || {
+            hospitals: 0,
+            groomers: 0,
+            breeders: 0,
+            sitters: 0,
+          };
+
+          setPendingVerificationCounts(counts);
+        } catch (err) {
+          console.error("Error fetching pending verification counts", err);
+        }
+      };
+  
+      fetchPendingVerificationCounts();
+    }, []);
+    
+    const totalPending =
+    pendingVerificationCounts.hospitals +
+    pendingVerificationCounts.groomers +
+    pendingVerificationCounts.breeders +
+    pendingVerificationCounts.sitters;
 
 
 
@@ -25,17 +61,23 @@ function CRMDashboard() {
 
                     <div className="CRMDashTopHead">
                         <h2>CRM Dashboard</h2>
-                        <span className='red'><BiSolidBellRing/> 7 Practices Awaiting Verification</span>
+                        {/* ✅ Show only if there's any pending count */}
+                        {totalPending > 0 && (
+                          <span className="red">
+                            <BiSolidBellRing /> {totalPending} Practices Awaiting Verification
+                          </span>
+                        )}
+                       
                         <span className='green'><TbGraphFilled/> 5 New Leads</span>
                     </div>
 
                     <Row>
-                        <CommonTabs tabs={CrmDashTabs} showStatusSelect />
+                        <CommonTabs tabs={CrmDashTabs(filter)} showStatusSelect onFilterChange={setFilter}/>
                     </Row>
                     <Row>
                         <div className="CRMTableMainDiv">
                             <h5>Pending Verifications</h5>
-                            <CommonTabs tabs={PendingTabs} />
+                            <CommonTabs tabs={getPendingTabs(pendingVerificationCounts)} />
                         </div>
                     </Row>
                     <Row>

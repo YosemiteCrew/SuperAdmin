@@ -24,7 +24,7 @@ const AdminUserSchema = new Schema<IAdminUser>({
     enum: Object.values(UserType), // ["admin", "user"]
     required: true,
   },
-  status: { type: Number, default: 0 },
+  status: { type: Number, default: 0 }, 
   twoFAEnabled: { type: Boolean, default: false },
   twoFASecret: { type: String },
   

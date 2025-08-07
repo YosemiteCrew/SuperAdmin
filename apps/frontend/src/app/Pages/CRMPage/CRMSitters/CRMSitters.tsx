@@ -22,7 +22,7 @@ function CRMSitters() {
                     </div>
 
                     <Row>
-                        <DashCard/>
+                        <DashCard type="sitters" filter={"90"}/>
                     </Row>
 
                     <div className='HospitalVerifyDiv'>
