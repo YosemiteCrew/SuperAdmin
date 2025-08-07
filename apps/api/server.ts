@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
 import authRoutes from './routes/auth';
+import businessRoutes from './routes/business';
 
 import { connectToDocumentDB } from './config/connect';
 
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/api', authRoutes);
+app.use('/api/business', businessRoutes);
 
 
 // Connect to the database

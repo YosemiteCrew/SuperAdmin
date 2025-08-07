@@ -22,12 +22,12 @@ function CRMHospital() {
                     </div>
 
                     <Row>
-                        <DashCard/>
+                        <DashCard type="hospitals" filter={"90"}/>
                     </Row>
 
                     <div className='HospitalVerifyDiv'>
                         <h5>Pending Verifications <span>5</span></h5>
-                        <PendingVerfyTable/>
+                        <PendingVerfyTable type="hospitals"/>
                     </div>
 
 
