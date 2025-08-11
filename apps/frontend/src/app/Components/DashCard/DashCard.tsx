@@ -1,5 +1,5 @@
 "use client";
-import React from 'react'
+import React, { useEffect, useState } from 'react';
 import "./DashCard.css"
 import { FaStar, FaUser } from 'react-icons/fa';
 import { IoArrowDownCircleSharp, IoArrowUpCircleSharp } from 'react-icons/io5';
@@ -9,33 +9,126 @@ import { BsFillBookmarkCheckFill } from 'react-icons/bs';
 import { FaCircleDollarToSlot } from 'react-icons/fa6';
 import { PiHourglassSimpleFill } from 'react-icons/pi';
 import { BiSolidError } from 'react-icons/bi';
+import type { JSX } from 'react';
+import axios from "axios";
 
-function DashCard() {
-  return (
-    <>
+type DashCardProps = {
+  type: "all" | "hospitals" | "groomers" | "breeders" | "sitters" | "petparents"
+  filter: "30" | "60" | "90"; // Last 30/60/90 days
+};
 
-        <div className="CRMDashBoardCard">
-
-            <DashInfoCard DashIcon={<FaUser/>} UserName="Total Users" CrdNumb="2639" RatioIcon={<IoArrowUpCircleSharp/>} RatioText="23%" RatioCL="Done"/>
-            <DashInfoCard DashIcon={<HiMiniUserPlus/>} UserName="New Signups" CrdNumb="288" RatioIcon={<IoArrowDownCircleSharp/>} RatioText="23%" RatioCL="Error"/>
-            <DashInfoCard DashIcon={<FaStar />} UserName="Daily Active Users" CrdNumb="697" RatioIcon={<IoArrowUpCircleSharp/>} RatioText="23%" RatioCL="Done"/>
-            <DashInfoCard DashIcon={<AiFillMessage />} UserName="New Support Tickets" CrdNumb="113" RatioIcon={<IoArrowUpCircleSharp/>} RatioText="23%" RatioCL="Done"/>
-            <DashInfoCard DashIcon={<BsFillBookmarkCheckFill />} UserName="Profile Completion Rate" CrdNumb="90.6%" RatioIcon={<IoArrowUpCircleSharp/>} RatioText="23%" RatioCL="Done"/>
-            <DashInfoCard DashIcon={<PiHourglassSimpleFill/>} UserName="Pending Verifications" CrdNumb="7" RatioIcon={<IoArrowDownCircleSharp/>} RatioText="23%" RatioCL="Error"/>
-            <DashInfoCard DashIcon={<BiSolidError/>} UserName="Inactive Practices" CrdNumb="113" RatioIcon={<IoArrowDownCircleSharp/>} RatioText="23%" RatioCL="Error"/>
-            <DashInfoCard DashIcon={<FaCircleDollarToSlot />} UserName="Monthly Recurring Revenue (MRR)" CrdNumb="$4197" RatioIcon={<IoArrowUpCircleSharp/>} RatioText="23%" RatioCL="Done"/>
-
-
-        </div>
-
-
-
-
-    </>
-  )
+interface CardItem {
+  icon: JSX.Element;
+  label: string;
+  value: string;
+  status: "Done" | "Error";
+  ratiotext: string;
 }
 
-export default DashCard
+
+// Mapping labels to icons
+const labelToIconMap: Record<string, JSX.Element> = {
+  "Total Users": <FaUser />,
+  "New Signups": <HiMiniUserPlus />,
+  "Daily Active Users": <FaStar />,
+  "New Support Tickets": <AiFillMessage />,
+  "Profile Completion Rate": <BsFillBookmarkCheckFill />,
+  "Pending Verifications": <PiHourglassSimpleFill />,
+  "Inactive Practices": <BiSolidError />,
+  "Monthly Recurring Revenue (MRR)": <FaCircleDollarToSlot />,
+};
+
+
+
+// Simulated API response shape
+// const staticData: Record<DashCardProps["type"], Record<DashCardProps["filter"], CardItem[]>> = {
+//   all: {
+//     "30": [
+//       { icon: <FaUser />, label: "Total Users", value: "1000", status: "Done", ratiotext: "15%" },
+//       { icon: <HiMiniUserPlus />, label: "New Signups", value: "400", status: "Error", ratiotext: "12%" },
+//       { icon: <FaStar />, label: "Daily Active Users", value: "800", status: "Done", ratiotext: "10%" },
+//       { icon: <AiFillMessage />, label: "New Support Tickets", value: "90", status: "Done", ratiotext: "5%" },
+//       { icon: <BsFillBookmarkCheckFill />, label: "Profile Completion Rate", value: "85%", status: "Done", ratiotext: "5%" },
+//       { icon: <PiHourglassSimpleFill />, label: "Pending Verifications", value: "5", status: "Error", ratiotext: "8%" },
+//       { icon: <BiSolidError />, label: "Inactive Practices", value: "22", status: "Error", ratiotext: "3%" },
+//       { icon: <FaCircleDollarToSlot />, label: "Monthly Recurring Revenue (MRR)", value: "$3210", status: "Done", ratiotext: "6%" },
+//     ],
+//     "60": [
+//       { icon: <FaUser />, label: "Total Users", value: "2000", status: "Done", ratiotext: "15%" },
+//     ],
+//     "90": [
+//       { icon: <FaUser />, label: "Total Users", value: "3000", status: "Done", ratiotext: "15%" },
+//       { icon: <HiMiniUserPlus />, label: "New Signups", value: "200", status: "Error", ratiotext: "12%" },
+//     ],
+//   },
+//   hospitals: {
+//     "30": [
+//       { icon: <FaUser />, label: "Total Users", value: "2000", status: "Done", ratiotext: "10%" },
+//       { icon: <HiMiniUserPlus />, label: "New Signups", value: "150", status: "Error", ratiotext: "5%" },
+//       { icon: <FaStar />, label: "Daily Active Users", value: "300", status: "Done", ratiotext: "6%" },
+//       { icon: <AiFillMessage />, label: "New Support Tickets", value: "40", status: "Done", ratiotext: "2%" },
+//       { icon: <BsFillBookmarkCheckFill />, label: "Profile Completion Rate", value: "90%", status: "Done", ratiotext: "7%" },
+//       { icon: <PiHourglassSimpleFill />, label: "Pending Verifications", value: "2", status: "Error", ratiotext: "2%" },
+//       { icon: <BiSolidError />, label: "Inactive Practices", value: "8", status: "Error", ratiotext: "1%" },
+//       { icon: <FaCircleDollarToSlot />, label: "Monthly Recurring Revenue (MRR)", value: "$1800", status: "Done", ratiotext: "4%" },
+//     ],
+//     "60": [/* ... */],
+//     "90": [/* ... */],
+//   },
+//   // 👇 Similarly for groomers, breeders, sitters...
+//   groomers: { "30": [], "60": [], "90": [] },
+//   breeders: { "30": [], "60": [], "90": [] },
+//   sitters: { "30": [], "60": [], "90": [] },
+// };
+
+function DashCard({ type, filter }: DashCardProps) {
+  const [cards, setCards] = useState<CardItem[]>([]);
+
+  // useEffect(() => {
+  //   setCards(staticData[type][filter]);
+  // }, [type, filter]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/business/allbusiness`, {
+          businessType: type,
+          filter: filter,
+        });
+
+        if (res.data.success) {
+          const dataWithIcons: CardItem[] = res.data.data.map((item: any) => ({
+            ...item,
+            icon: labelToIconMap[item.label] || <FaUser />,
+          }));
+
+          setCards(dataWithIcons);
+        }
+      } catch (error) {
+        console.error("Failed to fetch dashboard data", error);
+      }
+    };
+
+    fetchData();
+  }, [type, filter]);
+
+  return (
+    <div className="CRMDashBoardCard">
+      {cards.map((item, idx) => (
+        <DashInfoCard
+          key={idx}
+          DashIcon={item.icon}
+          UserName={item.label}
+          CrdNumb={item.value}
+          RatioIcon={item.status === "Done" ? <IoArrowUpCircleSharp /> : <IoArrowDownCircleSharp />}
+          RatioText={item.ratiotext}
+          RatioCL={item.status}
+        />
+      ))}
+    </div>
+  );
+}
+
+export default DashCard;
 
 
 // DashInfoCard Started
