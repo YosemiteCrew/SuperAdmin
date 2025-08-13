@@ -32,6 +32,7 @@ export interface IWebUser {
   role?: string;
   bussinessId?: string;
   otp?: number;
+  isVerified?: number;
   otpExpiry?: Date;
   subscribe?:boolean;
   department?:string
@@ -43,6 +44,7 @@ const WebUserSchema = new Schema<IWebUser>({
   role: { type: String, required: true },
   bussinessId: { type: String },
   otp: { type: Number },
+  isVerified: { type: Number },
   otpExpiry: { type: Date },
   subscribe:{type:Boolean},
   department:{type:String}

@@ -1,0 +1,145 @@
+.reject-modal .modal-content {
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.reject-modal .modal-header {
+  border-bottom: 1px solid #e9ecef;
+  padding: 20px 24px;
+}
+
+.reject-modal .modal-title {
+  font-weight: 600;
+  color: #212529;
+  font-size: 18px;
+}
+
+.reject-modal .modal-body {
+  padding: 24px;
+}
+
+.reject-instruction {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #dc3545;
+}
+
+.reject-instruction p {
+  margin: 0;
+  color: #495057;
+  line-height: 1.5;
+}
+
+.reject-instruction strong {
+  color: #212529;
+}
+
+.message-textarea {
+  border: 1px solid #ced4da;
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 120px;
+}
+
+.message-textarea:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.attachment-section {
+  margin-bottom: 20px;
+}
+
+.attachment-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #007bff;
+  cursor: pointer;
+  padding: 8px 12px;
+  border: 1px dashed #007bff;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.attachment-label:hover {
+  background-color: #f8f9fa;
+  border-color: #0056b3;
+  color: #0056b3;
+}
+
+.paperclip-icon {
+  font-size: 14px;
+}
+
+.attached-files {
+  background-color: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.attached-files h6 {
+  margin-bottom: 12px;
+  color: #495057;
+  font-weight: 600;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: white;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.file-name {
+  font-size: 14px;
+  color: #495057;
+  flex: 1;
+}
+
+.remove-file-btn {
+  color: #dc3545;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border: none;
+  background: none;
+}
+
+.remove-file-btn:hover {
+  color: #c82333;
+  background: none;
+}
+
+.modal-footer {
+  border-top: 1px solid #e9ecef;
+  padding: 20px 24px;
+  gap: 12px;
+}
+
+.send-message-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+}
+
+.envelope-icon {
+  font-size: 14px;
+}
+
+.send-message-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+} 
