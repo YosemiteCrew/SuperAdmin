@@ -1,7 +1,50 @@
 import { Request, Response } from "express";
 import { WebUser } from "../models/webUser";
 import { AppUser } from "../models/appUser";
+import mongoose from "mongoose";
 import moment from "moment";
+import AWS from 'aws-sdk';
+import fs from 'fs';
+import path from 'path';
+import fileUpload from 'express-fileupload';
+import { sendApprovalEmail, sendRejectionEmail } from '../services/emailService';
+
+// Configure AWS
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'us-east-1',
+});
+
+const s3 = new AWS.S3();
+const S3_BUCKET_NAME = process.env.AWS_S3_BUCKET_NAME;
+
+// S3 Upload function with correct callback signature
+async function uploadToS3(fileName: string, contentType: string = 'image/jpeg'): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Read content from the file
+    const fileContent = fs.readFileSync(fileName);
+
+    // Setting up S3 upload parameters
+    const params = {
+      Bucket: S3_BUCKET_NAME!,
+      Key: fileName,
+      Body: fileContent,
+      ContentType: contentType,
+      ContentDisposition: 'inline',
+    };
+
+    s3.upload(params, function (err: Error | null, data: AWS.S3.ManagedUpload.SendData | undefined) {
+      if (err) {
+        reject(err);
+      } else if (data) {
+        resolve(data.Location);
+      } else {
+        reject(new Error('Upload failed - no data returned'));
+      }
+    });
+  });
+}
 
 const roleMap: Record<string, string[]> = {
   hospitals: ["veterinaryBusiness"],
@@ -286,7 +329,303 @@ const businessController = {
         error: err.message,
       });
     }
-  }
+  },
+  getBusinessDetails: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      
+  
+      const objectId = new mongoose.Types.ObjectId(id);
+  
+      const business = await WebUser.aggregate([
+        {
+          $match: { _id: objectId },
+        },
+        {
+          $lookup: {
+            from: "profiledatas",
+            let: { userId: "$cognitoId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$userId", "$$userId"] },
+                },
+              },
+              // Lookup department details
+              {
+                $lookup: {
+                  from: "admindepartments",
+                  let: { deptIds: "$addDepartment" },
+                  pipeline: [
+                    {
+                      $match: {
+                        $expr: { $in: ["$_id", { $map: { input: "$$deptIds", as: "id", in: { $toObjectId: "$$id" } } }] }
+                      }
+                    }
+                  ],
+                  as: "departmentData",
+                },
+              },
+            ],
+            as: "profileData",
+          },
+        },
+        {
+          $unwind: {
+            path: "$profileData",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+      ]);
+  
+      if (!business || business.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: "Business not found",
+        });
+        return;
+      }
+  
+      res.status(200).json({
+        success: true,
+        data: business[0],
+      });
+    } catch (error) {
+      console.error("Error fetching business details:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  },
+  
+  
+  approveBusiness: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      
+      // Convert string ID to ObjectId
+      const objectId = new mongoose.Types.ObjectId(id);
+  
+      // Get business details before updating
+      const business = await WebUser.aggregate([
+        {
+          $match: { _id: objectId },
+        },
+        {
+          $lookup: {
+            from: "profiledatas",
+            let: { userId: "$cognitoId" },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ["$userId", "$$userId"] },
+                },
+              },
+            ],
+            as: "profileData",
+          },
+        },
+        {
+          $unwind: {
+            path: "$profileData",
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+      ]);
+
+      if (!business || business.length === 0) {
+        res.status(404).json({
+          success: false,
+          message: "Business not found",
+        });
+        return;
+      }
+
+      const businessData = business[0];
+
+      // Update business status to approved
+      const result = await WebUser.findByIdAndUpdate(
+        objectId,
+        { isVerified: 1 },
+        { new: true }
+      );
+
+      if (!result) {
+        res.status(404).json({
+          success: false,
+          message: "Business not found",
+        });
+        return;
+      }
+
+      // Send approval email
+      try {
+        await sendApprovalEmail({
+          to: businessData?.email || '',
+          businessName: businessData.profileData?.businessName || 'Business',
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Business approved and email sent successfully",
+        });
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        res.status(200).json({
+          success: true,
+          message: "Business approved successfully, but email sending failed",
+        });
+      }
+
+    } catch (error) {
+      console.error("Error approving business:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  },
+  
+  rejectWithEmail: async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { businessId, message, businessName, businessEmail } = req.body;
+      
+      // Access files from express-fileupload
+      const files = (req as any).files;
+      const uploadedFiles: any[] = [];
+
+      // Convert string ID to ObjectId
+      const objectId = new mongoose.Types.ObjectId(businessId);
+
+      // Update business status to rejected
+      const result = await WebUser.findByIdAndUpdate(
+        objectId,
+        { isVerified: -1 },
+        { new: true }
+      );
+
+      if (!result) {
+        res.status(404).json({
+          success: false,
+          message: "Business not found",
+        });
+        return;
+      }
+
+      // Handle file uploads to server then S3
+      if (files && Object.keys(files).length > 0) {
+        // Handle multiple files
+        const fileArray = Array.isArray(files.files) ? files.files : [files.files];
+        
+        for (const file of fileArray) {
+          try {
+            const currentDate = Date.now();
+            const originalName = file.name;
+            const documentFileName = currentDate + "_" + originalName;
+            const filePathEvent = `Uploads/Rejections/${documentFileName}`;
+            
+            // Ensure directory exists
+            const dir = path.dirname(filePathEvent);
+            if (!fs.existsSync(dir)) {
+              fs.mkdirSync(dir, { recursive: true });
+            }
+
+            // Move file to server
+            await file.mv(filePathEvent);
+
+            // Upload to S3
+            const contentType = file.mimetype || 'application/octet-stream';
+            const imageUrl = await uploadToS3(filePathEvent, contentType);
+
+            // Add file info for email attachment
+            uploadedFiles.push({
+              filename: originalName,
+              size: file.size,
+              mimetype: file.mimetype,
+              url: imageUrl,
+              path: filePathEvent, // Keep local path for email attachment
+            });
+
+            console.log(`File ${originalName} uploaded to S3 successfully: ${imageUrl}`);
+
+          } catch (fileError) {
+            console.error("Error uploading file:", fileError);
+            // Continue with other files even if one fails
+          }
+        }
+      }
+
+      // Send rejection email with attachments
+      try {
+        console.log("Sending rejection email to:", businessEmail);
+        console.log("Business:", businessName);
+        console.log("Message:", message);
+        console.log("Uploaded files:", uploadedFiles.length);
+
+        await sendRejectionEmail({
+          to: businessEmail,
+          businessName,
+          message,
+          attachments: uploadedFiles,
+        });
+
+        // Clean up local files after email is sent
+        uploadedFiles.forEach(file => {
+          try {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+          }
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Business rejected and email sent successfully",
+          uploadedFiles: uploadedFiles.map(file => ({
+            filename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            url: file.url
+          }))
+        });
+
+      } catch (emailError) {
+        console.error("Email sending failed:", emailError);
+        
+        // Clean up local files even if email fails
+        uploadedFiles.forEach(file => {
+          try {
+            if (fs.existsSync(file.path)) {
+              fs.unlinkSync(file.path);
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+          }
+        });
+
+        res.status(200).json({
+          success: true,
+          message: "Business rejected successfully, but email sending failed",
+          uploadedFiles: uploadedFiles.map(file => ({
+            filename: file.filename,
+            size: file.size,
+            mimetype: file.mimetype,
+            url: file.url
+          }))
+        });
+      }
+
+    } catch (error) {
+      console.error("Error rejecting business with email:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error",
+      });
+    }
+  },
   
 };
 

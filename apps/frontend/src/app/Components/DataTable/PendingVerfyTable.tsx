@@ -18,11 +18,13 @@ type Column<T> = {
 };
 
 type PendingVerificationItem = {
+  _id: string;
   name: string;
   place: string;
   country: string;
   profile: string;
   since: string;
+  isVerified: number;
 };
 
 const columns: Column<PendingVerificationItem>[] = [
@@ -59,7 +61,11 @@ const columns: Column<PendingVerificationItem>[] = [
         <Button
           className="circle-btn view"
           title="View"
-          onClick={() => console.log("View", item)}
+          //onClick={() => console.log("View", item)}
+          onClick={() => {
+            // Navigate to business details page
+            window.location.href = `/business-details/${item._id}`;
+          }}
         >
           <FaEye size={24} />
         </Button>
@@ -86,6 +92,7 @@ const PendingVerfyTable: React.FC<PendingVerfyTableProps> = ({ type }) => {
       );
 
       const transformed = (response.data.data || []).map((item: any) => ({
+        _id: item._id,
         name: item.profileData?.businessName || "N/A",
         place: item.profileData?.city || "Unknown",
         country: item.profileData?.country || "Unknown",
