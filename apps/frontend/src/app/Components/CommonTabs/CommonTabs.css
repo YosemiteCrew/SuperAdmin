@@ -133,4 +133,39 @@
 
 /* SelectStatus Ended  */
 
+/* Create New Button Started */
+.create-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--blue-text);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: var(--satoshi-font);
+  white-space: nowrap;
+}
+
+.create-new-btn:hover {
+  background: #0056b3;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+.create-new-btn:active {
+  transform: translateY(0);
+}
+
+.create-icon {
+  font-size: 12px;
+}
+
+/* Create New Button Ended  */
+
 

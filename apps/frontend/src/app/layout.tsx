@@ -7,8 +7,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-
-
 export const metadata: Metadata = {
   title: "Yosemite-SuperAdmin",
   description: "Yosemite-SuperAdmin",
@@ -20,8 +18,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
         {children}
         <ToastContainer position="top-right" autoClose={3000} />
       </body>
