@@ -7,6 +7,7 @@ import fileUpload from 'express-fileupload';
 import authRoutes from './routes/auth';
 import businessRoutes from './routes/business';
 import contentRoutes from './routes/content';
+import assessmentRoutes from './routes/assessment';
 
 import { connectToDocumentDB } from './config/connect';
 
@@ -15,12 +16,6 @@ import { connectToDocumentDB } from './config/connect';
 const app = express();
 const port = process.env.PORT || 4000;
 
-app.use(cors()); // Allow all origins
-
-// Middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 app.use(fileUpload({
   createParentPath: true,
   limits: {
@@ -28,11 +23,23 @@ app.use(fileUpload({
   },
   abortOnLimit: true,
   responseOnLimit: "File size limit has been reached",
+  useTempFiles: true, // Use temp files instead of memory
+  tempFileDir: '/tmp/', // Specify temp directory
+  debug: true, // Set to true for debugging
 }));
+
+app.use(cors()); // Allow all origins
+
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+
 
 app.use('/api', authRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/content', contentRoutes);
+app.use('/api/assessment', assessmentRoutes);
 
 
 // Connect to the database
