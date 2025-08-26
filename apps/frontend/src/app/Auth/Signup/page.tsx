@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import "../Auth.css"
 import { ChevronLeft, QrCode, Smartphone, Mail, Check , Eye, EyeOff} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Container, Row, Col, Button, Form } from "react-bootstrap";
@@ -11,6 +12,8 @@ import Header from "@/app/Components/Header/Header";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import Link from "next/link";
 import Image from "next/image";
+
+type FormControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
 
 
@@ -364,6 +367,48 @@ const Signup = () => {
     return `/Images/signup-step${step}.png`;
   };
 
+
+
+
+
+
+
+
+  // Otp Started 
+  const [otp, setOtp] = useState(new Array(6).fill(""));
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleChange = (element: EventTarget & FormControlElement, index: number) => {
+    if (isNaN(Number(element.value))) return;
+
+    const newOtp = [...otp];
+    newOtp[index] = element.value;
+    setOtp(newOtp);
+
+    // Move to next input
+    if (element.value && index < 5) {
+      inputsRef.current[index + 1]?.focus();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<FormControlElement>, index: number) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputsRef.current[index - 1]?.focus();
+    }
+  };
+
+
+  // Otp Started 
+
+
+
+
+
+
+
+
+
+
   return (
     <>
     <Header/>
@@ -449,8 +494,7 @@ const Signup = () => {
                     <h2>Verify Code</h2>
                     <p>Enter the code we just sent to your email to proceed with verification.</p>
                   </div>
-                  <Smartphone className="text-primary ms-2" />
-                  <Form.Control type="text" name="authCode" value={formData.authCode}
+                  {/* <Form.Control type="text" name="authCode" value={formData.authCode}
                   onChange={handleInputChange}
                   maxLength={6}
                   placeholder="Enter 6-digit code"
@@ -458,7 +502,42 @@ const Signup = () => {
                   isInvalid={!!errors.authCode}/>
                   <Form.Control.Feedback type="invalid">
                       {errors.authCode}
-                  </Form.Control.Feedback>
+                  </Form.Control.Feedback> */}
+
+                  <div className="otpcontdiv">
+                    <div className="otp-container">
+                      {otp.map((data, index) => (
+                        <Form.Control
+                          key={index}
+                          type="text"
+                          maxLength={1}
+                          value={data}
+                          onChange={(e) => {
+                            handleChange(e.target, index);
+
+                            // clear error on typing
+                            if (errors.twofaCode) {
+                              setErrors((prev) => ({ ...prev, twofaCode: "" }));
+                            }
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, index)}
+                          ref={(el) => {
+                            inputsRef.current[index] = el;
+                          }}
+                          className="otp-input"
+                        />
+                      ))}
+                    </div>
+                    {/* ✅ Only error message, no input red border */}
+                      {errors.twofaCode && (
+                        <div className="text-danger text-center mt-2">
+                          {errors.twofaCode}
+                        </div>
+                    )}
+                  </div>
+
+
+
                 </div>
 
                 <div className="verybotm">
@@ -479,7 +558,7 @@ const Signup = () => {
                 <p>After you scan the code,  choose “Next”</p>
               </div>
 
-              {qrCode && <Image src={qrCode} alt="QR Code" className=" w-100" />}
+              {qrCode && <Image src={qrCode} alt="QR Code" width={160} height={160} className=" w-100" />}
 
               <div className="verybotm scanbtn">
                 <Button className="unfill" onClick={goBack}> Back <Icon icon="solar:round-alt-arrow-left-outline" width="24" height="24" /></Button>
