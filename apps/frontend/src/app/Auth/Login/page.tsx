@@ -12,6 +12,8 @@ import Header from "@/app/Components/Header/Header";
 import Link from "next/link";
 import { Icon } from "@iconify/react/dist/iconify.js";
 
+type FormControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
 export default function Login() {
   const router = useRouter();
 
@@ -178,24 +180,26 @@ export default function Login() {
     const [otp, setOtp] = useState(new Array(6).fill(""));
     const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
   
-    const handleChange = (element: HTMLInputElement, index: number) => {
+    const handleChange = (element: EventTarget & FormControlElement, index: number) => {
       if (isNaN(Number(element.value))) return;
-  
+    
       const newOtp = [...otp];
       newOtp[index] = element.value;
       setOtp(newOtp);
-  
+    
       // Move to next input
       if (element.value && index < 5) {
         inputsRef.current[index + 1]?.focus();
       }
     };
-  
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    
+    const handleKeyDown = (e: React.KeyboardEvent<FormControlElement>, index: number) => {
       if (e.key === "Backspace" && !otp[index] && index > 0) {
         inputsRef.current[index - 1]?.focus();
       }
     };
+  
+   
   
   
     // Otp Started 
@@ -308,7 +312,9 @@ export default function Login() {
                               }
                             }}
                             onKeyDown={(e) => handleKeyDown(e, index)}
-                            ref={(el) => (inputsRef.current[index] = el)}
+                            ref={(el) => {
+                              inputsRef.current[index] = el;
+                            }}
                             className="otp-input"
                           />
                         ))}

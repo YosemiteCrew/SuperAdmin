@@ -13,6 +13,8 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 import Link from "next/link";
 import Image from "next/image";
 
+type FormControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
 
 
 const Signup = () => {
@@ -376,7 +378,7 @@ const Signup = () => {
   const [otp, setOtp] = useState(new Array(6).fill(""));
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  const handleChange = (element: HTMLInputElement, index: number) => {
+  const handleChange = (element: EventTarget & FormControlElement, index: number) => {
     if (isNaN(Number(element.value))) return;
 
     const newOtp = [...otp];
@@ -389,7 +391,7 @@ const Signup = () => {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+  const handleKeyDown = (e: React.KeyboardEvent<FormControlElement>, index: number) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputsRef.current[index - 1]?.focus();
     }
@@ -519,7 +521,9 @@ const Signup = () => {
                             }
                           }}
                           onKeyDown={(e) => handleKeyDown(e, index)}
-                          ref={(el) => (inputsRef.current[index] = el)}
+                          ref={(el) => {
+                            inputsRef.current[index] = el;
+                          }}
                           className="otp-input"
                         />
                       ))}
