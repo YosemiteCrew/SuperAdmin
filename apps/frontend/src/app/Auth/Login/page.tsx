@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import "../Auth.css"
 import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
@@ -89,10 +89,16 @@ export default function Login() {
   };
 
   const handleVerify2FA = async () => {
-    if (!twofaCode) {
-      setErrors(prev => ({ ...prev, twofaCode: "2FA code is required" }));
-      return;
-    }
+    // if (!twofaCode) {
+    //   setErrors(prev => ({ ...prev, twofaCode: "2FA code is required" }));
+    //   return;
+    // }
+     const enteredCode = otp.join(""); // join all 6 boxes into single string
+
+  if (!enteredCode || enteredCode.length < 6) {
+    setErrors((prev) => ({ ...prev, twofaCode: "2FA code is required" }));
+    return;
+  }
 
   
 
@@ -116,7 +122,7 @@ export default function Login() {
     //   }
 
       const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/2fa/verify`, {
-        token: twofaCode,
+        token: enteredCode,
         secret: secret,
         email: email,
       });
@@ -164,6 +170,40 @@ export default function Login() {
   };
 
   const [isFocused, setIsFocused] = useState(false);
+
+
+
+  
+    // Otp Started 
+    const [otp, setOtp] = useState(new Array(6).fill(""));
+    const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  
+    const handleChange = (element: HTMLInputElement, index: number) => {
+      if (isNaN(Number(element.value))) return;
+  
+      const newOtp = [...otp];
+      newOtp[index] = element.value;
+      setOtp(newOtp);
+  
+      // Move to next input
+      if (element.value && index < 5) {
+        inputsRef.current[index + 1]?.focus();
+      }
+    };
+  
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+      if (e.key === "Backspace" && !otp[index] && index > 0) {
+        inputsRef.current[index - 1]?.focus();
+      }
+    };
+  
+  
+    // Otp Started 
+
+
+
+
+
 
   return (
     <>
@@ -248,8 +288,42 @@ export default function Login() {
                       <h2>Verify Code</h2>
                       <p>Enter the code we just sent to your Authenticator App to proceed with your profile</p>
                     </div>
-                    <Form.Control type="text" maxLength={6} placeholder="123456" value={twofaCode}  onChange={(e) => { setTwofaCode(e.target.value); if (errors.twofaCode) {setErrors((prev) => ({ ...prev, twofaCode: "", })); } }} isInvalid={!!errors.twofaCode} />
-                    <Form.Control.Feedback type="invalid"> {errors.twofaCode}  </Form.Control.Feedback>
+                    {/* <Form.Control type="text" maxLength={6} placeholder="123456" value={twofaCode}  onChange={(e) => { setTwofaCode(e.target.value); if (errors.twofaCode) {setErrors((prev) => ({ ...prev, twofaCode: "", })); } }} isInvalid={!!errors.twofaCode} />
+                    <Form.Control.Feedback type="invalid"> {errors.twofaCode}  </Form.Control.Feedback> */}
+
+                    <div className="otpcontdiv">
+                      <div className="otp-container">
+                        {otp.map((data, index) => (
+                          <Form.Control
+                            key={index}
+                            type="text"
+                            maxLength={1}
+                            value={data}
+                            onChange={(e) => {
+                              handleChange(e.target, index);
+  
+                              // clear error on typing
+                              if (errors.twofaCode) {
+                                setErrors((prev) => ({ ...prev, twofaCode: "" }));
+                              }
+                            }}
+                            onKeyDown={(e) => handleKeyDown(e, index)}
+                            ref={(el) => (inputsRef.current[index] = el)}
+                            className="otp-input"
+                          />
+                        ))}
+                      </div>
+                      {/* ✅ Only error message, no input red border */}
+                        {errors.twofaCode && (
+                          <div className="text-danger text-center mt-2">
+                            {errors.twofaCode}
+                          </div>
+                      )}
+                    </div>
+
+
+
+
                   </div>
                   <div className="verybotm">
                     <Button onClick={handleVerify2FA}>Verify & Login </Button>
