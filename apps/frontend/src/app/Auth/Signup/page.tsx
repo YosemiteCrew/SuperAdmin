@@ -7,6 +7,10 @@ import { toast } from "react-toastify";
 import CustomToast from "../../Components/Toasts/CustomToast";
 import CustomAlert from "../../Components/Alerts/CustomAlert";
 import axios from "axios";
+import Header from "@/app/Components/Header/Header";
+import { Icon } from "@iconify/react/dist/iconify.js";
+import Link from "next/link";
+import Image from "next/image";
 
 
 
@@ -361,227 +365,170 @@ const Signup = () => {
   };
 
   return (
-    <section className="form-section py-5">
-      <Container fluid>
-        <Row className="min-vh-100">
+    <>
+    <Header/>
+    
+    <section className="SignSection">
+        <div className="SignData">
           {/* Left Image Block */}
-          <Col md={6} className="d-none d-md-block p-0">
-            <div
-              className="h-100 w-100 bg-cover bg-center"
-              style={{
-                backgroundImage: `url(${getStepImage()})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            ></div>
-          </Col>
+          <div className="LeftSign" style={{ backgroundImage: `url(${getStepImage()})`, backgroundSize: "cover", backgroundPosition: "center",}}></div>
 
           {/* Form Section */}
-          <Col md={6} className="d-flex align-items-center justify-content-center">
-            <div className="auth-box p-5 shadow-lg w-100" style={{ maxWidth: "450px" }}>
-              
-
-              {/* Step 1 */}
-              {step === 1 && (
+         
+          <div className="RightSign">
+          
+            {/* Step 1 */}
+            {step === 1 && (
+              <div className="SignInForm">
                 <Form>
-                  <h4 className="mb-4 fw-bold">Sign up now</h4>
-
-                  
-
-                  <Form.Group className="mb-3">
-                    <Form.Control
-                      type="email"
-                      placeholder="Email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      isInvalid={!!errors.email}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.email}
-                    </Form.Control.Feedback>
-                  </Form.Group>
-
-                  <Form.Group className="mb-3">
-                    <Form.Control
-                      type={showPassword ? "text" : "password"}
-                      placeholder="Password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      isInvalid={!!errors.password}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.password}
-                    </Form.Control.Feedback>
-                    {/* Eye Icon */}
-                      <span onClick={() => setShowPassword(!showPassword)}>
-                        {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </span>
-                  </Form.Group>
-
-                  <Form.Group className="mb-3">
-                    <Form.Control
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="Confirm Password"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleInputChange}
-                      isInvalid={!!errors.confirmPassword}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      {errors.confirmPassword}
-                    </Form.Control.Feedback>
-                    {/* Eye Icon */}
-                      <span onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                        {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                      </span>
-                  </Form.Group>
-
-                  <Form.Check
-                    type="checkbox"
-                    className="mb-3"
-                    name="agreeTerms"
-                    label="I agree to the Terms and Privacy Policy"
-                    checked={formData.agreeTerms}
-                    onChange={handleInputChange}
-                    isInvalid={!!errors.agreeTerms}
-                    feedback={errors.agreeTerms}
-                    feedbackType="invalid"
-                  />
-
-                 
-
-                  <Button variant="dark" className="w-100" onClick={handleNextStep}>
-                    Sign Up
-                  </Button>
-
-                  <p className="text-center mt-3">
-                    Already have an account? <a href="/Auth/Login">Login</a>
-                  </p>
-                </Form>
-              )}
-
-
-               {/* Step 2 */}
-              {step === 2 && (
-                <div>
-                  <div className="d-flex align-items-center mb-3">
-                    {/* <Button variant="link" onClick={goBack}><ChevronLeft /></Button> */}
-                    <Smartphone className="text-primary ms-2" />
-                    <h5 className="ms-2">Verify Code</h5>
+                  <div className="TopSign">
+                    <h2>Sign up now </h2>
+                    <Form.Group className="SignInpt">
+                      <Form.Control
+                        type="email"
+                        placeholder="Email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        isInvalid={!!errors.email}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors.email}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                    <Form.Group className="SignInpt">
+                      <Form.Control
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Password"
+                        name="password"
+                        value={formData.password}
+                        onChange={handleInputChange}
+                        isInvalid={!!errors.password}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors.password}
+                      </Form.Control.Feedback>
+                      {/* Eye Icon */}
+                        <span onClick={() => setShowPassword(!showPassword)}>
+                          {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </span>
+                    </Form.Group>
+                    <Form.Group className="SignInpt">
+                      <Form.Control
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Confirm Password"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        isInvalid={!!errors.confirmPassword}
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {errors.confirmPassword}
+                      </Form.Control.Feedback>
+                      {/* Eye Icon */}
+                        <span onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
+                          {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </span>
+                    </Form.Group>
                   </div>
-                  <p className="text-muted text-center mb-3">
-                    Enter the code we just sent to your email to proceed with verification.
-                  </p>
-                  <Form.Control
-                    type="text"
-                    name="authCode"
-                    value={formData.authCode}
-                    onChange={handleInputChange}
-                    maxLength={6}
-                    placeholder="Enter 6-digit code"
-                    className="text-center fs-4 mb-3"
-                    isInvalid={!!errors.authCode}
-                  />
-                  <Form.Control.Feedback type="invalid">
-                      {errors.authCode}
-                  </Form.Control.Feedback>
-
-                  <Button variant="outline-secondary" className="w-100 mb-2" onClick={goBack}>
-                    Back
-                  </Button>
-
-                   <Button variant="dark" className="w-100" onClick={handleNextStep}>
-                      <Check className="me-2" /> Verify & Complete
-                    </Button>
-
-                  <Button variant="primary" className="w-100 mb-2" onClick={sendAuthCode}>
-                      <Mail className="me-2" /> Resend Code
-                  </Button>
-                </div>
-              )}
-
-              {/* Step 3*/}
-             {step === 3 && (
-              <div>
-                <div className="d-flex align-items-center mb-3">
-                  {/* <QrCode className="text-primary ms-2" /> */}
-                  <h5 className="ms-2">Scan the QR Code</h5>
-                </div>
-                <p className="text-muted text-center mb-3">
-                  Use the Google Authenticator App to Scan the QR Code. 
-                  This will connect the Authenticator with app
-                </p>
-                <p className="text-muted text-center mb-3">
-                  After you scan the code,  choose “Next” ,
-                </p>
-
-                {qrCode && <img src={qrCode} alt="QR Code" className="mb-4 w-100" />}
-
-                
-
-                <Button variant="outline-secondary" className="w-100 mb-2" onClick={goBack}>
-                  Back
-                </Button>
-                <Button variant="dark" className="w-100" onClick={handleNextStep}>
-                   Next
-                </Button>
-
-                
+                  <Form.Check type="checkbox" name="agreeTerms" label="I agree to the Terms and Privacy Policy" checked={formData.agreeTerms} onChange={handleInputChange} isInvalid={!!errors.agreeTerms} feedback={errors.agreeTerms} feedbackType="invalid"/>
+                  <div className="BotmBtn">
+                    <Button onClick={handleNextStep}><Icon icon="carbon:checkmark-filled" width="24" height="24" /> Sign Up </Button>
+                    <p>Already have an account? <Link href="/Auth/Login">Login</Link></p>
+                  </div>
+                </Form>
               </div>
             )}
 
 
-              {/* Step 4 */}
-              {step === 4 && (
-                <div>
-                  <div className="d-flex align-items-center mb-3">
-                    {/* <Button variant="link" onClick={goBack}><ChevronLeft /></Button> */}
-                    <Smartphone className="text-primary ms-2" />
-                    <h5 className="ms-2">Verify Code</h5>
+              {/* Step 2 */}
+            {step === 2 && (
+              <div className="VerifyCodeDiv">
+                <div className="VerifyText">
+                  <div className="vryfytextinner">
+                    <h2>Verify Code</h2>
+                    <p>Enter the code we just sent to your email to proceed with verification.</p>
                   </div>
-                  <p className="text-muted text-center mb-3">
-                    Enter the code we just sent to your Authenticator App to proceed with your profile
-                  </p>
-                 <Form.Control
-                  type="text"
-                  name="twofaCode"
-                  value={formData.twofaCode}
+                  <Smartphone className="text-primary ms-2" />
+                  <Form.Control type="text" name="authCode" value={formData.authCode}
                   onChange={handleInputChange}
                   maxLength={6}
                   placeholder="Enter 6-digit code"
                   className="text-center fs-4 mb-3"
-                  isInvalid={!!errors.twofaCode}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {errors.twofaCode}
-                </Form.Control.Feedback>
-
-                <Button variant="dark" className="w-100" onClick={handleNextStep}>
-                  Verify Code
-                </Button>
-
-                <Button variant="outline-secondary" className="w-100 mb-2" onClick={goBack}>
-                  Back
-                </Button>
-
-                  {/* {!isCodeSent ? (
-                    <Button variant="primary" className="w-100 mb-2" onClick={sendAuthCode}>
-                      <Mail className="me-2" /> Send Code
-                    </Button>
-                  ) : (
-                    <Button variant="dark" className="w-100" onClick={handleNextStep}>
-                      <Check className="me-2" /> Verify Code
-                    </Button>
-                  )} */}
+                  isInvalid={!!errors.authCode}/>
+                  <Form.Control.Feedback type="invalid">
+                      {errors.authCode}
+                  </Form.Control.Feedback>
                 </div>
-              )}
+
+                <div className="verybotm">
+                  <Button onClick={handleNextStep}>Verify & Complete</Button>
+                  <Button className="unfill" onClick={goBack}> Back <Icon icon="solar:round-alt-arrow-left-outline" width="24" height="24" /></Button>
+                  <Button onClick={sendAuthCode}>Resend Code</Button>
+                </div>
+
+              </div>
+            )}
+
+            {/* Step 3*/}
+            {step === 3 && (
+            <div className="VerifyCodeDiv">
+              <div className="vryfytextinner">
+                <h2>Scan the QR Code</h2>
+                <p>Use the Google Authenticator App to Scan the QR Code. This will connect the Authenticator with app</p>
+                <p>After you scan the code,  choose “Next”</p>
+              </div>
+
+              {qrCode && <Image src={qrCode} alt="QR Code" className=" w-100" />}
+
+              <div className="verybotm scanbtn">
+                <Button className="unfill" onClick={goBack}> Back <Icon icon="solar:round-alt-arrow-left-outline" width="24" height="24" /></Button>
+                <Button onClick={handleNextStep}> Next <Icon icon="solar:round-alt-arrow-right-outline" width="24" height="24" /></Button>
+              </div>
+
             </div>
-          </Col>
-        </Row>
-      </Container>
+          )}
+
+
+            {/* Step 4 */}
+            {step === 4 && (
+              <div className="VerifyCodeDiv">
+
+                <div className="VerifyText">
+                  <div className="vryfytextinner">
+                    <h2>Verify Code</h2>
+                    <p>Enter the code we just sent to your Authenticator App to proceed with your profile</p>
+                  </div>
+                  <Smartphone className="text-primary ms-2" />
+                  <Form.Control
+                      type="text"
+                      name="twofaCode"
+                      value={formData.twofaCode}
+                      onChange={handleInputChange}
+                      maxLength={6}
+                      placeholder="Enter 6-digit code"
+                      className="text-center fs-4 mb-3"
+                      isInvalid={!!errors.twofaCode}
+                    />
+                  <Form.Control.Feedback type="invalid">
+                    {errors.twofaCode}
+                  </Form.Control.Feedback>
+                </div>
+
+                <div className="verybotm">
+                  <Button onClick={handleNextStep}>Verify Code</Button>
+                  <Button className="unfill" onClick={goBack}> Back <Icon icon="solar:round-alt-arrow-left-outline" width="24" height="24" /></Button>
+                </div>
+
+              </div>
+            )}
+
+
+          </div>
+
+        </div>
     </section>
+    </>
   );
 };
 
