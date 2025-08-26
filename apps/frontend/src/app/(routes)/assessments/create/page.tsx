@@ -12,7 +12,7 @@ const CreateAssessmentPage = dynamic(
         </div>
       </div>
     ),
-    ssr: false
+    ssr: false // This prevents SSR for this component
   }
 )
 
@@ -20,4 +20,4 @@ function page() {
   return <CreateAssessmentPage />
 }
 
-export default page 
+export default page

@@ -18,7 +18,7 @@ type FormControlElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectEle
 
 
 const Signup = () => {
-  const [step, setStep] = useState(3);
+  const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -151,11 +151,23 @@ const Signup = () => {
         
       }
     } else if (step === 2) {
-      if (!formData.authCode) {
-          newErrors.authCode = "Code is required";
-        } else if (formData.authCode !== generatedCode) {
-          newErrors.authCode = "Invalid code";
-        }
+      const enteredCode = otp.join(""); // join all 6 boxes into single string
+
+      if (!enteredCode || enteredCode.length < 6) {
+        setErrors((prev) => ({ ...prev, authCode: "Verification code is required" }));
+        return;
+      }
+      else if (enteredCode !== generatedCode) {
+        setErrors((prev) => ({ ...prev, authCode: "Invalid code" }));
+        return;
+      }
+
+  
+      // if (!formData.authCode) {
+      //     newErrors.authCode = "Code is required";
+      //   } else if (formData.authCode !== generatedCode) {
+      //     newErrors.authCode = "Invalid code";
+      //   }
 
         console.log("newErrors",newErrors);
         setErrors(newErrors);
@@ -238,17 +250,23 @@ const Signup = () => {
       //   alert("Invalid code");
       // }
     } else if (step === 4) {
-    if (!formData.twofaCode) {
-      setErrors(prev => ({
-        ...prev,
-        twofaCode: "2FA Code is required"
-      }));
+    // if (!formData.twofaCode) {
+    //   setErrors(prev => ({
+    //     ...prev,
+    //     twofaCode: "2FA Code is required"
+    //   }));
+    //   return;
+    // }
+    const enteredCode = otp2.join(""); // join all 6 boxes into single string
+    if (!enteredCode || enteredCode.length < 6) {
+      setErrors((prev) => ({ ...prev, twofaCode: "2FA code is required" }));
       return;
     }
+   
 
     try {
     const res = await axios.post(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/2fa/verify`, {
-      token: formData.twofaCode,
+      token: enteredCode,
       secret: secret,
       email: formData.email,
     });
@@ -391,6 +409,23 @@ const Signup = () => {
     }
   };
 
+  // twofa otp Started 
+  const [otp2, setOtp2] = useState(new Array(6).fill(""));
+  const inputsRef2 = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleChange2 = (element: EventTarget & FormControlElement, index: number) => {
+    if (isNaN(Number(element.value))) return;
+
+    const newOtp2 = [...otp2];
+    newOtp2[index] = element.value;
+    setOtp2(newOtp2);
+
+    // Move to next input
+    if (element.value && index < 5) {
+      inputsRef2.current[index + 1]?.focus();
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<FormControlElement>, index: number) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       inputsRef.current[index - 1]?.focus();
@@ -516,8 +551,8 @@ const Signup = () => {
                             handleChange(e.target, index);
 
                             // clear error on typing
-                            if (errors.twofaCode) {
-                              setErrors((prev) => ({ ...prev, twofaCode: "" }));
+                            if (errors.authCode) {
+                              setErrors((prev) => ({ ...prev, authCode: "" }));
                             }
                           }}
                           onKeyDown={(e) => handleKeyDown(e, index)}
@@ -529,9 +564,9 @@ const Signup = () => {
                       ))}
                     </div>
                     {/* ✅ Only error message, no input red border */}
-                      {errors.twofaCode && (
+                      {errors.authCode && (
                         <div className="text-danger text-center mt-2">
-                          {errors.twofaCode}
+                          {errors.authCode}
                         </div>
                     )}
                   </div>
@@ -579,7 +614,7 @@ const Signup = () => {
                     <p>Enter the code we just sent to your Authenticator App to proceed with your profile</p>
                   </div>
                   <Smartphone className="text-primary ms-2" />
-                  <Form.Control
+                  {/* <Form.Control
                       type="text"
                       name="twofaCode"
                       value={formData.twofaCode}
@@ -591,7 +626,38 @@ const Signup = () => {
                     />
                   <Form.Control.Feedback type="invalid">
                     {errors.twofaCode}
-                  </Form.Control.Feedback>
+                  </Form.Control.Feedback> */}
+                  <div className="otpcontdiv">
+                    <div className="otp-container">
+                      {otp2.map((data, index) => (
+                        <Form.Control
+                          key={index}
+                          type="text"
+                          maxLength={1}
+                          value={data}
+                          onChange={(e) => {
+                            handleChange2(e.target, index);
+
+                            // clear error on typing
+                            if (errors.twofaCode) {
+                              setErrors((prev) => ({ ...prev, twofaCode: "" }));
+                            }
+                          }}
+                          onKeyDown={(e) => handleKeyDown(e, index)}
+                          ref={(el) => {
+                            inputsRef2.current[index] = el;
+                          }}
+                          className="otp-input"
+                        />
+                      ))}
+                    </div>
+                    {/* ✅ Only error message, no input red border */}
+                      {errors.twofaCode && (
+                        <div className="text-danger text-center mt-2">
+                          {errors.twofaCode}
+                        </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="verybotm">

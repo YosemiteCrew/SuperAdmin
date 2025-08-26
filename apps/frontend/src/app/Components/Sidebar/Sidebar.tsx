@@ -50,8 +50,8 @@ function Sidebar({ isActive }: SidebarProps) {
       label: 'Content Management',
       dropdown: true,
       children: [
-        { Cpath: 'assessments', label: 'Assessments' },
-        // { Cpath: '#', label: 'Hospitals' },
+        { Cpath: '/assessments', label: 'Assessments' },
+        { Cpath: '/departments', label: 'Departments' },
         // { Cpath: '#', label: 'Groomers' },
         // { Cpath: '#', label: 'Breeders' },
         // { Cpath: '#', label: 'Sitters' },

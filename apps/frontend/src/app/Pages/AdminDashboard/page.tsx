@@ -1,17 +1,18 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, lazy, Suspense } from "react";
 import { useRouter } from 'next/navigation';
 
 import AdminDashboardLayout from './layout'
 import {Col, Container, Row } from 'react-bootstrap'
 import { BiSolidBellRing } from 'react-icons/bi';
 import Image from 'next/image';
-import { GraphSelected } from '../CRMPage/CRMDashboard/CRMDashboard';
-import RevenueGraph from "@/app/Components/BarGraph/RevenueGraph";
-import ActivityTable from "@/app/Components/DataTable/ActivityTable";
-import AnalyticsReport from "@/app/Components/BarGraph/AnalyticsReport";
-import SocialTable from "@/app/Components/DataTable/SocialTable";
-import Conversion from "@/app/Components/BarGraph/Conversion";
+// Lazy load heavy components
+const GraphSelected = lazy(() => import('../CRMPage/CRMDashboard/CRMDashboard').then(module => ({ default: module.GraphSelected })));
+const RevenueGraph = lazy(() => import("@/app/Components/BarGraph/RevenueGraph"));
+const ActivityTable = lazy(() => import("@/app/Components/DataTable/ActivityTable"));
+const AnalyticsReport = lazy(() => import("@/app/Components/BarGraph/AnalyticsReport"));
+const SocialTable = lazy(() => import("@/app/Components/DataTable/SocialTable"));
+const Conversion = lazy(() => import("@/app/Components/BarGraph/Conversion"));
 
 const AdminDashboard = () => {
 
@@ -25,7 +26,7 @@ const AdminDashboard = () => {
     if (!token) {
       router.push("/Auth/Login");
     }
-  }, []);
+  }, [router]);
 
 
 
