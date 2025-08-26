@@ -271,13 +271,13 @@ export default function Login() {
                       {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                     </span>
                     </Form.Group>
-                    <div className="forgt">
+                    {/* <div className="forgt">
                       <Link href="/Auth/ForgotPassword"> Forgot Password?</Link>
-                    </div>
+                    </div> */}
                   </div>
                   <div className="BotmBtn">
                     <Button onClick={handleLogin}> <Icon icon="carbon:checkmark-filled" width="24" height="24" /> Log In  </Button>
-                    <p>Don't have an account? <Link href="/Auth/Signup">Sign up.</Link></p>
+                    {/* <p>Don't have an account? <Link href="/Auth/Signup">Sign up.</Link></p> */}
                   </div>  
                 </Form>
               </div>
@@ -334,7 +334,7 @@ export default function Login() {
                   <div className="verybotm">
                     <Button onClick={handleVerify2FA}>Verify & Login </Button>
                     <Button className="unfill" onClick={goBack}> Back <Icon icon="solar:round-alt-arrow-left-outline" width="24" height="24" /></Button>
-                     <p>Didn’t receive the code? <Link href="">Request New Code.</Link></p>
+                     {/* <p>Didn’t receive the code? <Link href="">Request New Code.</Link></p> */}
                   </div>
                 </div>
               </Form>

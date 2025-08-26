@@ -8,6 +8,7 @@ import authRoutes from './routes/auth';
 import businessRoutes from './routes/business';
 import contentRoutes from './routes/content';
 import assessmentRoutes from './routes/assessment';
+import supportTicketRoutes from './routes/supportTicket';
 
 import { connectToDocumentDB } from './config/connect';
 
@@ -40,6 +41,7 @@ app.use('/api', authRoutes);
 app.use('/api/business', businessRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/assessment', assessmentRoutes);
+app.use('/api/support-tickets', supportTicketRoutes);
 
 
 // Connect to the database
