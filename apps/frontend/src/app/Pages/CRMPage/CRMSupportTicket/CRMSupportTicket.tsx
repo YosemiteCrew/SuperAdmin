@@ -11,10 +11,11 @@ import { FaStar, FaUser } from 'react-icons/fa6'
 import { HiMiniUserPlus } from 'react-icons/hi2'
 import { AiFillMessage } from 'react-icons/ai'
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from 'recharts'
-import SupportTicketsTable from '@/app/Components/DataTable/SupportTicketsTable'
 import CommonTabs from '@/app/Components/CommonTabs/CommonTabs'
 import CreateSupportTicketModal from '@/app/Components/Modals/CreateSupportTicketModal'
 import supportTicketService, { DashboardStats, UnresolvedTicket } from '@/app/services/supportTicketService'
+import { Icon } from "@iconify/react/dist/iconify.js";
+import SupportTicketsTable from "@/app/Components/DataTable/SupportTicketsTable";
 
 function CRMSupportTicket() {
     const statusOptions = ['Last 30 Days', 'Last 60 Days', 'Last 90 Days'];
@@ -127,12 +128,14 @@ function CRMSupportTicket() {
         {
             eventKey: 'professionals',
             title: 'Professionals',
-            content: <SupportTicketsTable userType="professionals" />
+            // content: <SupportTicketsTable userType="professionals" />
+            content: <SupportTicketsTable />
         },
         {
             eventKey: 'petparents',
             title: 'Pet Parents',
-            content: <SupportTicketsTable userType="petparents" />
+            content: <SupportTicketsTable  />
+            // content: <SupportTicketsTable userType="petparents" />
         }
     ];
 
@@ -188,42 +191,43 @@ function CRMSupportTicket() {
                                     status={status} 
                                     statusOptions={statusOptions}
                                 />
-                                
-                                {/* Key Metrics Cards */}
-                                <div className="BuissnessCards">
-                                    <DashInfoCard 
-                                        DashIcon={<FaUser/>} 
+
+                                <Row>
+                                    <Col md={3}><DashInfoCard 
+                                        DashIcon={<Icon icon="solar:book-bold" width="20" height="20" />} 
                                         UserName="Total Tickets" 
                                         CrdNumb={loading ? '...' : dashboardStats.totalTickets.toString()} 
                                         RatioIcon="" 
                                         RatioText="" 
                                         RatioCL="Done"
-                                    />
-                                    <DashInfoCard 
-                                        DashIcon={<HiMiniUserPlus/>} 
+                                    /></Col>
+                                    <Col md={3}><DashInfoCard 
+                                        DashIcon={<Icon icon="solar:book-bold" width="20" height="20" />} 
                                         UserName="Open Tickets" 
                                         CrdNumb={loading ? '...' : dashboardStats.openTickets.toString()}  
                                         RatioIcon="" 
                                         RatioText="" 
                                         RatioCL="Error"
-                                    />
-                                    <DashInfoCard 
-                                        DashIcon={<FaStar />} 
+                                    /></Col>
+                                    <Col md={3}><DashInfoCard 
+                                        DashIcon={<Icon icon="solar:book-bold" width="20" height="20" />} 
                                         UserName="Avg. Resolution Time" 
                                         CrdNumb={loading ? '...' : `${dashboardStats.avgResolutionTimeDays} days`} 
                                         RatioIcon="" 
                                         RatioText="" 
                                         RatioCL="Done"
-                                    />
-                                    <DashInfoCard 
-                                        DashIcon={<AiFillMessage/>} 
+                                    /></Col>
+                                    <Col md={3}><DashInfoCard 
+                                        DashIcon={<Icon icon="solar:book-bold" width="20" height="20" />} 
                                         UserName="Avg Response Time" 
                                         CrdNumb={loading ? '...' : `${dashboardStats.avgResponseTimeMinutes} mins`}
                                         RatioIcon="" 
                                         RatioText="" 
                                         RatioCL="Done"
-                                    />
-                                </div>
+                                    /></Col>
+                                </Row>
+                                
+                                
                             </div>
 
                             {/* Charts Section */}
