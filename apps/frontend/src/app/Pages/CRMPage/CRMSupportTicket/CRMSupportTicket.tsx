@@ -103,8 +103,8 @@ function CRMSupportTicket() {
     //     { name: 'Open', value: 64, color: '#222222' }
     // ];
     const ticketStatusData = [
-        { name: 'Closed', value: dashboardStats.closedTickets, color: '#E5E5E5' },
-        { name: 'Open', value: dashboardStats.openTickets, color: '#222222' }
+        { name: 'Closed', value: dashboardStats.closedTickets, color: '#222222' },
+        { name: 'Open', value: dashboardStats.openTickets, color: '#E5E5E5' }
     ];
 
     const topIssuesData = [
@@ -128,14 +128,15 @@ function CRMSupportTicket() {
         {
             eventKey: 'professionals',
             title: 'Professionals',
-            // content: <SupportTicketsTable userType="professionals" />
-            content: <SupportTicketsTable />
+             content: <SupportTicketsTable userType="professionals" />
+           // content: <SupportTicketsTable />
         },
         {
             eventKey: 'petparents',
             title: 'Pet Parents',
-            content: <SupportTicketsTable  />
-            // content: <SupportTicketsTable userType="petparents" />
+            content: <SupportTicketsTable userType="petparents" />
+            //content: <SupportTicketsTable  />
+            
         }
     ];
 
@@ -232,52 +233,53 @@ function CRMSupportTicket() {
 
                             {/* Charts Section */}
                             <Row>
-                            <Col md={3}>
-                            <div className="BarGraphDiv">
-                                <div className="chart-header">
-                                    <h5>Total Tickets</h5>
-                                    <span className="total-count">{loading ? '...' : dashboardStats.totalTickets}</span>
-                                </div>
-                                <div className="pie-chart-container">
-                                    <ResponsiveContainer width="100%" height={200}>
-                                        <PieChart>
-                                            <Pie
-                                                data={ticketStatusData}
-                                                cx="50%"
-                                                cy="50%"
-                                                innerRadius={50}
-                                                outerRadius={80}
-                                                paddingAngle={0}
-                                                dataKey="value"
-                                                startAngle={90}
-                                                endAngle={-270}
-                                            >
-                                                {ticketStatusData.map((entry, index) => (
-                                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                                ))}
-                                            </Pie>
-                                        </PieChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div className="chart-legend">
-                                    <div className="legend-item">
-                                        <div className="legend-color closed"></div>
-                                        <span className="legend-text">Closed</span>
-                                        <span className="legend-percentage">
-                                            {dashboardStats.totalTickets > 0 ? Math.round((dashboardStats.closedTickets / dashboardStats.totalTickets) * 100) : 0}%
-                                        </span>
+                            <Col md={6}>
+                                <div className="BarGraphDiv">
+                                    <div className="chart-header">
+                                        <h5>Total Tickets</h5>
+                                        <span className="total-count">{loading ? '...' : dashboardStats.totalTickets}</span>
                                     </div>
-                                    <div className="legend-item">
-                                        <div className="legend-color open"></div>
-                                        <span className="legend-text">Open</span>
-                                        <span className="legend-percentage">
-                                            {dashboardStats.totalTickets > 0 ? Math.round((dashboardStats.openTickets / dashboardStats.totalTickets) * 100) : 0}%
-                                        </span>
+                                    <div className="pie-chart-container">
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <PieChart>
+                                                <Pie
+                                                    data={ticketStatusData}
+                                                    cx="50%"
+                                                    cy="50%"
+                                                    innerRadius={50}
+                                                    outerRadius={80}
+                                                    paddingAngle={0}
+                                                    dataKey="value"
+                                                    startAngle={90}
+                                                    endAngle={-270}
+                                                >
+                                                    {ticketStatusData.map((entry, index) => (
+                                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                                    ))}
+                                                </Pie>
+                                            </PieChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                    <div className="chart-legend">
+                                        <div className="legend-item">
+                                            <div className="legend-color closed"></div>
+                                            <span className="legend-text">Closed</span>
+                                            <span className="legend-percentage">
+                                                {dashboardStats.totalTickets > 0 ? Math.round((dashboardStats.closedTickets / dashboardStats.totalTickets) * 100) : 0}%
+                                            </span>
+                                        </div>
+                                        <div className="legend-item">
+                                            <div className="legend-color open"></div>
+                                            <span className="legend-text">Open</span>
+                                            <span className="legend-percentage">
+                                                {dashboardStats.totalTickets > 0 ? Math.round((dashboardStats.openTickets / dashboardStats.totalTickets) * 100) : 0}%
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        </Col>
-                                <Col md={6}>
+                            </Col>
+
+                                {/* <Col md={6}>
                                     <div className="BarGraphDiv">
                                         <h5>Top Mentioned Issues</h5>
                                         <div className="bar-chart-container">
@@ -317,8 +319,8 @@ function CRMSupportTicket() {
                                             </ResponsiveContainer>
                                         </div>
                                     </div>
-                                </Col>
-                                <Col md={3}>
+                                </Col> */}
+                                <Col md={6}>
                                     <div className="BarGraphDiv">
                                         <h5>Top Unresolved Tickets</h5>
                                         <div className="unresolved-tickets-list">
