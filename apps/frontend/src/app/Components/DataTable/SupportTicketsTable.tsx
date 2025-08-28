@@ -10,7 +10,7 @@ import { FaCircleCheck, FaEye, FaUser } from 'react-icons/fa6';
 import supportTicketService, { DashboardStats } from '@/app/services/supportTicketService'
 import Link from 'next/link';
 import { LuSearch } from 'react-icons/lu';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
 
 // Define the Column type
