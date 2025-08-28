@@ -158,7 +158,7 @@ export const SuportTicketTabs = [
     title: 'Professionals',
     content: (
       <>
-      <SupportTicketsTable/>
+      <SupportTicketsTable userType="professionals"/>
       </>
     ),
   },
@@ -167,7 +167,7 @@ export const SuportTicketTabs = [
     title: 'Pet Parents',
     content: (
       <>
-       <SupportTicketsTable/>
+       <SupportTicketsTable userType="petparents"/>
       </>
     ),
   },
