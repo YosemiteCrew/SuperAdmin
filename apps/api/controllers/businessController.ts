@@ -302,7 +302,8 @@ const businessController = {
           {
             $unwind: {
               path: "$profileData",
-              preserveNullAndEmptyArrays: true,
+              //preserveNullAndEmptyArrays: true,
+              preserveNullAndEmptyArrays: false, // ❌ only keep users with profileData
             },
           },
           {
