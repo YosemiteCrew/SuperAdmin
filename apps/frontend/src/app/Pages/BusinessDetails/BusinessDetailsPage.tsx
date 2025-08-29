@@ -380,7 +380,7 @@ const BusinessDetailsPage: React.FC<BusinessDetailsPageProps> = ({ businessId })
                 <Col md={6}>
                   <div className="field-group">
                     <label>Email Address</label>
-                    <input type="text" value={businessData.profileData.email || "N/A"} readOnly />
+                    <input type="text" value={businessData.email || "N/A"} readOnly />
                   </div>
                 </Col>
                 <Col md={6}>
