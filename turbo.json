@@ -14,7 +14,7 @@
     },
     "test": {
       "outputs": ["coverage/**"],
-      "dependsOn": []
+      "dependsOn": ["^build"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -25,7 +25,7 @@
       "persistent": true
     },
     "type-check": {
-      "dependsOn": ["^type-check"]
+      "dependsOn": ["^build"]
     },
     "start": {
       "dependsOn": ["^build"],
