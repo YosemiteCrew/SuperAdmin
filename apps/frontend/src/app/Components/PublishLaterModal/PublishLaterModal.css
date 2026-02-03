@@ -1,0 +1,174 @@
+/* Scope everything under the modal classes to avoid Bootstrap collisions */
+.publish-modal {
+    max-width: 920px;            /* wide two-column layout */
+  }
+  .publish-modal-content {
+    border-radius: 16px;
+    border: none;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    padding: 0;                  /* we’ll control inner spacing */
+  }
+  
+  /* Header */
+  .pm-header {
+    padding: 20px 24px 8px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e6e7eb;
+  }
+  .pm-close-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #555;
+    padding: 4px;
+    transition: color 0.2s ease;
+  }
+  
+  .pm-close-btn:hover {
+    color: #000;
+  }
+  .pm-title {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  
+  /* Body: two columns */
+  .pm-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    padding: 0 24px 8px 24px;
+  }
+  .pm-col { display: flex; flex-direction: column; }
+  .pm-section-title {
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+  
+  /* Calendar card */
+  .calendar-container {
+    border: 1px solid #e6e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #fff;
+  }
+  .calendar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #fafafa;
+    border-bottom: 1px solid #e6e7eb;
+    font-weight: 600;
+  }
+  .calendar-nav-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 8px;
+  }
+  .calendar-nav-btn:hover { background: #f0f0f0; }
+  .calendar-month { color: #111; }
+  
+  .calendar-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    background: #fafafa;
+    border-bottom: 1px solid #e6e7eb;
+  }
+  .calendar-day-header {
+    text-align: center;
+    padding: 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: #70757a;
+  }
+  
+  /* Days grid */
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+  }
+  .calendar-day {
+    border: none;
+    background: none;
+    padding: 12px 8px;
+    height: 44px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 14px;
+    color: #2b2b2b;
+    transition: background .15s, color .15s;
+    border-radius: 10px;
+    margin: 4px 6px;
+  }
+  .calendar-day:hover:not(:disabled) { background: #f1f3f4; }
+  .calendar-day.other-month { color: #c6c6c6; }
+  .calendar-day.today { font-weight: 700; color: #1a73e8; }
+  .calendar-day.selected {
+    background: #1a73e8;
+    color: #fff;
+  }
+  .calendar-day.past { color: #b9b9b9; cursor: not-allowed; }
+  
+  /* Time slots */
+  .time-slots {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    max-height: 330px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .time-slot {
+    border: 1px solid #e6e7eb;
+    background: #fff;
+    border-radius: 999px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #4a4f55;
+    cursor: pointer;
+    transition: border .15s, color .15s, background .15s;
+  }
+  .time-slot:hover {
+    border-color: #1a73e8;
+    color: #1a73e8;
+  }
+  .time-slot.selected {
+    background: #1a73e8;
+    border-color: #1a73e8;
+    color: #fff;
+  }
+  
+  /* Footer */
+  .pm-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: center;
+  }
+  .pm-schedule-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #000;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    padding: 12px 28px;
+    font-weight: 600;
+    font-size: 16px;
+    width: 420px;           /* matches the look in your reference */
+    justify-content: center;
+    cursor: pointer;
+  }
+  .pm-schedule-btn:disabled { background: #a8a8a8; cursor: not-allowed; }
+  
+  /* Responsive: stack on small screens */
+  @media (max-width: 900px) {
+    .pm-body { grid-template-columns: 1fr; }
+    .pm-schedule-btn { width: 100%; }
+  }
+  

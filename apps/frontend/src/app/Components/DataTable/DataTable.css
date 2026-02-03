@@ -48,22 +48,45 @@
   background: var(--checkbg) !important;
   color: var(--checkText) !important;
 }
-.progress {
+.progress, .orange {
   background: var(--orangebg) !important;
   color: var(--orangetext) !important;
 }
-.cancel {
+.cancel, .red {
   background: var(--errorbg) !important;
   color: var(--delete) !important;
 }
-.blueprogress {
+.blueprogress , .blue {
   background: var(--lightblue) !important;
   color: var(--blue-text) !important;
 }
-.Ticket {
+.Ticket , .purple {
   background: var(--purplebg) !important;
   color: var(--purpletext) !important;
 }
+.grey {
+  background: var(--lightgrey) !important;
+  color: var(--black-text) !important;
+}
+.green {
+  background: var(--checkbg) !important;
+  color: var(--checkText) !important;
+}
+
+
+
+
+
+.textellipsis{
+  white-space: nowrap; 
+  width: 239px; 
+  overflow: hidden;
+  text-overflow: ellipsis; 
+}
+
+
+
+
 
 /* Practice Activity Table Endead  */
 

@@ -1,7 +1,8 @@
 "use client";
 import React, { useState } from "react";
-import { Tabs, Tab, Dropdown } from 'react-bootstrap';
+import { Tabs, Tab, Dropdown, Button } from 'react-bootstrap';
 import "./CommonTabs.css";
+import { FaPlus } from "react-icons/fa";
 
 interface TabData {
   eventKey: string;
@@ -14,6 +15,9 @@ interface CommonTabsProps {
   tabs: TabData[];
   defaultActiveKey?: string;
   showStatusSelect?: boolean; // 👈 optional
+  showCreateButton?: boolean; // 👈 new parameter
+  createButtonText?: string; // �� custom button text
+  onCreateClick?: () => void; // 👈 create button click handler
   onFilterChange?: (value: "30" | "60" | "90") => void;
 }
 
@@ -23,7 +27,15 @@ const statusOptions = [
   { label: "Last 90 Days", value: "90" },
 ];
 
-const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false, onFilterChange }: CommonTabsProps) => {
+const CommonTabs = ({ 
+  tabs, 
+  defaultActiveKey, 
+  showStatusSelect = false, 
+  showCreateButton = false,
+  createButtonText = "Create New",
+  onCreateClick,
+  onFilterChange 
+}: CommonTabsProps) => {
   const [status, setStatus] = useState<string>('30');
 
   const handleDropdownSelect = (eventKey: string | null) => {
@@ -31,6 +43,10 @@ const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false, onFilter
       setStatus(eventKey);
       onFilterChange?.(eventKey); // 👈 Call parent handler if exists
     }
+  };
+
+  const handleCreateClick = () => {
+    onCreateClick?.();
   };
 
   return (
@@ -62,6 +78,20 @@ const CommonTabs = ({ tabs, defaultActiveKey, showStatusSelect = false, onFilter
             </Dropdown.Menu>
           </Dropdown>
         </div>
+      )}
+
+      {showCreateButton && (
+        <div className="SelectStatus">
+          <Button 
+          className="create-new-btn"
+          onClick={handleCreateClick}
+          variant="primary"
+        >
+          <FaPlus className="create-icon" />
+          {createButtonText}
+        </Button>
+        </div>
+        
       )}
     </div>
   );

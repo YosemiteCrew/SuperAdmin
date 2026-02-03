@@ -1,0 +1,53 @@
+.delete-confirmation-content {
+    text-align: center;
+    padding: 1rem 0;
+  }
+  
+  .confirmation-text {
+    color: #495057;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+  
+  .item-name {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    border: 1px solid #bbdefb;
+  }
+  
+  .warning-text {
+    color: #dc3545;
+    font-size: 0.9rem;
+    margin: 0;
+    font-weight: 500;
+  }
+  
+  .modal-footer .btn {
+    padding: 0.5rem 1.5rem;
+    font-weight: 500;
+  }
+  
+  .modal-footer .btn-outline-secondary {
+    border-color: #6c757d;
+    color: #6c757d;
+  }
+  
+  .modal-footer .btn-outline-secondary:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+  }
+  
+  .modal-footer .btn-danger {
+    background-color: #6c757d;
+    border-color: #6c757d;
+  }
+  
+  .modal-footer .btn-danger:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+  }
