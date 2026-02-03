@@ -22,7 +22,7 @@ jobs:
             fetch-depth: 0
         - uses: ./.github/actions/setup-pnpm-node
         - name: Lint
-          run: pnpm turbo lint --filter frontend --filter api
+          run: pnpm turbo lint --filter admin
     type-check:
       runs-on: ubuntu-latest
       steps:
@@ -31,7 +31,7 @@ jobs:
             fetch-depth: 0
         - uses: ./.github/actions/setup-pnpm-node
         - name: Type Check
-          run: pnpm turbo type-check --filter frontend --filter api
+          run: pnpm turbo type-check --filter admin
     build:
       runs-on: ubuntu-latest
       steps:
@@ -40,7 +40,7 @@ jobs:
             fetch-depth: 0
         - uses: ./.github/actions/setup-pnpm-node
         - name: Build
-          run: pnpm turbo build --filter frontend --filter api
+          run: pnpm turbo build --filter admin
     ci-status-check:
         if: always() && !cancelled()
         timeout-minutes: 1
