@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Super Admin – Admin Dashboard
+
+Admin dashboard app built with **Next.js 16**, **React 19**, **Tailwind CSS**, and **Recharts**.
+
+## Features
+
+### Authentication
+- **Login** – Email/password
+- **Scan QR** – QR code instructions
+- **Verify Code** – 4-digit OTP verification  
+Root (`/`) redirects to `/login`; after verification, users land on `/dashboard`.
+
+### Dashboard
+- Welcome intro with notifications
+- Stat cards (appointments, team members, time metrics)
+- **New User Trend** – Area chart with tooltip
+- **User Engagement** – Horizontal bar chart
+- Assessments, Analytics, Social Media, Total Revenue
+- Activity Logs
+
+### Client & CRM
+- Sidebar nav: All Businesses, Hospitals, Groomers, Breeders, Sitters, Pet Parents, Developers, Support Tickets, Business Leads
+- **All Businesses** tab includes:
+  - Stat cards (users, signups, MRR, etc.)
+  - Pending Verifications
+  - New Leads Overview
+  - Practice Activity Overview
+  - Pet Parent Activity Overview
+  - Support Tickets (Professionals / Pet Parents) with status popup
+  - New User Trend & User Engagement charts
+
+### Other
+- User dropdown: Profile, Settings, Account, Logout
+- Clash Grotesk font (via Fontshare)
+- Responsive layout with sidebar and header
 
 ## Getting Started
 
-First, run the development server:
+From the repo root:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Or from this directory:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+pnpm dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open [http://localhost:3000](http://localhost:3000).
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- Next.js 16 (App Router)
+- React 19
+- Tailwind CSS v4
+- Recharts
+- Zustand
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Project Structure
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+apps/admin/
+├── app/
+│   ├── login/              # Login page
+│   ├── scan-qr/            # QR scan instructions
+│   ├── verify-code/        # OTP verification
+│   ├── dashboard/          # Main dashboard
+│   ├── client-crm/         # CRM (All Businesses, Hospitals, etc.)
+│   ├── profile/
+│   ├── settings/
+│   ├── account/
+│   └── layout.tsx
+├── components/
+│   ├── auth-layout/        # Auth page layout
+│   ├── dashboard/          # Dashboard components
+│   └── ui/                 # Button, Input, OTP
+├── store/
+│   └── use-auth-store.ts   # Zustand auth state
+└── public/assets/          # Images, logo, etc.
+```
