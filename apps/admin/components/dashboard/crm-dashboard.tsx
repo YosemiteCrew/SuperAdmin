@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
+import {
+  NewUserTrendChart,
+  UserEngagementChart,
+} from "./charts";
+import { PracticeFunnelChart, PetParentFunnelChart } from "./crm-funnels";
+import { CrmSupportSummary } from "./crm-support-summary";
 
 const CRM_TABS = [
   { id: "all", label: "All" },
@@ -590,6 +596,37 @@ export function CrmDashboard() {
           <button type="button" className="rounded-xl border-2 border-gray-900 bg-white px-8 py-3 text-sm font-medium text-[#302F2E] transition-colors hover:bg-gray-50">See All</button>
         </div>
       </section>
+
+      {/* New User Trend & User Engagement */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-[#302F2E]">New User Trend</h3>
+            <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-[#302F2E]">
+              <option>All</option>
+            </select>
+          </div>
+          <NewUserTrendChart />
+        </section>
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-[#302F2E]">User Engagement</h3>
+            <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-[#302F2E]">
+              <option>Hospitals</option>
+            </select>
+          </div>
+          <UserEngagementChart />
+        </section>
+      </div>
+
+      {/* Practice Funnel & Pet Parent Funnel */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <PracticeFunnelChart />
+        <PetParentFunnelChart />
+      </div>
+
+      {/* Support Summary */}
+      <CrmSupportSummary />
 
       {/* Update Status popup */}
       {statusPopupTicketId && statusPopupAnchor && (
