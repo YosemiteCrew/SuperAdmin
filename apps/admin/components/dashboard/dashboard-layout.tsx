@@ -7,7 +7,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <DashboardHeader />
       <div className="flex pt-16">
         <Sidebar />
-        <main className="min-h-[calc(100vh-4rem)] flex-1 overflow-y-auto pl-4 pr-8 pt-8 pb-8 lg:pl-72">
+        <main className="min-h-[calc(100vh-4rem)] flex-1 overflow-y-auto pl-4 pr-8 pt-8 pb-8 lg:pl-80">
           {children}
         </main>
       </div>

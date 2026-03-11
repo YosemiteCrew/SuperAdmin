@@ -19,6 +19,20 @@ body {
   font-family: 'Clash Grotesk', sans-serif;
 }
 
+/* Remove blue focus outline on click; keep for keyboard navigation */
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Hide scrollbar while keeping scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 .font-heading {
   font-size: 52px;
   font-weight: 500;

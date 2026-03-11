@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 const NAV_GROUP_1 = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "#", label: "Content Management" },
-  { href: "/client-crm", label: "Client & CRM" },
-];
+  { label: "Client & CRM", isToggle: true },
+] as const;
 
 const NAV_GROUP_2 = [
   { href: "#", label: "Analytics & Reports" },
@@ -32,6 +32,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const isClientCrm = pathname?.startsWith("/client-crm");
   const isDashboard = pathname === "/dashboard";
+  const showCrmSubs = true;
 
   const getNavItemStyles = (href: string, isSubtitle = false) => {
     const isActive =
@@ -57,14 +58,20 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-4 right-auto top-20 z-20 hidden h-[calc(100vh-5rem)] min-h-0 w-64 flex-col overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-lg lg:flex">
+    <aside className="scrollbar-hide fixed left-4 right-auto top-20 bottom-4 z-20 hidden w-64 flex-col overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-lg lg:flex">
       <nav className="flex flex-col gap-2">
         {NAV_GROUP_1.map((item) => (
           <div key={item.label}>
-            <Link href={item.href} className={getNavItemStyles(item.href)}>
-              {item.label}
-            </Link>
-            {item.label === "Client & CRM" && isClientCrm && (
+            {"isToggle" in item && item.isToggle ? (
+              <span className="block py-2 text-sm font-normal text-[#5C5C5C]">
+                {item.label}
+              </span>
+            ) : (
+              <Link href={item.href} className={getNavItemStyles(item.href)}>
+                {item.label}
+              </Link>
+            )}
+            {item.label === "Client & CRM" && showCrmSubs && (
               <div className="mt-2 space-y-2 border-l-2 border-gray-100 pl-4">
                 {CLIENT_CRM_SUBTITLES.map((sub) => (
                   <Link
