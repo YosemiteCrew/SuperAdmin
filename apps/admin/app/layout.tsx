@@ -4,6 +4,9 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Super Admin Dashboard",
   description: "Super Admin Dashboard",
+  icons: {
+    icon: "/assets/logo.svg",
+  },
 };
 
 export default function RootLayout({
