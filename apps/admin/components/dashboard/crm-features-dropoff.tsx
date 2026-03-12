@@ -8,7 +8,18 @@ import {
   YAxis,
 } from "recharts";
 
-const MOST_USED_FEATURES = [
+export type InsightDataPoint = {
+  label: string;
+  value: number;
+  display: string;
+};
+
+type CrmFeaturesDropoffProps = {
+  mostUsedFeatures?: InsightDataPoint[];
+  dropOffIndicators?: InsightDataPoint[];
+};
+
+const DEFAULT_MOST_USED = [
   { label: "Appointments", value: 38, display: "38%" },
   { label: "Assessments", value: 18, display: "18%" },
   { label: "Chat", value: 14, display: "14%" },
@@ -17,7 +28,7 @@ const MOST_USED_FEATURES = [
   { label: "Discounts", value: 3, display: "3%" },
 ];
 
-const DROP_OFF_INDICATORS = [
+const DEFAULT_DROP_OFF = [
   { label: "No Appt", value: 38, display: "38%" },
   { label: "Low Feature Usage", value: 18, display: "18%" },
   { label: "Infrequent Logins", value: 14, display: "14%" },
@@ -26,7 +37,10 @@ const DROP_OFF_INDICATORS = [
   { label: "No Recent Activity", value: 3, display: "3%" },
 ];
 
-export function CrmFeaturesDropoff() {
+export function CrmFeaturesDropoff({
+  mostUsedFeatures = DEFAULT_MOST_USED,
+  dropOffIndicators = DEFAULT_DROP_OFF,
+}: CrmFeaturesDropoffProps) {
   return (
     <section>
       <div className="sticky top-0 z-10 -mx-1 -mt-1 border-b border-transparent bg-white/95 px-1 pb-4 pt-1 backdrop-blur-sm">
@@ -43,7 +57,7 @@ export function CrmFeaturesDropoff() {
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={MOST_USED_FEATURES}
+                data={mostUsedFeatures}
                 layout="vertical"
                 margin={{ left: 0, right: 40 }}
               >
@@ -88,7 +102,7 @@ export function CrmFeaturesDropoff() {
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
-                data={DROP_OFF_INDICATORS}
+                data={dropOffIndicators}
                 layout="vertical"
                 margin={{ left: 0, right: 40 }}
               >

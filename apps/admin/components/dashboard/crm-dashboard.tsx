@@ -7,26 +7,9 @@ import {
   UserEngagementChart,
 } from "./charts";
 import { PracticeFunnelChart, PetParentFunnelChart } from "./crm-funnels";
-import { CrmFeaturesDropoff } from "./crm-features-dropoff";
 import { CrmSupportSummary } from "./crm-support-summary";
+import { CrmPendingTabs, CrmTabs } from "./crm-tabs";
 import { PracticeActivityOverview } from "./practice-activity-overview";
-
-const CRM_TABS = [
-  { id: "all", label: "All" },
-  { id: "hospitals", label: "Hospitals" },
-  { id: "groomers", label: "Groomers" },
-  { id: "breeders", label: "Breeders" },
-  { id: "sitters", label: "Sitters" },
-  { id: "pet-parents", label: "Pet Parents" },
-  { id: "developers", label: "Developers" },
-];
-
-const PENDING_TABS = [
-  { id: "hospitals", label: "Hospitals", count: 5 },
-  { id: "groomers", label: "Groomers", count: 2 },
-  { id: "breeders", label: "Breeders", count: 0 },
-  { id: "sitters", label: "Sitters", count: 0 },
-];
 
 const STAT_CARDS = [
   {
@@ -168,8 +151,6 @@ const SUPPORT_TICKET_ROWS = [
 ];
 
 export function CrmDashboard() {
-  const [activeTab, setActiveTab] = useState("all");
-  const [pendingTab, setPendingTab] = useState("hospitals");
   const [supportTab, setSupportTab] = useState<"professionals" | "pet-parents">("professionals");
   const [statusPopupTicketId, setStatusPopupTicketId] = useState<string | null>(null);
   const [statusPopupAnchor, setStatusPopupAnchor] = useState<{ top: number; left: number } | null>(null);
@@ -206,21 +187,7 @@ export function CrmDashboard() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap gap-1 overflow-x-auto">
-          {CRM_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "border-[#3267D3] text-[#3267D3]"
-                  : "border-transparent text-gray-500 hover:text-[#302F2E]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <CrmTabs />
         <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E] focus:outline-none focus:ring-2 focus:ring-[#3267D3]/20">
           <option>Last 30 Days</option>
         </select>
@@ -261,26 +228,7 @@ export function CrmDashboard() {
 
       <section>
         <h3 className="mb-4 text-xl font-semibold text-[#302F2E]">Pending Verifications</h3>
-        <div className="mb-4 flex gap-1 overflow-x-auto">
-          {PENDING_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setPendingTab(tab.id)}
-              className={`relative whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
-                pendingTab === tab.id
-                  ? "border-[#3267D3] text-[#3267D3]"
-                  : "border-gray-200 text-gray-500 hover:border-gray-300"
-              }`}
-            >
-              {tab.label}
-              {tab.count > 0 && (
-                <span className="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-600">
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        <CrmPendingTabs />
 
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
@@ -382,8 +330,6 @@ export function CrmDashboard() {
       </section>
 
       <PracticeActivityOverview />
-
-      {activeTab === "hospitals" && <CrmFeaturesDropoff />}
 
       <section>
         <div className="mb-4 flex items-center justify-between">
