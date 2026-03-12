@@ -17,6 +17,8 @@ export type InsightDataPoint = {
 type CrmFeaturesDropoffProps = {
   mostUsedFeatures?: InsightDataPoint[];
   dropOffIndicators?: InsightDataPoint[];
+  leftChartTitle?: string;
+  rightChartTitle?: string;
 };
 
 const DEFAULT_MOST_USED = [
@@ -40,6 +42,8 @@ const DEFAULT_DROP_OFF = [
 export function CrmFeaturesDropoff({
   mostUsedFeatures = DEFAULT_MOST_USED,
   dropOffIndicators = DEFAULT_DROP_OFF,
+  leftChartTitle = "Most Used Features (30d)",
+  rightChartTitle = "Top Drop-off Indicators (30d)",
 }: CrmFeaturesDropoffProps) {
   return (
     <section>
@@ -52,7 +56,7 @@ export function CrmFeaturesDropoff({
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">
-            Most Used Features (30d)
+            {leftChartTitle}
           </h4>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">
@@ -97,7 +101,7 @@ export function CrmFeaturesDropoff({
 
         <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">
-            Top Drop-off Indicators (30d)
+            {rightChartTitle}
           </h4>
           <div className="h-44">
             <ResponsiveContainer width="100%" height="100%">

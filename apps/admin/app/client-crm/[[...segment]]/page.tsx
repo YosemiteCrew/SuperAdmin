@@ -1,7 +1,9 @@
 import { DashboardLayout } from "../../../components/dashboard/dashboard-layout";
 import { CrmDashboard } from "../../../components/dashboard/crm-dashboard";
 import { CrmBreedersDashboard } from "../../../components/dashboard/crm-breeders-dashboard";
+import { CrmDevelopersDashboard } from "../../../components/dashboard/crm-developers-dashboard";
 import { CrmGroomersDashboard } from "../../../components/dashboard/crm-groomers-dashboard";
+import { CrmPetParentsDashboard } from "../../../components/dashboard/crm-pet-parents-dashboard";
 import { CrmSittersDashboard } from "../../../components/dashboard/crm-sitters-dashboard";
 import { CrmHospitalsDashboard } from "../../../components/dashboard/crm-hospitals-dashboard";
 
@@ -60,6 +62,22 @@ export default async function ClientCrmSegmentPage({
     return (
       <DashboardLayout>
         <CrmSittersDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  if (slug === "pet-parents") {
+    return (
+      <DashboardLayout>
+        <CrmPetParentsDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  if (slug === "developers") {
+    return (
+      <DashboardLayout>
+        <CrmDevelopersDashboard />
       </DashboardLayout>
     );
   }
