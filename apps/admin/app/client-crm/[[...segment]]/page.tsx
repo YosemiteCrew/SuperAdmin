@@ -1,5 +1,6 @@
 import { DashboardLayout } from "../../../components/dashboard/dashboard-layout";
 import { CrmDashboard } from "../../../components/dashboard/crm-dashboard";
+import { CrmHospitalsDashboard } from "../../../components/dashboard/crm-hospitals-dashboard";
 
 const SEGMENT_TITLES: Record<string, string> = {
   hospitals: "Hospitals",
@@ -24,6 +25,14 @@ export default async function ClientCrmSegmentPage({
     return (
       <DashboardLayout>
         <CrmDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  if (slug === "hospitals") {
+    return (
+      <DashboardLayout>
+        <CrmHospitalsDashboard />
       </DashboardLayout>
     );
   }

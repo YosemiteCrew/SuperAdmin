@@ -7,7 +7,9 @@ import {
   UserEngagementChart,
 } from "./charts";
 import { PracticeFunnelChart, PetParentFunnelChart } from "./crm-funnels";
+import { CrmFeaturesDropoff } from "./crm-features-dropoff";
 import { CrmSupportSummary } from "./crm-support-summary";
+import { PracticeActivityOverview } from "./practice-activity-overview";
 
 const CRM_TABS = [
   { id: "all", label: "All" },
@@ -142,19 +144,6 @@ const NEW_LEADS_ROWS = [
   { name: "The Cat Château", type: "Breeder", region: "Paris France", email: "contact@chat...", source: "Event Booth", created: "12 June 2025 8d ago", status: "Demo Given", statusColor: "bg-blue-100 text-blue-700" },
 ];
 
-const PRACTICE_ACTIVITY_TABS = [
-  { id: "hospitals", label: "Hospitals" },
-  { id: "groomers", label: "Groomers" },
-  { id: "breeders", label: "Breeders" },
-  { id: "sitters", label: "Sitters" },
-];
-
-const PRACTICE_ROWS = [
-  { name: "Happy Tails Vet", region: "Toronto Canada", appointments: 134, tickets: 25, staff: 56, lastActivity: "1h ago", status: "Active", statusColor: "bg-green-100 text-green-700" },
-  { name: "Cozy Paws", region: "New York USA", appointments: 198, tickets: 10, staff: 93, lastActivity: "40d ago", status: "Dormant", statusColor: "bg-orange-100 text-orange-700" },
-  { name: "UrbanPet Clinic", region: "Berlin Germany", appointments: 4, tickets: 2, staff: 14, lastActivity: "2d ago", status: "Churn Risk", statusColor: "bg-red-100 text-red-700" },
-];
-
 const PET_PARENT_ROWS = [
   { name: "Sarah M.", region: "Toronto Canada", pets: 2, appointments: 4, avgTime: "14m", score: 82, lastActivity: "2h ago", status: "Active", statusColor: "bg-green-100 text-green-700" },
   { name: "Leo D.", region: "New York USA", pets: 0, appointments: 0, avgTime: "3m", score: 26, lastActivity: "24d ago", status: "Churn Risk", statusColor: "bg-red-100 text-red-700" },
@@ -181,7 +170,6 @@ const SUPPORT_TICKET_ROWS = [
 export function CrmDashboard() {
   const [activeTab, setActiveTab] = useState("all");
   const [pendingTab, setPendingTab] = useState("hospitals");
-  const [practiceTab, setPracticeTab] = useState("hospitals");
   const [supportTab, setSupportTab] = useState<"professionals" | "pet-parents">("professionals");
   const [statusPopupTicketId, setStatusPopupTicketId] = useState<string | null>(null);
   const [statusPopupAnchor, setStatusPopupAnchor] = useState<{ top: number; left: number } | null>(null);
@@ -189,14 +177,12 @@ export function CrmDashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Breadcrumbs */}
       <nav className="text-sm text-gray-500">
         <Link href="/dashboard" className="hover:text-[#302F2E]">Home</Link>
         <span className="mx-1.5">/</span>
         <span className="text-[#302F2E]">CRM</span>
       </nav>
 
-      {/* Title + badges */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <h1 className="text-2xl font-semibold text-[#302F2E]">CRM Dashboard</h1>
         <div className="flex flex-wrap gap-3">
@@ -219,7 +205,6 @@ export function CrmDashboard() {
         </div>
       </div>
 
-      {/* Tabs + date filter */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap gap-1 overflow-x-auto">
           {CRM_TABS.map((tab) => (
@@ -241,7 +226,6 @@ export function CrmDashboard() {
         </select>
       </div>
 
-      {/* Stat cards */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {STAT_CARDS.map((stat) => (
           <div
@@ -275,7 +259,6 @@ export function CrmDashboard() {
         ))}
       </div>
 
-      {/* Pending Verifications */}
       <section>
         <h3 className="mb-4 text-xl font-semibold text-[#302F2E]">Pending Verifications</h3>
         <div className="mb-4 flex gap-1 overflow-x-auto">
@@ -347,7 +330,6 @@ export function CrmDashboard() {
         </div>
       </section>
 
-      {/* New Leads Overview */}
       <section>
         <div className="mb-4 flex items-center gap-3">
           <h3 className="text-xl font-semibold text-[#302F2E]">New Leads Overview</h3>
@@ -399,65 +381,10 @@ export function CrmDashboard() {
         </div>
       </section>
 
-      {/* Practice Activity Overview */}
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-xl font-semibold text-[#302F2E]">Practice Activity Overview</h3>
-          <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E]">
-            <option>Last 30 Days ▾</option>
-          </select>
-        </div>
-        <div className="mb-4 flex gap-1">
-          {PRACTICE_ACTIVITY_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setPracticeTab(tab.id)}
-              className={`whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-                practiceTab === tab.id ? "border-[#3267D3] text-[#3267D3]" : "border-transparent text-gray-500 hover:text-[#302F2E]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-              <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/50">
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Practice Name</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Region</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Appointments</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Tickets Raised</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Active Staff Count</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Last Activity</th>
-                  <th className="px-6 py-4 text-left text-sm font-medium text-gray-600">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {PRACTICE_ROWS.map((row) => (
-                  <tr key={row.name} className="border-b border-gray-100 last:border-0">
-                    <td className="px-6 py-4 text-sm font-medium text-[#302F2E]">{row.name}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{row.region}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{row.appointments}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{row.tickets}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{row.staff}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{row.lastActivity}</td>
-                    <td className="px-6 py-4">
-                      <span className={`rounded-full px-3 py-1 text-xs font-medium ${row.statusColor}`}>{row.status}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="mt-6 flex justify-center">
-          <button type="button" className="rounded-xl border-2 border-gray-900 bg-white px-8 py-3 text-sm font-medium text-[#302F2E] transition-colors hover:bg-gray-50">See All</button>
-        </div>
-      </section>
+      <PracticeActivityOverview />
 
-      {/* Pet Parent Activity Overview */}
+      {activeTab === "hospitals" && <CrmFeaturesDropoff />}
+
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-[#302F2E]">Pet Parent Activity Overview</h3>
@@ -504,7 +431,6 @@ export function CrmDashboard() {
         </div>
       </section>
 
-      {/* Support Tickets */}
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-[#302F2E]">Support Tickets</h3>
@@ -597,7 +523,6 @@ export function CrmDashboard() {
         </div>
       </section>
 
-      {/* New User Trend & User Engagement */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section>
           <div className="mb-4 flex items-center justify-between">
@@ -619,16 +544,13 @@ export function CrmDashboard() {
         </section>
       </div>
 
-      {/* Practice Funnel & Pet Parent Funnel */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PracticeFunnelChart />
         <PetParentFunnelChart />
       </div>
 
-      {/* Support Summary */}
       <CrmSupportSummary />
 
-      {/* Update Status popup */}
       {statusPopupTicketId && statusPopupAnchor && (
         <StatusPopup
           anchor={statusPopupAnchor}
