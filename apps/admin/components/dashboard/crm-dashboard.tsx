@@ -188,7 +188,7 @@ export function CrmDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <CrmTabs />
-        <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E] focus:outline-none focus:ring-2 focus:ring-[#3267D3]/20">
+        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Last 30 Days</option>
         </select>
       </div>
@@ -334,7 +334,7 @@ export function CrmDashboard() {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-[#302F2E]">Pet Parent Activity Overview</h3>
-          <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E]">
+          <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
             <option>Last 30 Days ▾</option>
           </select>
         </div>
@@ -380,7 +380,7 @@ export function CrmDashboard() {
       <section>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-xl font-semibold text-[#302F2E]">Support Tickets</h3>
-          <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E]">
+          <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
             <option>Last 30 Days</option>
           </select>
         </div>
@@ -473,7 +473,7 @@ export function CrmDashboard() {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-xl font-semibold text-[#302F2E]">New User Trend</h3>
-            <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-[#302F2E]">
+            <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
               <option>All</option>
             </select>
           </div>
@@ -482,7 +482,7 @@ export function CrmDashboard() {
         <section>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-xl font-semibold text-[#302F2E]">User Engagement</h3>
-            <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-normal text-[#302F2E]">
+            <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
               <option>Hospitals</option>
             </select>
           </div>

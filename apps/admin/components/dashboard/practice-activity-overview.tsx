@@ -41,10 +41,10 @@ export function PracticeActivityOverview() {
                 </svg>
               </span>
             </div>
-            <select className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-[#302F2E]">
+            <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
               <option>Status</option>
             </select>
-            <select className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-[#302F2E]">
+            <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
               <option>30D</option>
             </select>
           </div>

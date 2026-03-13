@@ -2,6 +2,7 @@ import { DashboardLayout } from "../../../components/dashboard/dashboard-layout"
 import { CrmDashboard } from "../../../components/dashboard/crm-dashboard";
 import { CrmBreedersDashboard } from "../../../components/dashboard/crm-breeders-dashboard";
 import { CrmDevelopersDashboard } from "../../../components/dashboard/crm-developers-dashboard";
+import { CrmSupportTicketsDashboard } from "../../../components/dashboard/crm-support-tickets-dashboard";
 import { CrmGroomersDashboard } from "../../../components/dashboard/crm-groomers-dashboard";
 import { CrmPetParentsDashboard } from "../../../components/dashboard/crm-pet-parents-dashboard";
 import { CrmSittersDashboard } from "../../../components/dashboard/crm-sitters-dashboard";
@@ -78,6 +79,14 @@ export default async function ClientCrmSegmentPage({
     return (
       <DashboardLayout>
         <CrmDevelopersDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  if (slug === "support-tickets") {
+    return (
+      <DashboardLayout>
+        <CrmSupportTicketsDashboard />
       </DashboardLayout>
     );
   }

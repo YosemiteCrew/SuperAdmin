@@ -42,11 +42,11 @@ function FunnelChart({
         <h3 className="text-lg font-semibold text-[#302F2E]">{title}</h3>
         <div className="flex gap-2">
           {showAllFilter && (
-            <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#302F2E]">
+            <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
               <option>All</option>
             </select>
           )}
-          <select className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-[#302F2E]">
+          <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
             <option>30D</option>
           </select>
         </div>

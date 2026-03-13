@@ -35,7 +35,7 @@ export function CrmPetParentsDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <CrmTabs />
-        <select className="rounded-lg border border-gray-200 px-4 py-2 text-sm text-[#302F2E]">
+        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Last 30 Days</option>
         </select>
       </div>

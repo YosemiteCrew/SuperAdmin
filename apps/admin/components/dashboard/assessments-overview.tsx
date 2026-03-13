@@ -63,7 +63,7 @@ export function AssessmentsOverview() {
             </span>
           </div>
         </div>
-        <select className="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-normal text-[#302F2E]">
+        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2.5 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Canine Grimace Scale</option>
         </select>
       </div>
