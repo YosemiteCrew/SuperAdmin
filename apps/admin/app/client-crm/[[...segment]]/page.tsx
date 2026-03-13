@@ -1,12 +1,12 @@
-import { DashboardLayout } from "../../../components/dashboard/dashboard-layout";
-import { CrmDashboard } from "../../../components/dashboard/crm-dashboard";
-import { CrmBreedersDashboard } from "../../../components/dashboard/crm-breeders-dashboard";
-import { CrmDevelopersDashboard } from "../../../components/dashboard/crm-developers-dashboard";
-import { CrmSupportTicketsDashboard } from "../../../components/dashboard/crm-support-tickets-dashboard";
-import { CrmGroomersDashboard } from "../../../components/dashboard/crm-groomers-dashboard";
-import { CrmPetParentsDashboard } from "../../../components/dashboard/crm-pet-parents-dashboard";
-import { CrmSittersDashboard } from "../../../components/dashboard/crm-sitters-dashboard";
-import { CrmHospitalsDashboard } from "../../../components/dashboard/crm-hospitals-dashboard";
+import { DashboardLayout } from "../../../components/dashboard/layout/dashboard-layout";
+import { CrmDashboard } from "../../../components/dashboard/crm/crm-dashboard";
+import { CrmBreedersDashboard } from "../../../components/dashboard/crm/crm-breeders-dashboard";
+import { CrmDevelopersDashboard } from "../../../components/dashboard/crm/crm-developers-dashboard";
+import { CrmSupportTicketsDashboard } from "../../../components/dashboard/crm/crm-support-tickets-dashboard";
+import { CrmGroomersDashboard } from "../../../components/dashboard/crm/crm-groomers-dashboard";
+import { CrmPetParentsDashboard } from "../../../components/dashboard/crm/crm-pet-parents-dashboard";
+import { CrmSittersDashboard } from "../../../components/dashboard/crm/crm-sitters-dashboard";
+import { CrmHospitalsDashboard } from "../../../components/dashboard/crm/crm-hospitals-dashboard";
 
 const SEGMENT_TITLES: Record<string, string> = {
   hospitals: "Hospitals",

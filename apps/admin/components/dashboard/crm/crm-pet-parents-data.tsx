@@ -1,5 +1,5 @@
 import type { InsightDataPoint } from "./crm-features-dropoff";
-import type { PetParentRow } from "./pet-parents-overview";
+import type { PetParentRow } from "../overview/pet-parents-overview";
 import type { StatCard } from "./crm-segment-dashboard";
 
 const ICONS = {

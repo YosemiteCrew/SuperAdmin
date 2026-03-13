@@ -17,14 +17,14 @@ import {
   getRequest,
   listRequests,
   updateRequestStatus,
-} from "../../lib/api/contact-us";
+} from "../../../lib/api/contact-us";
 import type {
   ContactUsRequest,
   DashboardStats,
   RequestStatus,
   RequestType,
-} from "../../types/contact-us";
-import { RoundedDropdown } from "../ui/rounded-dropdown";
+} from "../../../types/contact-us";
+import { RoundedDropdown } from "../../ui/rounded-dropdown";
 
 const STATUS_COLORS: Record<RequestStatus, string> = {
   OPEN: "bg-purple-100 text-purple-700",

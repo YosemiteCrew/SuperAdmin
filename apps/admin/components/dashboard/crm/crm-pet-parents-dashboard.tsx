@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { CrmFeaturesDropoff } from "./crm-features-dropoff";
-import { CrmPendingReviewsApprovals } from "./crm-pending-reviews-approvals";
 import { CrmTabs } from "./crm-tabs";
-import { DeveloperActivityOverview } from "./developer-activity-overview";
-import { DEVELOPERS_DATA } from "./crm-developers-data";
+import { PET_PARENTS_DATA } from "./crm-pet-parents-data";
+import { PetParentsOverview } from "../overview/pet-parents-overview";
 import type { StatCard } from "./crm-segment-dashboard";
 
 const TrendIcon = ({ trend }: { trend: "up" | "down" }) =>
@@ -19,7 +18,7 @@ const TrendIcon = ({ trend }: { trend: "up" | "down" }) =>
     </svg>
   );
 
-export function CrmDevelopersDashboard() {
+export function CrmPetParentsDashboard() {
   return (
     <div className="space-y-8">
       <nav className="text-sm text-gray-500">
@@ -27,18 +26,11 @@ export function CrmDevelopersDashboard() {
         <span className="mx-1.5">/</span>
         <Link href="/client-crm" className="hover:text-[#302F2E]">CRM</Link>
         <span className="mx-1.5">/</span>
-        <span className="text-[#302F2E]">Developers</span>
+        <span className="text-[#302F2E]">Pet Parents</span>
       </nav>
 
       <div className="flex flex-wrap items-center gap-4">
-        <h1 className="text-2xl font-semibold text-[#302F2E]">CRM Dashboard - Developers</h1>
-        <span className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          </svg>
-          3 Projects Pending Approval
-        </span>
+        <h1 className="text-2xl font-semibold text-[#302F2E]">CRM Dashboard - Pet Parents</h1>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -49,7 +41,7 @@ export function CrmDevelopersDashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {DEVELOPERS_DATA.statCards.map((stat: StatCard) => (
+        {PET_PARENTS_DATA.statCards.map((stat: StatCard) => (
           <div
             key={stat.label}
             className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
@@ -73,20 +65,14 @@ export function CrmDevelopersDashboard() {
         ))}
       </div>
 
-      <CrmPendingReviewsApprovals
-        count={3}
-        rows={DEVELOPERS_DATA.pendingReviewRows}
-      />
-
-      <DeveloperActivityOverview
-        rows={DEVELOPERS_DATA.developerActivityRows}
+      <PetParentsOverview
+        rows={PET_PARENTS_DATA.petParentRows}
         totalCount={140}
       />
 
       <CrmFeaturesDropoff
-        mostUsedFeatures={DEVELOPERS_DATA.mostUsedTools}
-        dropOffIndicators={DEVELOPERS_DATA.dropOffIndicators}
-        leftChartTitle="Most Used Tools (30d)"
+        mostUsedFeatures={PET_PARENTS_DATA.mostUsedFeatures}
+        dropOffIndicators={PET_PARENTS_DATA.dropOffIndicators}
       />
     </div>
   );

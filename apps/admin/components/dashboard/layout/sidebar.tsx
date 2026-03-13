@@ -62,14 +62,14 @@ export function Sidebar() {
       <nav className="flex flex-col gap-2">
         {NAV_GROUP_1.map((item) => (
           <div key={item.label}>
-            {"isToggle" in item && item.isToggle ? (
-              <span className="block py-2 text-sm font-normal text-[#5C5C5C]">
-                {item.label}
-              </span>
-            ) : (
+            {"href" in item ? (
               <Link href={item.href} className={getNavItemStyles(item.href)}>
                 {item.label}
               </Link>
+            ) : (
+              <span className="block py-2 text-sm font-normal text-[#5C5C5C]">
+                {item.label}
+              </span>
             )}
             {item.label === "Client & CRM" && showCrmSubs && (
               <div className="mt-2 space-y-2 border-l-2 border-gray-100 pl-4">

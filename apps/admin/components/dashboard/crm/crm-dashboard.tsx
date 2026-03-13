@@ -5,11 +5,11 @@ import { useState, useRef, useEffect } from "react";
 import {
   NewUserTrendChart,
   UserEngagementChart,
-} from "./charts";
+} from "../charts/charts";
 import { PracticeFunnelChart, PetParentFunnelChart } from "./crm-funnels";
 import { CrmSupportSummary } from "./crm-support-summary";
 import { CrmPendingTabs, CrmTabs } from "./crm-tabs";
-import { PracticeActivityOverview } from "./practice-activity-overview";
+import { PracticeActivityOverview } from "../overview/practice-activity-overview";
 
 const STAT_CARDS = [
   {

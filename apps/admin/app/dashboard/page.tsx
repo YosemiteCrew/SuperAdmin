@@ -1,16 +1,16 @@
-import { ActivityLogs } from "../../components/dashboard/activity-logs";
-import { AnalyticsReport } from "../../components/dashboard/analytics-report";
-import { AssessmentsOverview } from "../../components/dashboard/assessments-overview";
+import { ActivityLogs } from "../../components/dashboard/overview/activity-logs";
+import { AnalyticsReport } from "../../components/dashboard/charts/analytics-report";
+import { AssessmentsOverview } from "../../components/dashboard/overview/assessments-overview";
 import {
   NewUserTrendChart,
   UserEngagementChart,
-} from "../../components/dashboard/charts";
-import { DashboardLayout } from "../../components/dashboard/dashboard-layout";
-import { DashboardIntro } from "../../components/dashboard/intro";
-import { SectionHeader } from "../../components/dashboard/section-header";
-import { SocialMediaTable } from "../../components/dashboard/social-media-table";
-import { StatCards } from "../../components/dashboard/stat-cards";
-import { TotalRevenue } from "../../components/dashboard/total-revenue";
+} from "../../components/dashboard/charts/charts";
+import { DashboardLayout } from "../../components/dashboard/layout/dashboard-layout";
+import { DashboardIntro } from "../../components/dashboard/common/intro";
+import { SectionHeader } from "../../components/dashboard/layout/section-header";
+import { SocialMediaTable } from "../../components/dashboard/common/social-media-table";
+import { StatCards } from "../../components/dashboard/common/stat-cards";
+import { TotalRevenue } from "../../components/dashboard/charts/total-revenue";
 
 export default function DashboardPage() {
   return (

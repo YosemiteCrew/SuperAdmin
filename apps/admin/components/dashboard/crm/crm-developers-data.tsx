@@ -1,6 +1,6 @@
 import type { InsightDataPoint } from "./crm-features-dropoff";
 import type { PendingReviewRow } from "./crm-pending-reviews-approvals";
-import type { DeveloperActivityRow } from "./developer-activity-overview";
+import type { DeveloperActivityRow } from "../overview/developer-activity-overview";
 import type { StatCard } from "./crm-segment-dashboard";
 
 const ICONS = {
