@@ -43,7 +43,7 @@ export function RoundedDropdown<T extends string>({
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen((o) => !o)}
-        className={`flex min-w-[100px] items-center justify-between gap-2 rounded-2xl border-0 outline-none focus:outline-none focus:ring-0 disabled:opacity-50 ${className}`}
+        className={`flex min-w-[100px] items-center justify-between gap-2 rounded-[25px] border-0 outline-none focus:outline-none focus:ring-0 disabled:opacity-50 ${className}`}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
@@ -63,7 +63,7 @@ export function RoundedDropdown<T extends string>({
       {open && (
         <ul
           role="listbox"
-          className="absolute top-full left-0 right-0 z-50 mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-white py-1 shadow-lg"
+          className="absolute top-full left-0 right-0 z-50 mt-2 overflow-hidden rounded-[25px] border border-gray-200 bg-white py-1 shadow-lg"
         >
           {options.map((opt) => (
             <li

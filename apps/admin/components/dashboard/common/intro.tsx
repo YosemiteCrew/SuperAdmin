@@ -9,7 +9,7 @@ export function DashboardIntro() {
       </div>
       <button
         type="button"
-        className="mt-4 flex w-fit items-center gap-2 rounded-xl bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 sm:mt-0"
+        className="mt-4 flex w-fit items-center gap-2 rounded-[25px] bg-blue-50 px-4 py-2.5 text-sm font-medium text-blue-700 sm:mt-0"
       >
         <svg
           width="18"

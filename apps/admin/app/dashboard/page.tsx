@@ -22,7 +22,7 @@ export default function DashboardPage() {
               <SectionHeader
                 title="New User Trend"
                 rightElement={
-                  <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+                  <select className="rounded-[25px] border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
                     <option>All</option>
                   </select>
                 }
@@ -33,7 +33,7 @@ export default function DashboardPage() {
               <SectionHeader
                 title="User Engagement"
                 rightElement={
-                  <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+                  <select className="rounded-[25px] border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
                     <option>Hospitals</option>
                   </select>
                 }
@@ -58,7 +58,7 @@ export default function DashboardPage() {
               <SectionHeader
                 title="Total Revenue"
                 rightElement={
-                  <select className="rounded-xl border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+                  <select className="rounded-[25px] border-0 bg-gray-50 px-3 py-2 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
                     <option>This Month Revenue</option>
                   </select>
                 }

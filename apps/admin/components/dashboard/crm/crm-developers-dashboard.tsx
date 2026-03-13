@@ -32,7 +32,7 @@ export function CrmDevelopersDashboard() {
 
       <div className="flex flex-wrap items-center gap-4">
         <h1 className="text-2xl font-semibold text-[#302F2E]">CRM Dashboard - Developers</h1>
-        <span className="inline-flex items-center gap-2 rounded-lg bg-red-50 px-4 py-2 text-sm font-medium text-red-600">
+        <span className="inline-flex items-center gap-2 rounded-[25px] bg-red-50 px-4 py-2 text-sm font-medium text-red-600">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -43,7 +43,7 @@ export function CrmDevelopersDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <CrmTabs />
-        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+        <select className="rounded-[25px] border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Last 30 Days</option>
         </select>
       </div>
@@ -52,9 +52,9 @@ export function CrmDevelopersDashboard() {
         {DEVELOPERS_DATA.statCards.map((stat: StatCard) => (
           <div
             key={stat.label}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+            className="rounded-[25px] border border-gray-200 bg-white p-6 shadow-sm"
           >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 text-[#302F2E]">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[25px] border border-gray-200 text-[#302F2E]">
               {stat.icon}
             </div>
             <p className="text-sm font-normal text-gray-500">{stat.label}</p>

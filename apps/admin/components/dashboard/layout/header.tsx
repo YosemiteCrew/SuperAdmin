@@ -86,7 +86,7 @@ export function DashboardHeader() {
           <button
             type="button"
             onClick={() => setIsOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-lg py-1 pr-1 transition-colors hover:bg-gray-50"
+            className="flex items-center gap-2 rounded-[25px] py-1 pr-1 transition-colors hover:bg-gray-50"
           >
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-blue-500 bg-gray-100 text-sm font-medium text-gray-600">
               A
@@ -106,7 +106,7 @@ export function DashboardHeader() {
           </button>
 
           {isOpen && (
-            <div className="absolute right-0 top-full z-50 mt-2 min-w-[180px] rounded-xl border border-gray-200 bg-white py-2 shadow-lg">
+            <div className="absolute right-0 top-full z-50 mt-2 min-w-[180px] rounded-[25px] border border-gray-200 bg-white py-2 shadow-lg">
               <div className="border-b border-gray-100 px-4 py-3">
                 <p className="text-sm font-medium text-[#302F2E]">Admin</p>
                 <p className="text-xs text-gray-500">admin@example.com</p>

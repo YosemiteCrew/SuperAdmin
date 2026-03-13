@@ -20,7 +20,7 @@ const REVENUE_DATA = [
 function RevenueTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-lg">
+    <div className="rounded-[25px] border border-gray-200 bg-white px-3 py-2 shadow-lg">
       <p className="text-sm font-medium text-[#302F2E]">$13.4K</p>
     </div>
   );
@@ -28,7 +28,7 @@ function RevenueTooltip({ active, payload }: { active?: boolean; payload?: { val
 
 export function TotalRevenue() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-4 flex flex-wrap items-center gap-6">
         <label className="flex cursor-pointer items-center gap-2">
           <input

@@ -68,7 +68,7 @@ export function CrmPendingTabs() {
           <Link
             key={tab.id}
             href={tab.href}
-            className={`relative whitespace-nowrap rounded-lg border px-4 py-2 text-sm font-medium transition-colors ${
+            className={`relative whitespace-nowrap rounded-[25px] border px-4 py-2 text-sm font-medium transition-colors ${
               isActive
                 ? "border-[#3267D3] text-[#3267D3]"
                 : "border-gray-200 text-gray-500 hover:border-gray-300"

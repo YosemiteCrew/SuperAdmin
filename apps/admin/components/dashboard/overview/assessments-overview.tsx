@@ -33,7 +33,7 @@ function CustomTooltip({
   const highlight = payload[0]?.payload?.highlight;
   if (!highlight || payload[0]?.payload?.month !== "August") return null;
   return (
-    <div className="rounded-lg border border-gray-200 bg-blue-50 px-3 py-2 shadow-md">
+    <div className="rounded-[25px] border border-gray-200 bg-blue-50 px-3 py-2 shadow-md">
       <p className="text-sm font-medium text-[#302F2E]">{highlight}</p>
     </div>
   );
@@ -41,7 +41,7 @@ function CustomTooltip({
 
 export function AssessmentsOverview() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-6">
           <div className="flex items-center gap-2">
@@ -63,7 +63,7 @@ export function AssessmentsOverview() {
             </span>
           </div>
         </div>
-        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2.5 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+        <select className="rounded-[25px] border-0 bg-gray-50 px-4 py-2.5 text-sm font-normal text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Canine Grimace Scale</option>
         </select>
       </div>

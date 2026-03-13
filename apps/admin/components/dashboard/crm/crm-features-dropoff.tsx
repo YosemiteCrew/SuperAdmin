@@ -54,7 +54,7 @@ export function CrmFeaturesDropoff({
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-5 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">
             {leftChartTitle}
           </h4>
@@ -99,7 +99,7 @@ export function CrmFeaturesDropoff({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-5 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">
             {rightChartTitle}
           </h4>

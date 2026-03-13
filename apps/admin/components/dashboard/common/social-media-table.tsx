@@ -7,7 +7,7 @@ const SOCIAL_DATA = [
 
 export function SocialMediaTable() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

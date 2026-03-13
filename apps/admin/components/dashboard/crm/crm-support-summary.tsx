@@ -32,7 +32,7 @@ export function CrmSupportSummary() {
 
       {/* Row 1: Total Tickets & Top Mentioned Issues - side by side, reduced height */}
       <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-baseline justify-between gap-2">
             <h4 className="text-base font-semibold text-[#302F2E]">Total Tickets (7d)</h4>
             <span className="text-xl font-bold text-[#302F2E]">31</span>
@@ -70,7 +70,7 @@ export function CrmSupportSummary() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-5 shadow-sm">
           <h4 className="mb-2 text-base font-semibold text-[#302F2E]">
             Top Mentioned Issues (30d)
           </h4>
@@ -118,7 +118,7 @@ export function CrmSupportSummary() {
 
       {/* Row 2: KPI Cards - side by side */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-2 flex h-8 w-8 items-center justify-center text-[#302F2E]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="12" r="10" />
@@ -131,7 +131,7 @@ export function CrmSupportSummary() {
               <span className="text-xs font-medium text-green-600">↑ 23%</span>
             </div>
           </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-2 flex h-8 w-8 items-center justify-center text-[#302F2E]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
@@ -144,7 +144,7 @@ export function CrmSupportSummary() {
               <span className="text-xs font-medium text-red-600">↓ 11%</span>
             </div>
           </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="rounded-[25px] border border-gray-200 bg-white p-4 shadow-sm">
           <div className="mb-2 flex h-8 w-8 items-center justify-center text-[#302F2E]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="23 4 23 10 17 10" />

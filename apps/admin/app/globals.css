@@ -11,6 +11,7 @@
   --color-foreground: var(--foreground);
   --font-sans: 'Satoshi', sans-serif;
   --font-mono: ui-monospace, monospace;
+  --radius-card: 25px;
 }
 
 body {

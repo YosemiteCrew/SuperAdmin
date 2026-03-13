@@ -16,7 +16,7 @@ const ANALYTICS_DATA = [
 
 export function AnalyticsReport() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="h-52 min-h-[208px] w-full">
         <ResponsiveContainer width="100%" height={208}>
           <BarChart

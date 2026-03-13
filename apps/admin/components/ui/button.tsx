@@ -31,7 +31,7 @@ export function Button({
   className = "",
 }: ButtonProps) {
   const baseStyles =
-    "inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-base font-medium transition-colors";
+    "inline-flex w-full items-center justify-center gap-2 rounded-[25px] px-6 py-3.5 text-base font-medium transition-colors";
   const styles = `${baseStyles} ${variantStyles[variant]} ${className}`;
 
   const content = (

@@ -31,7 +31,7 @@ const ENGAGEMENT_DATA = [
 function CustomTooltip({ active, payload }: { active?: boolean; payload?: { value: number }[] }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
+    <div className="rounded-[25px] border border-gray-200 bg-white p-4 shadow-lg">
       <p className="text-sm font-medium text-[#302F2E]">March 2025</p>
       <p className="text-sm text-gray-500">Total 2,650</p>
       <p className="mt-2 text-xs text-gray-500">Hospitals 320</p>
@@ -45,7 +45,7 @@ function CustomTooltip({ active, payload }: { active?: boolean; payload?: { valu
 
 export function NewUserTrendChart() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="h-64 min-h-[256px] w-full">
         <ResponsiveContainer width="100%" height={256}>
           <AreaChart data={TREND_DATA}>
@@ -85,7 +85,7 @@ export function NewUserTrendChart() {
 
 export function UserEngagementChart() {
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+    <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
       <div className="h-64 min-h-[256px] w-full">
         <ResponsiveContainer width="100%" height={256}>
           <BarChart data={ENGAGEMENT_DATA} layout="vertical" margin={{ left: 0, right: 20 }}>

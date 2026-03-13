@@ -41,7 +41,7 @@ export function Input({
           defaultValue={defaultValue}
           onChange={(e) => onChange?.(e.target.value)}
           maxLength={maxLength}
-          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3.5 text-gray-900 placeholder-gray-500 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
+          className="w-full rounded-[25px] border border-gray-300 bg-white px-4 py-3.5 text-gray-900 placeholder-gray-500 outline-none focus:border-gray-500 focus:ring-1 focus:ring-gray-500"
         />
         {isPassword && (
           <button

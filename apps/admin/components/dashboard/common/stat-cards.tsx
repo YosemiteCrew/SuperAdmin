@@ -85,9 +85,9 @@ export function StatCards() {
       {STATS.map((stat) => (
         <div
           key={stat.label}
-          className="flex items-center gap-4 rounded-2xl border-2 border-gray-200 bg-white p-6"
+          className="flex items-center gap-4 rounded-[25px] border-2 border-gray-200 bg-white p-6"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-[#302F2E]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[25px] border border-gray-200 bg-white text-[#302F2E]">
             {stat.icon}
           </div>
           <div>

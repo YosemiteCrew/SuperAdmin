@@ -43,14 +43,14 @@ export function Sidebar() {
           (href === "/client-crm" && isClientCrm);
 
     if (isSubtitle) {
-      const base = "block rounded-xl px-4 py-2.5 text-base font-normal transition-colors";
+      const base = "block rounded-[25px] px-4 py-2.5 text-base font-normal transition-colors";
       const active = "border-2 border-blue-500 bg-blue-50/50 text-blue-600";
       const inactive = "text-[#302F2E] hover:bg-gray-50/50";
       return `${base} ${isActive ? active : inactive}`;
     }
 
     const base =
-      "block rounded-xl border-2 px-5 py-2.5 text-base font-normal transition-colors";
+      "block rounded-[25px] border-2 px-5 py-2.5 text-base font-normal transition-colors";
     const active = "border-blue-500 bg-blue-50/50 text-blue-600";
     const inactive =
       "border-gray-200 bg-transparent text-[#5C5C5C] hover:border-gray-300 hover:bg-gray-50/50";
@@ -58,7 +58,7 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="scrollbar-hide fixed left-4 right-auto top-20 bottom-4 z-20 hidden w-64 flex-col overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 shadow-lg lg:flex">
+    <aside className="scrollbar-hide fixed left-4 right-auto top-20 bottom-4 z-20 hidden w-64 flex-col overflow-y-auto rounded-[25px] border border-gray-200 bg-white p-4 shadow-lg lg:flex">
       <nav className="flex flex-col gap-2">
         {NAV_GROUP_1.map((item) => (
           <div key={item.label}>

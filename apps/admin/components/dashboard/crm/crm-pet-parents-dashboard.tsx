@@ -35,7 +35,7 @@ export function CrmPetParentsDashboard() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <CrmTabs />
-        <select className="rounded-xl border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
+        <select className="rounded-[25px] border-0 bg-gray-50 px-4 py-2 text-sm text-[#302F2E] outline-none focus:outline-none focus:ring-0">
           <option>Last 30 Days</option>
         </select>
       </div>
@@ -44,9 +44,9 @@ export function CrmPetParentsDashboard() {
         {PET_PARENTS_DATA.statCards.map((stat: StatCard) => (
           <div
             key={stat.label}
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+            className="rounded-[25px] border border-gray-200 bg-white p-6 shadow-sm"
           >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 text-[#302F2E]">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[25px] border border-gray-200 text-[#302F2E]">
               {stat.icon}
             </div>
             <p className="text-sm font-normal text-gray-500">{stat.label}</p>

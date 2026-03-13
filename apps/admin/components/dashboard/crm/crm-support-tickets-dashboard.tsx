@@ -125,7 +125,7 @@ function SupportRequestDetailModal({
       role="presentation"
     >
       <div
-        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-gray-200 bg-white shadow-xl"
+        className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[25px] border border-gray-200 bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-5">
@@ -133,7 +133,7 @@ function SupportRequestDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-gray-500 hover:bg-gray-100 hover:text-[#302F2E]"
+            className="rounded-[25px] p-2 text-gray-500 hover:bg-gray-100 hover:text-[#302F2E]"
             aria-label="Close"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -147,7 +147,7 @@ function SupportRequestDetailModal({
             <p className="py-8 text-center text-gray-500">Loading…</p>
           )}
           {error && (
-            <p className="rounded-2xl bg-red-50 px-4 py-2 text-sm text-red-600">{error}</p>
+            <p className="rounded-[25px] bg-red-50 px-4 py-2 text-sm text-red-600">{error}</p>
           )}
           {req && !loading && (
             <div className="space-y-8">
@@ -190,13 +190,13 @@ function SupportRequestDetailModal({
 
               <div className="space-y-2">
                 <p className="text-xs font-medium uppercase tracking-wider text-gray-500">Message</p>
-                <p className="whitespace-pre-wrap rounded-2xl border border-gray-100 bg-gray-50/80 p-4 text-sm leading-relaxed text-[#302F2E]">
+                <p className="whitespace-pre-wrap rounded-[25px] border border-gray-100 bg-gray-50/80 p-4 text-sm leading-relaxed text-[#302F2E]">
                   {req.message}
                 </p>
               </div>
 
               {req.dsarDetails && (
-                <div className="rounded-2xl border border-gray-200 bg-amber-50/30 p-4">
+                <div className="rounded-[25px] border border-gray-200 bg-amber-50/30 p-4">
                   <h4 className="mb-3 text-sm font-semibold text-[#302F2E]">DSAR Details</h4>
                   <div className="grid gap-2 text-sm">
                     <p>
@@ -340,12 +340,12 @@ export function CrmSupportTicketsDashboard() {
           <h1 className="text-2xl font-semibold tracking-tight text-[#302F2E] sm:text-3xl">Support Tickets</h1>
           <p className="mt-1 text-sm text-gray-500">Manage contact requests and view support analytics</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl bg-gray-50/80 p-3">
+        <div className="flex flex-wrap items-center gap-2 rounded-[25px] bg-gray-50/80 p-3">
           <input
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="rounded-xl border-0 bg-white px-3 py-2 text-sm text-[#302F2E] shadow-sm outline-none focus:outline-none focus:ring-0"
+            className="rounded-[25px] border-0 bg-white px-3 py-2 text-sm text-[#302F2E] shadow-sm outline-none focus:outline-none focus:ring-0"
             placeholder="From"
           />
           <span className="text-gray-400">→</span>
@@ -353,7 +353,7 @@ export function CrmSupportTicketsDashboard() {
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="rounded-xl border-0 bg-white px-3 py-2 text-sm text-[#302F2E] shadow-sm outline-none focus:outline-none focus:ring-0"
+            className="rounded-[25px] border-0 bg-white px-3 py-2 text-sm text-[#302F2E] shadow-sm outline-none focus:outline-none focus:ring-0"
             placeholder="To"
           />
           <button
@@ -363,7 +363,7 @@ export function CrmSupportTicketsDashboard() {
               setDateTo("");
               fetchStats();
             }}
-            className="rounded-xl bg-white px-3 py-2 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-100"
+            className="rounded-[25px] bg-white px-3 py-2 text-sm font-medium text-gray-600 shadow-sm transition-colors hover:bg-gray-100"
           >
             Clear
           </button>
@@ -371,7 +371,7 @@ export function CrmSupportTicketsDashboard() {
       </header>
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <div className="rounded-[25px] border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
           {error}
         </div>
       )}
@@ -379,7 +379,7 @@ export function CrmSupportTicketsDashboard() {
       <section>
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-500">Overview</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-        <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+        <div className="rounded-[25px] border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
           <p className="text-sm font-medium text-gray-500">Total</p>
           <p className="mt-2 text-2xl font-bold tabular-nums text-[#302F2E]">
             {loading ? "—" : stats?.total?.count ?? 0}
@@ -388,7 +388,7 @@ export function CrmSupportTicketsDashboard() {
         {(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"] as const).map((status) => (
           <div
             key={status}
-            className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+            className="rounded-[25px] border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
           >
             <p className="text-sm font-medium text-gray-500">{STATUS_LABELS[status]}</p>
             <p className="mt-2 text-2xl font-bold tabular-nums text-[#302F2E]">
@@ -402,7 +402,7 @@ export function CrmSupportTicketsDashboard() {
       <section>
         <h2 className="mb-4 text-sm font-medium uppercase tracking-wider text-gray-500">Analytics</h2>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">Requests by Status</h4>
           <div className="h-48">
             {statusPieData.length > 0 ? (
@@ -431,7 +431,7 @@ export function CrmSupportTicketsDashboard() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">Requests by Type</h4>
           <div className="h-48">
             {typeBarData.length > 0 ? (
@@ -457,7 +457,7 @@ export function CrmSupportTicketsDashboard() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">Requests by Source</h4>
           <div className="h-48">
             {sourceBarData.length > 0 ? (
@@ -481,7 +481,7 @@ export function CrmSupportTicketsDashboard() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+        <div className="rounded-[25px] border border-gray-100 bg-white p-6 shadow-sm">
           <h4 className="mb-4 text-base font-semibold text-[#302F2E]">Status Distribution</h4>
           <div className="h-48">
             {byStatusBarData.some((d) => d.value > 0) ? (
@@ -540,7 +540,7 @@ export function CrmSupportTicketsDashboard() {
             />
           </div>
         </div>
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-[25px] border border-gray-100 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px]">
               <thead>
