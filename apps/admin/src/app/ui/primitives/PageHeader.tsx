@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
+
 type Props = {
   title: string;
   subtitle?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 };
 
 export default function PageHeader({ title, subtitle, action }: Props) {

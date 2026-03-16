@@ -1,11 +1,12 @@
 "use client";
+import type { ReactNode } from "react";
 import { useAuthStore } from "@/app/stores/authStore";
 import { hasPermission, type Permission } from "@/app/lib/permissions";
 
 type Props = {
   permission: Permission;
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: ReactNode;
+  fallback?: ReactNode;
 };
 
 export default function PermissionGate({

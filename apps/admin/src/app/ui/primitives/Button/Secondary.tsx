@@ -1,8 +1,9 @@
 "use client";
+import type { ReactNode } from "react";
 import clsx from "clsx";
 
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit";

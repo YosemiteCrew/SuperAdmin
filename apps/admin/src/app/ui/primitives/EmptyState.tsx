@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
+
 type Props = {
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   title: string;
   description?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 };
 
 export default function EmptyState({

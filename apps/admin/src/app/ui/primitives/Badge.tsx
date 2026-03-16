@@ -1,10 +1,11 @@
 "use client";
+import type { ReactNode } from "react";
 import clsx from "clsx";
 
 type Tone = "neutral" | "brand" | "success" | "warning" | "danger";
 
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
   tone?: Tone;
   className?: string;
 };

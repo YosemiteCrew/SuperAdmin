@@ -1,10 +1,10 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type MouseEvent, type ReactNode } from "react";
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default function ModalBase({ isOpen, onClose, children }: Props) {
@@ -19,7 +19,7 @@ export default function ModalBase({ isOpen, onClose, children }: Props) {
     return () => document.removeEventListener("keydown", handleEsc);
   }, [isOpen, onClose]);
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
+  const handleOverlayClick = (e: MouseEvent) => {
     if (e.target === overlayRef.current) onClose();
   };
 

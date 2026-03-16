@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect, type ReactNode } from "react";
 import clsx from "clsx";
 
 type ToastType = "success" | "error" | "warning" | "info";
@@ -17,7 +17,7 @@ const typeStyles: Record<ToastType, string> = {
   info: "bg-brand-100 text-neutral-900 border-brand-600",
 };
 
-const typeIcons: Record<ToastType, React.ReactNode> = {
+const typeIcons: Record<ToastType, ReactNode> = {
   success: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 6L9 17l-5-5" />
@@ -71,16 +71,33 @@ function ToastContainer({ toasts, onDismiss }: { toasts: ToastItem[]; onDismiss:
 export function useToast(duration = 5000) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
+  const timeoutMap = useRef<Map<number, NodeJS.Timeout>>(new Map());
 
   const dismiss = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
+    const tid = timeoutMap.current.get(id);
+    if (tid) {
+      clearTimeout(tid);
+      timeoutMap.current.delete(id);
+    }
+  }, []);
+
+  useEffect(() => {
+    const map = timeoutMap.current;
+    return () => {
+      map.forEach((tid) => clearTimeout(tid));
+      map.clear();
+    };
   }, []);
 
   const showToast = useCallback(
     (type: ToastType, message: string) => {
       const id = ++idRef.current;
       setToasts((prev) => [...prev, { id, type, message }]);
-      setTimeout(() => dismiss(id), duration);
+      const tid = setTimeout(() => {
+        dismiss(id);
+      }, duration);
+      timeoutMap.current.set(id, tid);
     },
     [duration, dismiss]
   );

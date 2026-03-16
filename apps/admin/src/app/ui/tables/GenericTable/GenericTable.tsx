@@ -1,12 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import clsx from "clsx";
 import "./GenericTable.css";
 
 export type Column<T> = {
   label: string;
   key: keyof T | string;
-  render?: (item: T, index: number) => React.ReactNode;
+  render?: (item: T, index: number) => ReactNode;
   width?: string;
 };
 
@@ -30,11 +30,15 @@ export default function GenericTable<T extends Record<string, unknown>>({
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = pagination ? Math.ceil(data.length / pageSize) : 1;
+  const safePage = useMemo(
+    () => Math.min(currentPage, Math.max(1, totalPages)),
+    [currentPage, totalPages]
+  );
   const displayData = pagination
-    ? data.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    ? data.slice((safePage - 1) * pageSize, safePage * pageSize)
     : data;
 
-  const getValue = (item: T, key: keyof T | string): React.ReactNode => {
+  const getValue = (item: T, key: keyof T | string): ReactNode => {
     const val = item[key as keyof T];
     if (val === null || val === undefined) return "";
     return String(val);
@@ -83,7 +87,7 @@ export default function GenericTable<T extends Record<string, unknown>>({
                   className="text-body-4 text-text-primary font-medium px-4 py-3"
                 >
                   {col.render
-                    ? col.render(item, (currentPage - 1) * pageSize + rowIdx)
+                    ? col.render(item, (safePage - 1) * pageSize + rowIdx)
                     : getValue(item, col.key)}
                 </td>
               ))}
@@ -95,13 +99,13 @@ export default function GenericTable<T extends Record<string, unknown>>({
       {pagination && totalPages > 1 && (
         <div className="flex items-center justify-center gap-3 pt-4 border-t border-card-border mt-2">
           <span className="text-caption-1 text-text-tertiary">
-            Showing {(currentPage - 1) * pageSize + 1}-
-            {Math.min(currentPage * pageSize, data.length)} of {data.length}
+            Showing {(safePage - 1) * pageSize + 1}-
+            {Math.min(safePage * pageSize, data.length)} of {data.length}
           </span>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
+              disabled={safePage === 1}
               className="px-3 py-1.5 rounded-xl border border-card-border text-caption-1 text-text-primary disabled:opacity-50 hover:border-brand-950 transition-colors"
             >
               Prev
@@ -110,7 +114,7 @@ export default function GenericTable<T extends Record<string, unknown>>({
               onClick={() =>
                 setCurrentPage((p) => Math.min(totalPages, p + 1))
               }
-              disabled={currentPage === totalPages}
+              disabled={safePage === totalPages}
               className="px-3 py-1.5 rounded-xl border border-card-border text-caption-1 text-text-primary disabled:opacity-50 hover:border-brand-950 transition-colors"
             >
               Next

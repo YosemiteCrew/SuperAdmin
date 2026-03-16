@@ -1,4 +1,5 @@
 "use client";
+import { useId } from "react";
 import clsx from "clsx";
 
 type Option = {
@@ -16,6 +17,7 @@ type Props = {
   className?: string;
   name?: string;
   error?: string;
+  id?: string;
 };
 
 export default function Select({
@@ -28,16 +30,20 @@ export default function Select({
   className,
   name,
   error,
+  id,
 }: Props) {
+  const generatedId = useId();
+  const selectId = id ?? generatedId;
   return (
     <div className={clsx("flex flex-col gap-1.5", className)}>
       {label && (
-        <label className="text-caption-1 text-text-secondary font-medium">
+        <label htmlFor={selectId} className="text-caption-1 text-text-secondary font-medium">
           {label}
         </label>
       )}
       <div className="relative">
         <select
+          id={selectId}
           name={name}
           value={value}
           onChange={onChange}

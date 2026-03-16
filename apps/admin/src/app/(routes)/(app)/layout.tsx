@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import Sidebar from "@/app/ui/layout/Sidebar/Sidebar";
 import Header from "@/app/ui/layout/Header/Header";
 import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
@@ -6,7 +7,7 @@ import ProtectedRoute from "@/app/ui/layout/guards/ProtectedRoute";
 export default function AppLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <ProtectedRoute>

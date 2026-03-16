@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useId } from "react";
 import clsx from "clsx";
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   disabled?: boolean;
   className?: string;
   name?: string;
+  id?: string;
 };
 
 export default function Input({
@@ -24,7 +25,10 @@ export default function Input({
   disabled,
   className,
   name,
+  id,
 }: Props) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = type === "password";
   const inputType = isPassword && showPassword ? "text" : type;
@@ -32,12 +36,13 @@ export default function Input({
   return (
     <div className={clsx("flex flex-col gap-1.5", className)}>
       {label && (
-        <label className="text-caption-1 text-text-secondary font-medium">
+        <label htmlFor={inputId} className="text-caption-1 text-text-secondary font-medium">
           {label}
         </label>
       )}
       <div className="relative">
         <input
+          id={inputId}
           type={inputType}
           name={name}
           value={value}

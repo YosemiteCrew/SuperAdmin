@@ -1,4 +1,5 @@
 "use client";
+import type { ReactNode } from "react";
 import clsx from "clsx";
 import ModalBase from "./ModalBase";
 
@@ -6,7 +7,7 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  children: React.ReactNode;
+  children: ReactNode;
   size?: "sm" | "md" | "lg";
 };
 
@@ -36,6 +37,7 @@ export default function CenterModal({
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-heading-2 text-text-primary">{title}</h2>
             <button
+              type="button"
               onClick={onClose}
               className="text-text-tertiary hover:text-text-primary transition-colors"
             >

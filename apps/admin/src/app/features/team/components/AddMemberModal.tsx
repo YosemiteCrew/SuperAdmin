@@ -4,6 +4,7 @@ import { CenterModal } from "@/app/ui/overlays/Modal";
 import Select from "@/app/ui/inputs/Select";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import type { TeamRole } from "@/app/types/team";
+import { isValidEmail } from "@/app/lib/validators";
 
 const roleOptions = [
   { value: "SUPER_ADMIN", label: "Super Admin" },
@@ -16,10 +17,6 @@ type Props = {
   onClose: () => void;
   onAdd: (name: string, email: string, role: TeamRole) => void;
 };
-
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
 
 export default function AddMemberModal({ isOpen, onClose, onAdd }: Props) {
   const [name, setName] = useState("");
