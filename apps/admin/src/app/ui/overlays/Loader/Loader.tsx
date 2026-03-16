@@ -1,6 +1,6 @@
 "use client";
 import clsx from "clsx";
-import "./Loader.css";
+import styles from "./Loader.module.css";
 
 type Props = {
   variant?: "inline" | "fullscreen";
@@ -17,7 +17,8 @@ export default function Loader({
     <div className={clsx("flex items-center gap-3", className)}>
       <div
         className={clsx(
-          "loader-spinner rounded-full border-2 border-neutral-200 border-t-brand-950",
+          styles["loader-spinner"],
+          "rounded-full border-2 border-neutral-200 border-t-brand-950",
           variant === "fullscreen" ? "w-10 h-10" : "w-5 h-5"
         )}
       />

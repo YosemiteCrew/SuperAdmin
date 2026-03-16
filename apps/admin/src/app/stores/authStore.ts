@@ -27,7 +27,7 @@ const MOCK_ADMIN: AdminUser = {
   email: "admin@yosemitecrew.com",
   name: "Super Admin",
   role: "SUPER_ADMIN",
-  permissions: ROLE_PERMISSIONS.SUPER_ADMIN as unknown as string[],
+  permissions: ROLE_PERMISSIONS.SUPER_ADMIN,
   mfaEnabled: true,
   lastLoginAt: new Date().toISOString(),
   createdAt: "2024-01-15T00:00:00Z",

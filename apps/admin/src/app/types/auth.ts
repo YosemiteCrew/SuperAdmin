@@ -1,9 +1,11 @@
+import type { Permission } from "@/app/lib/permissions";
+
 export type AdminUser = {
   id: string;
   email: string;
   name: string;
   role: "SUPER_ADMIN" | "ADMIN";
-  permissions: string[];
+  permissions: Permission[];
   mfaEnabled: boolean;
   lastLoginAt: string;
   createdAt: string;

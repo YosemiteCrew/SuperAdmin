@@ -17,6 +17,7 @@ type Props<T extends Record<string, unknown>> = {
   pagination?: boolean;
   pageSize?: number;
   emptyMessage?: string;
+  rowKey?: keyof T | ((item: T) => string);
 };
 
 export default function GenericTable<T extends Record<string, unknown>>({
@@ -26,7 +27,18 @@ export default function GenericTable<T extends Record<string, unknown>>({
   pagination = false,
   pageSize = 10,
   emptyMessage = "No data available",
+  rowKey: rowKeyProp,
 }: Props<T>) {
+  const getRowKey = (item: T, index: number): string => {
+    if (rowKeyProp) {
+      if (typeof rowKeyProp === "function") return rowKeyProp(item);
+      return String(item[rowKeyProp]);
+    }
+    if ("id" in item) return String(item.id);
+    if ("_id" in item) return String(item._id);
+    return String(index);
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
 
   const totalPages = pagination ? Math.ceil(data.length / pageSize) : 1;
@@ -73,7 +85,7 @@ export default function GenericTable<T extends Record<string, unknown>>({
         <tbody>
           {displayData.map((item, rowIdx) => (
             <tr
-              key={rowIdx}
+              key={getRowKey(item, rowIdx)}
               onClick={() => onRowClick?.(item)}
               className={clsx(
                 "generic-table-row",

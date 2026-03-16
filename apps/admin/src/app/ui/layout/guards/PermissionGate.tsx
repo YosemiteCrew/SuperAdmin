@@ -18,8 +18,7 @@ export default function PermissionGate({
 
   if (!user) return null;
 
-  const userPermissions = user.permissions as Permission[];
-  if (!hasPermission(userPermissions, permission)) {
+  if (!hasPermission(user.permissions, permission)) {
     return fallback ? <>{fallback}</> : null;
   }
 
