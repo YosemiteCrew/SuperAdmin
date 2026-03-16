@@ -10,12 +10,12 @@ type Props = {
   className?: string;
 };
 
-const toneClasses: Record<Tone, string> = {
-  neutral: "bg-neutral-100 text-neutral-900",
-  brand: "bg-brand-100 text-neutral-900",
-  success: "bg-success-100 text-success-900",
-  warning: "bg-warning-100 text-warning-900",
-  danger: "bg-danger-100 text-danger-900",
+const toneStyles: Record<Tone, { background: string; color: string }> = {
+  neutral: { background: "#F3F4F6", color: "#111111" },
+  brand: { background: "#EAF3FF", color: "#247AED" },
+  success: { background: "#E6F4EF", color: "#33A57D" },
+  warning: { background: "#FEF3E9", color: "#F68523" },
+  danger: { background: "#FDEBEA", color: "#EA3729" },
 };
 
 export default function Badge({
@@ -23,13 +23,15 @@ export default function Badge({
   tone = "neutral",
   className,
 }: Props) {
+  const style = toneStyles[tone];
+
   return (
     <span
       className={clsx(
-        "inline-flex items-center px-3 py-1 rounded-lg text-caption-1 font-medium",
-        toneClasses[tone],
+        "inline-flex items-center justify-center px-4 py-2 rounded-2xl font-satoshi text-[16px] font-normal leading-6",
         className
       )}
+      style={{ background: style.background, color: style.color }}
     >
       {children}
     </span>

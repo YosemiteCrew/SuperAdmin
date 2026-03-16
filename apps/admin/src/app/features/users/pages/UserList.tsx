@@ -1,13 +1,19 @@
 "use client";
 import { useUsers } from "@/app/hooks/useUsers";
-import PageHeader from "@/app/ui/primitives/PageHeader";
-import Search from "@/app/ui/inputs/Search";
-import Select from "@/app/ui/inputs/Select";
+import StatusFilter from "@/app/ui/primitives/StatusFilter";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import type { AppUser } from "@/app/types/user";
+
+const statusOptions = [
+  { value: "", label: "All", activeColor: "#247AED", activeTextColor: "#FFFFFF" },
+  { value: "active", label: "Active", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "inactive", label: "Inactive", activeColor: "#F3F4F6", activeTextColor: "#111111" },
+  { value: "suspended", label: "Suspended", activeColor: "#FDEBEA", activeTextColor: "#EA3729" },
+];
 
 const typeOptions = [
   { value: "", label: "All Types" },
@@ -15,13 +21,6 @@ const typeOptions = [
   { value: "business_owner", label: "Business Owner" },
   { value: "developer", label: "Developer" },
   { value: "admin", label: "Admin" },
-];
-
-const statusOptions = [
-  { value: "", label: "All Statuses" },
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-  { value: "suspended", label: "Suspended" },
 ];
 
 const typeTone: Record<string, "neutral" | "brand" | "success" | "warning"> = {
@@ -132,45 +131,47 @@ export default function UserList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Users"
-        subtitle={`${filteredUsers.length} total users`}
-      />
-
-      <div className="flex items-center gap-4">
-        <Search
-          value={filters.search}
-          onChange={(value) => setFilters({ search: value })}
-          placeholder="Search users..."
-          className="flex-1 max-w-sm"
-        />
-        <Select
-          options={typeOptions}
-          value={filters.type}
-          onChange={(e) => setFilters({ type: e.target.value })}
-          className="w-48"
-        />
-        <Select
-          options={statusOptions}
-          value={filters.status}
-          onChange={(e) => setFilters({ status: e.target.value })}
-          className="w-48"
-        />
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-text-primary text-heading-1">Users</h1>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            View all platform users across Cognito and Firebase. Monitor activity and account status.
+          </p>
+        </div>
       </div>
 
-      {filteredUsers.length === 0 ? (
-        <EmptyState
-          title="No users found"
-          description="Try adjusting your search or filter criteria."
-        />
-      ) : (
-        <GenericTable
-          data={filteredUsers as UserRow[]}
-          columns={columns}
-          pagination
-          pageSize={10}
-        />
-      )}
+      <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex items-center justify-between flex-wrap gap-3">
+          <StatusFilter
+            options={statusOptions}
+            value={filters.status}
+            onChange={(value) => setFilters({ status: value })}
+          />
+          <div className="flex items-center gap-3">
+            <Dropdown
+              label="Type"
+              options={typeOptions}
+              value={filters.type}
+              onChange={(value) => setFilters({ type: value })}
+              className="w-48"
+            />
+          </div>
+        </div>
+
+        {filteredUsers.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            description="Try adjusting your search or filter criteria."
+          />
+        ) : (
+          <GenericTable
+            data={filteredUsers as UserRow[]}
+            columns={columns}
+            pagination
+            pageSize={10}
+          />
+        )}
+      </div>
     </div>
   );
 }

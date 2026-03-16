@@ -8,6 +8,7 @@ import {
   RiCustomerServiceLine,
   RiBuildingLine,
   RiAlarmWarningLine,
+  RiSettingsLine,
 } from "react-icons/ri";
 import type { IconType } from "react-icons";
 
@@ -32,4 +33,5 @@ export const appRoutes: RouteItem[] = [
     icon: RiAlarmWarningLine,
   },
   { name: "Audit", href: "/audit", icon: RiFileListLine },
+  { name: "Settings", href: "/settings", icon: RiSettingsLine },
 ];

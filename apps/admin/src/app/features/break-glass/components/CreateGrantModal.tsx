@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CenterModal } from "@/app/ui/overlays/Modal";
-import Select from "@/app/ui/inputs/Select";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import type { GrantScope } from "@/app/types/break-glass";
 
@@ -122,18 +122,18 @@ export default function CreateGrantModal({ isOpen, onClose, onCreate }: Props) {
           />
         </div>
 
-        <Select
+        <Dropdown
           label="Scope"
           options={scopeOptions}
           value={scope}
-          onChange={(e) => setScope(e.target.value)}
+          onChange={(val) => setScope(val)}
         />
 
-        <Select
+        <Dropdown
           label="Duration"
           options={durationOptions}
           value={duration}
-          onChange={(e) => setDuration(e.target.value)}
+          onChange={(val) => setDuration(val)}
         />
 
         <div className="flex items-center justify-end gap-3 pt-2">

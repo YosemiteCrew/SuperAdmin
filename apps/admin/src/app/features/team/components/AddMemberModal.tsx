@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CenterModal } from "@/app/ui/overlays/Modal";
-import Select from "@/app/ui/inputs/Select";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import type { TeamRole } from "@/app/types/team";
 import { isValidEmail } from "@/app/lib/validators";
@@ -93,11 +93,11 @@ export default function AddMemberModal({ isOpen, onClose, onAdd }: Props) {
           )}
         </div>
 
-        <Select
+        <Dropdown
           label="Role"
           options={roleOptions}
           value={role}
-          onChange={(e) => setRole(e.target.value as TeamRole)}
+          onChange={(val) => setRole(val as TeamRole)}
         />
 
         <div className="flex items-center justify-end gap-3 pt-2">

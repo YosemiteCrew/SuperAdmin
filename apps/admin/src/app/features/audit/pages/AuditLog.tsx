@@ -1,12 +1,31 @@
 "use client";
+import { useState, useMemo } from "react";
 import { useAudit } from "@/app/hooks/useAudit";
-import PageHeader from "@/app/ui/primitives/PageHeader";
+import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
-import Select from "@/app/ui/inputs/Select";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import type { AuditEntry } from "@/app/types/audit";
+
+const categoryOptions = [
+  { value: "", label: "All", activeColor: "#247AED", activeTextColor: "#FFFFFF" },
+  { value: "login", label: "Login", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "business", label: "Business", activeColor: "#EAF3FF", activeTextColor: "#247AED" },
+  { value: "lead", label: "Lead", activeColor: "#FEF3E9", activeTextColor: "#F68523" },
+  { value: "ticket", label: "Ticket", activeColor: "#FDEBEA", activeTextColor: "#EA3729" },
+  { value: "team", label: "Team", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "break_glass", label: "Break Glass", activeColor: "#F3F4F6", activeTextColor: "#111111" },
+];
+
+const categoryPrefixes: Record<string, string[]> = {
+  login: ["login", "logout", "mfa_verify"],
+  business: ["business_approve", "business_suspend", "business_deactivate"],
+  lead: ["lead_status_update", "lead_assign"],
+  ticket: ["ticket_assign", "ticket_status_update", "ticket_priority_update"],
+  team: ["team_member_add", "team_member_remove"],
+  break_glass: ["break_glass_grant", "break_glass_revoke"],
+};
 
 function formatAction(action: string): string {
   return action
@@ -26,30 +45,18 @@ function formatDateTime(dateStr: string) {
   });
 }
 
-const actionOptions = [
-  { value: "", label: "All Actions" },
-  { value: "login", label: "Login" },
-  { value: "logout", label: "Logout" },
-  { value: "mfa_verify", label: "MFA Verify" },
-  { value: "lead_status_update", label: "Lead Status Update" },
-  { value: "lead_assign", label: "Lead Assign" },
-  { value: "business_approve", label: "Business Approve" },
-  { value: "business_suspend", label: "Business Suspend" },
-  { value: "business_deactivate", label: "Business Deactivate" },
-  { value: "ticket_assign", label: "Ticket Assign" },
-  { value: "ticket_status_update", label: "Ticket Status Update" },
-  { value: "ticket_priority_update", label: "Ticket Priority Update" },
-  { value: "team_member_add", label: "Team Member Add" },
-  { value: "team_member_remove", label: "Team Member Remove" },
-  { value: "break_glass_grant", label: "Break Glass Grant" },
-  { value: "break_glass_revoke", label: "Break Glass Revoke" },
-  { value: "data_export", label: "Data Export" },
-];
-
 type AuditRow = AuditEntry & Record<string, unknown>;
 
 export default function AuditLog() {
   const { filteredEntries, loading, filters, setFilters } = useAudit();
+  const [category, setCategory] = useState("");
+
+  const displayedEntries = useMemo(() => {
+    if (!category) return filteredEntries;
+    const prefixes = categoryPrefixes[category];
+    if (!prefixes) return filteredEntries;
+    return filteredEntries.filter((e) => prefixes.includes(e.action));
+  }, [filteredEntries, category]);
 
   const columns: Column<AuditRow>[] = [
     {
@@ -121,39 +128,46 @@ export default function AuditLog() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Audit Log"
-        subtitle="All system activity is logged for compliance"
-      />
-
-      <div className="flex items-center gap-4">
-        <Search
-          value={filters.search}
-          onChange={(value) => setFilters({ search: value })}
-          placeholder="Search actor, resource, details..."
-          className="flex-1 max-w-sm"
-        />
-        <Select
-          options={actionOptions}
-          value={filters.action}
-          onChange={(e) => setFilters({ action: e.target.value })}
-          className="w-56"
-        />
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-text-primary text-heading-1">Audit Log</h1>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Complete activity trail for compliance. All system actions are logged with actor, timestamp, and details.
+          </p>
+        </div>
       </div>
 
-      {filteredEntries.length === 0 ? (
-        <EmptyState
-          title="No audit entries found"
-          description="Try adjusting your search or filter criteria."
-        />
-      ) : (
-        <GenericTable
-          data={filteredEntries as AuditRow[]}
-          columns={columns}
-          pagination
-          pageSize={15}
-        />
-      )}
+      <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex items-center justify-between flex-wrap gap-3">
+          <StatusFilter
+            options={categoryOptions}
+            value={category}
+            onChange={setCategory}
+          />
+          <div className="flex items-center gap-3">
+            <Search
+              value={filters.search}
+              onChange={(value) => setFilters({ search: value })}
+              placeholder="Search actor, resource, details..."
+              className="max-w-sm"
+            />
+          </div>
+        </div>
+
+        {displayedEntries.length === 0 ? (
+          <EmptyState
+            title="No audit entries found"
+            description="Try adjusting your search or filter criteria."
+          />
+        ) : (
+          <GenericTable
+            data={displayedEntries as AuditRow[]}
+            columns={columns}
+            pagination
+            pageSize={15}
+          />
+        )}
+      </div>
     </div>
   );
 }

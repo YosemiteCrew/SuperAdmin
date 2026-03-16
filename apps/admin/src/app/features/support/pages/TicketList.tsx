@@ -1,9 +1,9 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useSupport } from "@/app/hooks/useSupport";
-import PageHeader from "@/app/ui/primitives/PageHeader";
+import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
-import Select from "@/app/ui/inputs/Select";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
@@ -12,13 +12,13 @@ import PriorityBadge from "../components/PriorityBadge";
 import type { SupportTicket, TicketStatus, TicketPriority } from "@/app/types/ticket";
 
 const statusOptions = [
-  { value: "", label: "All Statuses" },
-  { value: "open", label: "Open" },
-  { value: "in_progress", label: "In Progress" },
-  { value: "waiting", label: "Waiting" },
-  { value: "escalated", label: "Escalated" },
-  { value: "resolved", label: "Resolved" },
-  { value: "closed", label: "Closed" },
+  { value: "", label: "All", activeColor: "#247AED", activeTextColor: "#FFFFFF" },
+  { value: "open", label: "Open", activeColor: "#EAF3FF", activeTextColor: "#247AED" },
+  { value: "in_progress", label: "In Progress", activeColor: "#FEF3E9", activeTextColor: "#F68523" },
+  { value: "waiting", label: "Waiting", activeColor: "#F3F4F6", activeTextColor: "#111111" },
+  { value: "escalated", label: "Escalated", activeColor: "#FDEBEA", activeTextColor: "#EA3729" },
+  { value: "resolved", label: "Resolved", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "closed", label: "Closed", activeColor: "#F3F4F6", activeTextColor: "#111111" },
 ];
 
 const priorityOptions = [
@@ -101,46 +101,54 @@ export default function TicketList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Support Tickets"
-        subtitle={`${filteredTickets.length} total tickets`}
-      />
-
-      <div className="flex items-center gap-4 flex-wrap">
-        <Search
-          value={filters.search}
-          onChange={(value) => setFilters({ search: value })}
-          placeholder="Search tickets..."
-          className="flex-1 max-w-sm"
-        />
-        <Select
-          options={statusOptions}
-          value={filters.status}
-          onChange={(e) => setFilters({ status: e.target.value })}
-          className="w-48"
-        />
-        <Select
-          options={priorityOptions}
-          value={filters.priority}
-          onChange={(e) => setFilters({ priority: e.target.value })}
-          className="w-48"
-        />
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-text-primary text-heading-1">Support Tickets</h1>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Manage customer support tickets across all tenants. Assign agents, set priority levels, and track resolution status.
+          </p>
+        </div>
       </div>
 
-      {filteredTickets.length === 0 ? (
-        <EmptyState
-          title="No tickets found"
-          description="Try adjusting your search or filter criteria."
-        />
-      ) : (
-        <GenericTable
-          data={filteredTickets as TicketRow[]}
-          columns={columns}
-          onRowClick={(item) => router.push(`/support/${item.id}`)}
-          pagination
-          pageSize={10}
-        />
-      )}
+      <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex items-center justify-between flex-wrap gap-3">
+          <StatusFilter
+            options={statusOptions}
+            value={filters.status}
+            onChange={(value) => setFilters({ status: value })}
+          />
+          <div className="flex items-center gap-3">
+            <Search
+              value={filters.search}
+              onChange={(value) => setFilters({ search: value })}
+              placeholder="Search tickets..."
+              className="max-w-sm"
+            />
+            <Dropdown
+              label="Priority"
+              options={priorityOptions}
+              value={filters.priority}
+              onChange={(value) => setFilters({ priority: value })}
+              className="w-48"
+            />
+          </div>
+        </div>
+
+        {filteredTickets.length === 0 ? (
+          <EmptyState
+            title="No tickets found"
+            description="Try adjusting your search or filter criteria."
+          />
+        ) : (
+          <GenericTable
+            data={filteredTickets as TicketRow[]}
+            columns={columns}
+            onRowClick={(item) => router.push(`/support/${item.id}`)}
+            pagination
+            pageSize={10}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { CenterModal } from "@/app/ui/overlays/Modal";
-import Select from "@/app/ui/inputs/Select";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import type { TicketStatus, TicketPriority } from "@/app/types/ticket";
 
@@ -49,17 +49,17 @@ export default function UpdateTicketModal({
   return (
     <CenterModal isOpen={isOpen} onClose={onClose} title="Update Ticket">
       <div className="flex flex-col gap-4">
-        <Select
+        <Dropdown
           label="Status"
           options={statusOptions}
           value={status}
-          onChange={(e) => setStatus(e.target.value as TicketStatus)}
+          onChange={(val) => setStatus(val as TicketStatus)}
         />
-        <Select
+        <Dropdown
           label="Priority"
           options={priorityOptions}
           value={priority}
-          onChange={(e) => setPriority(e.target.value as TicketPriority)}
+          onChange={(val) => setPriority(val as TicketPriority)}
         />
         <div className="flex items-center justify-end gap-3 pt-2">
           <Secondary onClick={onClose}>Cancel</Secondary>

@@ -1,0 +1,13 @@
+.app-main {
+  flex: 1;
+  margin-top: 64px;
+  margin-left: var(--sidebar-width, 220px);
+  transition: margin-left 0.05s ease-out;
+  min-width: 0; /* prevent flex child from overflowing */
+}
+
+@media screen and (max-width: 1024px) {
+  .app-main {
+    margin-left: 0;
+  }
+}

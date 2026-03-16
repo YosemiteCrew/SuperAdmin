@@ -4,6 +4,11 @@
   border-radius: 16px;
   padding: 16px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.generic-table-wrapper table {
+  min-width: 640px;
 }
 
 .generic-table-row-border {

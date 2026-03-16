@@ -1,12 +1,14 @@
 .sidebar {
   height: 100vh;
-  padding: 20px 16px;
-  border-right: 1px solid var(--color-card-border);
-  background: var(--color-surface-card);
+  padding: 24px 20px;
+  border-right: 1px solid #EAEAEA;
+  background: #FFFFFF;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 16px;
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 100;
 }
 
@@ -14,7 +16,6 @@
   position: fixed;
   top: 0;
   left: 0;
-  width: 220px;
 }
 
 .sidebar-logo {
@@ -22,40 +23,108 @@
   align-items: center;
   gap: 10px;
   padding: 8px 12px;
-  height: 56px;
+  height: 64px;
+  width: 100%;
+  white-space: nowrap;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
 }
 
 .route {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
+  padding: 7px 16px;
+  width: 100%;
+  height: 40px;
+  border: 1px solid #EAEAEA;
+  border-radius: 16px;
   font-family: var(--font-satoshi);
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 400;
-  line-height: 150%;
-  letter-spacing: -0.28px;
-  color: var(--color-text-secondary);
+  line-height: 26px;
+  letter-spacing: -0.02em;
+  color: #595958;
   text-decoration: none;
   transition: all 0.2s;
+  overflow: hidden;
+}
+
+.route-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.route-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .route:hover {
-  background: var(--color-card-hover);
-  color: var(--color-text-primary);
+  background: #F7F7F7;
+  color: #000000;
 }
 
 .route-active {
-  color: var(--color-brand-text);
-  background: var(--color-brand-100);
+  background: #F2F8FF;
+  border: 1px solid #007AFF;
+  color: #007AFF;
   font-weight: 500;
+}
+
+/* Resize handle — right edge of sidebar */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-active {
+  background: #F2F8FF;
+}
+
+/* Drag indicator — 2-column grip dots, always visible */
+.resize-indicator {
+  display: grid;
+  grid-template-columns: 4px 4px;
+  gap: 4px;
+  z-index: 1;
+}
+
+.resize-indicator span {
+  display: block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #A09F9F;
+  transition: background 0.15s;
+}
+
+.sidebar-resize-handle:hover .resize-indicator span,
+.sidebar-resize-active .resize-indicator span {
+  background: #247AED;
 }
 
 /* Mobile hamburger button */
@@ -67,9 +136,9 @@
   z-index: 101;
   padding: 8px;
   border-radius: 12px;
-  border: 1px solid var(--color-card-border);
-  background: var(--color-surface-card);
-  color: var(--color-text-primary);
+  border: 1px solid #EAEAEA;
+  background: #FFFFFF;
+  color: #302F2E;
   cursor: pointer;
 }
 
@@ -82,12 +151,12 @@
   border-radius: 12px;
   border: none;
   background: transparent;
-  color: var(--color-text-primary);
+  color: #302F2E;
   cursor: pointer;
 }
 
 .mobile-close-btn:hover {
-  background: var(--color-card-hover);
+  background: #F7F7F7;
 }
 
 /* Mobile overlay */

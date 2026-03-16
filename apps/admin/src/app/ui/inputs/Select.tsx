@@ -1,5 +1,5 @@
 "use client";
-import { useId } from "react";
+import { useId, useState } from "react";
 import clsx from "clsx";
 
 type Option = {
@@ -34,10 +34,23 @@ export default function Select({
 }: Props) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
+  const [focused, setFocused] = useState(false);
+
   return (
-    <div className={clsx("flex flex-col gap-1.5", className)}>
+    <div className={clsx("flex flex-col gap-1", className)}>
       {label && (
-        <label htmlFor={selectId} className="text-caption-1 text-text-secondary font-medium">
+        <label
+          htmlFor={selectId}
+          style={{
+            fontFamily: "var(--font-satoshi)",
+            fontSize: "14px",
+            lineHeight: "20px",
+            letterSpacing: "-0.02em",
+            color: error ? "#EA3729" : focused ? "#247AED" : "#595958",
+            fontWeight: 400,
+            marginBottom: "4px",
+          }}
+        >
           {label}
         </label>
       )}
@@ -47,15 +60,24 @@ export default function Select({
           name={name}
           value={value}
           onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           disabled={disabled}
-          className={clsx(
-            "w-full min-h-[48px] px-4 py-3 rounded-2xl border text-body-4 text-text-primary",
-            "font-satoshi outline-none transition-colors duration-200 appearance-none",
-            "disabled:opacity-60 disabled:cursor-not-allowed bg-neutral-0 pr-10",
-            error
-              ? "border-danger-600 focus:border-danger-600"
-              : "border-card-border focus:border-brand-950"
-          )}
+          className="w-full outline-none appearance-none disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{
+            boxSizing: "border-box",
+            height: "48px",
+            padding: "12px 48px 12px 24px",
+            border: `1px solid ${error ? "#EA3729" : focused ? "#247AED" : "#BFBFBE"}`,
+            borderRadius: "16px",
+            fontFamily: "var(--font-satoshi)",
+            fontSize: "16px",
+            fontWeight: 400,
+            lineHeight: "24px",
+            letterSpacing: "-0.02em",
+            color: value ? "#302F2E" : "#595958",
+            background: "#FFFFFF",
+          }}
         >
           {placeholder && (
             <option value="" disabled>
@@ -69,9 +91,10 @@ export default function Select({
           ))}
         </select>
         <svg
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none"
-          width="16"
-          height="16"
+          className="absolute top-1/2 -translate-y-1/2 pointer-events-none"
+          style={{ right: "24px", color: "#302F2E" }}
+          width="20"
+          height="20"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -83,7 +106,14 @@ export default function Select({
         </svg>
       </div>
       {error && (
-        <span className="text-caption-2 text-danger-600">{error}</span>
+        <div className="flex items-center gap-1" style={{ padding: "0 24px" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L2 22h20L12 2zm0 7v6m0 2v2" stroke="#EA3729" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ fontFamily: "var(--font-satoshi)", fontSize: "12px", lineHeight: "16px", letterSpacing: "-0.02em", color: "#EA3729", fontWeight: 400 }}>
+            {error}
+          </span>
+        </div>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { CenterModal } from "@/app/ui/overlays/Modal";
-import Select from "@/app/ui/inputs/Select";
+import Dropdown from "@/app/ui/inputs/Dropdown";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import { getTeamMembers } from "@/app/services/mock";
 import type { TeamMember } from "@/app/types/team";
@@ -38,12 +38,12 @@ export default function AssignTicketModal({ isOpen, onClose, onAssign }: Props) 
   return (
     <CenterModal isOpen={isOpen} onClose={handleClose} title="Assign Ticket">
       <div className="flex flex-col gap-4">
-        <Select
+        <Dropdown
           label="Team Member"
           placeholder="Select a team member"
           options={teamMembers.map((m) => ({ value: m.id, label: m.name }))}
           value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
+          onChange={(val) => setSelectedId(val)}
         />
         <div className="flex items-center justify-end gap-3 pt-2">
           <Secondary onClick={handleClose}>Cancel</Secondary>

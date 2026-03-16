@@ -1,9 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useLeads } from "@/app/hooks/useLeads";
-import PageHeader from "@/app/ui/primitives/PageHeader";
+import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
-import Select from "@/app/ui/inputs/Select";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
@@ -12,12 +11,12 @@ import LeadStatusBadge from "../components/LeadStatusBadge";
 import type { Lead } from "@/app/types/lead";
 
 const statusOptions = [
-  { value: "", label: "All Statuses" },
-  { value: "new", label: "New" },
-  { value: "contacted", label: "Contacted" },
-  { value: "qualified", label: "Qualified" },
-  { value: "converted", label: "Converted" },
-  { value: "lost", label: "Lost" },
+  { value: "", label: "All", activeColor: "#247AED", activeTextColor: "#FFFFFF" },
+  { value: "new", label: "New", activeColor: "#EAF3FF", activeTextColor: "#247AED" },
+  { value: "contacted", label: "Contacted", activeColor: "#FEF3E9", activeTextColor: "#F68523" },
+  { value: "qualified", label: "Qualified", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "converted", label: "Converted", activeColor: "#E6F4EF", activeTextColor: "#33A57D" },
+  { value: "lost", label: "Lost", activeColor: "#FDEBEA", activeTextColor: "#EA3729" },
 ];
 
 function formatDate(dateStr: string) {
@@ -98,40 +97,47 @@ export default function LeadsList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Leads"
-        subtitle={`${filteredLeads.length} total leads`}
-      />
-
-      <div className="flex items-center gap-4">
-        <Search
-          value={filters.search}
-          onChange={(value) => setFilters({ search: value })}
-          placeholder="Search leads..."
-          className="flex-1 max-w-sm"
-        />
-        <Select
-          options={statusOptions}
-          value={filters.status}
-          onChange={(e) => setFilters({ status: e.target.value })}
-          className="w-48"
-        />
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-text-primary text-heading-1">Leads</h1>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Track and manage all inbound leads. Update statuses, assign team members, and monitor your sales pipeline.
+          </p>
+        </div>
       </div>
 
-      {filteredLeads.length === 0 ? (
-        <EmptyState
-          title="No leads found"
-          description="Try adjusting your search or filter criteria."
-        />
-      ) : (
-        <GenericTable
-          data={filteredLeads as LeadRow[]}
-          columns={columns}
-          onRowClick={(item) => router.push(`/leads/${item.id}`)}
-          pagination
-          pageSize={10}
-        />
-      )}
+      <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex items-center justify-between flex-wrap gap-3">
+          <StatusFilter
+            options={statusOptions}
+            value={filters.status}
+            onChange={(value) => setFilters({ status: value })}
+          />
+          <div className="flex items-center gap-3">
+            <Search
+              value={filters.search}
+              onChange={(value) => setFilters({ search: value })}
+              placeholder="Search leads..."
+              className="max-w-sm"
+            />
+          </div>
+        </div>
+
+        {filteredLeads.length === 0 ? (
+          <EmptyState
+            title="No leads found"
+            description="Try adjusting your search or filter criteria."
+          />
+        ) : (
+          <GenericTable
+            data={filteredLeads as LeadRow[]}
+            columns={columns}
+            onRowClick={(item) => router.push(`/leads/${item.id}`)}
+            pagination
+            pageSize={10}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -19,6 +19,7 @@ type AuthState = {
   verifyMfa: (code: string) => Promise<void>;
   checkSession: () => void;
   signOut: () => void;
+  updateUser: (updates: Partial<AdminUser>) => void;
 };
 
 const MOCK_ADMIN: AdminUser = {
@@ -71,6 +72,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
         set({ status: "unauthenticated" });
       }
     }
+  },
+
+  updateUser: (updates: Partial<AdminUser>) => {
+    set((state) => ({
+      user: state.user ? { ...state.user, ...updates } : null,
+    }));
   },
 
   signOut: () => {

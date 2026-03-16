@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useBreakGlass } from "@/app/hooks/useBreakGlass";
-import PageHeader from "@/app/ui/primitives/PageHeader";
+import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
@@ -9,6 +9,13 @@ import { Primary, Danger } from "@/app/ui/primitives/Button";
 import CreateGrantModal from "../components/CreateGrantModal";
 import RevokeGrantModal from "../components/RevokeGrantModal";
 import type { BreakGlassGrant, GrantStatus } from "@/app/types/break-glass";
+
+const statusOptions = [
+  { value: "", label: "All", activeColor: "#247AED", activeTextColor: "#FFFFFF" },
+  { value: "active", label: "Active", activeColor: "#FEF3E9", activeTextColor: "#F68523" },
+  { value: "expired", label: "Expired", activeColor: "#F3F4F6", activeTextColor: "#111111" },
+  { value: "revoked", label: "Revoked", activeColor: "#FDEBEA", activeTextColor: "#EA3729" },
+];
 
 function formatDateTime(dateStr: string) {
   return new Date(dateStr).toLocaleString("en-US", {
@@ -39,6 +46,12 @@ export default function BreakGlassList() {
   const { grants, loading, createGrant, revokeGrant } = useBreakGlass();
   const [createOpen, setCreateOpen] = useState(false);
   const [revokeTarget, setRevokeTarget] = useState<BreakGlassGrant | null>(null);
+  const [statusFilter, setStatusFilter] = useState("");
+
+  const filteredGrants = useMemo(() => {
+    if (!statusFilter) return grants;
+    return grants.filter((g) => g.status === statusFilter);
+  }, [grants, statusFilter]);
 
   const columns: Column<GrantRow>[] = [
     {
@@ -121,12 +134,15 @@ export default function BreakGlassList() {
 
   return (
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Break Glass Access"
-        action={
-          <Primary onClick={() => setCreateOpen(true)}>Create Grant</Primary>
-        }
-      />
+      <div className="flex justify-between items-center w-full flex-wrap gap-2">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-text-primary text-heading-1">Break Glass Access</h1>
+          <p className="text-body-3 text-text-secondary max-w-3xl">
+            Manage time-bound emergency access grants. All grants are audited and require justification.
+          </p>
+        </div>
+        <Primary onClick={() => setCreateOpen(true)}>Create Grant</Primary>
+      </div>
 
       <div className="rounded-2xl bg-brand-100 p-4">
         <p className="text-body-4 text-text-primary">
@@ -134,12 +150,22 @@ export default function BreakGlassList() {
         </p>
       </div>
 
-      <GenericTable
-        data={grants as GrantRow[]}
-        columns={columns}
-        pagination
-        pageSize={10}
-      />
+      <div className="w-full flex flex-col gap-6">
+        <div className="w-full flex items-center justify-between flex-wrap gap-3">
+          <StatusFilter
+            options={statusOptions}
+            value={statusFilter}
+            onChange={setStatusFilter}
+          />
+        </div>
+
+        <GenericTable
+          data={filteredGrants as GrantRow[]}
+          columns={columns}
+          pagination
+          pageSize={10}
+        />
+      </div>
 
       <CreateGrantModal
         isOpen={createOpen}
