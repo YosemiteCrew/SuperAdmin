@@ -1,0 +1,68 @@
+import type { TeamMember } from "@/app/types/team";
+
+export const mockTeamMembers: TeamMember[] = [
+  {
+    id: "team-1",
+    name: "Super Admin",
+    email: "admin@yosemitecrew.com",
+    role: "SUPER_ADMIN",
+    status: "active",
+    joinedAt: "2024-01-15T00:00:00Z",
+  },
+  {
+    id: "team-2",
+    name: "Jordan Rivera",
+    email: "jordan@yosemitecrew.com",
+    role: "SUPER_ADMIN",
+    status: "active",
+    joinedAt: "2024-02-01T00:00:00Z",
+  },
+  {
+    id: "team-3",
+    name: "Emily Chen",
+    email: "emily@yosemitecrew.com",
+    role: "ADMIN",
+    status: "active",
+    joinedAt: "2024-03-10T00:00:00Z",
+  },
+  {
+    id: "team-4",
+    name: "Michael Park",
+    email: "michael@yosemitecrew.com",
+    role: "ADMIN",
+    status: "active",
+    joinedAt: "2024-04-15T00:00:00Z",
+  },
+  {
+    id: "team-5",
+    name: "Sarah Adams",
+    email: "sarah@yosemitecrew.com",
+    role: "ADMIN",
+    status: "inactive",
+    joinedAt: "2024-05-20T00:00:00Z",
+  },
+  {
+    id: "team-6",
+    name: "David Kim",
+    email: "david@yosemitecrew.com",
+    role: "SUPPORT",
+    status: "active",
+    joinedAt: "2024-06-01T00:00:00Z",
+  },
+  {
+    id: "team-7",
+    name: "Rachel Scott",
+    email: "rachel@yosemitecrew.com",
+    role: "SUPPORT",
+    status: "active",
+    joinedAt: "2024-07-15T00:00:00Z",
+  },
+  {
+    id: "team-8",
+    name: "Alex Thompson",
+    email: "alex@yosemitecrew.com",
+    role: "SUPPORT",
+    status: "active",
+    joinedAt: "2024-09-01T00:00:00Z",
+  },
+];

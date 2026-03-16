@@ -1,0 +1,20 @@
+.generic-table-wrapper {
+  background-color: var(--color-neutral-0);
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.generic-table-row-border {
+  border-bottom: 1px solid var(--color-card-border);
+}
+
+.generic-table-row-clickable {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.generic-table-row-clickable:hover {
+  background-color: var(--color-card-hover);
+}
