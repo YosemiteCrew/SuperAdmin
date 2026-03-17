@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useLeadsStore } from "@/app/stores/leadsStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
@@ -23,7 +22,6 @@ function formatDate(dateStr: string) {
 export default function LeadDetail({ id }: { id: string }) {
   const { selectedLead, loading, fetchLeadById, updateStatus, assignLead } =
     useLeadsStore();
-  const router = useRouter();
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
 

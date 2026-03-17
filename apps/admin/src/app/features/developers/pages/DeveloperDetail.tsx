@@ -1,6 +1,5 @@
 "use client";
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useDeveloperStore } from "@/app/stores/developerStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
@@ -51,7 +50,6 @@ export default function DeveloperDetail({ id }: { id: string }) {
     fetchDeveloperById,
     fetchDeveloperApps,
   } = useDeveloperStore();
-  const router = useRouter();
 
   useEffect(() => {
     window.scrollTo(0, 0);

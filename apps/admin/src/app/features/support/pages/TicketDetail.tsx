@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSupportStore } from "@/app/stores/supportStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
@@ -24,7 +23,6 @@ function formatDate(dateStr: string) {
 export default function TicketDetail({ id }: { id: string }) {
   const { selectedTicket, loading, fetchTicketById, updateStatus, updatePriority, assignTicket } =
     useSupportStore();
-  const router = useRouter();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
 

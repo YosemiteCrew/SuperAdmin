@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useBusinessStore } from "@/app/stores/businessStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
@@ -31,7 +30,6 @@ export default function BusinessDetail({ id }: { id: string }) {
     suspendBusiness,
     deactivateBusiness,
   } = useBusinessStore();
-  const router = useRouter();
   const [actionModal, setActionModal] = useState<{ open: boolean; action: ActionType }>({
     open: false,
     action: "approve",
