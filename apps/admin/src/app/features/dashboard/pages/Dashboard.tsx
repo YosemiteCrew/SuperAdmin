@@ -179,7 +179,7 @@ export default function Dashboard() {
       <DashboardCharts />
 
       {/* Recent Tables - stack on mobile/tablet, side by side on large desktop */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 sm:gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div className="bg-neutral-0 border border-card-border rounded-2xl p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3 sm:mb-4">
             <h2 className="text-body-3-emphasis sm:text-heading-3 text-text-primary">
