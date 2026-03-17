@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuthStore } from "@/app/stores/authStore";
 
 export default function ProtectedRoute({
@@ -24,11 +25,12 @@ export default function ProtectedRoute({
   if (status === "idle" || status === "checking") {
     return (
       <div className="flex items-center justify-center h-screen bg-white">
-        <img
+        <Image
           src="/assets/yosemiteLoader.gif"
           alt="Loading"
           width={120}
           height={120}
+          unoptimized
         />
       </div>
     );

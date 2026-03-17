@@ -1,4 +1,5 @@
 "use client";
+import Image from "next/image";
 
 type AvatarSize = 16 | 24 | 32 | 40 | 48 | 56 | 64 | 100;
 
@@ -8,18 +9,6 @@ type Props = {
   src?: string;
   className?: string;
 };
-
-/**
- * Avatar component — uses mock placeholder images by default.
- *
- * Design system sizes (matching Business Avatar spec):
- * - 16px, 24px, 32px, 40px — business avatar sizes
- * - 48px — feature icon size
- * - 64px — settings profile
- * - 100px — verification detail logo
- *
- * Uses DiceBear Initials API for consistent mock avatars keyed to the name.
- */
 
 const MOCK_PHOTOS = [
   "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=face",
@@ -44,7 +33,7 @@ export default function Avatar({ name, size = 40, src, className }: Props) {
   const imageUrl = src ?? getMockImageUrl(name);
 
   return (
-    <img
+    <Image
       src={imageUrl}
       alt={name}
       width={size}

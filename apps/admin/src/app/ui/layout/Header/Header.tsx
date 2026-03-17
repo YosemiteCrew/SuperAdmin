@@ -28,10 +28,9 @@ export default function Header() {
     router.push("/login");
   };
 
-  const [isMac, setIsMac] = useState(true);
-  useEffect(() => {
-    setIsMac(navigator.platform.toUpperCase().includes("MAC"));
-  }, []);
+  const isMac = typeof navigator !== "undefined"
+    ? navigator.platform.toUpperCase().includes("MAC")
+    : true;
 
   return (
     <>
