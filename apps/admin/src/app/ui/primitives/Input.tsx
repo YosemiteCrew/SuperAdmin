@@ -92,7 +92,7 @@ export default function Input({
             onClick={() => setShowPassword((prev) => !prev)}
             className="absolute top-1/2 -translate-y-1/2 transition-colors"
             style={{ right: "24px", color: "#302F2E" }}
-            tabIndex={-1}
+            aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -42,7 +42,8 @@ export default function Header() {
             onClick={() => {
               const event = new KeyboardEvent("keydown", {
                 key: "k",
-                metaKey: true,
+                metaKey: isMac,
+                ctrlKey: !isMac,
                 bubbles: true,
               });
               document.dispatchEvent(event);

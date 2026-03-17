@@ -39,6 +39,7 @@ export default function CenterModal({
             <button
               type="button"
               onClick={onClose}
+              aria-label="Close modal"
               className="text-text-tertiary hover:text-text-primary transition-colors"
             >
               <svg

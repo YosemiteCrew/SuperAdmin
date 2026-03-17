@@ -12,6 +12,7 @@ export default function ActionViewButton({ onClick }: Props) {
         e.stopPropagation();
         onClick();
       }}
+      aria-label="View details"
       className="w-10 h-10 rounded-full border border-neutral-950 bg-neutral-0 flex items-center justify-center transition-all duration-200 hover:bg-neutral-950 hover:text-neutral-0 text-neutral-950 group"
     >
       <svg
