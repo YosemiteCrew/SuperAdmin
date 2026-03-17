@@ -5,7 +5,7 @@ import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import LeadStatusBadge from "../components/LeadStatusBadge";
 import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
@@ -98,11 +98,7 @@ export default function LeadsList() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading leads..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

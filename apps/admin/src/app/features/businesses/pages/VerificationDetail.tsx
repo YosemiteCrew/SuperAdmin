@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useBusinessStore } from "@/app/stores/businessStore";
 import Badge from "@/app/ui/primitives/Badge";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonDetailPage } from "@/app/ui/primitives/Skeleton";
+import ReadOnlyField from "@/app/ui/inputs/ReadOnlyField";
+import Breadcrumb from "@/app/ui/primitives/Breadcrumb";
+import Avatar from "@/app/ui/primitives/Avatar";
 import RejectVerificationModal from "../components/RejectVerificationModal";
 
 function formatSubmittedAt(dateStr: string) {
@@ -34,27 +37,6 @@ function formatSubmittedAt(dateStr: string) {
   return `Request Submitted: ${relative} [ ${formatted} ${time} ]`;
 }
 
-function ReadOnlyField({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="relative flex-1 min-w-0">
-      <div className="border border-neutral-950 rounded-full px-6 py-4">
-        <span className="text-body-4-emphasis text-text-primary opacity-80">
-          {value}
-        </span>
-      </div>
-      <span className="absolute -top-2 left-6 px-1 bg-neutral-0 text-caption-1 font-bold text-text-primary">
-        {label}
-      </span>
-    </div>
-  );
-}
-
 export default function VerificationDetail({ id }: { id: string }) {
   const {
     selectedVerification,
@@ -67,15 +49,12 @@ export default function VerificationDetail({ id }: { id: string }) {
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchVerificationById(id);
   }, [id, fetchVerificationById]);
 
   if (verificationsLoading || !selectedVerification) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading verification..." />
-      </div>
-    );
+    return <SkeletonDetailPage cards={3} />;
   }
 
   const ver = selectedVerification;
@@ -102,38 +81,14 @@ export default function VerificationDetail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-caption-1 text-text-tertiary">
-        <button
-          type="button"
-          onClick={() => router.push("/businesses")}
-          className="hover:text-text-primary transition-colors"
-        >
-          Businesses
-        </button>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1" />
-        </svg>
-        <button
-          type="button"
-          onClick={() => router.push("/businesses")}
-          className="hover:text-text-primary transition-colors"
-        >
-          {typeLabel}
-        </button>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1" />
-        </svg>
-        <span className="hover:text-text-primary transition-colors">
-          Verifications
-        </span>
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M6 4L10 8L6 12" stroke="currentColor" strokeWidth="1" />
-        </svg>
-        <span className="font-bold text-text-primary">
-          {ver.businessName}
-        </span>
-      </nav>
+      <Breadcrumb
+        items={[
+          { label: "Businesses", href: "/businesses" },
+          { label: typeLabel, href: "/businesses" },
+          { label: "Verifications" },
+          { label: ver.businessName },
+        ]}
+      />
 
       {/* Title + Actions */}
       <div className="flex flex-col gap-2">
@@ -208,25 +163,26 @@ export default function VerificationDetail({ id }: { id: string }) {
       )}
 
       {/* Business Information */}
-      <section className="flex flex-col gap-2.5">
+      <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-body-4-emphasis text-text-secondary">
             Business Information
           </h3>
         </div>
-        <div className="border border-neutral-200/50 rounded-3xl p-10 flex flex-col gap-8">
-          {/* Logo + Name */}
+        <div
+          className="rounded-3xl p-10 flex flex-col gap-10"
+          style={{ border: "1px solid rgba(93, 65, 47, 0.15)" }}
+        >
+          {/* Avatar + Name */}
           <div className="flex items-center gap-5">
-            <div className="w-[100px] h-[100px] rounded-full bg-brand-50 border border-brand-950 flex items-center justify-center text-heading-2 text-brand-950">
-              {ver.businessName.charAt(0)}
-            </div>
+            <Avatar name={ver.businessName} size={40} />
             <span className="text-heading-3 text-text-secondary">
               {ver.businessName}
             </span>
           </div>
 
           {/* Fields */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-7">
             <div className="flex gap-4">
               <ReadOnlyField label="Country" value={ver.country} />
               <ReadOnlyField
@@ -234,11 +190,11 @@ export default function VerificationDetail({ id }: { id: string }) {
                 value={ver.registrationNumber}
               />
             </div>
-            <div className="flex gap-6">
+            <div className="flex gap-4">
               <ReadOnlyField label="Business Name" value={ver.businessName} />
               <ReadOnlyField label="Phone Number" value={ver.phone} />
             </div>
-            <div className="flex gap-6">
+            <div className="flex gap-4">
               <ReadOnlyField label="Email Address" value={ver.email} />
               <ReadOnlyField label="Website" value={ver.website} />
             </div>
@@ -247,13 +203,16 @@ export default function VerificationDetail({ id }: { id: string }) {
       </section>
 
       {/* Address Information */}
-      <section className="flex flex-col gap-2.5">
+      <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-body-4-emphasis text-text-secondary">
             Address Information
           </h3>
         </div>
-        <div className="border border-neutral-200/50 rounded-3xl p-10 flex flex-col gap-6">
+        <div
+          className="rounded-3xl p-10 flex flex-col gap-7"
+          style={{ border: "1px solid rgba(93, 65, 47, 0.15)" }}
+        >
           <div className="flex gap-4">
             <ReadOnlyField label="Postal Code" value={ver.postalCode} />
             <ReadOnlyField label="Area" value={ver.area} />
@@ -266,13 +225,16 @@ export default function VerificationDetail({ id }: { id: string }) {
       </section>
 
       {/* Services & Departments */}
-      <section className="flex flex-col gap-2.5">
+      <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-body-4-emphasis text-text-secondary">
             Services & Departments
           </h3>
         </div>
-        <div className="border border-neutral-200/50 rounded-3xl p-10 flex flex-col gap-8">
+        <div
+          className="rounded-3xl p-10 flex flex-col gap-10"
+          style={{ border: "1px solid rgba(93, 65, 47, 0.15)" }}
+        >
           {/* Has departments */}
           <div className="flex items-center justify-between py-1.5">
             <span className="text-heading-3 text-text-primary">

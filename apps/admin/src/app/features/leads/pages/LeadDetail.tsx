@@ -5,7 +5,8 @@ import { useLeadsStore } from "@/app/stores/leadsStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
 import { Secondary } from "@/app/ui/primitives/Button";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonDetailPage } from "@/app/ui/primitives/Skeleton";
+import Breadcrumb from "@/app/ui/primitives/Breadcrumb";
 import LeadStatusBadge from "../components/LeadStatusBadge";
 import UpdateStatusModal from "../components/UpdateStatusModal";
 import AssignLeadModal from "../components/AssignLeadModal";
@@ -27,25 +28,22 @@ export default function LeadDetail({ id }: { id: string }) {
   const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchLeadById(id);
   }, [id, fetchLeadById]);
 
   if (loading || !selectedLead) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading lead..." />
-      </div>
-    );
+    return <SkeletonDetailPage cards={2} />;
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={() => router.push("/leads")}
-        className="text-body-4 text-text-tertiary hover:text-text-primary transition-colors self-start"
-      >
-        &larr; Back to Leads
-      </button>
+      <Breadcrumb
+        items={[
+          { label: "Leads", href: "/leads" },
+          { label: selectedLead.name },
+        ]}
+      />
 
       <PageHeader
         title={selectedLead.name}

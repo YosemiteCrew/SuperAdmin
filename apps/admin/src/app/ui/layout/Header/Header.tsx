@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "@/app/stores/authStore";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Avatar from "@/app/ui/primitives/Avatar";
 import "./Header.css";
 
 export default function Header() {
@@ -26,8 +27,6 @@ export default function Header() {
     router.push("/login");
   };
 
-  const initials = user?.name?.charAt(0)?.toUpperCase() ?? "A";
-
   return (
     <header className="app-header">
       <div className="header-content">
@@ -39,14 +38,7 @@ export default function Header() {
             onClick={() => setOpen((p) => !p)}
             className="flex items-center gap-3 cursor-pointer outline-none"
           >
-            {/* Avatar circle */}
-            <div style={{
-              width: 40, height: 40, borderRadius: "50%",
-              background: "#EAEAEA", display: "flex", alignItems: "center", justifyContent: "center",
-              fontFamily: "var(--font-satoshi)", fontSize: "16px", fontWeight: 500, color: "#595958",
-            }}>
-              {initials}
-            </div>
+            <Avatar name={user?.name ?? "Admin"} size={40} />
             <span style={{ fontFamily: "var(--font-satoshi)", fontSize: "16px", fontWeight: 500, color: "#302F2E" }}>
               {user?.name}
             </span>

@@ -27,7 +27,7 @@ export default function VerifyMfa() {
     <div className="min-h-screen flex items-start justify-center pt-[15vh] bg-neutral-0 px-4">
       <div className="w-full max-w-[440px]">
         <div className="flex flex-col items-center gap-6 mb-8">
-          <Image src="/assets/logo.svg" alt="Super Admin" width={48} height={48} />
+          <Image src="/assets/yosemite-logo.png" alt="Super Admin" width={48} height={48} />
           <div className="text-center">
             <h1 className="text-heading-1 text-text-primary">Verify Your Identity</h1>
             <p className="text-body-4 text-text-tertiary mt-1">

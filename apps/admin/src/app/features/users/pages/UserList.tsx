@@ -4,7 +4,7 @@ import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Dropdown from "@/app/ui/inputs/Dropdown";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import type { AppUser } from "@/app/types/user";
 
@@ -122,11 +122,7 @@ export default function UserList() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading users..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

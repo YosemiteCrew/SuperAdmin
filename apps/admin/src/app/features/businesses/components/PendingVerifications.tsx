@@ -148,7 +148,7 @@ export default function PendingVerifications() {
       </div>
 
       {/* Tabs */}
-      <div className="flex items-end gap-3 border-b border-card-border">
+      <div className="flex items-end gap-3">
         {tabs.map((tab) => {
           const count = pendingCountByType[tab.type];
           const isActive = activeTab === tab.type;
@@ -198,21 +198,12 @@ export default function PendingVerifications() {
           <GenericTable
             data={filteredByTab as VerificationRow[]}
             columns={columns}
+            pagination
             pageSize={5}
           />
         )}
       </div>
 
-      {filteredByTab.length > 3 && (
-        <div className="flex justify-center">
-          <button
-            type="button"
-            className="px-6 py-3 rounded-full border border-neutral-950 text-text-primary text-body-4-emphasis transition-all duration-200 hover:bg-neutral-950 hover:text-neutral-0"
-          >
-            See All
-          </button>
-        </div>
-      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import Input from "@/app/ui/primitives/Input";
 import { Primary, Danger } from "@/app/ui/primitives/Button";
 import { ConfirmModal } from "@/app/ui/overlays/Modal";
 import { useToast } from "@/app/ui/overlays/Toast/Toast";
+import Avatar from "@/app/ui/primitives/Avatar";
 
 export default function Settings() {
   const { user, signOut, updateUser } = useAuthStore();
@@ -60,23 +61,7 @@ export default function Settings() {
             className="flex items-center gap-4"
             style={{ marginBottom: "8px" }}
           >
-            <div
-              style={{
-                width: 64,
-                height: 64,
-                borderRadius: "50%",
-                background: "#EAEAEA",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontFamily: "var(--font-satoshi)",
-                fontSize: "24px",
-                fontWeight: 500,
-                color: "#595958",
-              }}
-            >
-              {name.charAt(0).toUpperCase()}
-            </div>
+            <Avatar name={name || "Admin"} size={64} />
             <div className="flex flex-col">
               <span className="text-body-3-emphasis text-text-primary">
                 {user?.name}

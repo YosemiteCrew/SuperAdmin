@@ -4,7 +4,7 @@ import { useAnalytics } from "@/app/hooks/useAnalytics";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import StatCard from "@/app/ui/cards/StatCard";
 import DetailCard from "@/app/ui/cards/DetailCard";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 
 const AnalyticsCharts = dynamic(() => import("./AnalyticsCharts"), {
   ssr: false,
@@ -23,11 +23,7 @@ export default function Analytics() {
   const { summary, loading } = useAnalytics();
 
   if (loading || !summary) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading analytics..." />
-      </div>
-    );
+    return <SkeletonListPage cols={4} />;
   }
 
   return (

@@ -6,7 +6,7 @@ import PageHeader from "@/app/ui/primitives/PageHeader";
 import StatCard from "@/app/ui/cards/StatCard";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { Lead } from "@/app/types/lead";
 import type { SupportTicket } from "@/app/types/ticket";
@@ -56,11 +56,7 @@ export default function Dashboard() {
   const router = useRouter();
 
   if (loading || !stats) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading dashboard..." />
-      </div>
-    );
+    return <SkeletonListPage cols={4} />;
   }
 
   const leadColumns: Column<Lead>[] = [

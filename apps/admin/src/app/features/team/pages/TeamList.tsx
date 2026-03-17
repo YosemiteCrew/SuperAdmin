@@ -6,7 +6,7 @@ import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import { Primary } from "@/app/ui/primitives/Button";
 import { Danger } from "@/app/ui/primitives/Button";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import AddMemberModal from "../components/AddMemberModal";
 import RemoveMemberModal from "../components/RemoveMemberModal";
@@ -120,11 +120,7 @@ export default function TeamList() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading team members..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

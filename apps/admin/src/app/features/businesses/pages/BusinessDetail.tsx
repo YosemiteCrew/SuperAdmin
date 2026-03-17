@@ -6,7 +6,8 @@ import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
 import { Primary, Secondary } from "@/app/ui/primitives/Button";
 import { Danger } from "@/app/ui/primitives/Button";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonDetailPage } from "@/app/ui/primitives/Skeleton";
+import Breadcrumb from "@/app/ui/primitives/Breadcrumb";
 import BusinessStatusBadge from "../components/BusinessStatusBadge";
 import BusinessActionModal from "../components/BusinessActionModal";
 
@@ -37,15 +38,12 @@ export default function BusinessDetail({ id }: { id: string }) {
   });
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchBusinessById(id);
   }, [id, fetchBusinessById]);
 
   if (loading || !selectedBusiness) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading business..." />
-      </div>
-    );
+    return <SkeletonDetailPage cards={3} />;
   }
 
   const handleAction = async () => {
@@ -66,12 +64,12 @@ export default function BusinessDetail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={() => router.push("/businesses")}
-        className="text-body-4 text-text-tertiary hover:text-text-primary transition-colors self-start"
-      >
-        &larr; Back to Businesses
-      </button>
+      <Breadcrumb
+        items={[
+          { label: "Businesses", href: "/businesses" },
+          { label: selectedBusiness.name },
+        ]}
+      />
 
       <PageHeader
         title={selectedBusiness.name}

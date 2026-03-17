@@ -23,8 +23,13 @@ export default function ProtectedRoute({
 
   if (status === "idle" || status === "checking") {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <span className="text-body-3 text-text-tertiary">Loading...</span>
+      <div className="flex items-center justify-center h-screen bg-white">
+        <img
+          src="/assets/yosemiteLoader.gif"
+          alt="Loading"
+          width={120}
+          height={120}
+        />
       </div>
     );
   }

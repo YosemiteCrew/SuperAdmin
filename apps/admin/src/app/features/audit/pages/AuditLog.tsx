@@ -4,7 +4,7 @@ import { useAudit } from "@/app/hooks/useAudit";
 import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import type { AuditEntry } from "@/app/types/audit";
 
@@ -119,11 +119,7 @@ export default function AuditLog() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading audit entries..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

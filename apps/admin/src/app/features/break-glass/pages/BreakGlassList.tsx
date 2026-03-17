@@ -4,7 +4,7 @@ import { useBreakGlass } from "@/app/hooks/useBreakGlass";
 import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import { Primary, Danger } from "@/app/ui/primitives/Button";
 import CreateGrantModal from "../components/CreateGrantModal";
 import RevokeGrantModal from "../components/RevokeGrantModal";
@@ -125,11 +125,7 @@ export default function BreakGlassList() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading grants..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

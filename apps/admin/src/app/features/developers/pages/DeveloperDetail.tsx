@@ -6,7 +6,8 @@ import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonDetailPage } from "@/app/ui/primitives/Skeleton";
+import Breadcrumb from "@/app/ui/primitives/Breadcrumb";
 import type { DeveloperApp } from "@/app/types/developer";
 
 const statusTone: Record<string, "neutral" | "success" | "danger"> = {
@@ -53,17 +54,14 @@ export default function DeveloperDetail({ id }: { id: string }) {
   const router = useRouter();
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchDeveloperById(id);
     fetchDeveloperApps(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   if (loading || !selectedDeveloper) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading developer..." />
-      </div>
-    );
+    return <SkeletonDetailPage cards={1} />;
   }
 
   const appColumns: Column<AppRow>[] = [
@@ -126,24 +124,12 @@ export default function DeveloperDetail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={() => router.push("/developers")}
-        className="flex items-center gap-2 text-body-4 text-text-tertiary hover:text-text-primary transition-colors w-fit"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M19 12H5M5 12L12 19M5 12L12 5" />
-        </svg>
-        Back to Developers
-      </button>
+      <Breadcrumb
+        items={[
+          { label: "Developers", href: "/developers" },
+          { label: selectedDeveloper.name },
+        ]}
+      />
 
       <PageHeader
         title={selectedDeveloper.name}

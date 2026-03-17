@@ -5,7 +5,7 @@ import StatusFilter from "@/app/ui/primitives/StatusFilter";
 import Search from "@/app/ui/inputs/Search";
 import Dropdown from "@/app/ui/inputs/Dropdown";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonListPage } from "@/app/ui/primitives/Skeleton";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import BusinessStatusBadge from "../components/BusinessStatusBadge";
 import PendingVerifications from "../components/PendingVerifications";
@@ -109,11 +109,7 @@ export default function BusinessList() {
   ];
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading businesses..." />
-      </div>
-    );
+    return <SkeletonListPage />;
   }
 
   return (

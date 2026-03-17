@@ -5,7 +5,8 @@ import { useSupportStore } from "@/app/stores/supportStore";
 import PageHeader from "@/app/ui/primitives/PageHeader";
 import DetailCard from "@/app/ui/cards/DetailCard";
 import { Secondary } from "@/app/ui/primitives/Button";
-import Loader from "@/app/ui/overlays/Loader/Loader";
+import { SkeletonDetailPage } from "@/app/ui/primitives/Skeleton";
+import Breadcrumb from "@/app/ui/primitives/Breadcrumb";
 import TicketStatusBadge from "../components/TicketStatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
 import UpdateTicketModal from "../components/UpdateTicketModal";
@@ -28,15 +29,12 @@ export default function TicketDetail({ id }: { id: string }) {
   const [showAssignModal, setShowAssignModal] = useState(false);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     fetchTicketById(id);
   }, [id, fetchTicketById]);
 
   if (loading || !selectedTicket) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Loader variant="inline" label="Loading ticket..." />
-      </div>
-    );
+    return <SkeletonDetailPage cards={2} />;
   }
 
   const handleUpdate = async (status: TicketStatus, priority: TicketPriority) => {
@@ -50,12 +48,12 @@ export default function TicketDetail({ id }: { id: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <button
-        onClick={() => router.push("/support")}
-        className="text-body-4 text-text-tertiary hover:text-text-primary transition-colors self-start"
-      >
-        &larr; Back to Support Tickets
-      </button>
+      <Breadcrumb
+        items={[
+          { label: "Support", href: "/support" },
+          { label: selectedTicket.subject },
+        ]}
+      />
 
       <PageHeader
         title={selectedTicket.subject}
