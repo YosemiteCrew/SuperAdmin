@@ -8,6 +8,8 @@ import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import BusinessStatusBadge from "../components/BusinessStatusBadge";
+import PendingVerifications from "../components/PendingVerifications";
+import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { Business, BusinessStatus } from "@/app/types/business";
 
 const statusOptions = [
@@ -95,6 +97,15 @@ export default function BusinessList() {
         </span>
       ),
     },
+    {
+      label: "Actions",
+      key: "actions",
+      render: (item) => (
+        <ActionViewButton
+            onClick={() => router.push(`/businesses/${item.id}`)}
+          />
+      ),
+    },
   ];
 
   if (loading) {
@@ -149,11 +160,15 @@ export default function BusinessList() {
           <GenericTable
             data={filteredBusinesses as BusinessRow[]}
             columns={columns}
-            onRowClick={(item) => router.push(`/businesses/${item.id}`)}
             pagination
             pageSize={10}
           />
         )}
+      </div>
+
+      {/* Pending Verifications Section */}
+      <div className="mt-10">
+        <PendingVerifications />
       </div>
     </div>
   );

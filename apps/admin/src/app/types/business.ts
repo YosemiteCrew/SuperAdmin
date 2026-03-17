@@ -7,6 +7,31 @@ export type BusinessStatus =
   | "invited";
 export type BusinessPlan = "free" | "business";
 
+export type VerificationStatus = "pending" | "approved" | "rejected";
+
+export type VerificationRequest = {
+  id: string;
+  businessId: string;
+  businessName: string;
+  type: BusinessType;
+  status: VerificationStatus;
+  profileCompletion: number;
+  submittedAt: string;
+  country: string;
+  registrationNumber: string;
+  phone: string;
+  email: string;
+  website: string;
+  postalCode: string;
+  area: string;
+  city: string;
+  state: string;
+  hasDepartments: boolean;
+  services: string[];
+  departments: string[];
+  rejectionReason?: string;
+};
+
 export type Business = {
   id: string;
   name: string;

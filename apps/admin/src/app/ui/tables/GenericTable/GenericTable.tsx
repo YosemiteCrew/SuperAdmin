@@ -71,15 +71,21 @@ export default function GenericTable<T extends Record<string, unknown>>({
       <table className="w-full">
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th
-                key={String(col.key)}
-                className="text-left text-caption-1 text-text-tertiary font-normal px-4 py-3"
-                style={col.width ? { width: col.width } : undefined}
-              >
-                {col.label}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const isActions = String(col.key) === "actions";
+              return (
+                <th
+                  key={String(col.key)}
+                  className={clsx(
+                    "text-caption-1 text-text-tertiary font-normal px-4 py-3",
+                    isActions ? "text-center" : "text-left"
+                  )}
+                  style={col.width ? { width: col.width } : undefined}
+                >
+                  {col.label}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>
@@ -93,16 +99,30 @@ export default function GenericTable<T extends Record<string, unknown>>({
                 onRowClick && "generic-table-row-clickable"
               )}
             >
-              {columns.map((col) => (
-                <td
-                  key={String(col.key)}
-                  className="text-body-4 text-text-primary font-medium px-4 py-3"
-                >
-                  {col.render
-                    ? col.render(item, (safePage - 1) * pageSize + rowIdx)
-                    : getValue(item, col.key)}
-                </td>
-              ))}
+              {columns.map((col) => {
+                const isActions = String(col.key) === "actions";
+                return (
+                  <td
+                    key={String(col.key)}
+                    className={clsx(
+                      "text-body-4 text-text-primary font-medium px-4 py-3",
+                      isActions && "!text-center"
+                    )}
+                  >
+                    {isActions ? (
+                      <div className="flex items-center justify-center w-full">
+                        {col.render
+                          ? col.render(item, (safePage - 1) * pageSize + rowIdx)
+                          : getValue(item, col.key)}
+                      </div>
+                    ) : (
+                      col.render
+                        ? col.render(item, (safePage - 1) * pageSize + rowIdx)
+                        : getValue(item, col.key)
+                    )}
+                  </td>
+                );
+              })}
             </tr>
           ))}
         </tbody>

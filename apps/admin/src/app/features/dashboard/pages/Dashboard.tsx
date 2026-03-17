@@ -7,6 +7,7 @@ import StatCard from "@/app/ui/cards/StatCard";
 import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
+import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { Lead } from "@/app/types/lead";
 import type { SupportTicket } from "@/app/types/ticket";
 
@@ -97,6 +98,15 @@ export default function Dashboard() {
         </span>
       ),
     },
+    {
+      label: "Actions",
+      key: "actions",
+      render: (item) => (
+        <ActionViewButton
+            onClick={() => router.push(`/leads/${item.id}`)}
+          />
+      ),
+    },
   ];
 
   const ticketColumns: Column<SupportTicket>[] = [
@@ -132,6 +142,15 @@ export default function Dashboard() {
         <span className="text-caption-1 text-text-tertiary">
           {formatDate(item.createdAt)}
         </span>
+      ),
+    },
+    {
+      label: "Actions",
+      key: "actions",
+      render: (item) => (
+        <ActionViewButton
+            onClick={() => router.push(`/support/${item.id}`)}
+          />
       ),
     },
   ];
@@ -182,7 +201,6 @@ export default function Dashboard() {
               <GenericTable
                 data={recentLeads as (Lead & Record<string, unknown>)[]}
                 columns={leadColumns as Column<Lead & Record<string, unknown>>[]}
-                onRowClick={(item) => router.push(`/leads/${item.id}`)}
               />
             </div>
           </div>
@@ -205,7 +223,6 @@ export default function Dashboard() {
               <GenericTable
                 data={recentTickets as (SupportTicket & Record<string, unknown>)[]}
                 columns={ticketColumns as Column<SupportTicket & Record<string, unknown>>[]}
-                onRowClick={(item) => router.push(`/support/${item.id}`)}
               />
             </div>
           </div>

@@ -8,6 +8,7 @@ import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import LeadStatusBadge from "../components/LeadStatusBadge";
+import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { Lead } from "@/app/types/lead";
 
 const statusOptions = [
@@ -85,6 +86,15 @@ export default function LeadsList() {
         </span>
       ),
     },
+    {
+      label: "Actions",
+      key: "actions",
+      render: (item) => (
+        <ActionViewButton
+            onClick={() => router.push(`/leads/${item.id}`)}
+          />
+      ),
+    },
   ];
 
   if (loading) {
@@ -132,7 +142,6 @@ export default function LeadsList() {
           <GenericTable
             data={filteredLeads as LeadRow[]}
             columns={columns}
-            onRowClick={(item) => router.push(`/leads/${item.id}`)}
             pagination
             pageSize={10}
           />

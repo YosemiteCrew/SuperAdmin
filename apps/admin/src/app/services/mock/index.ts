@@ -8,6 +8,10 @@ export {
   getBusinesses,
   getBusinessById,
   updateBusinessStatus,
+  // Verifications
+  getVerifications,
+  getVerificationById,
+  updateVerificationStatus,
   // Tickets
   getTickets,
   getTicketById,

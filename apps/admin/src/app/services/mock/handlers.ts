@@ -9,10 +9,11 @@ import {
   mockGrants,
   mockAuditEntries,
   mockAnalytics,
+  mockVerifications,
 } from "./data";
 
 import type { LeadStatus } from "@/app/types/lead";
-import type { BusinessStatus } from "@/app/types/business";
+import type { BusinessStatus, VerificationStatus } from "@/app/types/business";
 import type { TicketStatus, TicketPriority } from "@/app/types/ticket";
 import type { TeamRole } from "@/app/types/team";
 import type { GrantScope } from "@/app/types/break-glass";
@@ -79,6 +80,33 @@ export async function updateBusinessStatus(
     biz.approvedAt = new Date().toISOString();
   }
   return { ...biz };
+}
+
+// ── Verifications ─────────────────────────────────────
+
+export async function getVerifications() {
+  await delay();
+  return [...mockVerifications];
+}
+
+export async function getVerificationById(id: string) {
+  await delay();
+  return mockVerifications.find((v) => v.id === id);
+}
+
+export async function updateVerificationStatus(
+  id: string,
+  status: VerificationStatus,
+  rejectionReason?: string
+) {
+  await delay();
+  const ver = mockVerifications.find((v) => v.id === id);
+  if (!ver) return undefined;
+  ver.status = status;
+  if (rejectionReason) {
+    ver.rejectionReason = rejectionReason;
+  }
+  return { ...ver };
 }
 
 // ── Tickets ────────────────────────────────────────────

@@ -9,6 +9,7 @@ import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
 import TicketStatusBadge from "../components/TicketStatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
+import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { SupportTicket, TicketStatus, TicketPriority } from "@/app/types/ticket";
 
 const statusOptions = [
@@ -89,6 +90,15 @@ export default function TicketList() {
         </span>
       ),
     },
+    {
+      label: "Actions",
+      key: "actions",
+      render: (item) => (
+        <ActionViewButton
+            onClick={() => router.push(`/support/${item.id}`)}
+          />
+      ),
+    },
   ];
 
   if (loading) {
@@ -143,7 +153,6 @@ export default function TicketList() {
           <GenericTable
             data={filteredTickets as TicketRow[]}
             columns={columns}
-            onRowClick={(item) => router.push(`/support/${item.id}`)}
             pagination
             pageSize={10}
           />

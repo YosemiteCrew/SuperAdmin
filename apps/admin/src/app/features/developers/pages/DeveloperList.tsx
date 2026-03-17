@@ -7,6 +7,7 @@ import { GenericTable, type Column } from "@/app/ui/tables/GenericTable";
 import Badge from "@/app/ui/primitives/Badge";
 import Loader from "@/app/ui/overlays/Loader/Loader";
 import EmptyState from "@/app/ui/primitives/EmptyState";
+import ActionViewButton from "@/app/ui/primitives/ActionViewButton";
 import type { Developer } from "@/app/types/developer";
 
 const statusOptions = [
@@ -88,17 +89,11 @@ export default function DeveloperList() {
     },
     {
       label: "Actions",
-      key: "id",
+      key: "actions",
       render: (item) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            router.push(`/developers/${item.id}`);
-          }}
-          className="text-caption-1 text-brand-text font-medium hover:underline"
-        >
-          View
-        </button>
+        <ActionViewButton
+            onClick={() => router.push(`/developers/${item.id}`)}
+          />
       ),
     },
   ];
@@ -140,7 +135,6 @@ export default function DeveloperList() {
           <GenericTable
             data={filteredDevelopers as DeveloperRow[]}
             columns={columns}
-            onRowClick={(item) => router.push(`/developers/${item.id}`)}
             pagination
             pageSize={10}
           />

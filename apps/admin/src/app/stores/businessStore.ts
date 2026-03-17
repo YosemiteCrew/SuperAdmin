@@ -1,10 +1,13 @@
 "use client";
 import { create } from "zustand";
-import type { Business } from "@/app/types/business";
+import type { Business, VerificationRequest } from "@/app/types/business";
 import {
   getBusinesses,
   getBusinessById,
   updateBusinessStatus,
+  getVerifications,
+  getVerificationById,
+  updateVerificationStatus,
 } from "@/app/services/mock";
 
 type BusinessFilters = {
@@ -19,12 +22,19 @@ type BusinessState = {
   selectedBusiness: Business | null;
   loading: boolean;
   filters: BusinessFilters;
+  verifications: VerificationRequest[];
+  selectedVerification: VerificationRequest | null;
+  verificationsLoading: boolean;
   fetchBusinesses: () => Promise<void>;
   fetchBusinessById: (id: string) => Promise<void>;
   approveBusiness: (id: string) => Promise<void>;
   suspendBusiness: (id: string) => Promise<void>;
   deactivateBusiness: (id: string) => Promise<void>;
   setFilters: (filters: Partial<BusinessFilters>) => void;
+  fetchVerifications: () => Promise<void>;
+  fetchVerificationById: (id: string) => Promise<void>;
+  approveVerification: (id: string) => Promise<void>;
+  rejectVerification: (id: string, reason: string) => Promise<void>;
 };
 
 export const useBusinessStore = create<BusinessState>()((set) => ({
@@ -32,6 +42,9 @@ export const useBusinessStore = create<BusinessState>()((set) => ({
   selectedBusiness: null,
   loading: false,
   filters: { status: "", type: "", search: "", invitedOnly: false },
+  verifications: [],
+  selectedVerification: null,
+  verificationsLoading: false,
 
   fetchBusinesses: async () => {
     set({ loading: true });
@@ -94,5 +107,50 @@ export const useBusinessStore = create<BusinessState>()((set) => ({
     set((state) => ({
       filters: { ...state.filters, ...filters },
     }));
+  },
+
+  fetchVerifications: async () => {
+    set({ verificationsLoading: true });
+    const verifications = await getVerifications();
+    set({ verifications, verificationsLoading: false });
+  },
+
+  fetchVerificationById: async (id: string) => {
+    set({ verificationsLoading: true });
+    const verification = await getVerificationById(id);
+    set({
+      selectedVerification: verification ?? null,
+      verificationsLoading: false,
+    });
+  },
+
+  approveVerification: async (id: string) => {
+    const updated = await updateVerificationStatus(id, "approved");
+    if (updated) {
+      set((state) => ({
+        verifications: state.verifications.map((v) =>
+          v.id === id ? { ...v, ...updated } : v
+        ),
+        selectedVerification:
+          state.selectedVerification?.id === id
+            ? { ...state.selectedVerification, ...updated }
+            : state.selectedVerification,
+      }));
+    }
+  },
+
+  rejectVerification: async (id: string, reason: string) => {
+    const updated = await updateVerificationStatus(id, "rejected", reason);
+    if (updated) {
+      set((state) => ({
+        verifications: state.verifications.map((v) =>
+          v.id === id ? { ...v, ...updated } : v
+        ),
+        selectedVerification:
+          state.selectedVerification?.id === id
+            ? { ...state.selectedVerification, ...updated }
+            : state.selectedVerification,
+      }));
+    }
   },
 }));
