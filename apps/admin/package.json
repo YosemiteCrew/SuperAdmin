@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@yosemite-crew/design-system": "github:eng-AhmedMahmoud/design-system",
     "axios": "^1.13.6",
     "clsx": "^2.1.1",
     "next": "16.1.6",
