@@ -1,8 +1,32 @@
 'use client';
 
-import { useEffect } from 'react';
+import { CSSProperties, useEffect } from 'react';
 
 import { reportError } from './lib/reportError';
+
+const bodyStyle: CSSProperties = {
+  margin: 0,
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  background: '#f8f6f4',
+  fontFamily: 'system-ui, -apple-system, sans-serif',
+  color: '#1d1c1b',
+};
+
+const buttonStyle: CSSProperties = {
+  minHeight: '3rem',
+  padding: '0.75rem 1.5rem',
+  width: '100%',
+  border: 'none',
+  borderRadius: 16,
+  background: '#1d1c1b',
+  color: '#ffffff',
+  fontSize: '1rem',
+  fontWeight: 500,
+  cursor: 'pointer',
+};
 
 export default function GlobalError({
   error,
@@ -17,18 +41,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#f8f6f4',
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          color: '#1d1c1b',
-        }}
-      >
+      <body style={bodyStyle}>
         <div
           style={{
             maxWidth: 480,
@@ -52,22 +65,7 @@ export default function GlobalError({
             An unexpected error occurred. Try again, and if it keeps happening, contact an
             administrator.
           </p>
-          <button
-            type="button"
-            onClick={reset}
-            style={{
-              minHeight: '3rem',
-              padding: '0.75rem 1.5rem',
-              width: '100%',
-              border: 'none',
-              borderRadius: 16,
-              background: '#1d1c1b',
-              color: '#ffffff',
-              fontSize: '1rem',
-              fontWeight: 500,
-              cursor: 'pointer',
-            }}
-          >
+          <button type="button" onClick={reset} style={buttonStyle}>
             Try again
           </button>
         </div>

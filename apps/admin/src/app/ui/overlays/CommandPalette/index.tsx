@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 
@@ -115,34 +115,63 @@ const buildResultItems = (query: string): SearchItem[] => {
     .map((entry) => entry.item);
 };
 
+type PaletteState = { isOpen: boolean; query: string; activeIndex: number };
+type PaletteAction =
+  | { type: 'TOGGLE' }
+  | { type: 'OPEN' }
+  | { type: 'CLOSE' }
+  | { type: 'CLOSE_AND_CLEAR' }
+  | { type: 'SET_QUERY'; query: string }
+  | { type: 'SET_ACTIVE'; index: number }
+  | { type: 'NAVIGATE'; direction: 1 | -1; resultCount: number }
+  | { type: 'SELECT_ITEM' }
+  | { type: 'OPEN_RESET' };
+
+const paletteInitial: PaletteState = { isOpen: false, query: '', activeIndex: 0 };
+
+function paletteReducer(state: PaletteState, action: PaletteAction): PaletteState {
+  switch (action.type) {
+    case 'TOGGLE':
+      return { ...state, isOpen: !state.isOpen };
+    case 'OPEN':
+      return { ...state, isOpen: true };
+    case 'CLOSE':
+      return { ...state, isOpen: false };
+    case 'CLOSE_AND_CLEAR':
+      return { ...state, isOpen: false, query: '', activeIndex: 0 };
+    case 'SET_QUERY':
+      return { ...state, query: action.query, activeIndex: 0 };
+    case 'SET_ACTIVE':
+      return { ...state, activeIndex: action.index };
+    case 'NAVIGATE':
+      return {
+        ...state,
+        activeIndex: getNextResultIndex(state.activeIndex, action.resultCount, action.direction),
+      };
+    case 'SELECT_ITEM':
+      return { ...state, isOpen: false, query: '' };
+    case 'OPEN_RESET':
+      return { ...state, activeIndex: 0 };
+    default:
+      return state;
+  }
+}
+
 export function CommandPalette() {
   const router = useRouter();
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
 
-  const open = useCallback(() => setIsOpen(true), []);
-  const close = useCallback(() => setIsOpen(false), []);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Avoids SSR/client mismatch for the portal — server returns false, client returns true
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const resultItems = useMemo(() => buildResultItems(query), [query]);
-
-  const selectItem = useCallback(
-    (item?: SearchItem) => {
-      if (!item) return;
-      close();
-      setQuery('');
-      router.push(item.href);
-    },
-    [close, router]
-  );
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -152,7 +181,7 @@ export function CommandPalette() {
 
       if (withCommandKey && (key === 'k' || key === 'p')) {
         event.preventDefault();
-        setIsOpen((value) => !value);
+        dispatch({ type: 'TOGGLE' });
         return;
       }
 
@@ -160,29 +189,29 @@ export function CommandPalette() {
 
       if (event.key === 'Escape') {
         event.preventDefault();
-        close();
+        dispatch({ type: 'CLOSE' });
         return;
       }
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setActiveIndex((prev) => getNextResultIndex(prev, resultItems.length, 1));
+        dispatch({ type: 'NAVIGATE', direction: 1, resultCount: resultItems.length });
         return;
       }
 
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        setActiveIndex((prev) => getNextResultIndex(prev, resultItems.length, -1));
+        dispatch({ type: 'NAVIGATE', direction: -1, resultCount: resultItems.length });
         return;
       }
 
       if (event.key === 'Enter') {
         event.preventDefault();
-        selectItem(resultItems[activeIndex]);
+        activeRowRef.current?.click();
       }
     };
 
-    const onCustomOpen = () => open();
+    const onCustomOpen = () => dispatch({ type: 'OPEN' });
 
     document.addEventListener('keydown', onKeyDown);
     document.addEventListener(COMMAND_PALETTE_EVENT, onCustomOpen);
@@ -190,16 +219,15 @@ export function CommandPalette() {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener(COMMAND_PALETTE_EVENT, onCustomOpen);
     };
-  }, [activeIndex, close, isOpen, open, resultItems, selectItem]);
+  }, [activeIndex, isOpen, resultItems]);
 
   useEffect(() => {
-    close();
-    setQuery('');
-  }, [pathname, close]);
+    dispatch({ type: 'CLOSE_AND_CLEAR' });
+  }, [pathname]);
 
   useEffect(() => {
     if (!isOpen) return;
-    setActiveIndex(0);
+    dispatch({ type: 'OPEN_RESET' });
     const timeout = globalThis.window?.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.select();
@@ -223,7 +251,7 @@ export function CommandPalette() {
     };
   }, [isOpen]);
 
-  if (!mounted || !isOpen) return null;
+  if (!isMounted || !isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[1200] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_rgba(48,47,46,0.45))] p-2 backdrop-blur-[8px] sm:p-6">
@@ -231,10 +259,10 @@ export function CommandPalette() {
         type="button"
         aria-label="Close command palette"
         className="absolute inset-0"
-        onClick={close}
+        onClick={() => dispatch({ type: 'CLOSE' })}
       />
-      <section
-        role="dialog"
+      <dialog
+        open
         aria-modal="true"
         aria-label="Command palette"
         className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-white/40 bg-white/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl sm:mt-8"
@@ -244,10 +272,7 @@ export function CommandPalette() {
             <input
               ref={inputRef}
               value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setActiveIndex(0);
-              }}
+              onChange={(event) => dispatch({ type: 'SET_QUERY', query: event.target.value })}
               placeholder="Search pages, users, organizations…"
               className="w-full border-0 bg-transparent font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
               aria-label="Command palette input"
@@ -261,50 +286,49 @@ export function CommandPalette() {
               No matches found. Try a broader keyword.
             </div>
           ) : (
-            <div
-              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-              role="listbox"
-              aria-label="Pages"
-            >
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Pages">
               {resultItems.map((item, index) => {
                 const isActive = index === activeIndex;
                 return (
-                  <button
-                    key={item.id}
-                    ref={isActive ? activeRowRef : null}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    onMouseEnter={() => setActiveIndex(index)}
-                    onClick={() => selectItem(item)}
-                    className={
-                      isActive
-                        ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--color-brand-950)]/30 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] px-3 py-2.5 text-left shadow-[0_6px_18px_rgba(36,122,237,0.12)] transition-all duration-150'
-                        : 'flex w-full min-h-[64px] items-center rounded-2xl border border-white/45 bg-white/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--color-brand-950)]/25 hover:bg-white/78'
-                    }
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
-                          {item.title}
+                  <li key={item.id}>
+                    <button
+                      ref={isActive ? activeRowRef : null}
+                      type="button"
+                      aria-current={isActive ? 'true' : undefined}
+                      onMouseEnter={() => dispatch({ type: 'SET_ACTIVE', index })}
+                      onClick={() => {
+                        dispatch({ type: 'SELECT_ITEM' });
+                        router.push(item.href);
+                      }}
+                      className={
+                        isActive
+                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--color-brand-950)]/30 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] px-3 py-2.5 text-left shadow-[0_6px_18px_rgba(36,122,237,0.12)] transition-all duration-150'
+                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-white/45 bg-white/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--color-brand-950)]/25 hover:bg-white/78'
+                      }
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
+                            {item.title}
+                          </div>
+                          <div className="shrink-0 rounded-xl border border-white/65 bg-white/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
+                            {moduleLabels[item.module]}
+                          </div>
                         </div>
-                        <div className="shrink-0 rounded-xl border border-white/65 bg-white/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
-                          {moduleLabels[item.module]}
-                        </div>
+                        {item.subtitle && !item.isQuick ? (
+                          <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
+                            {item.subtitle}
+                          </div>
+                        ) : null}
                       </div>
-                      {item.subtitle && !item.isQuick ? (
-                        <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
-                          {item.subtitle}
-                        </div>
-                      ) : null}
-                    </div>
-                  </button>
+                    </button>
+                  </li>
                 );
               })}
-            </div>
+            </ul>
           )}
         </div>
-      </section>
+      </dialog>
     </div>,
     document.body
   );

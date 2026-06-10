@@ -29,13 +29,13 @@ async function requireSession(): Promise<SessionResult> {
 
   const userId = accessTokenPayload.sub;
   if (typeof userId !== 'string') {
-    redirect('/api/signout');
+    redirect('/auth');
   }
 
   const user = await supertokens.getUser(userId);
   const email = user?.emails[0];
   if (!email) {
-    redirect('/api/signout');
+    redirect('/auth');
   }
 
   let firstName: string | null = null;

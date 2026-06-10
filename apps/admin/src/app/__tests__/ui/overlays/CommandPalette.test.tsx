@@ -41,9 +41,9 @@ describe('CommandPalette', () => {
   it('shows all quick links by default', () => {
     render(<CommandPalette />);
     openPalette();
-    expect(screen.getByRole('option', { name: /Open Dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Open Users/i })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Open Settings/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Dashboard/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Users/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Open Settings/i })).toBeInTheDocument();
   });
 
   it('filters items by query', async () => {
@@ -52,9 +52,9 @@ describe('CommandPalette', () => {
     openPalette();
     const input = screen.getByLabelText(/command palette input/i) as HTMLInputElement;
     await user.type(input, 'metrics');
-    expect(screen.getByRole('option', { name: /Analytics/i })).toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Users/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('option', { name: /Settings/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Analytics/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Users/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Settings/i })).not.toBeInTheDocument();
   });
 
   it('shows empty state when no items match', async () => {

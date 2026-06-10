@@ -1,8 +1,11 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import SuperTokens from 'supertokens-node';
 import EmailPasswordNode from 'supertokens-node/recipe/emailpassword';
 import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import { TypeInput } from 'supertokens-node/types';
+import { getSSRSession } from 'supertokens-node/nextjs';
 
 import { appInfo } from './appInfo';
 import { serverEnv } from './env.server';
@@ -66,5 +69,15 @@ export function ensureSuperTokensInit() {
   if (!initialized) {
     SuperTokens.init(backendConfig());
     initialized = true;
+  }
+}
+
+export async function requireAuth(): Promise<void> {
+  ensureSuperTokensInit();
+  const cookieStore = await cookies();
+  const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
+  const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
+  if (error || !hasToken || !accessTokenPayload) {
+    redirect('/auth');
   }
 }

@@ -1,3 +1,5 @@
+export {};
+
 function loadLogger() {
   return jest.requireActual<typeof import('@/app/lib/logger')>('@/app/lib/logger');
 }

@@ -32,6 +32,7 @@ function updatePrimaryGlow(event: MouseEvent<HTMLButtonElement>) {
 export function Button({
   variant = 'primary',
   size = 'md',
+  type = 'button',
   children,
   className,
   onMouseEnter,
@@ -42,6 +43,7 @@ export function Button({
 
   return (
     <button
+      type={type}
       className={cn(
         'inline-flex w-fit items-center justify-center rounded-full font-medium tracking-[-0.02em] transition-[background-color,border-color,box-shadow,opacity] duration-200 ease-out disabled:cursor-not-allowed disabled:opacity-70',
         variantClasses[variant],

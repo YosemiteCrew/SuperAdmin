@@ -28,20 +28,7 @@ export default function RouteError({
               An unexpected error stopped this page from loading.
             </p>
             {isDev && error.message ? (
-              <pre
-                style={{
-                  margin: 0,
-                  padding: '0.75rem 1rem',
-                  borderRadius: '0.75rem',
-                  background: '#fdebea',
-                  color: '#9a1f15',
-                  fontSize: '0.8rem',
-                  fontFamily: 'ui-monospace, SFMono-Regular, monospace',
-                  whiteSpace: 'pre-wrap',
-                  textAlign: 'left',
-                  overflowWrap: 'anywhere',
-                }}
-              >
+              <pre className="m-0 rounded-xl bg-[#fdebea] px-4 py-3 text-left font-mono text-[0.8rem] text-[#9a1f15] whitespace-pre-wrap [overflow-wrap:anywhere]">
                 {error.message}
                 {error.digest ? `\n\nDigest: ${error.digest}` : ''}
               </pre>

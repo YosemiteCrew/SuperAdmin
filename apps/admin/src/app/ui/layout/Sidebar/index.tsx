@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -70,6 +70,22 @@ function setCollapsedPreference(value: boolean): void {
   }
 }
 
+const collapsedListeners = new Set<() => void>();
+
+function subscribeCollapsed(listener: () => void) {
+  collapsedListeners.add(listener);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === COLLAPSE_STORAGE_KEY) listener();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    collapsedListeners.delete(listener);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
+const getCollapsedServerSnapshot = () => false;
+
 function isActive(pathname: string, href: string): boolean {
   if (href === '/dashboard') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
@@ -77,18 +93,15 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar() {
   const pathname = usePathname() ?? '';
-  const [collapsed, setCollapsed] = useState(false);
-
-  useEffect(() => {
-    setCollapsed(isCollapsedByDefault());
-  }, []);
+  const collapsed = useSyncExternalStore(
+    subscribeCollapsed,
+    isCollapsedByDefault,
+    getCollapsedServerSnapshot
+  );
 
   function handleToggle() {
-    setCollapsed((prev) => {
-      const next = !prev;
-      setCollapsedPreference(next);
-      return next;
-    });
+    setCollapsedPreference(!collapsed);
+    collapsedListeners.forEach((fn) => fn());
   }
 
   return (

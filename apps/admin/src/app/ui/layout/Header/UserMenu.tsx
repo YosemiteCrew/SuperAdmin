@@ -45,14 +45,17 @@ export function UserMenu({
     } catch {
       // SuperTokens can throw on a stale session, anti-CSRF mismatch, or
       // network blip. Sign-out is user-initiated cleanup — treat it as
-      // best-effort and never crash the page. Cookies still get cleared by
-      // the redirect target below.
+      // best-effort and never crash the page. Cookies still get cleared below.
     }
-    // Full-page navigation to /api/signout. That endpoint sets clear-cookie
-    // headers with the correct per-cookie Path / Secure / SameSite attrs and
-    // 307s to /auth. This guarantees cookies are gone even if the SDK above
-    // failed silently.
-    window.location.href = '/api/signout';
+    // POST to /api/signout so the server clears all auth cookies with the
+    // correct Path/Secure/SameSite attributes. GET is intentionally removed
+    // from that route to prevent CSRF-triggered logouts.
+    try {
+      await fetch('/api/signout', { method: 'POST' });
+    } catch {
+      /* network failure — proceed to /auth regardless */
+    }
+    window.location.href = '/auth';
   }
 
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();

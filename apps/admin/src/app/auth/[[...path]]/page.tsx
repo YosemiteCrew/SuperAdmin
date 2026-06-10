@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useReducer, useState } from 'react';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   signIn,
@@ -280,37 +281,70 @@ function ForgotPasswordForm() {
   );
 }
 
+type ResetState = {
+  password: string;
+  confirm: string;
+  error: string;
+  done: boolean;
+  loading: boolean;
+};
+type ResetAction =
+  | { type: 'field'; name: 'password' | 'confirm'; value: string }
+  | { type: 'submit_start' }
+  | { type: 'submit_ok' }
+  | { type: 'submit_error'; error: string };
+
+const resetInitial: ResetState = {
+  password: '',
+  confirm: '',
+  error: '',
+  done: false,
+  loading: false,
+};
+
+function resetReducer(state: ResetState, action: ResetAction): ResetState {
+  switch (action.type) {
+    case 'field':
+      return { ...state, [action.name]: action.value };
+    case 'submit_start':
+      return { ...state, error: '', loading: true };
+    case 'submit_ok':
+      return { ...state, loading: false, done: true };
+    case 'submit_error':
+      return { ...state, loading: false, error: action.error };
+  }
+}
+
 function ResetPasswordForm() {
   const router = useRouter();
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [done, setDone] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [{ password, confirm, error, done, loading }, dispatch] = useReducer(
+    resetReducer,
+    resetInitial
+  );
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError('');
     if (password !== confirm) {
-      setError('Passwords do not match.');
+      dispatch({ type: 'submit_error', error: 'Passwords do not match.' });
       return;
     }
-    setLoading(true);
+    dispatch({ type: 'submit_start' });
     try {
       const res = await submitNewPassword({
         formFields: [{ id: 'password', value: password }],
       });
       if (res.status === 'OK') {
-        setDone(true);
+        dispatch({ type: 'submit_ok' });
       } else if (res.status === 'RESET_PASSWORD_INVALID_TOKEN_ERROR') {
-        setError('This reset link has expired. Please request a new one.');
+        dispatch({
+          type: 'submit_error',
+          error: 'This reset link has expired. Please request a new one.',
+        });
       } else {
-        setError('Could not reset password. Please try again.');
+        dispatch({ type: 'submit_error', error: 'Could not reset password. Please try again.' });
       }
     } catch {
-      setError(GENERIC_ERROR);
-    } finally {
-      setLoading(false);
+      dispatch({ type: 'submit_error', error: GENERIC_ERROR });
     }
   }
 
@@ -333,14 +367,14 @@ function ResetPasswordForm() {
               <div className="yc-auth-fields">
                 <PasswordField
                   value={password}
-                  onChange={setPassword}
+                  onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
                   label="New password"
                   autoComplete="new-password"
                   id="auth-reset-new"
                 />
                 <PasswordField
                   value={confirm}
-                  onChange={setConfirm}
+                  onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
                   label="Confirm new password"
                   autoComplete="new-password"
                   id="auth-reset-confirm"
@@ -357,30 +391,57 @@ function ResetPasswordForm() {
   );
 }
 
+type SignUpFields = 'firstName' | 'lastName' | 'email' | 'password' | 'confirm';
+type SignUpState = Record<SignUpFields, string> & { error: string; loading: boolean };
+type SignUpAction =
+  | { type: 'field'; name: SignUpFields; value: string }
+  | { type: 'submit_start' }
+  | { type: 'submit_error'; error: string }
+  | { type: 'submit_end' };
+
+const signUpInitial: SignUpState = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  confirm: '',
+  error: '',
+  loading: false,
+};
+
+function signUpReducer(state: SignUpState, action: SignUpAction): SignUpState {
+  switch (action.type) {
+    case 'field':
+      return { ...state, [action.name]: action.value };
+    case 'submit_start':
+      return { ...state, error: '', loading: true };
+    case 'submit_error':
+      return { ...state, loading: false, error: action.error };
+    case 'submit_end':
+      return { ...state, loading: false };
+  }
+}
+
 function SignUpForm() {
   const router = useRouter();
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [{ firstName, lastName, email, password, confirm, error, loading }, dispatch] = useReducer(
+    signUpReducer,
+    signUpInitial
+  );
 
   async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError('');
 
     if (!firstName.trim() || !lastName.trim()) {
-      setError('Please enter your first and last name.');
+      dispatch({ type: 'submit_error', error: 'Please enter your first and last name.' });
       return;
     }
     if (password !== confirm) {
-      setError('Passwords do not match.');
+      dispatch({ type: 'submit_error', error: 'Passwords do not match.' });
       return;
     }
 
-    setLoading(true);
+    dispatch({ type: 'submit_start' });
     try {
       const res = await signUp({
         formFields: [
@@ -403,16 +464,16 @@ function SignUpForm() {
         }
         router.push('/dashboard');
       } else if (res.status === 'FIELD_ERROR') {
-        setError(res.formFields[0]?.error ?? GENERIC_ERROR);
+        dispatch({ type: 'submit_error', error: res.formFields[0]?.error ?? GENERIC_ERROR });
       } else if (res.status === 'SIGN_UP_NOT_ALLOWED') {
-        setError('Sign up is not allowed for this email.');
+        dispatch({ type: 'submit_error', error: 'Sign up is not allowed for this email.' });
       } else {
-        setError(GENERIC_ERROR);
+        dispatch({ type: 'submit_error', error: GENERIC_ERROR });
       }
     } catch {
-      setError(GENERIC_ERROR);
+      dispatch({ type: 'submit_error', error: GENERIC_ERROR });
     } finally {
-      setLoading(false);
+      dispatch({ type: 'submit_end' });
     }
   }
 
@@ -429,34 +490,34 @@ function SignUpForm() {
               id="auth-signup-first"
               label="First name"
               value={firstName}
-              onChange={setFirstName}
+              onChange={(v) => dispatch({ type: 'field', name: 'firstName', value: v })}
               autoComplete="given-name"
             />
             <FloatingField
               id="auth-signup-last"
               label="Last name"
               value={lastName}
-              onChange={setLastName}
+              onChange={(v) => dispatch({ type: 'field', name: 'lastName', value: v })}
               autoComplete="family-name"
             />
             <EmailField
               id="auth-signup-email"
               label="Enter email"
               value={email}
-              onChange={setEmail}
+              onChange={(v) => dispatch({ type: 'field', name: 'email', value: v })}
             />
             <PasswordField
               id="auth-signup-password"
               label="Set up password"
               value={password}
-              onChange={setPassword}
+              onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
               autoComplete="new-password"
             />
             <PasswordField
               id="auth-signup-confirm"
               label="Confirm password"
               value={confirm}
-              onChange={setConfirm}
+              onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
               autoComplete="new-password"
             />
           </div>
@@ -477,9 +538,8 @@ function SignUpForm() {
   );
 }
 
-export default function Auth() {
+function AuthContent() {
   const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const normalizedPath = (pathname ?? '/auth').replace(/\/+$/, '') || '/auth';
@@ -496,15 +556,17 @@ export default function Auth() {
     screen = 'unknown';
   }
 
-  useEffect(() => {
-    if (screen === 'unknown') {
-      router.replace('/auth');
-    }
-  }, [screen, router]);
-
+  if (screen === 'unknown') redirect('/auth');
   if (screen === 'signin') return <SignInForm />;
   if (screen === 'signup') return <SignUpForm />;
   if (screen === 'forgot') return <ForgotPasswordForm />;
-  if (screen === 'reset') return <ResetPasswordForm />;
-  return null;
+  return <ResetPasswordForm />;
+}
+
+export default function Auth() {
+  return (
+    <Suspense>
+      <AuthContent />
+    </Suspense>
+  );
 }
