@@ -22,6 +22,14 @@ const config = [
     },
   },
   {
+    // Tests legitimately repeat literals (paths, route names, headers,
+    // module specifiers). Forcing constants for them hurts readability.
+    files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      'sonarjs/no-duplicate-string': 'off',
+    },
+  },
+  {
     ignores: ['node_modules/**', '.next/**', 'coverage/**', 'dist/**', 'next-env.d.ts'],
   },
 ];

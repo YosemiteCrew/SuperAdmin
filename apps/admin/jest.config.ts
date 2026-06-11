@@ -17,8 +17,22 @@ const config: Config = {
     '!<rootDir>/src/**/__tests__/**',
     '!<rootDir>/src/app/jest.mocks/**',
     '!<rootDir>/src/app/constants/**',
-    '!<rootDir>/src/app/(routes)/**/layout.tsx',
-    '!<rootDir>/src/app/(routes)/**/page.tsx',
+    // Type-only files have no runtime code
+    '!<rootDir>/src/app/services/http/types.ts',
+    // Trivial barrel re-exports
+    '!<rootDir>/src/app/features/**/index.ts',
+    '!<rootDir>/src/app/ui/components/index.ts',
+  ],
+  // Server-rendered pages and layouts under (routes) are evaluated by Next at
+  // request-time with framework internals — excluded from unit coverage. Same
+  // applies to the auth catch-all page and the root layout.
+  coveragePathIgnorePatterns: [
+    '/node_modules/',
+    '/\\(routes\\)/.*/page\\.tsx?$',
+    '/\\(routes\\)/.*/layout\\.tsx?$',
+    '/src/app/auth/.*/page\\.tsx?$',
+    '/src/app/auth/layout\\.tsx?$',
+    '/src/app/layout\\.tsx?$',
   ],
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',
