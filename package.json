@@ -30,6 +30,6 @@
     "prettier": "^3.2.5",
     "secretlint": "^11.3.0",
     "sonarqube-scanner": "^4.3.6",
-    "turbo": "^2.5.0"
+    "turbo": "^2.9.14"
   }
 }
