@@ -1,0 +1,11 @@
+# Global owner
+*  @your-org/superadmin-team
+
+# Admin app
+apps/admin/  @your-org/frontend-team
+
+# Shared packages
+packages/    @your-org/platform-team
+
+# CI/workflows
+.github/     @your-org/platform-team

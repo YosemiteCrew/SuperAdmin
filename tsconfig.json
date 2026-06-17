@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [{ "path": "packages/types" }, { "path": "apps/admin" }],
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@superadmin/types": ["packages/types/src"]
+    }
+  }
+}

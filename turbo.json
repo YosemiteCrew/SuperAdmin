@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_APP_ORIGIN",
+    "SUPERTOKENS_CONNECTION_URI",
+    "SUPERTOKENS_API_KEY",
+    "ADMIN_EMAILS",
+    "PORT",
+    "SONAR_TOKEN"
+  ],
   "tasks": {
     "build": {
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
@@ -9,28 +18,32 @@
         ".vercel/**",
         "dist/**",
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "storybook-static/**"
       ]
     },
     "test": {
-      "outputs": ["coverage/**"],
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "test:ci": {
+      "dependsOn": ["^build"],
+      "cache": false
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["^build", "^lint"]
+    },
+    "type-check": {
+      "dependsOn": ["^build"]
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
     },
-    "type-check": {
-      "dependsOn": ["^build"]
-    },
     "start": {
       "dependsOn": ["^build"],
-      "cache": false,
-      "persistent": true
+      "cache": false
     }
   }
 }

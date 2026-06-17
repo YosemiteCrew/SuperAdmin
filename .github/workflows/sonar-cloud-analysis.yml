@@ -1,0 +1,98 @@
+name: sonar-cloud-analysis
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  schedule:
+    - cron: '0 4 * * *'
+  push:
+    branches: [main, dev]
+
+concurrency:
+  group: sonar-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  # Placeholders so the admin env helpers don't refuse to load during test:coverage.
+  # Real values are set at deploy time per environment.
+  NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
+  SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
+  SUPERTOKENS_API_KEY: placeholder-ci-key
+
+jobs:
+  changes:
+    name: Detect workspace changes
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'YosemiteCrew' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+      should_run: ${{ steps.gate.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            admin:
+              - 'apps/admin/**'
+              - 'packages/types/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'turbo.json'
+      - name: Gate
+        id: gate
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "schedule" || "${{ steps.filter.outputs.admin }}" == "true" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  sonarqube:
+    name: SonarQube Analysis - admin
+    runs-on: ubuntu-latest
+    needs: changes
+    if: >
+      github.repository_owner == 'YosemiteCrew' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) &&
+      needs.changes.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.STORE_PATH }}
+            ~/.sonar/cache
+          key: cache-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Run tests with coverage
+        working-directory: apps/admin
+        run: pnpm test:coverage
+
+      - name: Sonar Scan
+        uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          projectBaseDir: apps/admin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_ADMIN }}
