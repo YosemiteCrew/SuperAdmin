@@ -81,8 +81,8 @@ export default async function UsersPage({
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900">Users</h1>
-        <p className="text-sm text-neutral-600">
+        <h1 className="text-2xl font-medium tracking-tight text-ink">Users</h1>
+        <p className="text-sm text-ink-3">
           Manage everyone with access to your Yosemite Crew account.
         </p>
       </header>
@@ -93,34 +93,34 @@ export default async function UsersPage({
           name="search"
           defaultValue={trimmedSearch}
           placeholder="Search by email"
-          className="h-11 w-full rounded-xl border border-neutral-200 bg-white px-4 text-sm text-neutral-900 outline-none transition-colors focus:border-neutral-900"
+          className="h-11 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none transition-colors focus:border-btn"
           aria-label="Search users by email"
         />
         <button
           type="submit"
-          className="yc-primary-button inline-flex h-11 min-w-[6.5rem] items-center justify-center rounded-xl border border-neutral-900 bg-neutral-900 px-5 text-sm font-medium text-white"
+          className="yc-primary-button inline-flex h-11 min-w-[6.5rem] items-center justify-center rounded-xl border border-btn bg-btn px-5 text-sm font-medium text-btn-ink"
         >
           <span>Search</span>
         </button>
         {trimmedSearch ? (
           <Link
             href="/users"
-            className="inline-flex h-11 min-w-[5.5rem] items-center justify-center rounded-xl border border-neutral-200 bg-white px-5 text-sm font-medium text-neutral-900 transition-colors hover:border-neutral-300 hover:bg-neutral-100"
+            className="inline-flex h-11 min-w-[5.5rem] items-center justify-center rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-raised"
           >
             Clear
           </Link>
         ) : null}
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
         {users.length === 0 ? (
-          <div className="p-10 text-center text-sm text-neutral-600">
+          <div className="p-10 text-center text-sm text-ink-3">
             {trimmedSearch ? `No users matched “${trimmedSearch}”.` : 'No users yet.'}
           </div>
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 bg-neutral-100 text-left text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <tr className="border-b border-line bg-raised text-left text-xs font-medium uppercase tracking-wide text-ink-2">
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Login method</th>
                 <th className="px-4 py-3">Tenants</th>
@@ -140,28 +140,26 @@ export default async function UsersPage({
                 return (
                   <tr
                     key={user.id}
-                    className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-100/60"
+                    className="border-b border-line last:border-b-0 hover:bg-raised/60"
                   >
                     <td className="px-4 py-3">
                       <Link
                         href={`/users/${user.id}`}
-                        className="font-medium text-neutral-900 hover:underline"
+                        className="font-medium text-ink hover:underline"
                       >
                         {primaryEmail}
                       </Link>
                       {user.emails.length > 1 ? (
-                        <span className="ml-1 text-xs text-neutral-600">
-                          (+{user.emails.length - 1})
-                        </span>
+                        <span className="ml-1 text-xs text-ink-3">(+{user.emails.length - 1})</span>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3 text-neutral-700">{methods}</td>
-                    <td className="px-4 py-3 text-neutral-700">{tenants}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-neutral-600" title={user.id}>
+                    <td className="px-4 py-3 text-ink-2">{methods}</td>
+                    <td className="px-4 py-3 text-ink-2">{tenants}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink-3" title={user.id}>
                       {truncate(user.id)}
                     </td>
                     <td
-                      className="px-4 py-3 text-neutral-700"
+                      className="px-4 py-3 text-ink-2"
                       title={
                         user.lastSignInAt
                           ? 'Last sign-in'
@@ -181,10 +179,7 @@ export default async function UsersPage({
         )}
       </div>
 
-      <nav
-        className="flex items-center justify-between text-sm text-neutral-700"
-        aria-label="Pagination"
-      >
+      <nav className="flex items-center justify-between text-sm text-ink-2" aria-label="Pagination">
         <span>
           Showing {users.length} {users.length === 1 ? 'user' : 'users'}
         </span>
@@ -192,7 +187,7 @@ export default async function UsersPage({
           {cursor ? (
             <Link
               href={buildHref({ search: trimmedSearch || undefined })}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-neutral-900 hover:bg-neutral-100"
+              className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-raised"
             >
               ← First page
             </Link>
@@ -203,7 +198,7 @@ export default async function UsersPage({
                 search: trimmedSearch || undefined,
                 cursor: nextPaginationToken,
               })}
-              className="rounded-lg border border-neutral-900 bg-neutral-900 px-3 py-1.5 text-white hover:bg-neutral-800"
+              className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-ink hover:opacity-90"
             >
               Next →
             </Link>

@@ -25,7 +25,7 @@ export function RoleButton({
   const action = isAdmin ? revokeSuperAdminAction : grantSuperAdminAction;
   const className = isAdmin
     ? 'inline-flex items-center justify-center rounded-xl border border-danger-600 px-4 py-2.5 text-sm font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white disabled:opacity-60'
-    : 'inline-flex items-center justify-center rounded-xl border border-neutral-900 bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-60';
+    : 'inline-flex items-center justify-center rounded-xl border border-btn bg-btn px-4 py-2.5 text-sm font-medium text-btn-ink transition-colors hover:opacity-90 disabled:opacity-60';
 
   function pendingLabel() {
     if (pending) return isAdmin ? 'Removing…' : 'Granting…';

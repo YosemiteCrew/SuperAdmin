@@ -15,10 +15,10 @@ type DayBucket = { label: string; count: number };
 
 function Stat({ label, value, hint }: Readonly<{ label: string; value: string; hint?: string }>) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-600">{label}</p>
-      <p className="mt-2 text-3xl font-medium tracking-tight text-neutral-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-neutral-600">{hint}</p> : null}
+    <div className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">{label}</p>
+      <p className="mt-2 text-3xl font-medium tracking-tight text-ink">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-ink-3">{hint}</p> : null}
     </div>
   );
 }
@@ -71,8 +71,8 @@ export default async function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900">Analytics</h1>
-        <p className="text-sm text-neutral-600">User growth and sign-in method breakdown.</p>
+        <h1 className="text-2xl font-medium tracking-tight text-ink">Analytics</h1>
+        <p className="text-sm text-ink-3">User growth and sign-in method breakdown.</p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -81,24 +81,24 @@ export default async function AnalyticsPage() {
         <Stat label="New in last 30 days" value={String(last30)} hint={sampleHint} />
       </section>
 
-      <section className="rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <section className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-neutral-700">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-2">
             Signups · last {TREND_DAYS} days
           </h2>
-          {sampleHint ? <span className="text-xs text-neutral-600">{sampleHint}</span> : null}
+          {sampleHint ? <span className="text-xs text-ink-3">{sampleHint}</span> : null}
         </div>
         <ul className="mt-4 flex flex-col gap-2">
           {trend.map((day) => (
             <li key={day.label} className="flex items-center gap-3">
-              <span className="w-14 shrink-0 text-xs text-neutral-600">{day.label}</span>
-              <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-neutral-100">
+              <span className="w-14 shrink-0 text-xs text-ink-3">{day.label}</span>
+              <span className="h-2.5 flex-1 overflow-hidden rounded-full bg-raised">
                 <span
-                  className="block h-full rounded-full bg-neutral-900"
+                  className="block h-full rounded-full bg-btn"
                   style={{ width: `${(day.count / peak) * 100}%` }}
                 />
               </span>
-              <span className="w-8 shrink-0 text-right text-xs font-medium text-neutral-900">
+              <span className="w-8 shrink-0 text-right text-xs font-medium text-ink">
                 {day.count}
               </span>
             </li>
@@ -106,21 +106,21 @@ export default async function AnalyticsPage() {
         </ul>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <div className="border-b border-neutral-200 bg-neutral-100 px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-700">
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <div className="border-b border-line bg-raised px-5 py-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">
             Sign-in methods
           </h2>
         </div>
         {methodRows.length === 0 ? (
-          <div className="p-5 text-sm text-neutral-600">No users yet.</div>
+          <div className="p-5 text-sm text-ink-3">No users yet.</div>
         ) : (
           <table className="w-full border-collapse text-sm">
             <tbody>
               {methodRows.map(([method, count]) => (
-                <tr key={method} className="border-b border-neutral-200 last:border-b-0">
-                  <td className="px-5 py-3 font-medium text-neutral-900">{method}</td>
-                  <td className="px-5 py-3 text-right text-neutral-700">{count}</td>
+                <tr key={method} className="border-b border-line last:border-b-0">
+                  <td className="px-5 py-3 font-medium text-ink">{method}</td>
+                  <td className="px-5 py-3 text-right text-ink-2">{count}</td>
                 </tr>
               ))}
             </tbody>

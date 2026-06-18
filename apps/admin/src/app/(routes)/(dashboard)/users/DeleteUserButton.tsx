@@ -31,7 +31,7 @@ export function DeleteUserButton({
   const className =
     variant === 'danger-zone'
       ? 'inline-flex items-center justify-center rounded-xl border border-danger-600 px-4 py-2.5 text-sm font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white disabled:opacity-60'
-      : 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger-600 hover:bg-neutral-100 disabled:opacity-60';
+      : 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-danger-600 hover:bg-raised disabled:opacity-60';
 
   return (
     <form action={deleteUserAction} onSubmit={handleSubmit}>

@@ -62,9 +62,7 @@ export function ProfileForm({
           {status === 'saving' ? 'Saving…' : 'Save changes'}
         </Button>
         {message ? (
-          <output
-            className={status === 'error' ? 'text-sm text-danger-600' : 'text-sm text-neutral-600'}
-          >
+          <output className={status === 'error' ? 'text-sm text-danger-600' : 'text-sm text-ink-3'}>
             {message}
           </output>
         ) : null}

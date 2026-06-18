@@ -34,10 +34,10 @@ function relativeFromNow(ms: number): string {
 
 function Stat({ label, value, hint }: Readonly<{ label: string; value: string; hint?: string }>) {
   return (
-    <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-      <p className="text-xs font-medium uppercase tracking-wide text-neutral-600">{label}</p>
-      <p className="mt-2 text-3xl font-medium tracking-tight text-neutral-900">{value}</p>
-      {hint ? <p className="mt-1 text-xs text-neutral-600">{hint}</p> : null}
+    <div className="rounded-2xl border border-line bg-surface p-5 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-3">{label}</p>
+      <p className="mt-2 text-3xl font-medium tracking-tight text-ink">{value}</p>
+      {hint ? <p className="mt-1 text-xs text-ink-3">{hint}</p> : null}
     </div>
   );
 }
@@ -66,10 +66,8 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900">Dashboard</h1>
-        <p className="text-sm text-neutral-600">
-          Overview of activity in your Super Admin account.
-        </p>
+        <h1 className="text-2xl font-medium tracking-tight text-ink">Dashboard</h1>
+        <p className="text-sm text-ink-3">Overview of activity in your Super Admin account.</p>
       </header>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -90,21 +88,19 @@ export default async function DashboardPage() {
         />
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-100 px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-700">
-            Recent signups
-          </h2>
-          <Link href="/users" className="text-xs font-medium text-neutral-900 hover:underline">
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <div className="flex items-center justify-between border-b border-line bg-raised px-5 py-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">Recent signups</h2>
+          <Link href="/users" className="text-xs font-medium text-ink hover:underline">
             View all →
           </Link>
         </div>
         {recent.length === 0 ? (
-          <div className="p-5 text-sm text-neutral-600">No signups yet.</div>
+          <div className="p-5 text-sm text-ink-3">No signups yet.</div>
         ) : (
           <table className="w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-neutral-200 text-left text-xs font-medium uppercase tracking-wide text-neutral-700">
+              <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-2">
                 <th className="px-5 py-3">Email</th>
                 <th className="px-5 py-3">Login method</th>
                 <th className="px-5 py-3">Joined</th>
@@ -119,18 +115,18 @@ export default async function DashboardPage() {
                 return (
                   <tr
                     key={user.id}
-                    className="border-b border-neutral-200 last:border-b-0 hover:bg-neutral-100/60"
+                    className="border-b border-line last:border-b-0 hover:bg-raised/60"
                   >
                     <td className="px-5 py-3">
                       <Link
                         href={`/users/${user.id}`}
-                        className="font-medium text-neutral-900 hover:underline"
+                        className="font-medium text-ink hover:underline"
                       >
                         {primaryEmail}
                       </Link>
                     </td>
-                    <td className="px-5 py-3 text-neutral-700">{methods}</td>
-                    <td className="px-5 py-3 text-neutral-700">
+                    <td className="px-5 py-3 text-ink-2">{methods}</td>
+                    <td className="px-5 py-3 text-ink-2">
                       <span title={formatDate(user.timeJoined)}>
                         {relativeFromNow(user.timeJoined)}
                       </span>

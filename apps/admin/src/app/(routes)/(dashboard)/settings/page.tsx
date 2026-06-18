@@ -5,6 +5,8 @@ import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { requireSuperAdmin } from '@/app/config/backend';
 
+import { ThemeToggle } from '@/app/ui/components/ThemeToggle';
+
 import { ProfileForm } from './ProfileForm';
 import { signOutEverywhereAction } from './actions';
 
@@ -13,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 const CARD =
-  'rounded-2xl border border-neutral-200 bg-white p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]';
+  'rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]';
 
 export default async function SettingsPage() {
   const { userId } = await requireSuperAdmin();
@@ -33,29 +35,42 @@ export default async function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900">Settings</h1>
-        <p className="mt-1 text-sm text-neutral-600">Manage your profile and account security.</p>
+        <h1 className="text-2xl font-medium tracking-tight text-ink">Settings</h1>
+        <p className="mt-1 text-sm text-ink-3">Manage your profile and account security.</p>
       </header>
 
       <section className={CARD} aria-labelledby="profile-heading">
-        <h2 id="profile-heading" className="text-lg font-medium text-neutral-900">
+        <h2 id="profile-heading" className="text-lg font-medium text-ink">
           Profile
         </h2>
-        <p className="mt-1 mb-4 text-sm text-neutral-600">
-          Signed in as <span className="font-medium text-neutral-900">{email}</span>
+        <p className="mt-1 mb-4 text-sm text-ink-3">
+          Signed in as <span className="font-medium text-ink">{email}</span>
         </p>
         <ProfileForm firstName={firstName} lastName={lastName} />
       </section>
 
+      <section className={CARD} aria-labelledby="appearance-heading">
+        <h2 id="appearance-heading" className="text-lg font-medium text-ink">
+          Appearance
+        </h2>
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-ink">Color theme</p>
+            <p className="text-sm text-ink-3">Match the system setting, or force light or dark.</p>
+          </div>
+          <ThemeToggle />
+        </div>
+      </section>
+
       <section className={CARD} aria-labelledby="security-heading">
-        <h2 id="security-heading" className="text-lg font-medium text-neutral-900">
+        <h2 id="security-heading" className="text-lg font-medium text-ink">
           Security
         </h2>
         <dl className="mt-4 flex flex-col gap-4">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <dt className="text-sm font-medium text-neutral-900">Password</dt>
-              <dd className="text-sm text-neutral-600">Change the password for this account.</dd>
+              <dt className="text-sm font-medium text-ink">Password</dt>
+              <dd className="text-sm text-ink-3">Change the password for this account.</dd>
             </div>
             <Link href="/auth/reset-password" className="yc-auth-link-brand text-sm">
               Reset password
@@ -64,8 +79,8 @@ export default async function SettingsPage() {
 
           <div className="flex items-center justify-between gap-4">
             <div>
-              <dt className="text-sm font-medium text-neutral-900">Two-factor authentication</dt>
-              <dd className="text-sm text-neutral-600">
+              <dt className="text-sm font-medium text-ink">Two-factor authentication</dt>
+              <dd className="text-sm text-ink-3">
                 TOTP (authenticator app) is required for all super admins.
               </dd>
             </div>
@@ -74,12 +89,10 @@ export default async function SettingsPage() {
             </Link>
           </div>
 
-          <div className="flex items-center justify-between gap-4 border-t border-neutral-200 pt-4">
+          <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
             <div>
-              <dt className="text-sm font-medium text-neutral-900">Active sessions</dt>
-              <dd className="text-sm text-neutral-600">
-                Sign out of this account on every device.
-              </dd>
+              <dt className="text-sm font-medium text-ink">Active sessions</dt>
+              <dd className="text-sm text-ink-3">Sign out of this account on every device.</dd>
             </div>
             <form action={signOutEverywhereAction}>
               <button

@@ -33,7 +33,7 @@ export function ResetMfaButton({
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex items-center justify-center rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100 disabled:opacity-60"
+        className="inline-flex items-center justify-center rounded-xl border border-line-strong px-4 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-raised disabled:opacity-60"
       >
         {buttonLabel()}
       </button>

@@ -137,76 +137,70 @@ export default async function UserDetailPage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/users" className="text-sm text-neutral-700 hover:text-neutral-900">
+        <Link href="/users" className="text-sm text-ink-2 hover:text-ink">
           ← Back to users
         </Link>
       </div>
 
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-neutral-900">{primaryEmail}</h1>
-        <p className="font-mono text-xs text-neutral-600">{user.id}</p>
+        <h1 className="text-2xl font-medium tracking-tight text-ink">{primaryEmail}</h1>
+        <p className="font-mono text-xs text-ink-3">{user.id}</p>
       </header>
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <h2 className="border-b border-neutral-200 bg-neutral-100 px-5 py-3 text-xs font-medium uppercase tracking-wide text-neutral-700">
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <h2 className="border-b border-line bg-raised px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-2">
           Identity
         </h2>
         <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">Emails</dt>
-            <dd className="mt-1 text-sm text-neutral-900">
+            <dt className="text-xs uppercase tracking-wide text-ink-3">Emails</dt>
+            <dd className="mt-1 text-sm text-ink">
               {user.emails.length ? user.emails.join(', ') : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">Login methods</dt>
-            <dd className="mt-1 text-sm text-neutral-900">
-              {methods.length ? methods.join(', ') : '—'}
-            </dd>
+            <dt className="text-xs uppercase tracking-wide text-ink-3">Login methods</dt>
+            <dd className="mt-1 text-sm text-ink">{methods.length ? methods.join(', ') : '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">Tenants</dt>
-            <dd className="mt-1 text-sm text-neutral-900">
-              {user.tenantIds.join(', ') || 'public'}
-            </dd>
+            <dt className="text-xs uppercase tracking-wide text-ink-3">Tenants</dt>
+            <dd className="mt-1 text-sm text-ink">{user.tenantIds.join(', ') || 'public'}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">First joined</dt>
-            <dd className="mt-1 text-sm text-neutral-900">{formatDateTime(user.timeJoined)}</dd>
+            <dt className="text-xs uppercase tracking-wide text-ink-3">First joined</dt>
+            <dd className="mt-1 text-sm text-ink">{formatDateTime(user.timeJoined)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">Last seen</dt>
-            <dd className="mt-1 text-sm text-neutral-900">
+            <dt className="text-xs uppercase tracking-wide text-ink-3">Last seen</dt>
+            <dd className="mt-1 text-sm text-ink">
               {lastSignInAt ? (
                 formatDateTime(lastSignInAt)
               ) : (
-                <span className="text-neutral-600">
-                  No sign-in recorded since tracking was enabled
-                </span>
+                <span className="text-ink-3">No sign-in recorded since tracking was enabled</span>
               )}
             </dd>
           </div>
           {user.phoneNumbers.length ? (
             <div>
-              <dt className="text-xs uppercase tracking-wide text-neutral-600">Phone numbers</dt>
-              <dd className="mt-1 text-sm text-neutral-900">{user.phoneNumbers.join(', ')}</dd>
+              <dt className="text-xs uppercase tracking-wide text-ink-3">Phone numbers</dt>
+              <dd className="mt-1 text-sm text-ink">{user.phoneNumbers.join(', ')}</dd>
             </div>
           ) : null}
           <div>
-            <dt className="text-xs uppercase tracking-wide text-neutral-600">Primary user</dt>
-            <dd className="mt-1 text-sm text-neutral-900">{user.isPrimaryUser ? 'Yes' : 'No'}</dd>
+            <dt className="text-xs uppercase tracking-wide text-ink-3">Primary user</dt>
+            <dd className="mt-1 text-sm text-ink">{user.isPrimaryUser ? 'Yes' : 'No'}</dd>
           </div>
         </dl>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <h2 className="border-b border-neutral-200 bg-neutral-100 px-5 py-3 text-xs font-medium uppercase tracking-wide text-neutral-700">
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <h2 className="border-b border-line bg-raised px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-2">
           Access
         </h2>
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-neutral-900">
+              <span className="text-sm font-medium text-ink">
                 {hasSuperAdmin ? 'Super admin' : 'Standard user'}
               </span>
               {hasSuperAdmin ? (
@@ -215,7 +209,7 @@ export default async function UserDetailPage({
                 </span>
               ) : null}
             </div>
-            <p className="text-xs text-neutral-600">{roleHint}</p>
+            <p className="text-xs text-ink-3">{roleHint}</p>
           </div>
           {canManageRole ? (
             <RoleButton userId={user.id} email={primaryEmail} isAdmin={isAdmin} />
@@ -225,14 +219,14 @@ export default async function UserDetailPage({
 
       <SessionsSection sessions={sessions} userId={user.id} />
 
-      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <h2 className="border-b border-neutral-200 bg-neutral-100 px-5 py-3 text-xs font-medium uppercase tracking-wide text-neutral-700">
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <h2 className="border-b border-line bg-raised px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-2">
           Two-factor authentication
         </h2>
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-neutral-900">{totpStatusLabel}</p>
-            <p className="text-xs text-neutral-600">
+            <p className="text-sm font-medium text-ink">{totpStatusLabel}</p>
+            <p className="text-xs text-ink-3">
               Resetting removes this user&apos;s authenticator device and signs them out everywhere,
               so they must enroll a new device at next sign-in. Use this when an admin loses access
               to their authenticator.
@@ -246,7 +240,7 @@ export default async function UserDetailPage({
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-danger-600/30 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <section className="overflow-hidden rounded-2xl border border-danger-600/30 bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
         <div className="border-b border-danger-600/20 bg-red-50/60 px-5 py-3">
           <h2 className="text-xs font-medium uppercase tracking-wide text-danger-600">
             Danger zone
@@ -254,8 +248,8 @@ export default async function UserDetailPage({
         </div>
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-neutral-900">Delete this user</p>
-            <p className="text-xs text-neutral-600">
+            <p className="text-sm font-medium text-ink">Delete this user</p>
+            <p className="text-xs text-ink-3">
               Removes the account from SuperTokens core, revokes all sessions, and deletes their
               metadata. Cannot be undone.
             </p>
