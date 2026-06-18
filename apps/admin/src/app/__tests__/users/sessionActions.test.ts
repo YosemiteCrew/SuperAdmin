@@ -12,6 +12,21 @@ jest.mock('supertokens-node/recipe/session', () => ({
   },
 }));
 
+jest.mock('supertokens-node/recipe/totp', () => ({
+  __esModule: true,
+  default: { listDevices: jest.fn(), removeDevice: jest.fn() },
+}));
+
+jest.mock('supertokens-node/recipe/userroles', () => ({
+  __esModule: true,
+  default: {
+    createNewRoleOrAddPermissions: jest.fn(),
+    addRoleToUser: jest.fn(),
+    removeUserRole: jest.fn(),
+    getUsersThatHaveRole: jest.fn(),
+  },
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),

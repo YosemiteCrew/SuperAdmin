@@ -4,12 +4,18 @@ import { notFound } from 'next/navigation';
 import supertokens from 'supertokens-node';
 import SessionNode from 'supertokens-node/recipe/session';
 import type { SessionInformation } from 'supertokens-node/recipe/session/types';
+import TotpNode from 'supertokens-node/recipe/totp';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
+import UserRolesNode from 'supertokens-node/recipe/userroles';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
+import { serverEnv } from '@/app/config/env.server';
 
 import { DeleteUserButton } from '../DeleteUserButton';
-import { revokeAllSessionsAction, revokeSessionAction } from './actions';
+import { ResetMfaButton } from './ResetMfaButton';
+import { RoleButton } from './RoleButton';
+import { SessionsSection } from './SessionsSection';
 
 export async function generateMetadata({
   params,
@@ -36,51 +42,92 @@ function formatDateTime(ms: number): string {
   });
 }
 
-function timeUntil(ms: number): string {
-  const diff = ms - Date.now();
-  if (diff <= 0) return 'expired';
-  const hours = Math.floor(diff / (1000 * 60 * 60));
-  if (hours < 1) {
-    const minutes = Math.floor(diff / (1000 * 60));
-    return `${minutes} min`;
-  }
-  if (hours < 48) return `${hours} hr`;
-  return `${Math.floor(hours / 24)} days`;
-}
-
-export default async function UserDetailPage({
-  params,
-}: Readonly<{ params: Promise<{ id: string }> }>) {
-  ensureSuperTokensInit();
-
-  const { id } = await params;
-  const user = await supertokens.getUser(id);
-  if (!user) notFound();
-
-  let sessions: SessionInformation[] = [];
+async function loadSessions(userId: string): Promise<SessionInformation[]> {
   try {
-    const handles = await SessionNode.getAllSessionHandlesForUser(id);
-    sessions = (
+    const handles = await SessionNode.getAllSessionHandlesForUser(userId);
+    return (
       await Promise.all(
         handles.map((handle) => SessionNode.getSessionInformation(handle).catch(() => undefined))
       )
     ).filter((s): s is SessionInformation => Boolean(s));
   } catch {
     /* sessions fetch is non-essential; identity + danger zone still render */
+    return [];
   }
+}
 
-  let lastSignInAt: number | null = null;
+async function loadLastSignInAt(userId: string): Promise<number | null> {
   try {
-    const { metadata } = await UserMetadataNode.getUserMetadata(id);
-    if (typeof metadata.lastSignInAt === 'number') {
-      lastSignInAt = metadata.lastSignInAt;
-    }
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.lastSignInAt === 'number' ? metadata.lastSignInAt : null;
   } catch {
     /* metadata blip shouldn't crash the user detail page */
+    return null;
   }
+}
+
+async function loadTotpDevices(userId: string): Promise<{ name: string; verified: boolean }[]> {
+  try {
+    const result = await TotpNode.listDevices(userId);
+    return result.devices.map((device) => ({ name: device.name, verified: device.verified }));
+  } catch {
+    /* TOTP lookup is non-essential; the rest of the page still renders */
+    return [];
+  }
+}
+
+async function loadIsSuperAdmin(userId: string): Promise<boolean> {
+  try {
+    const { roles } = await UserRolesNode.getRolesForUser(DEFAULT_TENANT_ID, userId);
+    return roles.includes(SUPERADMIN_ROLE);
+  } catch {
+    /* role lookup is non-essential; the rest of the page still renders */
+    return false;
+  }
+}
+
+function accessHint(flags: {
+  isBootstrapAdmin: boolean;
+  isSelf: boolean;
+  isAdmin: boolean;
+}): string {
+  if (flags.isBootstrapAdmin) {
+    return 'Granted via the environment bootstrap allowlist and cannot be changed from here.';
+  }
+  if (flags.isSelf) {
+    return 'You cannot change your own access.';
+  }
+  if (flags.isAdmin) {
+    return 'Can manage every user and organization in this panel.';
+  }
+  return 'Standard account with no super-admin access.';
+}
+
+export default async function UserDetailPage({
+  params,
+}: Readonly<{ params: Promise<{ id: string }> }>) {
+  ensureSuperTokensInit();
+  const { userId: callerId } = await requireSuperAdmin();
+
+  const { id } = await params;
+  const user = await supertokens.getUser(id);
+  if (!user) notFound();
+
+  const [sessions, lastSignInAt, totpDevices, isAdmin] = await Promise.all([
+    loadSessions(id),
+    loadLastSignInAt(id),
+    loadTotpDevices(id),
+    loadIsSuperAdmin(id),
+  ]);
 
   const primaryEmail = user.emails[0] ?? '—';
   const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId)));
+  const verifiedDeviceCount = totpDevices.filter((device) => device.verified).length;
+  const isBootstrapAdmin = serverEnv.superadminBootstrapEmails.includes(primaryEmail.toLowerCase());
+  const isSelf = callerId === user.id;
+  const hasSuperAdmin = isAdmin || isBootstrapAdmin;
+  const roleHint = accessHint({ isBootstrapAdmin, isSelf, isAdmin });
+  const canManageRole = !isBootstrapAdmin && !isSelf;
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,69 +195,54 @@ export default async function UserDetailPage({
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <div className="flex items-center justify-between border-b border-neutral-200 bg-neutral-100 px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-700">
-            Active sessions ({sessions.length})
-          </h2>
-          {sessions.length > 0 ? (
-            <form action={revokeAllSessionsAction}>
-              <input type="hidden" name="userId" value={user.id} />
-              <button
-                type="submit"
-                className="rounded-lg border border-danger-600 px-3 py-1 text-xs font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white"
-              >
-                Revoke all
-              </button>
-            </form>
+        <h2 className="border-b border-neutral-200 bg-neutral-100 px-5 py-3 text-xs font-medium uppercase tracking-wide text-neutral-700">
+          Access
+        </h2>
+        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-neutral-900">
+                {hasSuperAdmin ? 'Super admin' : 'Standard user'}
+              </span>
+              {hasSuperAdmin ? (
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-950">
+                  {isBootstrapAdmin ? 'Bootstrap' : 'Role'}
+                </span>
+              ) : null}
+            </div>
+            <p className="text-xs text-neutral-600">{roleHint}</p>
+          </div>
+          {canManageRole ? (
+            <RoleButton userId={user.id} email={primaryEmail} isAdmin={isAdmin} />
           ) : null}
         </div>
-        {sessions.length === 0 ? (
-          <div className="p-5 text-sm text-neutral-600">No active sessions.</div>
-        ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-neutral-200 text-left text-xs font-medium uppercase tracking-wide text-neutral-700">
-                <th className="px-5 py-3">Session handle</th>
-                <th className="px-5 py-3">Tenant</th>
-                <th className="px-5 py-3">Created</th>
-                <th className="px-5 py-3">Expires in</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sessions.map((session) => (
-                <tr
-                  key={session.sessionHandle}
-                  className="border-b border-neutral-200 last:border-b-0"
-                >
-                  <td
-                    className="px-5 py-3 font-mono text-xs text-neutral-700"
-                    title={session.sessionHandle}
-                  >
-                    {session.sessionHandle.slice(0, 16)}…
-                  </td>
-                  <td className="px-5 py-3 text-neutral-700">{session.tenantId}</td>
-                  <td className="px-5 py-3 text-neutral-700">
-                    {formatDateTime(session.timeCreated)}
-                  </td>
-                  <td className="px-5 py-3 text-neutral-700">{timeUntil(session.expiry)}</td>
-                  <td className="px-5 py-3 text-right">
-                    <form action={revokeSessionAction}>
-                      <input type="hidden" name="sessionHandle" value={session.sessionHandle} />
-                      <input type="hidden" name="userId" value={user.id} />
-                      <button
-                        type="submit"
-                        className="rounded-lg border border-neutral-200 px-3 py-1 text-xs font-medium text-neutral-900 transition-colors hover:bg-neutral-100"
-                      >
-                        Revoke
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+      </section>
+
+      <SessionsSection sessions={sessions} userId={user.id} />
+
+      <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <h2 className="border-b border-neutral-200 bg-neutral-100 px-5 py-3 text-xs font-medium uppercase tracking-wide text-neutral-700">
+          Two-factor authentication
+        </h2>
+        <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-medium text-neutral-900">
+              {verifiedDeviceCount > 0
+                ? `TOTP active (${verifiedDeviceCount} device${verifiedDeviceCount === 1 ? '' : 's'})`
+                : 'No verified TOTP device'}
+            </p>
+            <p className="text-xs text-neutral-600">
+              Resetting removes this user&apos;s authenticator device and signs them out everywhere,
+              so they must enroll a new device at next sign-in. Use this when an admin loses access
+              to their authenticator.
+            </p>
+          </div>
+          <ResetMfaButton
+            userId={user.id}
+            email={primaryEmail}
+            hasDevice={verifiedDeviceCount > 0}
+          />
+        </div>
       </section>
 
       <section className="overflow-hidden rounded-2xl border border-danger-600/30 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
