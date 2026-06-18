@@ -1,0 +1,11 @@
+Paste your SonarCloud user token on a single line in a file named ".sonar-token"
+(no quotes, no extra whitespace). That file is gitignored and must never be committed.
+
+Generate a token at: https://sonarcloud.io/account/security
+
+  cp .sonar-token.example .sonar-token
+  # then replace the contents of .sonar-token with your token
+
+Alternatively, export it for the current shell instead of using a file:
+
+  export SONAR_TOKEN=<your-token>

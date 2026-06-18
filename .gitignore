@@ -28,6 +28,9 @@ tsconfig.build.tsbuildinfo
 
 # SonarQube
 **/.scannerwork
+# Local Sonar issue fetch — token file and fetched output (never commit)
+.sonar-token
+sonar-issues.json
 
 # Agent output
 .tmp/agent-output/
