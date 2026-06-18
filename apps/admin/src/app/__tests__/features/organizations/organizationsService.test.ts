@@ -1,9 +1,16 @@
 const getMock = jest.fn();
+const patchMock = jest.fn();
 jest.mock('@/app/services/http/client', () => ({
-  httpClient: { get: (...args: unknown[]) => getMock(...args) },
+  httpClient: {
+    get: (...args: unknown[]) => getMock(...args),
+    patch: (...args: unknown[]) => patchMock(...args),
+  },
 }));
 
-import { listOrganizations } from '@/app/features/organizations/services/organizationsService';
+import {
+  listOrganizations,
+  updateOrganization,
+} from '@/app/features/organizations/services/organizationsService';
 
 describe('listOrganizations', () => {
   beforeEach(() => {
@@ -16,7 +23,8 @@ describe('listOrganizations', () => {
         id: 'o1',
         name: 'Acme Vet',
         type: 'HOSPITAL',
-        status: 'approved',
+        isVerified: false,
+        isActive: true,
         memberCount: 4,
         createdAt: '2026-01-01',
       },
@@ -36,5 +44,29 @@ describe('listOrganizations', () => {
   it('propagates transport errors to the caller', async () => {
     getMock.mockRejectedValue(new Error('HTTP 404'));
     await expect(listOrganizations()).rejects.toThrow('HTTP 404');
+  });
+});
+
+describe('updateOrganization', () => {
+  beforeEach(() => {
+    patchMock.mockReset();
+    patchMock.mockResolvedValue({ data: {}, status: 200 });
+  });
+
+  it('PATCHes the verification flag to the per-business endpoint', async () => {
+    await updateOrganization('o1', { isVerified: true });
+    expect(patchMock).toHaveBeenCalledWith('/v1/super-admin/businesses/o1', { isVerified: true });
+  });
+
+  it('url-encodes the id and forwards the active flag', async () => {
+    await updateOrganization('a/b 1', { isActive: false });
+    expect(patchMock).toHaveBeenCalledWith('/v1/super-admin/businesses/a%2Fb%201', {
+      isActive: false,
+    });
+  });
+
+  it('propagates transport errors', async () => {
+    patchMock.mockRejectedValue(new Error('HTTP 500'));
+    await expect(updateOrganization('o1', { isVerified: true })).rejects.toThrow('HTTP 500');
   });
 });

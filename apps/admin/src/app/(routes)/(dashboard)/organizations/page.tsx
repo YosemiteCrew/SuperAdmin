@@ -1,29 +1,22 @@
 import type { Metadata } from 'next';
 
 import { listOrganizations } from '@/app/features/organizations/services/organizationsService';
-import type {
-  OrganizationStatus,
-  SuperAdminOrganization,
-} from '@/app/features/organizations/types';
+import type { SuperAdminOrganization } from '@/app/features/organizations/types';
+import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
+
+import { OrganizationRowActions } from './OrganizationRowActions';
 
 export const metadata: Metadata = {
   title: 'Organizations',
 };
 
-const STATUS_STYLES: Record<OrganizationStatus, string> = {
-  invited: 'bg-raised text-ink-2',
-  approved: 'bg-success-100 text-success-700',
-  suspended: 'bg-warning-100 text-warning-800',
-  deactivated: 'bg-danger-100 text-danger-600',
-};
-
-function StatusBadge({ status }: Readonly<{ status: OrganizationStatus }>) {
-  const className = STATUS_STYLES[status] ?? 'bg-raised text-ink-2';
+function VerificationBadge({ org }: Readonly<{ org: SuperAdminOrganization }>) {
+  const meta = VERIFICATION_META[verificationState(org)];
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${className}`}
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badgeClass}`}
     >
-      {status}
+      {meta.label}
     </span>
   );
 }
@@ -55,6 +48,7 @@ export default async function OrganizationsPage() {
     loadError = true;
   }
 
+  const pendingCount = organizations.filter((org) => verificationState(org) === 'pending').length;
   const showEmptyState = loadError || organizations.length === 0;
   const emptyStateMessage = loadError
     ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
@@ -65,9 +59,19 @@ export default async function OrganizationsPage() {
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-medium tracking-tight text-ink">Organizations</h1>
         <p className="text-sm text-ink-3">
-          Clinics and businesses across the platform, and their verification status.
+          Review and verify pet businesses before they become visible to pet parents.
         </p>
       </header>
+
+      {!showEmptyState && pendingCount > 0 ? (
+        <div className="flex items-center gap-2 rounded-xl border border-warning-600/30 bg-warning-100 px-4 py-3 text-sm text-warning-800">
+          <span className="font-medium">
+            {pendingCount} {pendingCount === 1 ? 'business is' : 'businesses are'} awaiting
+            verification
+          </span>
+          <span className="text-warning-800/80">— verify to make them visible to pet parents.</span>
+        </div>
+      ) : null}
 
       {showEmptyState ? (
         <EmptyState message={emptyStateMessage} />
@@ -81,6 +85,7 @@ export default async function OrganizationsPage() {
                 <th className="px-5 py-3">Status</th>
                 <th className="px-5 py-3 text-right">Members</th>
                 <th className="px-5 py-3">Created</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -92,10 +97,17 @@ export default async function OrganizationsPage() {
                   <td className="px-5 py-3 font-medium text-ink">{org.name}</td>
                   <td className="px-5 py-3 capitalize text-ink-2">{org.type.toLowerCase()}</td>
                   <td className="px-5 py-3">
-                    <StatusBadge status={org.status} />
+                    <VerificationBadge org={org} />
                   </td>
                   <td className="px-5 py-3 text-right text-ink-2">{org.memberCount}</td>
                   <td className="px-5 py-3 text-ink-2">{formatDate(org.createdAt)}</td>
+                  <td className="px-5 py-3">
+                    <OrganizationRowActions
+                      organizationId={org.id}
+                      name={org.name}
+                      state={verificationState(org)}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
