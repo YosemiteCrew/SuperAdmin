@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 const updateUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
@@ -83,7 +83,5 @@ describe('POST /api/profile', () => {
       firstName: 'Jane',
       lastName: 'Doe',
     });
-    // Force-touch the unused import
-    void NextResponse;
   });
 });

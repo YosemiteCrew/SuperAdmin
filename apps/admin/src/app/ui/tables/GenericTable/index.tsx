@@ -10,7 +10,7 @@ interface GenericTableProps<T> {
   keyExtractor: (row: T) => string;
 }
 
-export function GenericTable<T>({ data, columns, keyExtractor }: GenericTableProps<T>) {
+export function GenericTable<T>({ data, columns, keyExtractor }: Readonly<GenericTableProps<T>>) {
   return (
     <table>
       <thead>

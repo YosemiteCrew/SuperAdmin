@@ -1,4 +1,4 @@
-// TODO: add shared utility functions here
+// Shared utility functions.
 export function formatDate(date: Date): string {
   return date.toLocaleDateString('en-US', {
     year: 'numeric',

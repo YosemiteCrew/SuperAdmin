@@ -14,27 +14,37 @@ jest.mock('supertokens-node', () => ({
   default: { deleteUser: (...args: unknown[]) => deleteUserMock(...args) },
 }));
 
+const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
-  requireAuth: jest.fn(),
+  requireSuperAdmin: (...args: unknown[]) => requireSuperAdminMock(...args),
   ensureSuperTokensInit: jest.fn(),
 }));
+
+function makeForm(entries: Record<string, string | undefined>): FormData {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(entries)) {
+    if (v !== undefined) fd.append(k, v);
+  }
+  return fd;
+}
 
 describe('deleteUserAction', () => {
   beforeEach(() => {
     deleteUserMock.mockReset();
+    requireSuperAdminMock.mockReset();
+    requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   });
-
-  function makeForm(entries: Record<string, string | undefined>): FormData {
-    const fd = new FormData();
-    for (const [k, v] of Object.entries(entries)) {
-      if (v !== undefined) fd.append(k, v);
-    }
-    return fd;
-  }
 
   it('does nothing when userId is missing', async () => {
     const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
     await deleteUserAction(makeForm({}));
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('does not delete when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
+    await expect(deleteUserAction(makeForm({ userId: 'victim' }))).rejects.toThrow('NEXT_REDIRECT');
     expect(deleteUserMock).not.toHaveBeenCalled();
   });
 

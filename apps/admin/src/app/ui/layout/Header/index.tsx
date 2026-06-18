@@ -32,11 +32,11 @@ export function Header({
   email,
   firstName,
   lastName,
-}: {
+}: Readonly<{
   email: string;
   firstName: string | null;
   lastName: string | null;
-}) {
+}>) {
   const pathname = usePathname() ?? '/dashboard';
   const title = resolveTitle(pathname);
 

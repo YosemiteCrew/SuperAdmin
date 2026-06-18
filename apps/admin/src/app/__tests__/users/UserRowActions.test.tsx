@@ -8,10 +8,10 @@ jest.mock('@/app/(routes)/(dashboard)/users/actions', () => ({
 }));
 
 describe('UserRowActions', () => {
-  const originalConfirm = window.confirm;
+  const originalConfirm = globalThis.confirm;
 
   afterEach(() => {
-    window.confirm = originalConfirm;
+    globalThis.confirm = originalConfirm;
   });
 
   it('renders only the trigger button initially (menu closed)', () => {
@@ -53,13 +53,13 @@ describe('UserRowActions', () => {
   });
 
   it('cancels the delete submit if user dismisses the confirm', async () => {
-    window.confirm = jest.fn(() => false);
+    globalThis.confirm = jest.fn(() => false);
     const user = userEvent.setup();
     render(<UserRowActions userId="user-1" email="a@b.com" />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     const deleteBtn = screen.getByRole('menuitem', { name: /Delete/i });
     fireEvent.submit(deleteBtn.closest('form') as HTMLFormElement);
-    expect(window.confirm).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
     // Menu stays open since the form submit was prevented
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });

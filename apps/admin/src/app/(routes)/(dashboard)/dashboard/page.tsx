@@ -32,7 +32,7 @@ function relativeFromNow(ms: number): string {
   return formatDate(ms);
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({ label, value, hint }: Readonly<{ label: string; value: string; hint?: string }>) {
   return (
     <div className="rounded-2xl border border-neutral-200 bg-white p-5 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
       <p className="text-xs font-medium uppercase tracking-wide text-neutral-600">{label}</p>

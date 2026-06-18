@@ -12,7 +12,9 @@ concurrency:
   group: sonar-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: read-all
+permissions:
+  contents: read
+  pull-requests: read
 
 env:
   # Placeholders so the admin env helpers don't refuse to load during test:coverage.

@@ -11,6 +11,9 @@ concurrency:
   group: quality-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -24,3 +27,4 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter admin run lint
       - run: pnpm --filter admin run type-check
+      - run: pnpm --filter admin run test:ci

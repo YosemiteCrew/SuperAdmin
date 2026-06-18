@@ -53,18 +53,18 @@ const ROUTE_GROUPS: RouteGroup[] = [
 const COLLAPSE_STORAGE_KEY = 'yc-admin-sidebar-collapsed';
 
 function isCollapsedByDefault(): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof globalThis.window === 'undefined') return false;
   try {
-    return window.localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1';
+    return globalThis.localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1';
   } catch {
     return false;
   }
 }
 
 function setCollapsedPreference(value: boolean): void {
-  if (typeof window === 'undefined') return;
+  if (typeof globalThis.window === 'undefined') return;
   try {
-    window.localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? '1' : '0');
+    globalThis.localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? '1' : '0');
   } catch {
     /* storage unavailable */
   }
@@ -77,10 +77,10 @@ function subscribeCollapsed(listener: () => void) {
   const onStorage = (e: StorageEvent) => {
     if (e.key === COLLAPSE_STORAGE_KEY) listener();
   };
-  window.addEventListener('storage', onStorage);
+  globalThis.addEventListener('storage', onStorage);
   return () => {
     collapsedListeners.delete(listener);
-    window.removeEventListener('storage', onStorage);
+    globalThis.removeEventListener('storage', onStorage);
   };
 }
 
@@ -129,7 +129,7 @@ export function Sidebar() {
       <div className="sidebar-routes">
         {ROUTE_GROUPS.map((group) => (
           <div className="sidebar-route-group" key={group.label}>
-            {!collapsed ? <div className="sidebar-route-group-label">{group.label}</div> : null}
+            {collapsed ? null : <div className="sidebar-route-group-label">{group.label}</div>}
             <div className="sidebar-route-group-items">
               {group.routes.map((route) => {
                 const active = isActive(pathname, route.href);

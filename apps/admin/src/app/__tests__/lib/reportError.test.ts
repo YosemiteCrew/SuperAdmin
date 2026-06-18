@@ -1,5 +1,3 @@
-export {};
-
 function loadModule() {
   return jest.requireActual<typeof import('@/app/lib/reportError')>('@/app/lib/reportError');
 }

@@ -48,7 +48,9 @@ function timeUntil(ms: number): string {
   return `${Math.floor(hours / 24)} days`;
 }
 
-export default async function UserDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function UserDetailPage({
+  params,
+}: Readonly<{ params: Promise<{ id: string }> }>) {
   ensureSuperTokensInit();
 
   const { id } = await params;

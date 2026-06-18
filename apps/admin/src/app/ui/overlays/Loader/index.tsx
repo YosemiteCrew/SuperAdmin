@@ -1,8 +1,7 @@
-export function Loader({ label = 'Loading...' }: { label?: string }) {
+export function Loader({ label = 'Loading...' }: Readonly<{ label?: string }>) {
   return (
     <output aria-label={label}>
       <span className="sr-only">{label}</span>
-      {/* TODO: spinner SVG */}
     </output>
   );
 }

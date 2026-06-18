@@ -31,10 +31,10 @@ const buttonStyle: CSSProperties = {
 export default function GlobalError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   useEffect(() => {
     reportError(error, { source: 'global', digest: error.digest });
   }, [error]);

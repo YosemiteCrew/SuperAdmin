@@ -67,7 +67,7 @@ const SECRET_PATTERNS = [
   { name: 'GitHub token', regex: /gh[oprsu]_[0-9A-Za-z]{36}/g },
   {
     name: 'GitHub fine-grained token',
-    regex: /github_pat_[0-9A-Za-z_]{40,}/g,
+    regex: /github_pat_\w{40,}/g,
   },
   { name: 'Slack token', regex: /xox[baprs]-[0-9A-Za-z-]{20,}/g },
   { name: 'SonarCloud token', regex: /\bsqp_[a-f0-9]{40}\b/g },
@@ -76,7 +76,7 @@ const SECRET_PATTERNS = [
   {
     name: 'generic secret assignment',
     regex:
-      /\b(?:api[_-]?key|secret|token|password|client[_-]?secret)\b\s*[:=]\s*["']([A-Za-z0-9_./+=~:-]{24,})["']/gi,
+      /\b(?:api[_-]?key|secret|token|password|client[_-]?secret)\b\s*[:=]\s*["']([A-Z0-9_./+=~:-]{24,})["']/gi,
   },
 ];
 

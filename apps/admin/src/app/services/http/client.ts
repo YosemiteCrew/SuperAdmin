@@ -21,12 +21,12 @@ async function request<T>(
         'Content-Type': 'application/json',
         ...requestConfig?.headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: body === undefined ? undefined : JSON.stringify(body),
       signal: requestConfig?.signal ?? controller.signal,
     });
 
     if (!response.ok) {
-      return Promise.reject(new Error(`HTTP ${response.status}`));
+      throw new Error(`HTTP ${response.status}`);
     }
 
     const data: T = await response.json();

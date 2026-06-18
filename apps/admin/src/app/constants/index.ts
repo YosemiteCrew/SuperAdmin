@@ -4,3 +4,7 @@ export const SUPERTOKENS_API_BASE_PATH = '/api/auth';
 export const SUPERTOKENS_WEBSITE_BASE_PATH = '/auth';
 
 export const DEFAULT_PAGE_SIZE = 20;
+
+export const DEFAULT_TENANT_ID = 'public';
+
+export const SUPERADMIN_ROLE = 'superadmin';

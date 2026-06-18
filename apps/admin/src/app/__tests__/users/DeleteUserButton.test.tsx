@@ -7,10 +7,10 @@ jest.mock('@/app/(routes)/(dashboard)/users/actions', () => ({
 }));
 
 describe('DeleteUserButton', () => {
-  const originalConfirm = window.confirm;
+  const originalConfirm = globalThis.confirm;
 
   afterEach(() => {
-    window.confirm = originalConfirm;
+    globalThis.confirm = originalConfirm;
   });
 
   it('renders the danger-zone variant with full label', () => {
@@ -24,11 +24,11 @@ describe('DeleteUserButton', () => {
   });
 
   it('blocks submit if user dismisses the confirm', () => {
-    window.confirm = jest.fn(() => false);
+    globalThis.confirm = jest.fn(() => false);
     render(<DeleteUserButton userId="user-1" email="a@b.com" variant="danger-zone" />);
     const button = screen.getByRole('button', { name: /Delete user/i });
     fireEvent.submit(button.closest('form') as HTMLFormElement);
-    expect(window.confirm).toHaveBeenCalled();
+    expect(globalThis.confirm).toHaveBeenCalled();
   });
 
   it('includes a hidden userId input on the form', () => {

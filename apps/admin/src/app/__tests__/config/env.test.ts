@@ -33,10 +33,12 @@ describe('serverEnv', () => {
   const originals = {
     SUPERTOKENS_CONNECTION_URI: process.env.SUPERTOKENS_CONNECTION_URI,
     SUPERTOKENS_API_KEY: process.env.SUPERTOKENS_API_KEY,
+    SUPERADMIN_BOOTSTRAP_EMAILS: process.env.SUPERADMIN_BOOTSTRAP_EMAILS,
   };
   afterEach(() => {
     setEnv('SUPERTOKENS_CONNECTION_URI', originals.SUPERTOKENS_CONNECTION_URI);
     setEnv('SUPERTOKENS_API_KEY', originals.SUPERTOKENS_API_KEY);
+    setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', originals.SUPERADMIN_BOOTSTRAP_EMAILS);
   });
 
   it('throws when SUPERTOKENS_CONNECTION_URI is missing', () => {
@@ -65,6 +67,28 @@ describe('serverEnv', () => {
         jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
       expect(serverEnv.supertokensConnectionUri).toBe('https://s.example.com');
       expect(serverEnv.supertokensApiKey).toBe('secret');
+    });
+  });
+
+  it('defaults superadminBootstrapEmails to an empty list when unset', () => {
+    setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
+    setEnv('SUPERTOKENS_API_KEY', 'secret');
+    setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', undefined);
+    jest.isolateModules(() => {
+      const { serverEnv } =
+        jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
+      expect(serverEnv.superadminBootstrapEmails).toEqual([]);
+    });
+  });
+
+  it('parses, trims, lowercases and drops empties in superadminBootstrapEmails', () => {
+    setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
+    setEnv('SUPERTOKENS_API_KEY', 'secret');
+    setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', ' A@x.com , b@Y.com ,, ');
+    jest.isolateModules(() => {
+      const { serverEnv } =
+        jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
+      expect(serverEnv.superadminBootstrapEmails).toEqual(['a@x.com', 'b@y.com']);
     });
   });
 });
