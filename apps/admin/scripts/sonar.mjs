@@ -32,13 +32,27 @@ if (!existsSync(lcovPath)) {
   );
 }
 
+// Optional PR-decoration mode. Set SONAR_PR_KEY (and ideally SONAR_PR_BRANCH /
+// SONAR_PR_BASE) to analyze against a pull request instead of the main branch,
+// so a local scan updates the PR's quality gate exactly like CI — without
+// overwriting the main branch analysis.
+const options = { 'sonar.projectBaseDir': adminRoot };
+const prKey = process.env.SONAR_PR_KEY;
+if (prKey) {
+  options['sonar.pullrequest.key'] = prKey;
+  if (process.env.SONAR_PR_BRANCH)
+    options['sonar.pullrequest.branch'] = process.env.SONAR_PR_BRANCH;
+  if (process.env.SONAR_PR_BASE) options['sonar.pullrequest.base'] = process.env.SONAR_PR_BASE;
+  process.stdout.write(`  Analyzing as pull request #${prKey}.\n\n`);
+} else {
+  process.stdout.write('  Analyzing as the main branch (set SONAR_PR_KEY for PR mode).\n\n');
+}
+
 scanner.default(
   {
     serverUrl: 'https://sonarcloud.io',
     token,
-    options: {
-      'sonar.projectBaseDir': adminRoot,
-    },
+    options,
   },
   () => process.exit()
 );

@@ -119,6 +119,22 @@ describe('ensureSuperTokensInit / backendConfig', () => {
     const cfg = backendConfig();
     expect(cfg.recipeList.length).toBe(6);
   });
+
+  it('forces TOTP as the required second factor via the MFA override', async () => {
+    backendConfig();
+    const mfa = jest.requireMock('supertokens-node/recipe/multifactorauth') as {
+      default: { init: jest.Mock };
+    };
+    const cfg = mfa.default.init.mock.calls.at(-1)?.[0] as {
+      override: {
+        functions: (orig: Record<string, unknown>) => {
+          getMFARequirementsForAuth: () => Promise<string[]>;
+        };
+      };
+    };
+    const fns = cfg.override.functions({ untouched: 'original' });
+    await expect(fns.getMFARequirementsForAuth()).resolves.toEqual(['totp']);
+  });
 });
 
 describe('requireSuperAdmin', () => {
