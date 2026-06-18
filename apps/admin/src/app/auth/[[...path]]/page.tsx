@@ -541,7 +541,7 @@ function AuthContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const normalizedPath = (pathname ?? '/auth').replace(/\/+$/, '') || '/auth';
+  const normalizedPath = (pathname ?? '/auth').replace(/\/{1,64}$/, '') || '/auth';
   const token = searchParams.get('token') ?? '';
 
   let screen: 'signin' | 'signup' | 'forgot' | 'reset' | 'unknown';
