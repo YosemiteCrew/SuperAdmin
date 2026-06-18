@@ -2,10 +2,48 @@
 node_modules
 .turbo
 *.log
+.next
 dist
 dist-ssr
 *.local
 .env
+.env.local
+.env.*.local
 .cache
-server/dist
 public/dist
+
+tsconfig.tsbuildinfo
+tsconfig.build.tsbuildinfo
+
+# coverage
+**/coverage/
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# SonarQube
+**/.scannerwork
+# Local Sonar issue fetch — token file and fetched output (never commit)
+.sonar-token
+sonar-issues.json
+
+# Agent output
+.tmp/agent-output/
+.claude/settings.local.json
+
+# Storybook
+build-storybook.log
+storybook-static/
+chromatic.log
+
+# Next.js
+.next/
+out/
+
+# Claude Code session state — keep local
+.claude/

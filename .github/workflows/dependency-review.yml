@@ -1,0 +1,19 @@
+name: Dependency Review
+
+on:
+  pull_request: {}
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    # Skipped until GitHub Advanced Security is enabled on the repo
+    # (Settings → Security → Code security and analysis → Dependency graph + GHAS).
+    # To re-enable: delete this `if: false` line. The job will then actively
+    # block PRs that introduce vulnerable dependencies.
+    if: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4

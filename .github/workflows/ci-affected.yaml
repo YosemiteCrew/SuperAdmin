@@ -1,0 +1,67 @@
+name: CI (affected)
+
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  # Build/test-time placeholders. Real values are set at deploy time per environment.
+  # The app's env helpers refuse to load with missing required vars; CI satisfies them
+  # with these dummies just so the build can verify the code compiles.
+  NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
+  SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
+  SUPERTOKENS_API_KEY: placeholder-ci-key
+
+jobs:
+  ci:
+    name: Lint + Type-check + Test + Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint --filter admin
+
+      - name: Type-check
+        run: pnpm run type-check --filter admin
+
+      - name: Build
+        run: pnpm run build --filter admin
+
+      - name: Test
+        run: pnpm run test --filter admin -- --ci --maxWorkers=2
+
+      - name: Test with coverage (main/dev only)
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+        run: pnpm run test --filter admin -- --ci --maxWorkers=2 --coverage
