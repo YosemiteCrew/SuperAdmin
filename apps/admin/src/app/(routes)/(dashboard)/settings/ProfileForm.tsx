@@ -16,7 +16,7 @@ export function ProfileForm({
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [message, setMessage] = useState('');
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus('saving');
     setMessage('');
@@ -62,12 +62,11 @@ export function ProfileForm({
           {status === 'saving' ? 'Saving…' : 'Save changes'}
         </Button>
         {message ? (
-          <p
-            role="status"
+          <output
             className={status === 'error' ? 'text-sm text-danger-600' : 'text-sm text-neutral-600'}
           >
             {message}
-          </p>
+          </output>
         ) : null}
       </div>
     </form>

@@ -55,6 +55,11 @@ export default async function OrganizationsPage() {
     loadError = true;
   }
 
+  const showEmptyState = loadError || organizations.length === 0;
+  const emptyStateMessage = loadError
+    ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
+    : 'No organizations yet.';
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1">
@@ -64,10 +69,8 @@ export default async function OrganizationsPage() {
         </p>
       </header>
 
-      {loadError ? (
-        <EmptyState message="Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)." />
-      ) : organizations.length === 0 ? (
-        <EmptyState message="No organizations yet." />
+      {showEmptyState ? (
+        <EmptyState message={emptyStateMessage} />
       ) : (
         <section className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
           <table className="w-full border-collapse text-sm">
