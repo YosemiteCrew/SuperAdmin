@@ -18,30 +18,31 @@ export function setRouter(router: ReturnType<typeof useRouter>, pathName: string
  * (`.yc-auth-*` in globals.css): Satoshi type, near-black pill buttons, the
  * brand-blue links, and the same card/input treatment. Shared by both the
  * MultiFactorAuth and TOTP recipes so every prebuilt screen renders identically.
- * Palette values are space-separated RGB triplets, per SuperTokens' convention.
+ *
+ * Palette values are comma-separated RGB triplets (SuperTokens builds colours as
+ * `rgba(var(--palette-x), a)`). They point at the theme-aware `--*-rgb` tokens in
+ * globals.css, which — because CSS custom properties inherit through the shadow
+ * DOM the prebuilt UI renders into — makes these screens follow light/dark too.
  */
 const PREBUILT_AUTH_STYLE = `
   [data-supertokens~="container"] {
-    --palette-primary: 48, 47, 46;
-    --palette-primaryBorder: 41, 40, 39;
-    --palette-background: 255, 255, 255;
-    --palette-inputBackground: 255, 255, 255;
-    --palette-inputBorder: 233, 230, 227;
-    --palette-textTitle: 29, 28, 27;
-    --palette-textLabel: 48, 47, 46;
-    --palette-textPrimary: 48, 47, 46;
-    --palette-textInput: 29, 28, 27;
-    --palette-textLink: 0, 124, 245;
-    --palette-buttonText: 255, 255, 255;
+    --palette-primary: var(--btn-rgb);
+    --palette-primaryBorder: var(--btn-rgb);
+    --palette-background: var(--surface-rgb);
+    --palette-inputBackground: var(--surface-rgb);
+    --palette-inputBorder: var(--line-rgb);
+    --palette-textTitle: var(--ink-rgb);
+    --palette-textLabel: var(--ink-rgb);
+    --palette-textPrimary: var(--ink-rgb);
+    --palette-textInput: var(--ink-rgb);
+    --palette-textLink: var(--primary-rgb);
+    --palette-buttonText: var(--btn-ink-rgb);
     --palette-error: 234, 55, 41;
-    --palette-textGray: 143, 137, 132;
-    font-family: 'Satoshi', sans-serif;
-    border: 1px solid rgba(48, 47, 46, 0.06);
+    --palette-textGray: var(--ink-3-rgb);
+    font-family: var(--font-satoshi);
+    border: 1px solid var(--line);
     border-radius: 24px;
-    box-shadow:
-      0 1px 2px rgba(29, 28, 27, 0.04),
-      0 4px 12px rgba(29, 28, 27, 0.08),
-      0 16px 40px rgba(29, 28, 27, 0.12);
+    box-shadow: var(--shadow-card);
   }
   [data-supertokens~="headerTitle"] {
     font-size: 1.75rem;
@@ -50,7 +51,7 @@ const PREBUILT_AUTH_STYLE = `
   }
   [data-supertokens~="input"] {
     border-radius: 16px;
-    font-family: 'Satoshi', sans-serif;
+    font-family: var(--font-satoshi);
   }
   [data-supertokens~="inputContainer"] [data-supertokens~="inputWrapper"] {
     border-radius: 16px;

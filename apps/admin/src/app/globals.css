@@ -88,6 +88,16 @@
   --btn-ink: #ffffff;
   --shadow-cta: 0 8px 20px rgba(29, 28, 27, 0.2);
   --shadow-card: 0 1px 2px rgba(29, 28, 27, 0.04), 0 8px 28px rgba(29, 28, 27, 0.08);
+  /* Comma-form RGB triplets — consumed by SuperTokens' prebuilt UI palette,
+     which builds colours as rgba(var(--palette-x), a). These inherit through
+     the prebuilt UI's shadow DOM, so the MFA/TOTP screens follow the theme. */
+  --surface-rgb: 255, 255, 255;
+  --line-rgb: 233, 230, 227;
+  --ink-rgb: 29, 28, 27;
+  --ink-3-rgb: 143, 137, 132;
+  --btn-rgb: 29, 28, 27;
+  --btn-ink-rgb: 255, 255, 255;
+  --primary-rgb: 0, 124, 245;
   --auth-bg-1: #fbfaf8;
   --auth-bg-2: #f3efea;
   --auth-glow-1: rgba(0, 124, 245, 0.08);
@@ -110,6 +120,12 @@
   --btn-ink: #161514;
   --shadow-cta: 0 8px 20px rgba(0, 0, 0, 0.5);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
+  --surface-rgb: 33, 31, 30;
+  --line-rgb: 44, 42, 40;
+  --ink-rgb: 243, 242, 241;
+  --ink-3-rgb: 169, 163, 158;
+  --btn-rgb: 243, 242, 241;
+  --btn-ink-rgb: 22, 21, 20;
   --auth-bg-1: #161514;
   --auth-bg-2: #0f0e0e;
   --auth-glow-1: rgba(0, 124, 245, 0.12);
