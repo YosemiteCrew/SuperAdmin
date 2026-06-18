@@ -22,6 +22,11 @@ export function ResetMfaButton({
     setPending(true);
   }
 
+  function buttonLabel() {
+    if (pending) return 'Resetting…';
+    return hasDevice ? 'Reset 2FA device' : 'Force 2FA re-enrollment';
+  }
+
   return (
     <form action={resetMfaAction} onSubmit={handleSubmit}>
       <input type="hidden" name="userId" value={userId} />
@@ -30,7 +35,7 @@ export function ResetMfaButton({
         disabled={pending}
         className="inline-flex items-center justify-center rounded-xl border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-100 disabled:opacity-60"
       >
-        {pending ? 'Resetting…' : hasDevice ? 'Reset 2FA device' : 'Force 2FA re-enrollment'}
+        {buttonLabel()}
       </button>
     </form>
   );

@@ -22,6 +22,7 @@ describe('ProfileForm', () => {
     globalThis.fetch = fetchMock as unknown as typeof fetch;
     render(<ProfileForm firstName="Ada" lastName="" />);
     fireEvent.change(screen.getByLabelText(/First name/i), { target: { value: '  Grace  ' } });
+    fireEvent.change(screen.getByLabelText(/Last name/i), { target: { value: '  Hopper  ' } });
     fireEvent.submit(screen.getByRole('button', { name: /Save changes/i }).closest('form')!);
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/Profile updated/i));
     expect(fetchMock).toHaveBeenCalledWith(
@@ -29,7 +30,7 @@ describe('ProfileForm', () => {
       expect.objectContaining({ method: 'POST' })
     );
     const body = JSON.parse((fetchMock.mock.calls[0][1] as { body: string }).body);
-    expect(body).toEqual({ firstName: 'Grace', lastName: '' });
+    expect(body).toEqual({ firstName: 'Grace', lastName: 'Hopper' });
   });
 
   it('shows the server error message on a failed save', async () => {
@@ -41,6 +42,18 @@ describe('ProfileForm', () => {
     fireEvent.submit(screen.getByRole('button', { name: /Save changes/i }).closest('form')!);
     await waitFor(() =>
       expect(screen.getByRole('status')).toHaveTextContent(/firstName is required/i)
+    );
+  });
+
+  it('shows a generic message when a failed save returns no error detail', async () => {
+    globalThis.fetch = jest.fn(async () => ({
+      ok: false,
+      json: async () => ({}),
+    })) as unknown as typeof fetch;
+    render(<ProfileForm firstName="Ada" lastName="L" />);
+    fireEvent.submit(screen.getByRole('button', { name: /Save changes/i }).closest('form')!);
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/Could not save your profile/i)
     );
   });
 

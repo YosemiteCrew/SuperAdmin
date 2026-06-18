@@ -123,6 +123,11 @@ export default async function UserDetailPage({
   const primaryEmail = user.emails[0] ?? '—';
   const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId)));
   const verifiedDeviceCount = totpDevices.filter((device) => device.verified).length;
+  const deviceWord = verifiedDeviceCount === 1 ? 'device' : 'devices';
+  const totpStatusLabel =
+    verifiedDeviceCount > 0
+      ? `TOTP active (${verifiedDeviceCount} ${deviceWord})`
+      : 'No verified TOTP device';
   const isBootstrapAdmin = serverEnv.superadminBootstrapEmails.includes(primaryEmail.toLowerCase());
   const isSelf = callerId === user.id;
   const hasSuperAdmin = isAdmin || isBootstrapAdmin;
@@ -226,11 +231,7 @@ export default async function UserDetailPage({
         </h2>
         <div className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-medium text-neutral-900">
-              {verifiedDeviceCount > 0
-                ? `TOTP active (${verifiedDeviceCount} device${verifiedDeviceCount === 1 ? '' : 's'})`
-                : 'No verified TOTP device'}
-            </p>
+            <p className="text-sm font-medium text-neutral-900">{totpStatusLabel}</p>
             <p className="text-xs text-neutral-600">
               Resetting removes this user&apos;s authenticator device and signs them out everywhere,
               so they must enroll a new device at next sign-in. Use this when an admin loses access

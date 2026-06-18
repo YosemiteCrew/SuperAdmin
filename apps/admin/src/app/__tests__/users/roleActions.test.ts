@@ -92,6 +92,14 @@ describe('revokeSuperAdminAction', () => {
     expect(removeUserRoleMock).not.toHaveBeenCalled();
   });
 
+  it('refuses to remove when the role has no holders (UNKNOWN_ROLE_ERROR)', async () => {
+    getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'UNKNOWN_ROLE_ERROR' });
+    const { revokeSuperAdminAction } =
+      await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    await revokeSuperAdminAction(makeForm({ userId: 'target-1' }));
+    expect(removeUserRoleMock).not.toHaveBeenCalled();
+  });
+
   it('removes the role for another admin when more than one exists', async () => {
     const { revokeSuperAdminAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');

@@ -34,6 +34,22 @@ describe('RoleButton', () => {
     expect(globalThis.confirm).toHaveBeenCalled();
   });
 
+  it('shows "Granting…" after a confirmed grant submit', () => {
+    globalThis.confirm = jest.fn(() => true);
+    render(<RoleButton userId="u-1" email="a@b.com" isAdmin={false} />);
+    const form = screen.getByRole('button', { name: /Make super-admin/i }).closest('form');
+    fireEvent.submit(form as HTMLFormElement);
+    expect(screen.getByRole('button', { name: /Granting/i })).toBeDisabled();
+  });
+
+  it('shows "Removing…" after a confirmed revoke submit', () => {
+    globalThis.confirm = jest.fn(() => true);
+    render(<RoleButton userId="u-1" email="a@b.com" isAdmin />);
+    const form = screen.getByRole('button', { name: /Remove super-admin/i }).closest('form');
+    fireEvent.submit(form as HTMLFormElement);
+    expect(screen.getByRole('button', { name: /Removing/i })).toBeDisabled();
+  });
+
   it('carries the userId on a hidden input', () => {
     render(<RoleButton userId="user-9" email="a@b.com" isAdmin />);
     const hidden = screen

@@ -31,6 +31,14 @@ describe('ResetMfaButton', () => {
     expect(globalThis.confirm).toHaveBeenCalled();
   });
 
+  it('shows the pending label after a confirmed submit', () => {
+    globalThis.confirm = jest.fn(() => true);
+    render(<ResetMfaButton userId="u-1" email="a@b.com" hasDevice />);
+    const form = screen.getByRole('button', { name: /Reset 2FA device/i }).closest('form');
+    fireEvent.submit(form as HTMLFormElement);
+    expect(screen.getByRole('button', { name: /Resetting/i })).toBeDisabled();
+  });
+
   it('carries the userId on a hidden input', () => {
     render(<ResetMfaButton userId="user-77" email="a@b.com" hasDevice />);
     const hidden = screen
