@@ -7,7 +7,7 @@ configureAxe({
   },
 });
 
-if (typeof globalThis.window !== 'undefined') {
+if (globalThis.window !== undefined) {
   Object.defineProperty(globalThis.window, 'scrollIntoView', {
     value: jest.fn(),
     writable: true,

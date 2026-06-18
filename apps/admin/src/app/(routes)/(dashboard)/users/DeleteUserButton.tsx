@@ -10,15 +10,15 @@ export function DeleteUserButton({
   userId,
   email,
   variant,
-}: {
+}: Readonly<{
   userId: string;
   email: string;
   variant: Variant;
-}) {
+}>) {
   const [pending, setPending] = useState(false);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    const confirmed = window.confirm(
+    const confirmed = globalThis.confirm(
       `Delete ${email}?\n\nThis removes the account from SuperTokens core, revokes all sessions, and cannot be undone.`
     );
     if (!confirmed) {

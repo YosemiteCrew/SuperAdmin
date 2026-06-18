@@ -1,1 +1,1 @@
-// TODO: export feature components, hooks, and services
+// Barrel for analytics feature exports; populated as the feature grows.

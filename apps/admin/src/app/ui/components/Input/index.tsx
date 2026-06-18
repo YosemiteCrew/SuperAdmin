@@ -5,7 +5,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
 }
 
-export function Input({ label, error, id, ...props }: InputProps) {
+export function Input({ label, error, id, ...props }: Readonly<InputProps>) {
   return (
     <div>
       {label && <label htmlFor={id}>{label}</label>}

@@ -13,7 +13,7 @@ jest.mock('supertokens-node', () => ({
   },
 }));
 
-const epInitMock = jest.fn((..._args: unknown[]) => 'emailpassword-recipe');
+const epInitMock: jest.Mock = jest.fn(() => 'emailpassword-recipe');
 jest.mock('supertokens-node/recipe/emailpassword', () => ({
   __esModule: true,
   default: { init: (...args: unknown[]) => epInitMock(...args) },

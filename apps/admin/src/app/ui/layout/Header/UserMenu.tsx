@@ -10,11 +10,11 @@ export function UserMenu({
   email,
   firstName,
   lastName,
-}: {
+}: Readonly<{
   email: string;
   firstName: string | null;
   lastName: string | null;
-}) {
+}>) {
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -23,7 +23,7 @@ export function UserMenu({
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
       if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) {
+      if (event.target instanceof Node && !containerRef.current.contains(event.target)) {
         setOpen(false);
       }
     }
@@ -55,7 +55,7 @@ export function UserMenu({
     } catch {
       /* network failure — proceed to /auth regardless */
     }
-    window.location.href = '/auth';
+    globalThis.location.href = '/auth';
   }
 
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();

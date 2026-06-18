@@ -4,7 +4,7 @@ interface StatsCardProps {
   trend?: string;
 }
 
-export function StatsCard({ title, value, trend }: StatsCardProps) {
+export function StatsCard({ title, value, trend }: Readonly<StatsCardProps>) {
   return (
     <div>
       <h3>{title}</h3>

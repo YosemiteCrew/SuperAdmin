@@ -1,4 +1,4 @@
-// TODO: export domain types for the superadmin panel
+// Domain types for the superadmin panel.
 
 export interface AdminUser {
   id: string;

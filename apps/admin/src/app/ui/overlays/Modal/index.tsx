@@ -2,8 +2,11 @@
 
 import { useEffect, useRef } from 'react';
 
-// TODO: style and extend — native dialog provides focus trapping and Escape-to-close for free
-export function Modal({ children, isOpen }: { children: React.ReactNode; isOpen: boolean }) {
+// Native dialog provides focus trapping and Escape-to-close for free.
+export function Modal({
+  children,
+  isOpen,
+}: Readonly<{ children: React.ReactNode; isOpen: boolean }>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -11,8 +14,8 @@ export function Modal({ children, isOpen }: { children: React.ReactNode; isOpen:
     if (!dialog) return;
     if (isOpen) {
       if (!dialog.open) dialog.showModal();
-    } else {
-      if (dialog.open) dialog.close();
+    } else if (dialog.open) {
+      dialog.close();
     }
   }, [isOpen]);
 

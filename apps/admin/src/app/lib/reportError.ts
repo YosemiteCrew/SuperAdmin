@@ -20,7 +20,7 @@ export function reportError(error: unknown, context?: ErrorContext): void {
 
   logger.error('Unhandled error', {
     ...normalized,
-    ...(context ?? {}),
+    ...context,
   });
 
   // Future: forward to Sentry / Bugsnag / etc. here.

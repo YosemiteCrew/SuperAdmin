@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 import { deleteUserAction } from './actions';
 
-export function UserRowActions({ userId, email }: { userId: string; email: string }) {
+export function UserRowActions({ userId, email }: Readonly<{ userId: string; email: string }>) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -14,7 +14,9 @@ export function UserRowActions({ userId, email }: { userId: string; email: strin
     if (!open) return;
     function onPointerDown(event: PointerEvent) {
       if (!containerRef.current) return;
-      if (!containerRef.current.contains(event.target as Node)) setOpen(false);
+      if (event.target instanceof Node && !containerRef.current.contains(event.target)) {
+        setOpen(false);
+      }
     }
     function onKey(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
@@ -28,7 +30,7 @@ export function UserRowActions({ userId, email }: { userId: string; email: strin
   }, [open]);
 
   function handleDeleteSubmit(event: React.FormEvent<HTMLFormElement>) {
-    const confirmed = window.confirm(
+    const confirmed = globalThis.confirm(
       `Delete ${email}?\n\nThis removes the account from SuperTokens core, revokes all sessions, and cannot be undone.`
     );
     if (!confirmed) {

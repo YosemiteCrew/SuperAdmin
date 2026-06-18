@@ -1,5 +1,3 @@
-export {};
-
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -22,20 +20,20 @@ jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
 }));
 
+function makeForm(entries: Record<string, string | undefined>): FormData {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(entries)) {
+    if (v !== undefined) fd.append(k, v);
+  }
+  return fd;
+}
+
 describe('deleteUserAction', () => {
   beforeEach(() => {
     deleteUserMock.mockReset();
     requireSuperAdminMock.mockReset();
     requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   });
-
-  function makeForm(entries: Record<string, string | undefined>): FormData {
-    const fd = new FormData();
-    for (const [k, v] of Object.entries(entries)) {
-      if (v !== undefined) fd.append(k, v);
-    }
-    return fd;
-  }
 
   it('does nothing when userId is missing', async () => {
     const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');

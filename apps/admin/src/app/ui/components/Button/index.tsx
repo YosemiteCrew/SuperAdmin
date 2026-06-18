@@ -38,7 +38,7 @@ export function Button({
   onMouseEnter,
   onMouseMove,
   ...props
-}: ButtonProps) {
+}: Readonly<ButtonProps>) {
   const isPrimary = variant === 'primary';
 
   return (

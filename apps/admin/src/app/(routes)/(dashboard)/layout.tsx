@@ -39,7 +39,9 @@ async function requireSession(): Promise<SessionResult> {
   return { email, firstName, lastName };
 }
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const { email, firstName, lastName } = await requireSession();
 
   return (

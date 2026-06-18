@@ -2,8 +2,7 @@
 
 import { Suspense, useReducer, useState } from 'react';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { redirect, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   signIn,
   signUp,
@@ -58,7 +57,7 @@ function FloatingField({
   onChange,
   autoComplete,
   required = true,
-}: {
+}: Readonly<{
   id: string;
   type?: 'text' | 'email';
   label: string;
@@ -66,7 +65,7 @@ function FloatingField({
   onChange: (v: string) => void;
   autoComplete?: string;
   required?: boolean;
-}) {
+}>) {
   return (
     <div className="yc-auth-field-wrap">
       <input
@@ -91,12 +90,12 @@ function EmailField({
   onChange,
   id,
   label = 'Email',
-}: {
+}: Readonly<{
   value: string;
   onChange: (v: string) => void;
   id: string;
   label?: string;
-}) {
+}>) {
   return (
     <FloatingField
       id={id}
@@ -115,13 +114,13 @@ function PasswordField({
   label,
   autoComplete,
   id,
-}: {
+}: Readonly<{
   value: string;
   onChange: (v: string) => void;
   label: string;
   autoComplete: string;
   id: string;
-}) {
+}>) {
   const [show, setShow] = useState(false);
   return (
     <div className="yc-auth-field-wrap">

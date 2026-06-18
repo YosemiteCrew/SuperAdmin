@@ -1,4 +1,4 @@
-const quote = (file) => `"${file.replaceAll('"', '\\"')}"`;
+const quote = (file) => `"${file.replaceAll('"', String.raw`\"`)}"`;
 const isAdminPath = (file) =>
   file.startsWith('apps/admin/') || file.includes('/apps/admin/');
 

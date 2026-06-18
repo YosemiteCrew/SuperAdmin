@@ -41,7 +41,9 @@ function buildHref(params: { search?: string; cursor?: string }): string {
   return query ? `/users?${query}` : '/users';
 }
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+export default async function UsersPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<SearchParams> }>) {
   ensureSuperTokensInit();
 
   const { search, cursor } = await searchParams;

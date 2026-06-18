@@ -28,11 +28,11 @@ const config: Config = {
   // applies to the auth catch-all page and the root layout.
   coveragePathIgnorePatterns: [
     '/node_modules/',
-    '/\\(routes\\)/.*/page\\.tsx?$',
-    '/\\(routes\\)/.*/layout\\.tsx?$',
-    '/src/app/auth/.*/page\\.tsx?$',
-    '/src/app/auth/layout\\.tsx?$',
-    '/src/app/layout\\.tsx?$',
+    String.raw`/\(routes\)/.*/page\.tsx?$`,
+    String.raw`/\(routes\)/.*/layout\.tsx?$`,
+    String.raw`/src/app/auth/.*/page\.tsx?$`,
+    String.raw`/src/app/auth/layout\.tsx?$`,
+    String.raw`/src/app/layout\.tsx?$`,
   ],
   coverageDirectory: 'coverage',
   coverageProvider: 'v8',

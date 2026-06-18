@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Sign in',
 };
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="yc-auth-shell">
       <header className="yc-auth-guest-header">

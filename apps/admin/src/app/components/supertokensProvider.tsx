@@ -1,17 +1,16 @@
 'use client';
 import React from 'react';
-import { SuperTokensWrapper } from 'supertokens-auth-react';
-import SuperTokensReact from 'supertokens-auth-react';
+import SuperTokensReact, { SuperTokensWrapper } from 'supertokens-auth-react';
 import { frontendConfig, setRouter } from '../config/frontend';
 import { usePathname, useRouter } from 'next/navigation';
 
-if (typeof window !== 'undefined') {
-  // we only want to call this init function on the frontend, so we check typeof window !== 'undefined'
+if (typeof globalThis.window !== 'undefined') {
+  // Init only runs on the frontend, hence the window guard.
   SuperTokensReact.init(frontendConfig());
 }
 
 export const SuperTokensProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
-  setRouter(useRouter(), usePathname() || window.location.pathname);
+  setRouter(useRouter(), usePathname() || globalThis.location.pathname);
 
   return <SuperTokensWrapper>{children}</SuperTokensWrapper>;
 };

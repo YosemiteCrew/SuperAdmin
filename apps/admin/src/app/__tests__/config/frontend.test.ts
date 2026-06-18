@@ -49,7 +49,17 @@ describe('frontend config', () => {
   it('setRouter wires up router + pathName for the windowHandler', async () => {
     const { setRouter, frontendConfig } = await import('@/app/config/frontend');
     const push = jest.fn();
-    setRouter({ push } as never, '/dashboard');
+    setRouter(
+      {
+        push,
+        back: jest.fn(),
+        forward: jest.fn(),
+        refresh: jest.fn(),
+        replace: jest.fn(),
+        prefetch: jest.fn(),
+      },
+      '/dashboard'
+    );
 
     const cfg = frontendConfig();
     const handler = cfg.windowHandler!({

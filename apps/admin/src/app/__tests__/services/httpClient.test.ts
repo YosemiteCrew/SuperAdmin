@@ -1,23 +1,23 @@
+function jsonResponse<T>(body: T, status = 200): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as unknown as Response;
+}
+
 describe('httpClient', () => {
   const fetchMock = jest.fn();
   const originalFetch = globalThis.fetch;
 
   beforeEach(() => {
     fetchMock.mockReset();
-    globalThis.fetch = fetchMock as unknown as typeof fetch;
+    globalThis.fetch = fetchMock;
   });
 
   afterAll(() => {
     globalThis.fetch = originalFetch;
   });
-
-  function jsonResponse<T>(body: T, status = 200): Response {
-    return {
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => body,
-    } as unknown as Response;
-  }
 
   it('GET returns parsed json and status', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ ok: true }));

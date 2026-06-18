@@ -1,4 +1,4 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="yc-auth-shell">
       <div className="yc-auth-stage">

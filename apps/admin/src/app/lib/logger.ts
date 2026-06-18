@@ -11,7 +11,7 @@ function format(level: LogLevel, message: string, context?: LogContext): string 
       level,
       message,
       timestamp: new Date().toISOString(),
-      ...(context ?? {}),
+      ...context,
     });
   }
   const ctx = context ? ` ${JSON.stringify(context)}` : '';

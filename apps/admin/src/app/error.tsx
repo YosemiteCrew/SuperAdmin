@@ -10,10 +10,10 @@ const isDev = process.env.NODE_ENV !== 'production';
 export default function RouteError({
   error,
   reset,
-}: {
+}: Readonly<{
   error: Error & { digest?: string };
   reset: () => void;
-}) {
+}>) {
   useEffect(() => {
     reportError(error, { source: 'route', digest: error.digest });
   }, [error]);
