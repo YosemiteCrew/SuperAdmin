@@ -1,3 +1,5 @@
+export {};
+
 jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
@@ -12,9 +14,10 @@ jest.mock('supertokens-node/recipe/session', () => ({
   },
 }));
 
+const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
-  requireAuth: jest.fn(),
+  requireSuperAdmin: (...args: unknown[]) => requireSuperAdminMock(...args),
 }));
 
 function makeForm(entries: Record<string, string | undefined>): FormData {
@@ -25,6 +28,11 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
   return fd;
 }
 
+beforeEach(() => {
+  requireSuperAdminMock.mockReset();
+  requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
+});
+
 describe('revokeSessionAction', () => {
   beforeEach(() => {
     revokeSessionMock.mockReset();
@@ -33,6 +41,15 @@ describe('revokeSessionAction', () => {
   it('skips when sessionHandle missing', async () => {
     const { revokeSessionAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeSessionAction(makeForm({ userId: 'u' }));
+    expect(revokeSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('does not revoke when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const { revokeSessionAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    await expect(
+      revokeSessionAction(makeForm({ sessionHandle: 'sh-1', userId: 'u-1' }))
+    ).rejects.toThrow('NEXT_REDIRECT');
     expect(revokeSessionMock).not.toHaveBeenCalled();
   });
 
@@ -57,6 +74,16 @@ describe('revokeAllSessionsAction', () => {
     const { revokeAllSessionsAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeAllSessionsAction(makeForm({}));
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it('does not revoke all when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const { revokeAllSessionsAction } =
+      await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    await expect(revokeAllSessionsAction(makeForm({ userId: 'u-9' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
     expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
   });
 

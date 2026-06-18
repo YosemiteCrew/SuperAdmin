@@ -1,10 +1,8 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import supertokens from 'supertokens-node';
-import { getSSRSession } from 'supertokens-node/nextjs';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { requireSuperAdmin } from '@/app/config/backend';
 import { Header } from '@/app/ui/layout/Header';
 import { Sidebar } from '@/app/ui/layout/Sidebar';
 import { CommandPalette } from '@/app/ui/overlays/CommandPalette';
@@ -16,21 +14,7 @@ type SessionResult = {
 };
 
 async function requireSession(): Promise<SessionResult> {
-  ensureSuperTokensInit();
-
-  const cookieStore = await cookies();
-  const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
-
-  const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
-
-  if (error || !hasToken || !accessTokenPayload) {
-    redirect('/auth');
-  }
-
-  const userId = accessTokenPayload.sub;
-  if (typeof userId !== 'string') {
-    redirect('/auth');
-  }
+  const { userId } = await requireSuperAdmin();
 
   const user = await supertokens.getUser(userId);
   const email = user?.emails[0];
