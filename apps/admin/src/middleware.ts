@@ -34,6 +34,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    String.raw`/((?!_next/static|_next/image|favicon.ico|.*\.(?:png|jpg|jpeg|gif|svg|webp|ico|json|txt|xml|css|js|map|woff|woff2|ttf|eot)).*)`,
+    // Next.js statically parses this config and only accepts a string literal here;
+    // String.raw breaks the production build, so the escaped form stays. NOSONAR
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|json|txt|xml|css|js|map|woff|woff2|ttf|eot)).*)', // NOSONAR: Next.js requires a static string literal
   ],
 };
