@@ -5,6 +5,8 @@ import EmailPasswordNode from 'supertokens-node/recipe/emailpassword';
 import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
+import MultiFactorAuthNode from 'supertokens-node/recipe/multifactorauth';
+import TOTPNode from 'supertokens-node/recipe/totp';
 import { TypeInput } from 'supertokens-node/types';
 import { getSSRSession } from 'supertokens-node/nextjs';
 
@@ -62,6 +64,16 @@ export const backendConfig = (): TypeInput => {
       SessionNode.init(),
       UserMetadataNode.init(),
       UserRolesNode.init(),
+      TOTPNode.init(),
+      MultiFactorAuthNode.init({
+        firstFactors: [MultiFactorAuthNode.FactorIds.EMAILPASSWORD],
+        override: {
+          functions: (originalImplementation) => ({
+            ...originalImplementation,
+            getMFARequirementsForAuth: async () => [MultiFactorAuthNode.FactorIds.TOTP],
+          }),
+        },
+      }),
     ],
     isInServerlessEnv: true,
   };
@@ -97,7 +109,12 @@ async function isSuperAdmin(userId: string): Promise<boolean> {
   return false;
 }
 
-async function getAuthenticatedUserId(): Promise<string> {
+function isMfaComplete(payload: Record<string, unknown>): boolean {
+  const mfa = payload['st-mfa'];
+  return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
+}
+
+async function getAuthenticatedSession(): Promise<{ userId: string; mfaComplete: boolean }> {
   ensureSuperTokensInit();
   const cookieStore = await cookies();
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
@@ -105,7 +122,7 @@ async function getAuthenticatedUserId(): Promise<string> {
   if (error || !hasToken || !accessTokenPayload || typeof accessTokenPayload.sub !== 'string') {
     redirect('/auth');
   }
-  return accessTokenPayload.sub;
+  return { userId: accessTokenPayload.sub, mfaComplete: isMfaComplete(accessTokenPayload) };
 }
 
 export async function assertSuperAdmin(userId: string): Promise<void> {
@@ -116,7 +133,10 @@ export async function assertSuperAdmin(userId: string): Promise<void> {
 }
 
 export async function requireSuperAdmin(): Promise<{ userId: string }> {
-  const userId = await getAuthenticatedUserId();
+  const { userId, mfaComplete } = await getAuthenticatedSession();
   await assertSuperAdmin(userId);
+  if (!mfaComplete) {
+    redirect('/auth/mfa/totp');
+  }
   return { userId };
 }

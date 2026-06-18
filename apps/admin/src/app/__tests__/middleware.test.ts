@@ -42,6 +42,12 @@ describe('middleware', () => {
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
+  it('lets an authenticated (MFA-incomplete) visitor reach /auth/mfa', () => {
+    const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
+    const res = middleware(makeRequest('/auth/mfa/totp', validToken));
+    expect(res.headers.get('Location')).toBeNull();
+  });
+
   it('redirects authenticated visitor at / to /dashboard', () => {
     const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
     const res = middleware(makeRequest('/', validToken));

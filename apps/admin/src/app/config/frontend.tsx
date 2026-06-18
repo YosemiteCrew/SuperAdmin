@@ -1,5 +1,7 @@
 import EmailPasswordReact from 'supertokens-auth-react/recipe/emailpassword';
 import SessionReact from 'supertokens-auth-react/recipe/session';
+import MultiFactorAuthReact from 'supertokens-auth-react/recipe/multifactorauth';
+import TOTPReact from 'supertokens-auth-react/recipe/totp';
 import { appInfo } from './appInfo';
 import { useRouter } from 'next/navigation';
 import { SuperTokensConfig } from 'supertokens-auth-react/lib/build/types';
@@ -20,7 +22,14 @@ export const frontendConfig = (): SuperTokensConfig => {
       }
       return undefined;
     },
-    recipeList: [EmailPasswordReact.init(), SessionReact.init()],
+    recipeList: [
+      EmailPasswordReact.init(),
+      SessionReact.init(),
+      MultiFactorAuthReact.init({
+        firstFactors: [MultiFactorAuthReact.FactorIds.EMAILPASSWORD],
+      }),
+      TOTPReact.init(),
+    ],
     windowHandler: (original) => ({
       ...original,
       location: {

@@ -46,6 +46,19 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
   },
 }));
 
+jest.mock('supertokens-node/recipe/totp', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'totp-recipe') },
+}));
+
+jest.mock('supertokens-node/recipe/multifactorauth', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => 'mfa-recipe'),
+    FactorIds: { EMAILPASSWORD: 'emailpassword', TOTP: 'totp' },
+  },
+}));
+
 jest.mock('next/headers', () => ({
   cookies: jest.fn(async () => ({ getAll: () => [] })),
 }));
@@ -81,7 +94,7 @@ beforeEach(() => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   });
   getSSRSessionMock.mockResolvedValue({
-    accessTokenPayload: { sub: 'admin-1' },
+    accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: true } },
     hasToken: true,
     error: null,
   });
@@ -102,9 +115,9 @@ describe('ensureSuperTokensInit / backendConfig', () => {
     });
   });
 
-  it('wires up the four recipes (incl. user roles)', () => {
+  it('wires up the six recipes (incl. user roles, TOTP, MFA)', () => {
     const cfg = backendConfig();
-    expect(cfg.recipeList.length).toBe(4);
+    expect(cfg.recipeList.length).toBe(6);
   });
 });
 
@@ -131,6 +144,24 @@ describe('requireSuperAdmin', () => {
     expect(addRoleToUserMock).toHaveBeenCalled();
   });
 
+  it('redirects to the TOTP screen when MFA is not complete', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: false } },
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/mfa/totp');
+  });
+
+  it('redirects to the TOTP screen when the MFA claim is absent', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1' },
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/mfa/totp');
+  });
+
   it('redirects to /forbidden when authenticated without the role and not allowlisted', async () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     getUserMock.mockResolvedValueOnce({ emails: ['stranger@example.com'] });
@@ -139,13 +170,21 @@ describe('requireSuperAdmin', () => {
   });
 
   it('redirects to /auth when there is no valid session', async () => {
-    getSSRSessionMock.mockResolvedValueOnce({ accessTokenPayload: null, hasToken: false, error: null });
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
     expect(getRolesForUserMock).not.toHaveBeenCalled();
   });
 
   it('redirects to /auth when the session has no string subject', async () => {
-    getSSRSessionMock.mockResolvedValueOnce({ accessTokenPayload: {}, hasToken: true, error: null });
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: {},
+      hasToken: true,
+      error: null,
+    });
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
   });
 });

@@ -3,6 +3,9 @@
 import { Suspense, useReducer, useState } from 'react';
 import Link from 'next/link';
 import { redirect, usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { canHandleRoute, getRoutingComponent } from 'supertokens-auth-react/ui';
+import { MultiFactorAuthPreBuiltUI } from 'supertokens-auth-react/recipe/multifactorauth/prebuiltui';
+import { TOTPPreBuiltUI } from 'supertokens-auth-react/recipe/totp/prebuiltui';
 import {
   signIn,
   signUp,
@@ -537,11 +540,21 @@ function SignUpForm() {
   );
 }
 
+const MFA_PREBUILT_UI = [MultiFactorAuthPreBuiltUI, TOTPPreBuiltUI];
+
 function AuthContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const normalizedPath = (pathname ?? '/auth').replace(/\/{1,64}$/, '') || '/auth';
+
+  if (normalizedPath.startsWith('/auth/mfa')) {
+    if (canHandleRoute(MFA_PREBUILT_UI)) {
+      return getRoutingComponent(MFA_PREBUILT_UI);
+    }
+    redirect('/auth');
+  }
+
   const token = searchParams.get('token') ?? '';
 
   let screen: 'signin' | 'signup' | 'forgot' | 'reset' | 'unknown';

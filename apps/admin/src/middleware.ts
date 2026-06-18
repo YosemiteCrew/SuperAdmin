@@ -25,7 +25,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
-  if (isAuthenticated && pathname.startsWith('/auth')) {
+  // Authenticated users are bounced away from auth screens — except the MFA
+  // screens, which a signed-in-but-MFA-incomplete user still needs to reach.
+  if (isAuthenticated && pathname.startsWith('/auth') && !pathname.startsWith('/auth/mfa')) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
