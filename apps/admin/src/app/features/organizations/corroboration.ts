@@ -25,7 +25,7 @@ const PRIVATE_IPV4 = /^(?:10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\
  * time; this blocks the obvious loopback / private / link-local literals.)
  */
 export function isPublicHttpUrl(raw?: string): URL | null {
-  if (!raw || !raw.trim()) return null;
+  if (!raw?.trim()) return null;
   const trimmed = raw.trim();
   // A leading "scheme:" means the user supplied a protocol — keep it so the
   // http(s)-only check below can reject non-http schemes (ftp:, javascript:, …).
@@ -59,12 +59,35 @@ function tokenize(value: string): string[] {
     .filter((t) => t.length > 2);
 }
 
+/** Index just past `closing` (case-insensitive), or end of string if absent. */
+function skipBlock(lower: string, from: number, closing: string): number {
+  const end = lower.indexOf(closing, from);
+  return end === -1 ? lower.length : end + closing.length;
+}
+
+/**
+ * Strips tags (and script/style bodies) from HTML using a single linear scan.
+ * Avoids regular expressions entirely, so there is no backtracking/ReDoS risk
+ * on attacker-influenced page content.
+ */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .toLowerCase();
+  const lower = html.toLowerCase();
+  let out = '';
+  let i = 0;
+  while (i < lower.length) {
+    if (lower[i] !== '<') {
+      out += lower[i];
+      i += 1;
+    } else if (lower.startsWith('<script', i)) {
+      i = skipBlock(lower, i, '</script>');
+    } else if (lower.startsWith('<style', i)) {
+      i = skipBlock(lower, i, '</style>');
+    } else {
+      const close = lower.indexOf('>', i + 1);
+      i = close === -1 ? lower.length : close + 1;
+    }
+  }
+  return out;
 }
 
 /**

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { DEMO_ORGANIZATIONS } from '@/app/features/organizations/demo';
 import {
   type OrgFilter,
   filterOrganizations,
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   title: 'Organizations',
 };
 
-type SearchParams = { status?: string; search?: string };
+type SearchParams = { status?: string; search?: string; demo?: string };
 
 const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -26,10 +27,11 @@ const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
   { key: 'suspended', label: 'Suspended' },
 ];
 
-function buildHref(filter: OrgFilter, search: string): string {
+function buildHref(filter: OrgFilter, search: string, demo: boolean): string {
   const qs = new URLSearchParams();
   if (filter !== 'all') qs.set('status', filter);
   if (search) qs.set('search', search);
+  if (demo) qs.set('demo', '1');
   const query = qs.toString();
   return query ? `/organizations?${query}` : '/organizations';
 }
@@ -38,7 +40,13 @@ function FilterTabs({
   active,
   search,
   counts,
-}: Readonly<{ active: OrgFilter; search: string; counts: Record<OrgFilter, number> }>) {
+  demo,
+}: Readonly<{
+  active: OrgFilter;
+  search: string;
+  counts: Record<OrgFilter, number>;
+  demo: boolean;
+}>) {
   return (
     <div className="flex flex-wrap gap-2">
       {FILTER_TABS.map((tab) => {
@@ -46,7 +54,7 @@ function FilterTabs({
         return (
           <Link
             key={tab.key}
-            href={buildHref(tab.key, search)}
+            href={buildHref(tab.key, search, demo)}
             aria-current={isActive ? 'page' : undefined}
             className={
               isActive
@@ -92,7 +100,11 @@ function EmptyState({ message }: Readonly<{ message: string }>) {
   );
 }
 
-function OrganizationsTable({ rows }: Readonly<{ rows: SuperAdminOrganization[] }>) {
+function OrganizationsTable({
+  rows,
+  demo,
+}: Readonly<{ rows: SuperAdminOrganization[]; demo: boolean }>) {
+  const suffix = demo ? '?demo=1' : '';
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
       <table className="w-full border-collapse text-sm">
@@ -110,7 +122,10 @@ function OrganizationsTable({ rows }: Readonly<{ rows: SuperAdminOrganization[] 
           {rows.map((org) => (
             <tr key={org.id} className="border-b border-line last:border-b-0 hover:bg-raised/60">
               <td className="px-5 py-3 font-medium">
-                <Link href={`/organizations/${org.id}`} className="text-ink hover:underline">
+                <Link
+                  href={`/organizations/${org.id}${suffix}`}
+                  className="text-ink hover:underline"
+                >
                   {org.name}
                 </Link>
               </td>
@@ -135,24 +150,34 @@ function OrganizationsTable({ rows }: Readonly<{ rows: SuperAdminOrganization[] 
   );
 }
 
+async function loadOrganizations(
+  demo: boolean
+): Promise<{ organizations: SuperAdminOrganization[]; loadError: boolean }> {
+  if (demo) return { organizations: DEMO_ORGANIZATIONS, loadError: false };
+  try {
+    return { organizations: await listOrganizations(), loadError: false };
+  } catch {
+    return { organizations: [], loadError: true };
+  }
+}
+
 export default async function OrganizationsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
-  const { status, search } = await searchParams;
+  const { status, search, demo: demoRaw } = await searchParams;
   const activeFilter = parseOrgFilter(status);
   const searchTerm = (search ?? '').trim();
+  const demo = demoRaw === '1';
 
-  let organizations: SuperAdminOrganization[] = [];
-  let loadError = false;
-  try {
-    organizations = await listOrganizations();
-  } catch {
-    loadError = true;
-  }
+  const { organizations, loadError } = await loadOrganizations(demo);
 
   const counts = organizationCounts(organizations);
   const filtered = filterOrganizations(organizations, { state: activeFilter, search: searchTerm });
   const allEmpty = loadError || organizations.length === 0;
+  const showPendingBanner = !allEmpty && counts.pending > 0;
+  const emptyMessage = loadError
+    ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
+    : 'No organizations yet.';
 
   return (
     <div className="flex flex-col gap-6">
@@ -163,7 +188,7 @@ export default async function OrganizationsPage({
         </p>
       </header>
 
-      {!allEmpty && counts.pending > 0 ? (
+      {showPendingBanner ? (
         <div className="flex items-center gap-2 rounded-xl border border-warning-600/30 bg-warning-100 px-4 py-3 text-sm text-warning-800">
           <span className="font-medium">
             {counts.pending} {counts.pending === 1 ? 'business is' : 'businesses are'} awaiting
@@ -174,21 +199,16 @@ export default async function OrganizationsPage({
       ) : null}
 
       {allEmpty ? (
-        <EmptyState
-          message={
-            loadError
-              ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
-              : 'No organizations yet.'
-          }
-        />
+        <EmptyState message={emptyMessage} />
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <FilterTabs active={activeFilter} search={searchTerm} counts={counts} />
+            <FilterTabs active={activeFilter} search={searchTerm} counts={counts} demo={demo} />
             <form action="/organizations" method="get" className="flex items-center gap-2">
               {activeFilter !== 'all' ? (
                 <input type="hidden" name="status" value={activeFilter} />
               ) : null}
+              {demo ? <input type="hidden" name="demo" value="1" /> : null}
               <input
                 type="search"
                 name="search"
@@ -201,7 +221,7 @@ export default async function OrganizationsPage({
           </div>
 
           {filtered.length > 0 ? (
-            <OrganizationsTable rows={filtered} />
+            <OrganizationsTable rows={filtered} demo={demo} />
           ) : (
             <EmptyState message="No organizations match these filters." />
           )}

@@ -88,6 +88,28 @@ describe('checkWebsite', () => {
     expect(res.status).toBe('warn');
   });
 
+  it('ignores the business name when it only appears inside script/style blocks', async () => {
+    const html =
+      '<style>.acme-veterinary { color: red }</style>' +
+      '<script>const acme = "Acme Veterinary";</script>' +
+      '<h1>Welcome to our parked domain</h1>';
+    const res = await checkWebsite(
+      'https://acme.com',
+      'Acme Veterinary',
+      fetchReturning(okHtml(html))
+    );
+    expect(res.status).toBe('warn');
+  });
+
+  it('matches the name in visible text even when an unterminated tag is present', async () => {
+    const res = await checkWebsite(
+      'https://acme.com',
+      'Acme Veterinary',
+      fetchReturning(okHtml('<h1>Acme Veterinary clinic <span'))
+    );
+    expect(res.status).toBe('pass');
+  });
+
   it('fails on a non-OK response', async () => {
     const res = await checkWebsite(
       'https://acme.com',

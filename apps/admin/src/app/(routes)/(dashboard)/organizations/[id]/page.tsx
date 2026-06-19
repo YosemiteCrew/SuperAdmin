@@ -3,6 +3,7 @@ import Link from 'next/link';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { corroborateBusiness } from '@/app/features/organizations/corroboration';
+import { getDemoOrganization } from '@/app/features/organizations/demo';
 import { getOrganization } from '@/app/features/organizations/services/organizationsService';
 import type {
   OrganizationAddress,
@@ -52,7 +53,7 @@ function composeAddress(address?: OrganizationAddress): string {
     address.state,
     address.postalCode,
     address.country,
-  ].filter((p): p is string => Boolean(p && p.trim()));
+  ].filter((p): p is string => Boolean(p?.trim()));
   return parts.length ? parts.join(', ') : '—';
 }
 
@@ -65,7 +66,7 @@ function Field({ label, value }: Readonly<{ label: string; value?: string }>) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-ink-3">{label}</dt>
-      <dd className="mt-1 text-sm text-ink">{value && value.trim() ? value : '—'}</dd>
+      <dd className="mt-1 text-sm text-ink">{value?.trim() ? value : '—'}</dd>
     </div>
   );
 }
@@ -81,17 +82,23 @@ function UnavailableCard() {
 
 export default async function OrganizationDetailPage({
   params,
-}: Readonly<{ params: Promise<{ id: string }> }>) {
+  searchParams,
+}: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<{ demo?: string }> }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   const { id } = await params;
+  const { demo } = await searchParams;
 
   let org: SuperAdminOrganizationDetail | null = null;
-  try {
-    org = await getOrganization(id);
-  } catch {
-    /* backend not connected (or business missing) — render the unavailable state */
+  if (demo === '1') {
+    org = getDemoOrganization(id);
+  } else {
+    try {
+      org = await getOrganization(id);
+    } catch {
+      /* backend not connected (or business missing) — render the unavailable state */
+    }
   }
 
   if (!org) {

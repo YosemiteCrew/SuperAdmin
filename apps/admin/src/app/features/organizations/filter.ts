@@ -3,11 +3,11 @@ import { type VerificationState, verificationState } from './verification';
 
 export type OrgFilter = VerificationState | 'all';
 
-const VALID_FILTERS: readonly OrgFilter[] = ['all', 'pending', 'verified', 'suspended'];
+const VALID_FILTERS: ReadonlySet<OrgFilter> = new Set(['all', 'pending', 'verified', 'suspended']);
 
 /** Coerces an untrusted query-param value into a known filter (defaults to `all`). */
 export function parseOrgFilter(value: string | undefined): OrgFilter {
-  return VALID_FILTERS.includes(value as OrgFilter) ? (value as OrgFilter) : 'all';
+  return VALID_FILTERS.has(value as OrgFilter) ? (value as OrgFilter) : 'all';
 }
 
 /** Filters businesses by verification state and a case-insensitive name search. */
