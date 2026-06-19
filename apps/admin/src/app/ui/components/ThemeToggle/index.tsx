@@ -33,7 +33,7 @@ export function ThemeToggle() {
     } catch {
       /* storage may be unavailable (private mode) — theme still applies for this session */
     }
-    document.documentElement.setAttribute('data-theme', resolveDark(next) ? 'dark' : 'light');
+    document.documentElement.dataset.theme = resolveDark(next) ? 'dark' : 'light';
   }
 
   return (
