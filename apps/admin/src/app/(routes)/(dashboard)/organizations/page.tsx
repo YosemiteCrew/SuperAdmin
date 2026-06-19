@@ -1,5 +1,12 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
+import {
+  type OrgFilter,
+  filterOrganizations,
+  organizationCounts,
+  parseOrgFilter,
+} from '@/app/features/organizations/filter';
 import { listOrganizations } from '@/app/features/organizations/services/organizationsService';
 import type { SuperAdminOrganization } from '@/app/features/organizations/types';
 import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
@@ -9,6 +16,52 @@ import { OrganizationRowActions } from './OrganizationRowActions';
 export const metadata: Metadata = {
   title: 'Organizations',
 };
+
+type SearchParams = { status?: string; search?: string };
+
+const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'verified', label: 'Verified' },
+  { key: 'suspended', label: 'Suspended' },
+];
+
+function buildHref(filter: OrgFilter, search: string): string {
+  const qs = new URLSearchParams();
+  if (filter !== 'all') qs.set('status', filter);
+  if (search) qs.set('search', search);
+  const query = qs.toString();
+  return query ? `/organizations?${query}` : '/organizations';
+}
+
+function FilterTabs({
+  active,
+  search,
+  counts,
+}: Readonly<{ active: OrgFilter; search: string; counts: Record<OrgFilter, number> }>) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {FILTER_TABS.map((tab) => {
+        const isActive = tab.key === active;
+        return (
+          <Link
+            key={tab.key}
+            href={buildHref(tab.key, search)}
+            aria-current={isActive ? 'page' : undefined}
+            className={
+              isActive
+                ? 'inline-flex items-center gap-2 rounded-full border border-btn bg-btn px-3.5 py-1.5 text-sm font-medium text-btn-ink'
+                : 'inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-raised'
+            }
+          >
+            {tab.label}
+            <span className={isActive ? 'text-btn-ink/70' : 'text-ink-3'}>{counts[tab.key]}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 function VerificationBadge({ org }: Readonly<{ org: SuperAdminOrganization }>) {
   const meta = VERIFICATION_META[verificationState(org)];
@@ -39,7 +92,56 @@ function EmptyState({ message }: Readonly<{ message: string }>) {
   );
 }
 
-export default async function OrganizationsPage() {
+function OrganizationsTable({ rows }: Readonly<{ rows: SuperAdminOrganization[] }>) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <table className="w-full border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-line bg-raised text-left text-xs font-medium uppercase tracking-wide text-ink-2">
+            <th className="px-5 py-3">Name</th>
+            <th className="px-5 py-3">Type</th>
+            <th className="px-5 py-3">Status</th>
+            <th className="px-5 py-3 text-right">Members</th>
+            <th className="px-5 py-3">Created</th>
+            <th className="px-5 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((org) => (
+            <tr key={org.id} className="border-b border-line last:border-b-0 hover:bg-raised/60">
+              <td className="px-5 py-3 font-medium">
+                <Link href={`/organizations/${org.id}`} className="text-ink hover:underline">
+                  {org.name}
+                </Link>
+              </td>
+              <td className="px-5 py-3 capitalize text-ink-2">{org.type.toLowerCase()}</td>
+              <td className="px-5 py-3">
+                <VerificationBadge org={org} />
+              </td>
+              <td className="px-5 py-3 text-right text-ink-2">{org.memberCount}</td>
+              <td className="px-5 py-3 text-ink-2">{formatDate(org.createdAt)}</td>
+              <td className="px-5 py-3">
+                <OrganizationRowActions
+                  organizationId={org.id}
+                  name={org.name}
+                  state={verificationState(org)}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+export default async function OrganizationsPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<SearchParams> }>) {
+  const { status, search } = await searchParams;
+  const activeFilter = parseOrgFilter(status);
+  const searchTerm = (search ?? '').trim();
+
   let organizations: SuperAdminOrganization[] = [];
   let loadError = false;
   try {
@@ -48,11 +150,9 @@ export default async function OrganizationsPage() {
     loadError = true;
   }
 
-  const pendingCount = organizations.filter((org) => verificationState(org) === 'pending').length;
-  const showEmptyState = loadError || organizations.length === 0;
-  const emptyStateMessage = loadError
-    ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
-    : 'No organizations yet.';
+  const counts = organizationCounts(organizations);
+  const filtered = filterOrganizations(organizations, { state: activeFilter, search: searchTerm });
+  const allEmpty = loadError || organizations.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -63,56 +163,49 @@ export default async function OrganizationsPage() {
         </p>
       </header>
 
-      {!showEmptyState && pendingCount > 0 ? (
+      {!allEmpty && counts.pending > 0 ? (
         <div className="flex items-center gap-2 rounded-xl border border-warning-600/30 bg-warning-100 px-4 py-3 text-sm text-warning-800">
           <span className="font-medium">
-            {pendingCount} {pendingCount === 1 ? 'business is' : 'businesses are'} awaiting
+            {counts.pending} {counts.pending === 1 ? 'business is' : 'businesses are'} awaiting
             verification
           </span>
           <span className="text-warning-800/80">— verify to make them visible to pet parents.</span>
         </div>
       ) : null}
 
-      {showEmptyState ? (
-        <EmptyState message={emptyStateMessage} />
+      {allEmpty ? (
+        <EmptyState
+          message={
+            loadError
+              ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
+              : 'No organizations yet.'
+          }
+        />
       ) : (
-        <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-line bg-raised text-left text-xs font-medium uppercase tracking-wide text-ink-2">
-                <th className="px-5 py-3">Name</th>
-                <th className="px-5 py-3">Type</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Members</th>
-                <th className="px-5 py-3">Created</th>
-                <th className="px-5 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {organizations.map((org) => (
-                <tr
-                  key={org.id}
-                  className="border-b border-line last:border-b-0 hover:bg-raised/60"
-                >
-                  <td className="px-5 py-3 font-medium text-ink">{org.name}</td>
-                  <td className="px-5 py-3 capitalize text-ink-2">{org.type.toLowerCase()}</td>
-                  <td className="px-5 py-3">
-                    <VerificationBadge org={org} />
-                  </td>
-                  <td className="px-5 py-3 text-right text-ink-2">{org.memberCount}</td>
-                  <td className="px-5 py-3 text-ink-2">{formatDate(org.createdAt)}</td>
-                  <td className="px-5 py-3">
-                    <OrganizationRowActions
-                      organizationId={org.id}
-                      name={org.name}
-                      state={verificationState(org)}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <FilterTabs active={activeFilter} search={searchTerm} counts={counts} />
+            <form action="/organizations" method="get" className="flex items-center gap-2">
+              {activeFilter !== 'all' ? (
+                <input type="hidden" name="status" value={activeFilter} />
+              ) : null}
+              <input
+                type="search"
+                name="search"
+                defaultValue={searchTerm}
+                placeholder="Search by name"
+                aria-label="Search organizations by name"
+                className="h-10 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none transition-colors focus:border-primary-500 sm:w-64"
+              />
+            </form>
+          </div>
+
+          {filtered.length > 0 ? (
+            <OrganizationsTable rows={filtered} />
+          ) : (
+            <EmptyState message="No organizations match these filters." />
+          )}
+        </div>
       )}
     </div>
   );

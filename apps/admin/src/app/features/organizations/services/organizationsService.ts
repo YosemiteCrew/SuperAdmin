@@ -1,9 +1,11 @@
 import { httpClient } from '@/app/services/http/client';
 
 import type {
+  GetOrganizationResponse,
   ListOrganizationsResponse,
   OrganizationStatusPatch,
   SuperAdminOrganization,
+  SuperAdminOrganizationDetail,
 } from '../types';
 
 /**
@@ -16,6 +18,18 @@ export async function listOrganizations(signal?: AbortSignal): Promise<SuperAdmi
     signal,
   });
   return data.businesses ?? [];
+}
+
+/** Reads a single business by id from `GET /v1/super-admin/businesses/:id`. */
+export async function getOrganization(
+  id: string,
+  signal?: AbortSignal
+): Promise<SuperAdminOrganizationDetail> {
+  const { data } = await httpClient.get<GetOrganizationResponse>(
+    `/v1/super-admin/businesses/${encodeURIComponent(id)}`,
+    { signal }
+  );
+  return data.business;
 }
 
 /**

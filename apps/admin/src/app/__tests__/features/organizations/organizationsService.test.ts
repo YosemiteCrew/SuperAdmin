@@ -8,6 +8,7 @@ jest.mock('@/app/services/http/client', () => ({
 }));
 
 import {
+  getOrganization,
   listOrganizations,
   updateOrganization,
 } from '@/app/features/organizations/services/organizationsService';
@@ -44,6 +45,32 @@ describe('listOrganizations', () => {
   it('propagates transport errors to the caller', async () => {
     getMock.mockRejectedValue(new Error('HTTP 404'));
     await expect(listOrganizations()).rejects.toThrow('HTTP 404');
+  });
+});
+
+describe('getOrganization', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  it('requests the per-business endpoint (url-encoded) and returns the business', async () => {
+    const business = {
+      id: 'o1',
+      name: 'Acme Vet',
+      type: 'HOSPITAL',
+      isVerified: true,
+      isActive: true,
+    };
+    getMock.mockResolvedValue({ data: { business }, status: 200 });
+    const signal = new AbortController().signal;
+    const result = await getOrganization('a/b', signal);
+    expect(getMock).toHaveBeenCalledWith('/v1/super-admin/businesses/a%2Fb', { signal });
+    expect(result).toEqual(business);
+  });
+
+  it('propagates transport errors', async () => {
+    getMock.mockRejectedValue(new Error('HTTP 404'));
+    await expect(getOrganization('o1')).rejects.toThrow('HTTP 404');
   });
 });
 

@@ -17,6 +17,7 @@ async function patchOrganization(
 
   await updateOrganization(id, patch);
   revalidatePath('/organizations');
+  revalidatePath(`/organizations/${id}`);
 }
 
 /** Verify a business — makes it visible to pet parents in the mobile app. */

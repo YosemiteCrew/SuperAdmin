@@ -23,6 +23,35 @@ export interface ListOrganizationsResponse {
   businesses: SuperAdminOrganization[];
 }
 
+export type BusinessSubType = 'COMPANION' | 'ANIMAL' | 'PATIENT';
+
+export interface OrganizationAddress {
+  addressLine?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+/** Full business record for the organization detail page. */
+export interface SuperAdminOrganizationDetail extends SuperAdminOrganization {
+  subType?: BusinessSubType;
+  DUNSNumber?: string;
+  imageURL?: string;
+  address?: OrganizationAddress;
+  healthAndSafetyCertNo?: string;
+  animalWelfareComplianceCertNo?: string;
+  fireAndEmergencyCertNo?: string;
+  googlePlacesId?: string;
+  averageRating?: number;
+  ratingCount?: number;
+  updatedAt?: string;
+}
+
+export interface GetOrganizationResponse {
+  business: SuperAdminOrganizationDetail;
+}
+
 /** Patch shape accepted by the super-admin business update endpoint. */
 export interface OrganizationStatusPatch {
   isVerified?: boolean;
