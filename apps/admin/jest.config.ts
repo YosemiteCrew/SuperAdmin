@@ -19,6 +19,10 @@ const config: Config = {
     '!<rootDir>/src/app/constants/**',
     // Type-only files have no runtime code
     '!<rootDir>/src/app/services/http/types.ts',
+    '!<rootDir>/src/app/features/organizations/types.ts',
+    // SuperTokens provider is framework bootstrapping (module-level init side
+    // effect) — not meaningfully unit-testable without asserting mocks.
+    '!<rootDir>/src/app/components/supertokensProvider.tsx',
     // Trivial barrel re-exports
     '!<rootDir>/src/app/features/**/index.ts',
     '!<rootDir>/src/app/ui/components/index.ts',

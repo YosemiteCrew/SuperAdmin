@@ -63,4 +63,28 @@ describe('UserRowActions', () => {
     // Menu stays open since the form submit was prevented
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
+
+  it('proceeds with delete and closes the menu when the confirm is accepted', async () => {
+    globalThis.confirm = jest.fn(() => true);
+    const user = userEvent.setup();
+    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
+    const deleteBtn = screen.getByRole('menuitem', { name: /Delete/i });
+    act(() => {
+      fireEvent.submit(deleteBtn.closest('form') as HTMLFormElement);
+    });
+    expect(globalThis.confirm).toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('closes the menu when a pointer event occurs outside the component', async () => {
+    const user = userEvent.setup();
+    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    act(() => {
+      fireEvent.pointerDown(document.body);
+    });
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
 });
