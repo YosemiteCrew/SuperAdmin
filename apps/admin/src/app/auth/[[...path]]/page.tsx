@@ -546,7 +546,7 @@ function AuthContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const normalizedPath = (pathname ?? '/auth').replace(/\/{1,64}$/, '') || '/auth';
+  const normalizedPath = (pathname ?? '/auth').replace(/\/+$/, '') || '/auth';
 
   if (normalizedPath.startsWith('/auth/mfa')) {
     if (canHandleRoute(MFA_PREBUILT_UI)) {

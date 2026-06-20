@@ -205,9 +205,9 @@ export default async function OrganizationsPage({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <FilterTabs active={activeFilter} search={searchTerm} counts={counts} demo={demo} />
             <form action="/organizations" method="get" className="flex items-center gap-2">
-              {activeFilter !== 'all' ? (
+              {activeFilter === 'all' ? null : (
                 <input type="hidden" name="status" value={activeFilter} />
-              ) : null}
+              )}
               {demo ? <input type="hidden" name="demo" value="1" /> : null}
               <input
                 type="search"

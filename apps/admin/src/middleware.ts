@@ -14,6 +14,10 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('sAccessToken')?.value;
   const isAuthenticated = !!token && isTokenValid(token);
 
+  // `/api/*` is exempt from the HTML redirect on purpose: API routes authenticate
+  // themselves (e.g. /api/profile uses withSession and returns a 401) or are
+  // intentionally public (/api/auth, /api/signout, /api/health). Redirecting a
+  // fetch/XHR to the /auth page would be the wrong response for an API client.
   const isPublicPath = pathname.startsWith('/auth') || pathname.startsWith('/api/');
 
   if (!isAuthenticated && !isPublicPath) {
