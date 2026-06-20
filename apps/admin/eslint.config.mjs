@@ -19,6 +19,10 @@ const config = [
       'sonarjs/no-identical-functions': 'warn',
       'sonarjs/no-collapsible-if': 'warn',
       'sonarjs/prefer-immediate-return': 'warn',
+      // Security-hotspot rules mirrored from SonarCloud so they surface locally
+      // (pre-push) instead of only after a server-side scan.
+      'sonarjs/pseudo-random': 'error',
+      'sonarjs/slow-regex': 'error',
     },
   },
   {
