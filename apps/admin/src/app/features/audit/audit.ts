@@ -25,9 +25,14 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));
 
 function generateId(): string {
-  const uuid = globalThis.crypto?.randomUUID;
-  if (uuid) return uuid.call(globalThis.crypto);
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  const cryptoApi = globalThis.crypto;
+  if (cryptoApi?.randomUUID) return cryptoApi.randomUUID();
+  // CSPRNG fallback (no Math.random) — the id is only a render/dedup key, but
+  // using getRandomValues keeps it collision-resistant and avoids weak-PRNG use.
+  const bytes = new Uint8Array(8);
+  cryptoApi.getRandomValues(bytes);
+  const rand = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+  return `${Date.now().toString(36)}-${rand}`;
 }
 
 /** Builds a complete event from caller input, filling id + timestamp. */

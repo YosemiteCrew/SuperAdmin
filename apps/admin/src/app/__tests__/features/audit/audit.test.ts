@@ -67,9 +67,17 @@ describe('buildAuditEvent', () => {
     expect(event.at).toBeGreaterThanOrEqual(before);
   });
 
-  it('falls back to a non-crypto id when randomUUID is unavailable', () => {
+  it('falls back to a getRandomValues id when randomUUID is unavailable', () => {
     const original = globalThis.crypto;
-    Object.defineProperty(globalThis, 'crypto', { value: {}, configurable: true });
+    Object.defineProperty(globalThis, 'crypto', {
+      value: {
+        getRandomValues: (arr: Uint8Array) => {
+          for (let i = 0; i < arr.length; i += 1) arr[i] = i + 1;
+          return arr;
+        },
+      },
+      configurable: true,
+    });
     try {
       const event = buildAuditEvent({
         action: 'user.delete',
@@ -78,7 +86,7 @@ describe('buildAuditEvent', () => {
         targetType: 'user',
         targetId: 'u',
       });
-      expect(event.id).toMatch(/-/);
+      expect(event.id).toMatch(/^[a-z0-9]+-[0-9a-f]{16}$/);
     } finally {
       Object.defineProperty(globalThis, 'crypto', { value: original, configurable: true });
     }
