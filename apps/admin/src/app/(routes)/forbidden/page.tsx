@@ -12,7 +12,7 @@ export default function ForbiddenPage() {
     } catch {
       /* proceed to /auth regardless */
     }
-    window.location.href = '/auth';
+    globalThis.location.href = '/auth';
   }
 
   return (

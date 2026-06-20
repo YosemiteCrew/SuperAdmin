@@ -29,7 +29,7 @@ export function UserRowActions({ userId, email }: Readonly<{ userId: string; ema
     };
   }, [open]);
 
-  function handleDeleteSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleDeleteSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     const confirmed = globalThis.confirm(
       `Delete ${email}?\n\nThis removes the account from SuperTokens core, revokes all sessions, and cannot be undone.`
     );

@@ -53,7 +53,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
 const COLLAPSE_STORAGE_KEY = 'yc-admin-sidebar-collapsed';
 
 function isCollapsedByDefault(): boolean {
-  if (typeof globalThis.window === 'undefined') return false;
+  if (globalThis.window === undefined) return false;
   try {
     return globalThis.localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1';
   } catch {
@@ -62,7 +62,7 @@ function isCollapsedByDefault(): boolean {
 }
 
 function setCollapsedPreference(value: boolean): void {
-  if (typeof globalThis.window === 'undefined') return;
+  if (globalThis.window === undefined) return;
   try {
     globalThis.localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? '1' : '0');
   } catch {
