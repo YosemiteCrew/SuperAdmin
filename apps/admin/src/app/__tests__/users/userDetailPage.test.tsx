@@ -62,6 +62,18 @@ jest.mock('@/app/(routes)/(dashboard)/users/[id]/RoleButton', () => ({
 jest.mock('@/app/(routes)/(dashboard)/users/DeleteUserButton', () => ({
   DeleteUserButton: () => <div data-testid="delete-user" />,
 }));
+jest.mock('@/app/(routes)/(dashboard)/users/[id]/DisableUserButton', () => ({
+  DisableUserButton: () => <div data-testid="disable-user" />,
+}));
+jest.mock('@/app/(routes)/(dashboard)/users/[id]/VerifyEmailButton', () => ({
+  VerifyEmailButton: () => <div data-testid="verify-email" />,
+}));
+jest.mock('@/app/features/audit/AuditTimeline', () => ({
+  AuditTimeline: () => <div data-testid="audit-timeline" />,
+}));
+jest.mock('@/app/features/audit/store', () => ({
+  getAuditEventsForTarget: jest.fn(async () => []),
+}));
 
 type AnyUser = Record<string, unknown>;
 function makeUser(over: AnyUser = {}): AnyUser {

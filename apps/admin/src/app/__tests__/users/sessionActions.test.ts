@@ -27,6 +27,9 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
   },
 }));
 
+jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
+jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: jest.fn() }));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),

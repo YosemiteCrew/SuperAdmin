@@ -19,9 +19,16 @@ describe('Sidebar', () => {
     globalThis.localStorage.clear();
   });
 
-  it('renders all five nav items', () => {
+  it('renders every nav item', () => {
     render(<Sidebar />);
-    for (const label of ['Dashboard', 'Users', 'Organizations', 'Analytics', 'Settings']) {
+    for (const label of [
+      'Dashboard',
+      'Users',
+      'Organizations',
+      'Analytics',
+      'Audit log',
+      'Settings',
+    ]) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
     }
   });

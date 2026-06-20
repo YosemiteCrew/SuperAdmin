@@ -8,6 +8,7 @@ import type { IconType } from 'react-icons';
 import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-icons/io5';
 import {
   MdDashboard,
+  MdHistory,
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
@@ -42,7 +43,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
   },
   {
     label: 'Insights',
-    routes: [{ name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline }],
+    routes: [
+      { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
+      { name: 'Audit log', href: '/audit', icon: MdHistory },
+    ],
   },
   {
     label: 'Account',

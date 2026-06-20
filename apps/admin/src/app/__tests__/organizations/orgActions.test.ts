@@ -5,6 +5,11 @@ jest.mock('@/app/features/organizations/services/organizationsService', () => ({
   updateOrganization: (...args: unknown[]) => updateOrganizationMock(...args),
 }));
 
+const recordAuditEventMock = jest.fn();
+jest.mock('@/app/features/audit/store', () => ({
+  recordAuditEvent: (...args: unknown[]) => recordAuditEventMock(...args),
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   requireSuperAdmin: (...args: unknown[]) => requireSuperAdminMock(...args),
@@ -25,14 +30,20 @@ beforeEach(() => {
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   updateOrganizationMock.mockReset();
   updateOrganizationMock.mockResolvedValue(undefined);
+  recordAuditEventMock.mockReset();
 });
 
 describe('verifyOrganizationAction', () => {
   it('verifies the business and revalidates', async () => {
     const { verifyOrganizationAction } = await import(ACTIONS);
     const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
-    await verifyOrganizationAction(makeForm({ organizationId: 'o1' }));
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o1', organizationName: 'Acme Vet' })
+    );
     expect(updateOrganizationMock).toHaveBeenCalledWith('o1', { isVerified: true });
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'org.verify', targetId: 'o1', targetLabel: 'Acme Vet' })
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/organizations');
   });
 

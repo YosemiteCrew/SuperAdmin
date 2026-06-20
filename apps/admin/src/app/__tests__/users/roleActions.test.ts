@@ -25,6 +25,9 @@ jest.mock('supertokens-node/recipe/totp', () => ({
   default: { listDevices: jest.fn(), removeDevice: jest.fn() },
 }));
 
+jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
+jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: jest.fn() }));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),

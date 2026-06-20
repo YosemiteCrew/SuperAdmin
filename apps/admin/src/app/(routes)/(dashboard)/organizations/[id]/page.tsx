@@ -83,12 +83,15 @@ function UnavailableCard() {
 export default async function OrganizationDetailPage({
   params,
   searchParams,
-}: Readonly<{ params: Promise<{ id: string }>; searchParams: Promise<{ demo?: string }> }>) {
+}: Readonly<{
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ demo?: string; checks?: string }>;
+}>) {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   const { id } = await params;
-  const { demo } = await searchParams;
+  const { demo, checks } = await searchParams;
 
   let org: SuperAdminOrganizationDetail | null = null;
   if (demo === '1') {
@@ -114,7 +117,11 @@ export default async function OrganizationDetailPage({
 
   const state = verificationState(org);
   const meta = VERIFICATION_META[state];
-  const corroboration = await corroborateBusiness(org);
+  // Corroboration performs a live outbound fetch, so run it only on demand.
+  const corroboration = checks === '1' ? await corroborateBusiness(org) : null;
+  const checksHref = `/organizations/${encodeURIComponent(org.id)}?checks=1${
+    demo === '1' ? '&demo=1' : ''
+  }`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -137,12 +144,21 @@ export default async function OrganizationDetailPage({
           <p className="font-mono text-xs text-ink-3">{org.id}</p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
-          <CorroborationFlag level={corroboration.level} />
+          {corroboration ? (
+            <CorroborationFlag level={corroboration.level} />
+          ) : (
+            <Link
+              href={checksHref}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 transition-colors hover:bg-raised"
+            >
+              Run pre-verification checks
+            </Link>
+          )}
           <OrganizationRowActions organizationId={org.id} name={org.name} state={state} />
         </div>
       </header>
 
-      <CorroborationPanel result={corroboration} />
+      {corroboration ? <CorroborationPanel result={corroboration} /> : null}
 
       <section className={CARD}>
         <h2 className={CARD_HEAD}>Identity</h2>

@@ -5,7 +5,7 @@ import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
 
-import { UserRowActions } from './UserRowActions';
+import { UsersTable, type UserRow } from './UsersTable';
 
 export const metadata: Metadata = {
   title: 'Users',
@@ -56,24 +56,31 @@ export default async function UsersPage({
     query: trimmedSearch ? { email: trimmedSearch } : undefined,
   });
 
-  const userRows = await Promise.all(
+  const userRows: UserRow[] = await Promise.all(
     users.map(async (user) => {
       let lastSignInAt: number | null = null;
+      let disabled = false;
       try {
         const { metadata } = await UserMetadataNode.getUserMetadata(user.id);
         if (typeof metadata.lastSignInAt === 'number') {
           lastSignInAt = metadata.lastSignInAt;
         }
+        disabled = typeof metadata.disabledAt === 'number';
       } catch {
         /* metadata read should never block list rendering */
       }
       return {
         id: user.id,
-        emails: user.emails,
-        loginMethods: user.loginMethods,
-        tenantIds: user.tenantIds,
-        timeJoined: user.timeJoined,
-        lastSignInAt,
+        primaryEmail: user.emails[0] ?? '—',
+        extraEmailCount: Math.max(user.emails.length - 1, 0),
+        methods: Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).join(', '),
+        tenants: user.tenantIds.join(', ') || DEFAULT_TENANT,
+        shortId: truncate(user.id),
+        lastSeen: formatDateTime(lastSignInAt ?? user.timeJoined),
+        lastSeenTitle: lastSignInAt
+          ? 'Last sign-in'
+          : 'Has not signed in since lastSignInAt tracking was enabled — falling back to account creation time',
+        disabled,
       };
     })
   );
@@ -112,72 +119,13 @@ export default async function UsersPage({
         ) : null}
       </form>
 
-      <div className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        {users.length === 0 ? (
-          <div className="p-10 text-center text-sm text-ink-3">
-            {trimmedSearch ? `No users matched “${trimmedSearch}”.` : 'No users yet.'}
-          </div>
-        ) : (
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr className="border-b border-line bg-raised text-left text-xs font-medium uppercase tracking-wide text-ink-2">
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Login method</th>
-                <th className="px-4 py-3">Tenants</th>
-                <th className="px-4 py-3">User ID</th>
-                <th className="px-4 py-3">Last seen</th>
-                <th className="px-4 py-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {userRows.map((user) => {
-                const primaryEmail = user.emails[0] ?? '—';
-                const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).join(
-                  ', '
-                );
-                const tenants = user.tenantIds.join(', ') || DEFAULT_TENANT;
-                const lastSeenMs = user.lastSignInAt ?? user.timeJoined;
-                return (
-                  <tr
-                    key={user.id}
-                    className="border-b border-line last:border-b-0 hover:bg-raised/60"
-                  >
-                    <td className="px-4 py-3">
-                      <Link
-                        href={`/users/${user.id}`}
-                        className="font-medium text-ink hover:underline"
-                      >
-                        {primaryEmail}
-                      </Link>
-                      {user.emails.length > 1 ? (
-                        <span className="ml-1 text-xs text-ink-3">(+{user.emails.length - 1})</span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-ink-2">{methods}</td>
-                    <td className="px-4 py-3 text-ink-2">{tenants}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink-3" title={user.id}>
-                      {truncate(user.id)}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-ink-2"
-                      title={
-                        user.lastSignInAt
-                          ? 'Last sign-in'
-                          : 'Has not signed in since lastSignInAt tracking was enabled — falling back to account creation time'
-                      }
-                    >
-                      {formatDateTime(lastSeenMs)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <UserRowActions userId={user.id} email={primaryEmail} />
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {users.length === 0 ? (
+        <div className="rounded-2xl border border-line bg-surface p-10 text-center text-sm text-ink-3 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+          {trimmedSearch ? `No users matched “${trimmedSearch}”.` : 'No users yet.'}
+        </div>
+      ) : (
+        <UsersTable rows={userRows} />
+      )}
 
       <nav className="flex items-center justify-between text-sm text-ink-2" aria-label="Pagination">
         <span>

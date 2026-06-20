@@ -9,9 +9,18 @@ jest.mock('next/navigation', () => ({
 }));
 
 const deleteUserMock = jest.fn();
+const getUserMock = jest.fn();
 jest.mock('supertokens-node', () => ({
   __esModule: true,
-  default: { deleteUser: (...args: unknown[]) => deleteUserMock(...args) },
+  default: {
+    deleteUser: (...args: unknown[]) => deleteUserMock(...args),
+    getUser: (...args: unknown[]) => getUserMock(...args),
+  },
+}));
+
+const recordAuditEventMock = jest.fn();
+jest.mock('@/app/features/audit/store', () => ({
+  recordAuditEvent: (...args: unknown[]) => recordAuditEventMock(...args),
 }));
 
 const requireSuperAdminMock = jest.fn();
@@ -31,6 +40,9 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
 describe('deleteUserAction', () => {
   beforeEach(() => {
     deleteUserMock.mockReset();
+    getUserMock.mockReset();
+    getUserMock.mockResolvedValue({ emails: ['victim@x.com'] });
+    recordAuditEventMock.mockReset();
     requireSuperAdminMock.mockReset();
     requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   });
@@ -59,6 +71,13 @@ describe('deleteUserAction', () => {
     deleteUserMock.mockResolvedValueOnce(undefined);
     await expect(deleteUserAction(makeForm({ userId: 'user-1' }))).rejects.toThrow('NEXT_REDIRECT');
     expect(deleteUserMock).toHaveBeenCalledWith('user-1');
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'user.delete',
+        targetId: 'user-1',
+        targetLabel: 'victim@x.com',
+      })
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/users');
     expect(redirect).toHaveBeenCalledWith('/users');
   });

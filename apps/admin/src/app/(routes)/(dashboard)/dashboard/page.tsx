@@ -3,6 +3,8 @@ import Link from 'next/link';
 import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
+import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
+import { getRecentAuditEvents } from '@/app/features/audit/store';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -45,12 +47,13 @@ function Stat({ label, value, hint }: Readonly<{ label: string; value: string; h
 export default async function DashboardPage() {
   ensureSuperTokensInit();
 
-  const [totalUsers, newest] = await Promise.all([
+  const [totalUsers, newest, auditEvents] = await Promise.all([
     supertokens.getUserCount(),
     supertokens.getUsersNewestFirst({
       tenantId: 'public',
       limit: ROLLING_FETCH_CAP,
     }),
+    getRecentAuditEvents(8),
   ]);
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
@@ -137,6 +140,19 @@ export default async function DashboardPage() {
             </tbody>
           </table>
         )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <div className="flex items-center justify-between border-b border-line bg-raised px-5 py-3">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">
+            Recent admin activity
+          </h2>
+        </div>
+        <AuditTimeline
+          events={auditEvents}
+          showTarget
+          emptyMessage="No super-admin actions recorded yet."
+        />
       </section>
     </div>
   );

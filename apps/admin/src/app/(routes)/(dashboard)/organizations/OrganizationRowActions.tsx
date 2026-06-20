@@ -47,6 +47,7 @@ export function OrganizationRowActions({
           className="inline"
         >
           <input type="hidden" name="organizationId" value={organizationId} />
+          <input type="hidden" name="organizationName" value={name} />
           <button type="submit" disabled={pending} className={BTN.primary}>
             Verify
           </button>
@@ -60,6 +61,7 @@ export function OrganizationRowActions({
           className="inline"
         >
           <input type="hidden" name="organizationId" value={organizationId} />
+          <input type="hidden" name="organizationName" value={name} />
           <button type="submit" disabled={pending} className={BTN.plain}>
             Reactivate
           </button>
@@ -73,6 +75,7 @@ export function OrganizationRowActions({
           className="inline"
         >
           <input type="hidden" name="organizationId" value={organizationId} />
+          <input type="hidden" name="organizationName" value={name} />
           <button type="submit" disabled={pending} className={BTN.danger}>
             Suspend
           </button>

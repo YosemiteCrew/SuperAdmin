@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import SuperTokens from 'supertokens-node';
 import EmailPasswordNode from 'supertokens-node/recipe/emailpassword';
+import EmailVerificationNode from 'supertokens-node/recipe/emailverification';
 import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
@@ -25,6 +26,17 @@ async function touchLastSignIn(userId: string): Promise<void> {
   }
 }
 
+/** A disabled account carries a numeric `disabledAt` timestamp in its metadata. */
+async function isUserDisabled(userId: string): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.disabledAt === 'number';
+  } catch {
+    /* fail open: a metadata blip shouldn't lock everyone out */
+    return false;
+  }
+}
+
 export const backendConfig = (): TypeInput => {
   return {
     framework: 'custom',
@@ -36,6 +48,19 @@ export const backendConfig = (): TypeInput => {
     recipeList: [
       EmailPasswordNode.init({
         override: {
+          functions: (originalImplementation) => ({
+            ...originalImplementation,
+            // Block sign-in for disabled accounts. Returning before a session is
+            // created (and only after the password check passes) avoids both a
+            // lingering session and account enumeration.
+            signIn: async (input) => {
+              const response = await originalImplementation.signIn(input);
+              if (response.status === 'OK' && (await isUserDisabled(response.user.id))) {
+                return { status: 'WRONG_CREDENTIALS_ERROR' };
+              }
+              return response;
+            },
+          }),
           apis: (originalImplementation) => ({
             ...originalImplementation,
             signInPOST: async (input) => {
@@ -61,6 +86,9 @@ export const backendConfig = (): TypeInput => {
           }),
         },
       }),
+      // OPTIONAL mode: surfaces verification status for admin management without
+      // gating sign-in (existing users aren't forced to verify retroactively).
+      EmailVerificationNode.init({ mode: 'OPTIONAL' }),
       SessionNode.init(),
       UserMetadataNode.init(),
       UserRolesNode.init(),
