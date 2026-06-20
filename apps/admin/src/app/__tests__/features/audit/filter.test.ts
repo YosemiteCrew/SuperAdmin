@@ -1,4 +1,10 @@
-import { filterAuditEvents, parseAuditActionFilter } from '@/app/features/audit/filter';
+import {
+  filterAuditEvents,
+  paginate,
+  parseAuditActionFilter,
+  parseAuditDate,
+  parsePage,
+} from '@/app/features/audit/filter';
 import type { AuditEvent } from '@/app/features/audit/types';
 
 function event(over: Partial<AuditEvent> = {}): AuditEvent {
@@ -73,5 +79,68 @@ describe('filterAuditEvents', () => {
 
   it('ignores surrounding whitespace in the search term', () => {
     expect(filterAuditEvents(EVENTS, { search: '  bob  ' }).map((e) => e.id)).toEqual(['a']);
+  });
+
+  it('filters by a date range (inclusive bounds)', () => {
+    const dated = [
+      event({ id: 'd1', at: 1000 }),
+      event({ id: 'd2', at: 2000 }),
+      event({ id: 'd3', at: 3000 }),
+    ];
+    expect(filterAuditEvents(dated, { from: 2000 }).map((e) => e.id)).toEqual(['d2', 'd3']);
+    expect(filterAuditEvents(dated, { to: 2000 }).map((e) => e.id)).toEqual(['d1', 'd2']);
+    expect(filterAuditEvents(dated, { from: 2000, to: 2000 }).map((e) => e.id)).toEqual(['d2']);
+  });
+});
+
+describe('parseAuditDate', () => {
+  it('returns undefined for empty or invalid input', () => {
+    expect(parseAuditDate(undefined, 'start')).toBeUndefined();
+    expect(parseAuditDate('', 'start')).toBeUndefined();
+    expect(parseAuditDate('not-a-date', 'start')).toBeUndefined();
+  });
+
+  it('parses the start of the day', () => {
+    expect(parseAuditDate('2026-01-02', 'start')).toBe(Date.parse('2026-01-02'));
+  });
+
+  it('extends the end boundary to the last millisecond of the day', () => {
+    const start = Date.parse('2026-01-02');
+    expect(parseAuditDate('2026-01-02', 'end')).toBe(start + 24 * 60 * 60 * 1000 - 1);
+  });
+});
+
+describe('parsePage', () => {
+  it('defaults to 1 for missing or invalid values', () => {
+    expect(parsePage(undefined)).toBe(1);
+    expect(parsePage('0')).toBe(1);
+    expect(parsePage('-3')).toBe(1);
+    expect(parsePage('abc')).toBe(1);
+    expect(parsePage('2.5')).toBe(1);
+  });
+
+  it('returns the parsed page for valid positive integers', () => {
+    expect(parsePage('4')).toBe(4);
+  });
+});
+
+describe('paginate', () => {
+  const items = Array.from({ length: 12 }, (_, i) => i + 1);
+
+  it('returns the requested slice with metadata', () => {
+    const result = paginate(items, 2, 5);
+    expect(result).toEqual({ items: [6, 7, 8, 9, 10], page: 2, totalPages: 3, total: 12 });
+  });
+
+  it('clamps the page above the range to the last page', () => {
+    expect(paginate(items, 99, 5).page).toBe(3);
+  });
+
+  it('clamps the page below 1 to the first page', () => {
+    expect(paginate(items, -2, 5).page).toBe(1);
+  });
+
+  it('reports a single page for an empty list', () => {
+    expect(paginate([], 1, 5)).toEqual({ items: [], page: 1, totalPages: 1, total: 0 });
   });
 });
