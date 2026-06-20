@@ -542,11 +542,19 @@ function SignUpForm() {
 
 const MFA_PREBUILT_UI = [MultiFactorAuthPreBuiltUI, TOTPPreBuiltUI];
 
+// Strips trailing slashes with a single linear scan — no regex, so there is no
+// backtracking/ReDoS surface and no arbitrary length cap.
+function stripTrailingSlashes(path: string): string {
+  let end = path.length;
+  while (end > 0 && path[end - 1] === '/') end -= 1;
+  return path.slice(0, end);
+}
+
 function AuthContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const normalizedPath = (pathname ?? '/auth').replace(/\/+$/, '') || '/auth';
+  const normalizedPath = stripTrailingSlashes(pathname ?? '/auth') || '/auth';
 
   if (normalizedPath.startsWith('/auth/mfa')) {
     if (canHandleRoute(MFA_PREBUILT_UI)) {
