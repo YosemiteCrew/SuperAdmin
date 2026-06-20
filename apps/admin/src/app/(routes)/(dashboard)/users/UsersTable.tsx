@@ -8,6 +8,7 @@ import {
   bulkDisableUsersAction,
   bulkEnableUsersAction,
 } from './bulkActions';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { UserRowActions } from './UserRowActions';
 
 export type UserRow = {
@@ -27,6 +28,7 @@ const BULK_BTN =
 
 export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [pending, startTransition] = useTransition();
 
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
@@ -52,6 +54,16 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
     startTransition(async () => {
       await action(ids);
       setSelected(new Set());
+    });
+  }
+
+  function confirmBulkDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    startTransition(async () => {
+      await bulkDeleteUsersAction(ids);
+      setSelected(new Set());
+      setDeleteOpen(false);
     });
   }
 
@@ -90,12 +102,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
             <button
               type="button"
               disabled={pending}
-              onClick={() =>
-                run(
-                  bulkDeleteUsersAction,
-                  `Delete ${count} ${noun}? This permanently removes the accounts and cannot be undone.`
-                )
-              }
+              onClick={() => setDeleteOpen(true)}
               className={`${BULK_BTN} border-danger-600 text-danger-600 hover:bg-danger-600 hover:text-white`}
             >
               Delete
@@ -164,6 +171,14 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
           </tbody>
         </table>
       </div>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        count={count}
+        pending={pending}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={confirmBulkDelete}
+      />
     </div>
   );
 }

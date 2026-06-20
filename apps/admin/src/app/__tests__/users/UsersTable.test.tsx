@@ -15,6 +15,31 @@ jest.mock('@/app/(routes)/(dashboard)/users/UserRowActions', () => ({
   UserRowActions: () => <div data-testid="row-actions" />,
 }));
 
+jest.mock('@/app/(routes)/(dashboard)/users/ConfirmDeleteDialog', () => ({
+  ConfirmDeleteDialog: ({
+    open,
+    count,
+    onConfirm,
+    onCancel,
+  }: {
+    open: boolean;
+    count: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }) =>
+    open ? (
+      <div data-testid="confirm-delete">
+        <span>count {count}</span>
+        <button type="button" onClick={onConfirm}>
+          confirm delete
+        </button>
+        <button type="button" onClick={onCancel}>
+          cancel delete
+        </button>
+      </div>
+    ) : null,
+}));
+
 function row(over: Partial<UserRow> = {}): UserRow {
   return {
     id: 'u-1',
@@ -97,12 +122,41 @@ describe('UsersTable', () => {
     expect(bulkEnableMock).toHaveBeenCalledWith(['u-3']);
   });
 
-  it('does not run the action when the confirm is dismissed', () => {
+  it('does not run a reversible action when its native confirm is dismissed', () => {
     globalThis.confirm = jest.fn(() => false);
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select a@x\.com/i }));
     const bar = screen.getByText('1 user selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    expect(bulkDisableMock).not.toHaveBeenCalled();
+  });
+
+  it('opens the typed-confirm dialog on bulk delete without deleting immediately', () => {
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
     fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    expect(screen.getByTestId('confirm-delete')).toBeInTheDocument();
+    expect(screen.getByText('count 2')).toBeInTheDocument();
+    expect(bulkDeleteMock).not.toHaveBeenCalled();
+  });
+
+  it('deletes the selected ids when the dialog is confirmed', () => {
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
+  });
+
+  it('closes the dialog without deleting when cancelled', () => {
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select a@x\.com/i }));
+    const bar = screen.getByText('1 user selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'cancel delete' }));
+    expect(screen.queryByTestId('confirm-delete')).not.toBeInTheDocument();
     expect(bulkDeleteMock).not.toHaveBeenCalled();
   });
 });
