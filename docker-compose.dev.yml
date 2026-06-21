@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    container_name: supertokens-db
+    environment:
+      POSTGRES_USER: supertokens_user
+      POSTGRES_PASSWORD: supertokens_pass
+      POSTGRES_DB: supertokens
+    volumes:
+      - supertokens_pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U supertokens_user -d supertokens']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  supertokens:
+    image: registry.supertokens.io/supertokens/supertokens-postgresql:latest
+    container_name: supertokens
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '3567:3567'
+    environment:
+      POSTGRESQL_HOST: db
+      POSTGRESQL_PORT: 5432
+      POSTGRESQL_USER: supertokens_user
+      POSTGRESQL_PASSWORD: supertokens_pass
+      POSTGRESQL_DATABASE_NAME: supertokens
+      API_KEYS: 'dev-local-supertokens-key-0001'
+    restart: unless-stopped
+
+volumes:
+  supertokens_pgdata:
