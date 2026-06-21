@@ -80,6 +80,7 @@ export async function revokeSessionAction(formData: FormData) {
   await SessionNode.revokeSession(sessionHandle);
   await auditUser('user.session_revoke', actorId, userId);
   revalidatePath(`/users/${userId}`);
+  revalidatePath('/settings'); // self-revoke from the Settings page
 }
 
 export async function revokeAllSessionsAction(formData: FormData) {

@@ -26,14 +26,15 @@ function timeUntil(ms: number): string {
 export function SessionsSection({
   sessions,
   userId,
-}: Readonly<{ sessions: SessionInformation[]; userId: string }>) {
+  showRevokeAll = true,
+}: Readonly<{ sessions: SessionInformation[]; userId: string; showRevokeAll?: boolean }>) {
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
       <div className="flex items-center justify-between border-b border-line bg-raised px-5 py-3">
         <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">
           Active sessions ({sessions.length})
         </h2>
-        {sessions.length > 0 ? (
+        {sessions.length > 0 && showRevokeAll ? (
           <form action={revokeAllSessionsAction}>
             <input type="hidden" name="userId" value={userId} />
             <button

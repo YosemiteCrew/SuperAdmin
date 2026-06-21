@@ -58,4 +58,11 @@ describe('SessionsSection', () => {
     // handle is truncated to 16 chars + ellipsis
     expect(screen.getByText('expired-handle-a…')).toBeInTheDocument();
   });
+
+  it('hides "Revoke all" when showRevokeAll is false (still allows per-session revoke)', () => {
+    const sessions = [makeSession('only-handle-eeeeeeeeee', NOW + 60 * 60 * 1000)];
+    render(<SessionsSection sessions={sessions} userId="u-1" showRevokeAll={false} />);
+    expect(screen.queryByRole('button', { name: /Revoke all/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Revoke$/i })).toBeInTheDocument();
+  });
 });
