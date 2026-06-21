@@ -1,5 +1,4 @@
 import { render, screen } from '@testing-library/react';
-import SignInPage from '@/app/(routes)/(auth)/sign-in/page';
 import AuthPage from '@/app/auth/[[...path]]/page';
 import AuthLayout from '@/app/auth/layout';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -10,12 +9,7 @@ jest.mock('supertokens-auth-react/recipe/emailpassword', () => ({
   submitNewPassword: jest.fn(),
 }));
 
-describe('SignInPage', () => {
-  it('renders sign in content', () => {
-    render(<SignInPage />);
-    expect(screen.getByText('Sign In')).toBeInTheDocument();
-  });
-
+describe('Auth sign-in page', () => {
   it('renders the Yosemite Crew auth sign-in UI on /auth', () => {
     (usePathname as jest.Mock).mockReturnValue('/auth');
     (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams());

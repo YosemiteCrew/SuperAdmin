@@ -1,32 +1,57 @@
 const isProd = process.env.NODE_ENV === 'production';
 
-const cspDirectives: string[] = [
-  "default-src 'self'",
-  // Scripts: self + inline (Next.js hydration). 'unsafe-eval' only in dev for HMR.
-  `script-src 'self' 'unsafe-inline'${isProd ? '' : " 'unsafe-eval'"}`,
-  // Styles: self + inline (Tailwind v4) + font CDNs we actually use
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
-  // Images: self + data URIs (inline SVG) + blob (next/image)
-  "img-src 'self' data: blob:",
-  // Fonts: self + Fontshare CDN (Satoshi) + Google Fonts
-  "font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com",
-  // Connect: same-origin only. SuperTokens core is reached server-side.
-  // Dev needs ws:// for HMR.
-  `connect-src 'self'${isProd ? '' : ' ws://localhost:* wss://localhost:*'}`,
-  // Frames: we don't embed any third-party iframes
-  "frame-src 'self'",
-  // Anti-clickjacking — modern equivalent of X-Frame-Options
-  "frame-ancestors 'self'",
-  // Base URI cannot be overridden by injection
-  "base-uri 'self'",
-  // Forms only POST to same origin
-  "form-action 'self'",
-  // No Flash, no Java applets
-  "object-src 'none'",
-];
+// 'unsafe-eval' is only needed by the dev bundler (HMR); never in production.
+const devOnlyEval = isProd ? '' : " 'unsafe-eval'";
 
-if (isProd) {
-  cspDirectives.push('upgrade-insecure-requests');
+/**
+ * Builds the shared CSP directive list for a given `script-src` value. Only the
+ * script source differs between the enforced (back-compat) policy and the strict
+ * nonce policy, so everything else lives here.
+ */
+function cspDirectives(scriptSrc: string): string[] {
+  const directives = [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    // Styles: self + inline (Tailwind v4) + font CDNs we actually use
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://api.fontshare.com",
+    // Images: self + data URIs (inline SVG) + blob (next/image)
+    "img-src 'self' data: blob:",
+    // Fonts: self + Fontshare CDN (Satoshi) + Google Fonts
+    "font-src 'self' https://fonts.gstatic.com https://cdn.fontshare.com",
+    // Connect: same-origin only. SuperTokens core is reached server-side.
+    // Dev needs ws:// for HMR.
+    `connect-src 'self'${isProd ? '' : ' ws://localhost:* wss://localhost:*'}`,
+    "frame-src 'self'",
+    // Anti-clickjacking — modern equivalent of X-Frame-Options
+    "frame-ancestors 'self'",
+    // Base URI cannot be overridden by injection
+    "base-uri 'self'",
+    // Forms only POST to same origin
+    "form-action 'self'",
+    // No Flash, no Java applets
+    "object-src 'none'",
+  ];
+  if (isProd) directives.push('upgrade-insecure-requests');
+  return directives;
+}
+
+/**
+ * Current ENFORCED policy. Retains 'unsafe-inline' for scripts during the nonce
+ * rollout so nothing breaks. Once the Report-Only strict policy (below) logs no
+ * violations in production, swap this to `buildStrictCsp` and drop this one.
+ */
+export function buildEnforcedCsp(): string {
+  return cspDirectives(`'self' 'unsafe-inline'${devOnlyEval}`).join('; ');
+}
+
+/**
+ * Target STRICT policy — no 'unsafe-inline'. Scripts must carry the per-request
+ * nonce; 'strict-dynamic' lets nonce'd scripts load their own dependencies.
+ * Shipped Report-Only first (see middleware) so violations are observed before
+ * enforcement.
+ */
+export function buildStrictCsp(nonce: string): string {
+  return cspDirectives(`'self' 'nonce-${nonce}' 'strict-dynamic'${devOnlyEval}`).join('; ');
 }
 
 const permissionsPolicy = [
@@ -42,6 +67,8 @@ const permissionsPolicy = [
   'interest-cohort=()',
 ].join(', ');
 
+// Static headers applied via next.config. The CSP is set per-request in
+// middleware instead (it needs a fresh nonce each request).
 export const securityHeaders: { key: string; value: string }[] = [
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
@@ -50,7 +77,6 @@ export const securityHeaders: { key: string; value: string }[] = [
   { key: 'Permissions-Policy', value: permissionsPolicy },
   { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
   { key: 'Cross-Origin-Resource-Policy', value: 'same-origin' },
-  { key: 'Content-Security-Policy', value: cspDirectives.join('; ') },
 ];
 
 if (isProd) {

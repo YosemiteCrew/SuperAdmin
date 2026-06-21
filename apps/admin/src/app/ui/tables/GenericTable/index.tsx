@@ -25,7 +25,7 @@ export function GenericTable<T>({ data, columns, keyExtractor }: Readonly<Generi
           <tr key={keyExtractor(row)}>
             {columns.map((col) => (
               <td key={String(col.key)}>
-                {col.render ? col.render(row[col.key], row) : String(row[col.key])}
+                {col.render ? col.render(row[col.key], row) : String(row[col.key] ?? '')}
               </td>
             ))}
           </tr>

@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 
-import { GuestHeaderCta } from './GuestHeaderCta';
-
 export const metadata: Metadata = {
   title: 'Sign in',
 };
@@ -27,7 +25,6 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
           />
           <span className="yc-auth-guest-wordmark">Super Admin</span>
         </Link>
-        <GuestHeaderCta />
       </header>
       <main id="main-content" className="yc-auth-stage" tabIndex={-1}>
         {children}

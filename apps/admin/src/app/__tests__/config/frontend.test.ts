@@ -8,6 +8,16 @@ jest.mock('supertokens-auth-react/recipe/session', () => ({
   default: { init: jest.fn(() => 'sess') },
 }));
 
+jest.mock('supertokens-auth-react/recipe/multifactorauth', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'mfa'), FactorIds: { EMAILPASSWORD: 'emailpassword' } },
+}));
+
+jest.mock('supertokens-auth-react/recipe/totp', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'totp') },
+}));
+
 jest.mock('@/app/config/appInfo', () => ({
   appInfo: { appName: 'Test' },
 }));
@@ -17,7 +27,7 @@ describe('frontend config', () => {
     const { frontendConfig } = await import('@/app/config/frontend');
     const cfg = frontendConfig();
     expect(cfg.appInfo).toEqual({ appName: 'Test' });
-    expect(cfg.recipeList).toHaveLength(2);
+    expect(cfg.recipeList).toHaveLength(4);
     expect(typeof cfg.getRedirectionURL).toBe('function');
     expect(typeof cfg.windowHandler).toBe('function');
   });

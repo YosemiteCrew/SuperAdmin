@@ -8,10 +8,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary:
-    'yc-primary-button border-[1.5px] border-neutral-900 bg-neutral-900 text-white hover:bg-neutral-800',
+  primary: 'yc-primary-button border-[1.5px] border-btn bg-btn text-btn-ink hover:opacity-90',
   secondary:
-    'border-[1.5px] border-neutral-200 bg-white text-neutral-900 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900',
+    'border-[1.5px] border-line bg-surface text-ink hover:bg-raised focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink',
   danger:
     'border-[1.5px] border-danger-600 bg-danger-600 text-white hover:bg-[#d53225] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger-600',
 };

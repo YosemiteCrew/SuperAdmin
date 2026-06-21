@@ -19,17 +19,28 @@ jest.mock('supertokens-node/recipe/emailpassword', () => ({
   default: { init: (...args: unknown[]) => epInitMock(...args) },
 }));
 
+jest.mock('supertokens-node/recipe/emailverification', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'emailverification-recipe') },
+}));
+
+const revokeAllSessionsForUserMock = jest.fn();
 jest.mock('supertokens-node/recipe/session', () => ({
   __esModule: true,
-  default: { init: jest.fn(() => 'session-recipe') },
+  default: {
+    init: jest.fn(() => 'session-recipe'),
+    revokeAllSessionsForUser: (...args: unknown[]) => revokeAllSessionsForUserMock(...args),
+  },
 }));
 
 const updateUserMetadataMock = jest.fn();
+const getUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
   __esModule: true,
   default: {
     init: jest.fn(() => 'usermetadata-recipe'),
     updateUserMetadata: (...args: unknown[]) => updateUserMetadataMock(...args),
+    getUserMetadata: (...args: unknown[]) => getUserMetadataMock(...args),
   },
 }));
 
@@ -43,6 +54,19 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
     getRolesForUser: (...args: unknown[]) => getRolesForUserMock(...args),
     createNewRoleOrAddPermissions: (...args: unknown[]) => createRoleMock(...args),
     addRoleToUser: (...args: unknown[]) => addRoleToUserMock(...args),
+  },
+}));
+
+jest.mock('supertokens-node/recipe/totp', () => ({
+  __esModule: true,
+  default: { init: jest.fn(() => 'totp-recipe') },
+}));
+
+jest.mock('supertokens-node/recipe/multifactorauth', () => ({
+  __esModule: true,
+  default: {
+    init: jest.fn(() => 'mfa-recipe'),
+    FactorIds: { EMAILPASSWORD: 'emailpassword', TOTP: 'totp' },
   },
 }));
 
@@ -81,7 +105,7 @@ beforeEach(() => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   });
   getSSRSessionMock.mockResolvedValue({
-    accessTokenPayload: { sub: 'admin-1' },
+    accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: true } },
     hasToken: true,
     error: null,
   });
@@ -90,6 +114,8 @@ beforeEach(() => {
   createRoleMock.mockResolvedValue(undefined);
   addRoleToUserMock.mockResolvedValue(undefined);
   updateUserMetadataMock.mockResolvedValue(undefined);
+  getUserMetadataMock.mockResolvedValue({ metadata: {} });
+  revokeAllSessionsForUserMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ensureSuperTokensInit / backendConfig', () => {
@@ -102,9 +128,25 @@ describe('ensureSuperTokensInit / backendConfig', () => {
     });
   });
 
-  it('wires up the four recipes (incl. user roles)', () => {
+  it('wires up the seven recipes (incl. email verification, user roles, TOTP, MFA)', () => {
     const cfg = backendConfig();
-    expect(cfg.recipeList.length).toBe(4);
+    expect(cfg.recipeList.length).toBe(7);
+  });
+
+  it('forces TOTP as the required second factor via the MFA override', async () => {
+    backendConfig();
+    const mfa = jest.requireMock('supertokens-node/recipe/multifactorauth') as {
+      default: { init: jest.Mock };
+    };
+    const cfg = mfa.default.init.mock.calls.at(-1)?.[0] as {
+      override: {
+        functions: (orig: Record<string, unknown>) => {
+          getMFARequirementsForAuth: () => Promise<string[]>;
+        };
+      };
+    };
+    const fns = cfg.override.functions({ untouched: 'original' });
+    await expect(fns.getMFARequirementsForAuth()).resolves.toEqual(['totp']);
   });
 });
 
@@ -131,6 +173,24 @@ describe('requireSuperAdmin', () => {
     expect(addRoleToUserMock).toHaveBeenCalled();
   });
 
+  it('redirects to the TOTP screen when MFA is not complete', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: false } },
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/mfa/totp');
+  });
+
+  it('redirects to the TOTP screen when the MFA claim is absent', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1' },
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/mfa/totp');
+  });
+
   it('redirects to /forbidden when authenticated without the role and not allowlisted', async () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     getUserMock.mockResolvedValueOnce({ emails: ['stranger@example.com'] });
@@ -139,13 +199,39 @@ describe('requireSuperAdmin', () => {
   });
 
   it('redirects to /auth when there is no valid session', async () => {
-    getSSRSessionMock.mockResolvedValueOnce({ accessTokenPayload: null, hasToken: false, error: null });
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
     expect(getRolesForUserMock).not.toHaveBeenCalled();
   });
 
   it('redirects to /auth when the session has no string subject', async () => {
-    getSSRSessionMock.mockResolvedValueOnce({ accessTokenPayload: {}, hasToken: true, error: null });
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: {},
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+  });
+
+  it('rejects a disabled super admin whose session is still live, revoking it', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1700000000000 } });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('admin-1');
+  });
+
+  it('still allows access when the disabled-status read fails (fails open)', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('down'));
+    await expect(requireSuperAdmin()).resolves.toEqual({ userId: 'admin-1' });
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it('still denies a disabled admin when session revocation throws', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1 } });
+    revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('revoke down'));
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
   });
 });
@@ -194,14 +280,9 @@ describe('backendConfig sign-in/sign-up overrides', () => {
     );
   });
 
-  it('records last sign-in on a successful sign-up', async () => {
-    const signUpPOST = jest.fn(async () => ({ status: 'OK', user: { id: 'u-2' } }));
-    const apis = getApis({ signUpPOST });
-    await apis.signUpPOST({});
-    expect(updateUserMetadataMock).toHaveBeenCalledWith(
-      'u-2',
-      expect.objectContaining({ lastSignInAt: expect.any(Number) })
-    );
+  it('disables public sign-up by removing the signUpPOST endpoint', () => {
+    const apis = getApis({ signUpPOST: jest.fn() });
+    expect(apis.signUpPOST).toBeUndefined();
   });
 
   it('does not record metadata when sign-in is not OK', async () => {
@@ -222,9 +303,58 @@ describe('backendConfig sign-in/sign-up overrides', () => {
     const apis = getApis({});
     await expect(apis.signInPOST({})).rejects.toThrow('signInPOST is disabled');
   });
+});
 
-  it('throws when the original sign-up implementation is disabled', async () => {
-    const apis = getApis({});
-    await expect(apis.signUpPOST({})).rejects.toThrow('signUpPOST is disabled');
+describe('EmailPassword signIn override (disabled accounts)', () => {
+  function getFunctions(original: Record<string, unknown>) {
+    const cfg = epInitMock.mock.calls.at(-1)?.[0] as {
+      override: {
+        functions: (orig: Record<string, unknown>) => {
+          signIn: (input: unknown) => Promise<{ status: string }>;
+        };
+      };
+    };
+    return cfg.override.functions(original);
+  }
+
+  beforeEach(() => {
+    backendConfig();
+  });
+
+  it('blocks sign-in for a disabled account', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1700000000000 } });
+    const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-1' } }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'WRONG_CREDENTIALS_ERROR' });
+  });
+
+  it('allows sign-in for an enabled account', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: {} });
+    const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-2' } }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'OK', user: { id: 'u-2' } });
+  });
+
+  it('passes through a failed sign-in without checking metadata', async () => {
+    const signIn = jest.fn(async () => ({ status: 'WRONG_CREDENTIALS_ERROR' }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'WRONG_CREDENTIALS_ERROR' });
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('retries once and allows sign-in when the first metadata read fails but the retry succeeds', async () => {
+    getUserMetadataMock
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValueOnce({ metadata: {} });
+    const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-3' } }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'OK', user: { id: 'u-3' } });
+  });
+
+  it('fails closed (blocks sign-in) when metadata reads keep throwing', async () => {
+    getUserMetadataMock.mockReset().mockRejectedValue(new Error('down'));
+    const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-4' } }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'WRONG_CREDENTIALS_ERROR' });
   });
 });

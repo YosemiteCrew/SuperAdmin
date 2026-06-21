@@ -5,6 +5,12 @@ function setNodeEnv(value: string): void {
   });
 }
 
+type HeadersModule = typeof import('@/securityHeaders');
+
+function load(): HeadersModule {
+  return jest.requireActual<HeadersModule>('@/securityHeaders');
+}
+
 describe('securityHeaders', () => {
   const originalEnv = process.env.NODE_ENV;
 
@@ -12,45 +18,79 @@ describe('securityHeaders', () => {
     setNodeEnv(originalEnv ?? 'test');
   });
 
-  it('emits all baseline headers in production', () => {
+  it('emits all baseline static headers in production', () => {
     setNodeEnv('production');
     jest.isolateModules(() => {
-      const { securityHeaders } =
-        jest.requireActual<typeof import('@/securityHeaders')>('@/securityHeaders');
+      const { securityHeaders } = load();
       const byKey = Object.fromEntries(securityHeaders.map((h) => [h.key, h.value]));
       expect(byKey['X-Frame-Options']).toBe('SAMEORIGIN');
       expect(byKey['X-Content-Type-Options']).toBe('nosniff');
       expect(byKey['Cross-Origin-Opener-Policy']).toBe('same-origin-allow-popups');
       expect(byKey['Cross-Origin-Resource-Policy']).toBe('same-origin');
       expect(byKey['Strict-Transport-Security']).toMatch(/max-age=63072000/);
-      expect(byKey['Content-Security-Policy']).toContain("frame-ancestors 'self'");
-      expect(byKey['Content-Security-Policy']).toContain('upgrade-insecure-requests');
-      expect(byKey['Content-Security-Policy']).not.toContain("'unsafe-eval'");
+      // CSP is now set per-request in middleware, not in the static array.
+      expect(byKey['Content-Security-Policy']).toBeUndefined();
     });
   });
 
-  it('skips HSTS and adds unsafe-eval in development', () => {
+  it('skips HSTS in development', () => {
     setNodeEnv('development');
     jest.isolateModules(() => {
-      const { securityHeaders } =
-        jest.requireActual<typeof import('@/securityHeaders')>('@/securityHeaders');
+      const { securityHeaders } = load();
       const byKey = Object.fromEntries(securityHeaders.map((h) => [h.key, h.value]));
       expect(byKey['Strict-Transport-Security']).toBeUndefined();
-      expect(byKey['Content-Security-Policy']).toContain("'unsafe-eval'");
-      expect(byKey['Content-Security-Policy']).not.toContain('upgrade-insecure-requests');
     });
   });
 
   it('locks down Permissions-Policy on sensitive APIs', () => {
     setNodeEnv('production');
     jest.isolateModules(() => {
-      const { securityHeaders } =
-        jest.requireActual<typeof import('@/securityHeaders')>('@/securityHeaders');
+      const { securityHeaders } = load();
       const byKey = Object.fromEntries(securityHeaders.map((h) => [h.key, h.value]));
       const pp = byKey['Permissions-Policy'] ?? '';
       for (const blocked of ['camera=()', 'microphone=()', 'geolocation=()']) {
         expect(pp).toContain(blocked);
       }
+    });
+  });
+});
+
+describe('buildEnforcedCsp', () => {
+  const originalEnv = process.env.NODE_ENV;
+  afterEach(() => setNodeEnv(originalEnv ?? 'test'));
+
+  it('keeps unsafe-inline for back-compat and upgrades insecure requests in prod', () => {
+    setNodeEnv('production');
+    jest.isolateModules(() => {
+      const csp = load().buildEnforcedCsp();
+      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain('upgrade-insecure-requests');
+      expect(csp).toContain("object-src 'none'");
+      expect(csp).not.toContain("'unsafe-eval'");
+    });
+  });
+
+  it('adds unsafe-eval (HMR) and skips upgrade-insecure-requests in development', () => {
+    setNodeEnv('development');
+    jest.isolateModules(() => {
+      const csp = load().buildEnforcedCsp();
+      expect(csp).toContain("'unsafe-eval'");
+      expect(csp).not.toContain('upgrade-insecure-requests');
+    });
+  });
+});
+
+describe('buildStrictCsp', () => {
+  const originalEnv = process.env.NODE_ENV;
+  afterEach(() => setNodeEnv(originalEnv ?? 'test'));
+
+  it('uses the nonce + strict-dynamic and drops unsafe-inline for scripts', () => {
+    setNodeEnv('production');
+    jest.isolateModules(() => {
+      const csp = load().buildStrictCsp('abc123');
+      expect(csp).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic'");
+      expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("frame-ancestors 'self'");
     });
   });
 });
