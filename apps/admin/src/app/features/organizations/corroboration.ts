@@ -1,6 +1,6 @@
 import { lookup as dnsLookupCb, type LookupAddress, type LookupOptions } from 'node:dns';
 import { lookup as dnsLookupAsync } from 'node:dns/promises';
-import { request as httpRequest, type IncomingMessage } from 'node:http';
+import { request as httpRequest, type ClientRequest, type IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import type { LookupFunction } from 'node:net';
 
@@ -140,32 +140,60 @@ export function pinningLookup(
   isBlocked: (ip: string) => boolean,
   resolve: typeof dnsLookupCb = dnsLookupCb
 ): LookupFunction {
-  const fn = (
-    hostname: string,
-    options: LookupOptions,
-    callback: (
-      err: NodeJS.ErrnoException | null,
-      address: string | LookupAddress[],
-      family?: number
-    ) => void
-  ): void => {
+  const fn: LookupFunction = (hostname, options, callback) => {
     // Pass node's own `options` through unchanged so the returned shape matches
     // what it requested (single address vs. all), then validate before handing
     // the SAME result back — the socket connects to exactly this checked IP.
-    resolve(hostname, options, (err, address, family) => {
+    resolve(hostname, options as LookupOptions, (err, address, family) => {
       if (err) {
         callback(err, '', 0);
         return;
       }
-      const list = Array.isArray(address) ? address : [{ address, family } as LookupAddress];
+      const list: LookupAddress[] = Array.isArray(address) ? address : [{ address, family }];
       if (list.length === 0 || list.some((entry) => isBlocked(entry.address))) {
-        callback(new Error('blocked non-public address') as NodeJS.ErrnoException, '', 0);
+        callback(new Error('blocked non-public address'), '', 0);
         return;
       }
       callback(null, address, family);
     });
   };
-  return fn as LookupFunction;
+  return fn;
+}
+
+function headerGetter(res: IncomingMessage): (name: string) => string | null {
+  return (name) => {
+    const value = res.headers[name.toLowerCase()];
+    return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+  };
+}
+
+function toFetchLikeResponse(res: IncomingMessage, body: string): FetchLikeResponse {
+  const status = res.statusCode ?? 0;
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: { get: headerGetter(res) },
+    text: () => Promise.resolve(body),
+  };
+}
+
+/** Reads the response body, capping its size and aborting an oversized stream. */
+function collectBody(req: ClientRequest, res: IncomingMessage): Promise<string> {
+  return new Promise<string>((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    res.on('data', (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        req.destroy();
+        reject(new Error('response too large'));
+        return;
+      }
+      chunks.push(chunk);
+    });
+    res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    res.on('error', reject);
+  });
 }
 
 /**
@@ -180,40 +208,19 @@ function pinnedRequest(
   const url = new URL(urlStr);
   const send = url.protocol === 'http:' ? httpRequest : httpsRequest;
   return new Promise<FetchLikeResponse>((resolve, reject) => {
-    const req = send(
-      url,
-      { method: 'GET', lookup: pinningLookup(isBlocked), signal },
-      (res: IncomingMessage) => {
-        const status = res.statusCode ?? 0;
-        const chunks: Buffer[] = [];
-        let size = 0;
-        res.on('data', (chunk: Buffer) => {
-          size += chunk.length;
-          if (size > MAX_BODY_BYTES) {
-            req.destroy(new Error('response too large'));
-            return;
-          }
-          chunks.push(chunk);
-        });
-        res.on('end', () => {
-          const body = Buffer.concat(chunks).toString('utf8');
-          resolve({
-            ok: status >= 200 && status < 300,
-            status,
-            headers: {
-              get: (name) => {
-                const value = res.headers[name.toLowerCase()];
-                return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
-              },
-            },
-            text: () => Promise.resolve(body),
-          });
-        });
-      }
-    );
+    const req = send(url, { method: 'GET', lookup: pinningLookup(isBlocked), signal }, (res) => {
+      collectBody(req, res).then((body) => resolve(toFetchLikeResponse(res, body)), reject);
+    });
     req.on('error', reject);
     req.end();
   });
+}
+
+/** Resolves a fetch input to its URL string without Object stringification. */
+function toUrlString(input: RequestInfo | URL): string {
+  if (typeof input === 'string') return input;
+  if (input instanceof URL) return input.href;
+  return input.url;
 }
 
 /**
@@ -223,7 +230,11 @@ function pinnedRequest(
  */
 export function createPinnedFetch(isBlocked: (ip: string) => boolean = isPrivateIp): typeof fetch {
   return ((input: RequestInfo | URL, init?: RequestInit) =>
-    pinnedRequest(String(input), init?.signal ?? undefined, isBlocked)) as unknown as typeof fetch;
+    pinnedRequest(
+      toUrlString(input),
+      init?.signal ?? undefined,
+      isBlocked
+    )) as unknown as typeof fetch;
 }
 
 /**

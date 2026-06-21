@@ -311,17 +311,33 @@ describe('createPinnedFetch', () => {
   // `() => false` makes the pin permit loopback so a local server is reachable.
   const allowLoopback = createPinnedFetch(() => false);
 
-  it('resolves a hostname, pins the connection, and reads the body', async () => {
+  it('resolves a hostname, pins the connection, and reads the body (URL input)', async () => {
     const { server, port } = await listen((_req, res) => {
       res.statusCode = 200;
       res.end('<h1>Acme Veterinary</h1>');
     });
     try {
-      // A hostname (not an IP literal) exercises the validating/pinning lookup.
-      const res = await allowLoopback(`http://localhost:${port}/`);
+      // A hostname (not an IP literal) exercises the validating/pinning lookup;
+      // a URL object exercises the URL branch of input normalization.
+      const res = await allowLoopback(new URL(`http://localhost:${port}/`));
       expect(res.status).toBe(200);
       expect(res.ok).toBe(true);
       expect(await res.text()).toContain('Acme Veterinary');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('accepts a Request-like object (reads its url)', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 200;
+      res.end('ok');
+    });
+    try {
+      const request = { url: `http://127.0.0.1:${port}/` } as unknown as Request;
+      const res = await allowLoopback(request);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toBe('ok');
     } finally {
       server.close();
     }
