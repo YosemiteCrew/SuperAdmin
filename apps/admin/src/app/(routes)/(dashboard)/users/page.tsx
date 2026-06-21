@@ -5,6 +5,7 @@ import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
 
+import { ExportUsersButton } from './ExportUsersButton';
 import { UsersTable, type UserRow } from './UsersTable';
 
 export const metadata: Metadata = {
@@ -87,11 +88,14 @@ export default async function UsersPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Users</h1>
-        <p className="text-sm text-ink-3">
-          Manage everyone with access to your Yosemite Crew account.
-        </p>
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-medium tracking-tight text-ink">Users</h1>
+          <p className="text-sm text-ink-3">
+            Manage everyone with access to your Yosemite Crew account.
+          </p>
+        </div>
+        <ExportUsersButton />
       </header>
 
       <form action="/users" method="get" className="flex w-full max-w-xl items-center gap-2">

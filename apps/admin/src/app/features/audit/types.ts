@@ -5,6 +5,7 @@ export type AuditAction =
   | 'user.enable'
   | 'user.email_verify'
   | 'user.email_unverify'
+  | 'user.email_change'
   | 'user.mfa_reset'
   | 'user.session_revoke'
   | 'user.session_revoke_all'

@@ -53,6 +53,17 @@ describe('deleteUserAction', () => {
     expect(deleteUserMock).not.toHaveBeenCalled();
   });
 
+  it('still deletes when the label lookup throws', async () => {
+    getUserMock.mockRejectedValueOnce(new Error('lookup down'));
+    deleteUserMock.mockResolvedValueOnce(undefined);
+    const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
+    await expect(deleteUserAction(makeForm({ userId: 'user-9' }))).rejects.toThrow('NEXT_REDIRECT');
+    expect(deleteUserMock).toHaveBeenCalledWith('user-9');
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.delete', targetId: 'user-9', targetLabel: undefined })
+    );
+  });
+
   it('does not delete when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');

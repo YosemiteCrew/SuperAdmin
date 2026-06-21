@@ -12,6 +12,7 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'user.enable': { label: 'Re-enabled account', severity: 'info' },
   'user.email_verify': { label: 'Marked email verified for', severity: 'info' },
   'user.email_unverify': { label: 'Marked email unverified for', severity: 'warning' },
+  'user.email_change': { label: 'Changed own email to', severity: 'warning' },
   'user.mfa_reset': { label: 'Reset two-factor for', severity: 'warning' },
   'user.session_revoke': { label: 'Revoked a session for', severity: 'info' },
   'user.session_revoke_all': { label: 'Revoked all sessions for', severity: 'warning' },
