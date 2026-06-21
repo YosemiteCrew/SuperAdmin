@@ -8,7 +8,6 @@ import { MultiFactorAuthPreBuiltUI } from 'supertokens-auth-react/recipe/multifa
 import { TOTPPreBuiltUI } from 'supertokens-auth-react/recipe/totp/prebuiltui';
 import {
   signIn,
-  signUp,
   sendPasswordResetEmail,
   submitNewPassword,
 } from 'supertokens-auth-react/recipe/emailpassword';
@@ -212,13 +211,6 @@ function SignInForm() {
             {loading ? 'Signing in...' : 'Sign in'}
           </Button>
         </form>
-
-        <p className="yc-auth-inline-text">
-          Don&apos;t have an account?{' '}
-          <Link href="/auth/signup" className="yc-auth-link-brand">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );
@@ -393,153 +385,6 @@ function ResetPasswordForm() {
   );
 }
 
-type SignUpFields = 'firstName' | 'lastName' | 'email' | 'password' | 'confirm';
-type SignUpState = Record<SignUpFields, string> & { error: string; loading: boolean };
-type SignUpAction =
-  | { type: 'field'; name: SignUpFields; value: string }
-  | { type: 'submit_start' }
-  | { type: 'submit_error'; error: string }
-  | { type: 'submit_end' };
-
-const signUpInitial: SignUpState = {
-  firstName: '',
-  lastName: '',
-  email: '',
-  password: '',
-  confirm: '',
-  error: '',
-  loading: false,
-};
-
-function signUpReducer(state: SignUpState, action: SignUpAction): SignUpState {
-  switch (action.type) {
-    case 'field':
-      return { ...state, [action.name]: action.value };
-    case 'submit_start':
-      return { ...state, error: '', loading: true };
-    case 'submit_error':
-      return { ...state, loading: false, error: action.error };
-    case 'submit_end':
-      return { ...state, loading: false };
-  }
-}
-
-function SignUpForm() {
-  const router = useRouter();
-  const [{ firstName, lastName, email, password, confirm, error, loading }, dispatch] = useReducer(
-    signUpReducer,
-    signUpInitial
-  );
-
-  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!firstName.trim() || !lastName.trim()) {
-      dispatch({ type: 'submit_error', error: 'Please enter your first and last name.' });
-      return;
-    }
-    if (password !== confirm) {
-      dispatch({ type: 'submit_error', error: 'Passwords do not match.' });
-      return;
-    }
-
-    dispatch({ type: 'submit_start' });
-    try {
-      const res = await signUp({
-        formFields: [
-          { id: 'email', value: email },
-          { id: 'password', value: password },
-        ],
-      });
-      if (res.status === 'OK') {
-        try {
-          await fetch('/api/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-            }),
-          });
-        } catch {
-          /* non-blocking — proceed to dashboard even if metadata save fails */
-        }
-        router.push('/dashboard');
-      } else if (res.status === 'FIELD_ERROR') {
-        dispatch({ type: 'submit_error', error: res.formFields[0]?.error ?? GENERIC_ERROR });
-      } else if (res.status === 'SIGN_UP_NOT_ALLOWED') {
-        dispatch({ type: 'submit_error', error: 'Sign up is not allowed for this email.' });
-      } else {
-        dispatch({ type: 'submit_error', error: GENERIC_ERROR });
-      }
-    } catch {
-      dispatch({ type: 'submit_error', error: GENERIC_ERROR });
-    } finally {
-      dispatch({ type: 'submit_end' });
-    }
-  }
-
-  return (
-    <div className="yc-auth-card">
-      <div className="yc-auth-card-inner">
-        <h1 className="yc-auth-title">Sign up</h1>
-
-        {error ? <p className="yc-auth-error">{error}</p> : null}
-
-        <form onSubmit={handleSubmit} className="yc-auth-form">
-          <div className="yc-auth-fields">
-            <FloatingField
-              id="auth-signup-first"
-              label="First name"
-              value={firstName}
-              onChange={(v) => dispatch({ type: 'field', name: 'firstName', value: v })}
-              autoComplete="given-name"
-            />
-            <FloatingField
-              id="auth-signup-last"
-              label="Last name"
-              value={lastName}
-              onChange={(v) => dispatch({ type: 'field', name: 'lastName', value: v })}
-              autoComplete="family-name"
-            />
-            <EmailField
-              id="auth-signup-email"
-              label="Enter email"
-              value={email}
-              onChange={(v) => dispatch({ type: 'field', name: 'email', value: v })}
-            />
-            <PasswordField
-              id="auth-signup-password"
-              label="Set up password"
-              value={password}
-              onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
-              autoComplete="new-password"
-            />
-            <PasswordField
-              id="auth-signup-confirm"
-              label="Confirm password"
-              value={confirm}
-              onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
-              autoComplete="new-password"
-            />
-          </div>
-
-          <Button type="submit" disabled={loading} className="yc-auth-submit">
-            {loading ? 'Signing up...' : 'Sign up'}
-          </Button>
-        </form>
-
-        <p className="yc-auth-inline-text">
-          Already have an account?{' '}
-          <Link href="/auth" className="yc-auth-link-brand">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
-  );
-}
-
 const MFA_PREBUILT_UI = [MultiFactorAuthPreBuiltUI, TOTPPreBuiltUI];
 
 // Strips trailing slashes with a single linear scan — no regex, so there is no
@@ -565,11 +410,11 @@ function AuthContent() {
 
   const token = searchParams.get('token') ?? '';
 
-  let screen: 'signin' | 'signup' | 'forgot' | 'reset' | 'unknown';
+  // Public sign-up is disabled (see backend EmailPassword apis override), so
+  // /auth/signup is no longer a screen — it falls through to the /auth redirect.
+  let screen: 'signin' | 'forgot' | 'reset' | 'unknown';
   if (normalizedPath === '/auth') {
     screen = 'signin';
-  } else if (normalizedPath === '/auth/signup') {
-    screen = 'signup';
   } else if (normalizedPath === '/auth/reset-password') {
     screen = token ? 'reset' : 'forgot';
   } else {
@@ -578,7 +423,6 @@ function AuthContent() {
 
   if (screen === 'unknown') redirect('/auth');
   if (screen === 'signin') return <SignInForm />;
-  if (screen === 'signup') return <SignUpForm />;
   if (screen === 'forgot') return <ForgotPasswordForm />;
   return <ResetPasswordForm />;
 }

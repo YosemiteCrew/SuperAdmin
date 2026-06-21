@@ -257,14 +257,9 @@ describe('backendConfig sign-in/sign-up overrides', () => {
     );
   });
 
-  it('records last sign-in on a successful sign-up', async () => {
-    const signUpPOST = jest.fn(async () => ({ status: 'OK', user: { id: 'u-2' } }));
-    const apis = getApis({ signUpPOST });
-    await apis.signUpPOST({});
-    expect(updateUserMetadataMock).toHaveBeenCalledWith(
-      'u-2',
-      expect.objectContaining({ lastSignInAt: expect.any(Number) })
-    );
+  it('disables public sign-up by removing the signUpPOST endpoint', () => {
+    const apis = getApis({ signUpPOST: jest.fn() });
+    expect(apis.signUpPOST).toBeUndefined();
   });
 
   it('does not record metadata when sign-in is not OK', async () => {
@@ -284,11 +279,6 @@ describe('backendConfig sign-in/sign-up overrides', () => {
   it('throws when the original sign-in implementation is disabled', async () => {
     const apis = getApis({});
     await expect(apis.signInPOST({})).rejects.toThrow('signInPOST is disabled');
-  });
-
-  it('throws when the original sign-up implementation is disabled', async () => {
-    const apis = getApis({});
-    await expect(apis.signUpPOST({})).rejects.toThrow('signUpPOST is disabled');
   });
 });
 
@@ -329,10 +319,19 @@ describe('EmailPassword signIn override (disabled accounts)', () => {
     expect(getUserMetadataMock).not.toHaveBeenCalled();
   });
 
-  it('fails open (allows sign-in) when the metadata read throws', async () => {
-    getUserMetadataMock.mockRejectedValueOnce(new Error('down'));
+  it('retries once and allows sign-in when the first metadata read fails but the retry succeeds', async () => {
+    getUserMetadataMock
+      .mockRejectedValueOnce(new Error('down'))
+      .mockResolvedValueOnce({ metadata: {} });
     const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-3' } }));
     const fns = getFunctions({ signIn });
     await expect(fns.signIn({})).resolves.toEqual({ status: 'OK', user: { id: 'u-3' } });
+  });
+
+  it('fails closed (blocks sign-in) when metadata reads keep throwing', async () => {
+    getUserMetadataMock.mockReset().mockRejectedValue(new Error('down'));
+    const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-4' } }));
+    const fns = getFunctions({ signIn });
+    await expect(fns.signIn({})).resolves.toEqual({ status: 'WRONG_CREDENTIALS_ERROR' });
   });
 });

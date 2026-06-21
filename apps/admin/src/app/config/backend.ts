@@ -32,8 +32,16 @@ async function isUserDisabled(userId: string): Promise<boolean> {
     const { metadata } = await UserMetadataNode.getUserMetadata(userId);
     return typeof metadata.disabledAt === 'number';
   } catch {
-    /* fail open: a metadata blip shouldn't lock everyone out */
-    return false;
+    /* one retry to absorb a transient metadata blip before deciding */
+  }
+  try {
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.disabledAt === 'number';
+  } catch {
+    // Fail CLOSED: this gates a security control (disabled accounts). Treating a
+    // persistent read error as "enabled" would let an attacker ride out a disable
+    // by inducing errors; blocking sign-in is the safe default.
+    return true;
   }
 }
 
@@ -63,21 +71,17 @@ export const backendConfig = (): TypeInput => {
           }),
           apis: (originalImplementation) => ({
             ...originalImplementation,
+            // Public self-registration is disabled. This is an internal
+            // super-admin panel; accounts are provisioned out-of-band. Removing
+            // the endpoint also closes the bootstrap-email takeover vector — an
+            // outsider can no longer create an account for an unclaimed
+            // bootstrap email and self-elevate. See SECURITY-PENTEST.md #0.
+            signUpPOST: undefined,
             signInPOST: async (input) => {
               if (!originalImplementation.signInPOST) {
                 throw new Error('signInPOST is disabled');
               }
               const response = await originalImplementation.signInPOST(input);
-              if (response.status === 'OK') {
-                await touchLastSignIn(response.user.id);
-              }
-              return response;
-            },
-            signUpPOST: async (input) => {
-              if (!originalImplementation.signUpPOST) {
-                throw new Error('signUpPOST is disabled');
-              }
-              const response = await originalImplementation.signUpPOST(input);
               if (response.status === 'OK') {
                 await touchLastSignIn(response.user.id);
               }
@@ -130,6 +134,10 @@ async function isSuperAdmin(userId: string): Promise<boolean> {
   const user = await SuperTokens.getUser(userId);
   const email = user?.emails[0]?.toLowerCase();
   if (email && serverEnv.superadminBootstrapEmails.includes(email)) {
+    // Safe because public sign-up is disabled (see the EmailPassword apis
+    // override): an outsider cannot create an account for a bootstrap email, so
+    // matching one here implies an out-of-band-provisioned account. Do NOT
+    // re-enable self-registration without also gating this on a verified email.
     await grantSuperAdmin(userId);
     return true;
   }
