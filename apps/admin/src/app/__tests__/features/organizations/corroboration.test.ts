@@ -1,9 +1,14 @@
+import { createServer, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
+
 import {
   CORROBORATION_META,
   checkWebsite,
   corroborateBusiness,
+  createPinnedFetch,
   type HostResolver,
   isPublicHttpUrl,
+  pinningLookup,
 } from '@/app/features/organizations/corroboration';
 import type { SuperAdminOrganizationDetail } from '@/app/features/organizations/types';
 
@@ -287,5 +292,148 @@ describe('CORROBORATION_META', () => {
       expect(meta.label.length).toBeGreaterThan(0);
       expect(meta.badgeClass.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('createPinnedFetch', () => {
+  function listen(
+    handler: Parameters<typeof createServer>[1]
+  ): Promise<{ server: Server; port: number }> {
+    return new Promise((resolve) => {
+      const server = createServer(handler);
+      // Bind all interfaces so both `127.0.0.1` and `localhost` reach it.
+      server.listen(0, () => {
+        resolve({ server, port: (server.address() as AddressInfo).port });
+      });
+    });
+  }
+
+  // `() => false` makes the pin permit loopback so a local server is reachable.
+  const allowLoopback = createPinnedFetch(() => false);
+
+  it('resolves a hostname, pins the connection, and reads the body', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 200;
+      res.end('<h1>Acme Veterinary</h1>');
+    });
+    try {
+      // A hostname (not an IP literal) exercises the validating/pinning lookup.
+      const res = await allowLoopback(`http://localhost:${port}/`);
+      expect(res.status).toBe(200);
+      expect(res.ok).toBe(true);
+      expect(await res.text()).toContain('Acme Veterinary');
+    } finally {
+      server.close();
+    }
+  });
+
+  it('returns a redirect response without following it (and reads array headers)', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 302;
+      res.setHeader('location', 'https://example.com/');
+      res.setHeader('set-cookie', ['a=1', 'b=2']);
+      res.end();
+    });
+    try {
+      const res = await allowLoopback(`http://127.0.0.1:${port}/`);
+      expect(res.status).toBe(302);
+      expect(res.headers.get('Location')).toBe('https://example.com/');
+      expect(res.headers.get('set-cookie')).toBe('a=1');
+      expect(res.headers.get('x-absent')).toBeNull();
+    } finally {
+      server.close();
+    }
+  });
+
+  it('rejects when the resolved address is blocked by the default guard', async () => {
+    // A hostname (not an IP literal) forces node to call our validating lookup,
+    // which resolves localhost → 127.0.0.1 and rejects it.
+    await expect(createPinnedFetch()('http://localhost:9/')).rejects.toThrow();
+  });
+
+  it('rejects an oversized response body', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 200;
+      res.end('x'.repeat(2_000_001));
+    });
+    try {
+      await expect(allowLoopback(`http://127.0.0.1:${port}/`)).rejects.toThrow();
+    } finally {
+      server.close();
+    }
+  });
+
+  it('selects the https transport for https URLs', async () => {
+    await expect(allowLoopback('https://127.0.0.1:9/')).rejects.toThrow();
+  });
+
+  it('rejects when an aborted signal is supplied', async () => {
+    const { server, port } = await listen((_req, res) => {
+      res.statusCode = 200;
+      res.end('ok');
+    });
+    try {
+      await expect(
+        allowLoopback(`http://127.0.0.1:${port}/`, { signal: AbortSignal.abort() })
+      ).rejects.toThrow();
+    } finally {
+      server.close();
+    }
+  });
+
+  it('rejects when the hostname does not resolve', async () => {
+    await expect(allowLoopback('http://does-not-exist.invalid/')).rejects.toThrow();
+  });
+});
+
+describe('pinningLookup', () => {
+  type LookupCb = (err: Error | null, address: unknown, family?: unknown) => void;
+  type Resolve = (h: string, o: object, cb: LookupCb) => void;
+  const asResolve = (fn: Resolve) => fn as unknown as Parameters<typeof pinningLookup>[1];
+
+  function run(isBlocked: (ip: string) => boolean, resolve: Resolve) {
+    const fn = pinningLookup(isBlocked, asResolve(resolve)) as unknown as Resolve;
+    return new Promise<{ err: Error | null; address: unknown }>((done) => {
+      fn('host.example', {}, (err, address) => done({ err, address }));
+    });
+  }
+
+  it('forwards a DNS error', async () => {
+    const { err } = await run(
+      () => false,
+      (_h, _o, cb) => cb(new Error('ENOTFOUND'), undefined)
+    );
+    expect(err?.message).toBe('ENOTFOUND');
+  });
+
+  it('passes through a single public address', async () => {
+    const { err, address } = await run(
+      () => false,
+      (_h, _o, cb) => cb(null, '93.184.216.34', 4)
+    );
+    expect(err).toBeNull();
+    expect(address).toBe('93.184.216.34');
+  });
+
+  it('passes through an all:true list of public addresses', async () => {
+    const list = [{ address: '93.184.216.34', family: 4 }];
+    const { err, address } = await run(
+      () => false,
+      (_h, _o, cb) => cb(null, list)
+    );
+    expect(err).toBeNull();
+    expect(address).toBe(list);
+  });
+
+  it('blocks when any resolved address is private', async () => {
+    const { err } = await run(
+      (ip) => ip.startsWith('10.'),
+      (_h, _o, cb) =>
+        cb(null, [
+          { address: '93.184.216.34', family: 4 },
+          { address: '10.0.0.1', family: 4 },
+        ])
+    );
+    expect(err?.message).toMatch(/blocked non-public/);
   });
 });

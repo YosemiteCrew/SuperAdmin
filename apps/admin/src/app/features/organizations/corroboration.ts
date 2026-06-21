@@ -1,15 +1,20 @@
-import { lookup } from 'node:dns/promises';
+import { lookup as dnsLookupCb, type LookupAddress, type LookupOptions } from 'node:dns';
+import { lookup as dnsLookupAsync } from 'node:dns/promises';
+import { request as httpRequest, type IncomingMessage } from 'node:http';
+import { request as httpsRequest } from 'node:https';
+import type { LookupFunction } from 'node:net';
 
 import type { OrganizationAddress, SuperAdminOrganizationDetail } from './types';
 
 /** Resolves a hostname to its IP addresses. Injectable so tests stay hermetic. */
 export type HostResolver = (hostname: string) => Promise<Array<{ address: string }>>;
 
-const defaultResolver: HostResolver = (hostname) => lookup(hostname, { all: true });
+const defaultResolver: HostResolver = (hostname) => dnsLookupAsync(hostname, { all: true });
 
 /** Cap on redirect hops we will follow (each re-validated against the SSRF guard). */
 const MAX_REDIRECTS = 5;
 const FETCH_TIMEOUT_MS = 6000;
+const MAX_BODY_BYTES = 2_000_000;
 
 export type CheckStatus = 'pass' | 'warn' | 'fail' | 'skipped';
 
@@ -120,11 +125,111 @@ function stripHtml(html: string): string {
   return out;
 }
 
+type FetchLikeResponse = Pick<Response, 'ok' | 'status'> & {
+  headers: { get(name: string): string | null };
+  text(): Promise<string>;
+};
+
+/**
+ * A DNS lookup that validates the resolved address and PINS the socket to it:
+ * the connection uses exactly the IP we checked, so a hostname can't resolve to
+ * a public IP for the guard and a private one for the actual connect (the
+ * DNS-rebinding TOCTOU). Rejects private/loopback/reserved addresses.
+ */
+export function pinningLookup(
+  isBlocked: (ip: string) => boolean,
+  resolve: typeof dnsLookupCb = dnsLookupCb
+): LookupFunction {
+  const fn = (
+    hostname: string,
+    options: LookupOptions,
+    callback: (
+      err: NodeJS.ErrnoException | null,
+      address: string | LookupAddress[],
+      family?: number
+    ) => void
+  ): void => {
+    // Pass node's own `options` through unchanged so the returned shape matches
+    // what it requested (single address vs. all), then validate before handing
+    // the SAME result back — the socket connects to exactly this checked IP.
+    resolve(hostname, options, (err, address, family) => {
+      if (err) {
+        callback(err, '', 0);
+        return;
+      }
+      const list = Array.isArray(address) ? address : [{ address, family } as LookupAddress];
+      if (list.length === 0 || list.some((entry) => isBlocked(entry.address))) {
+        callback(new Error('blocked non-public address') as NodeJS.ErrnoException, '', 0);
+        return;
+      }
+      callback(null, address, family);
+    });
+  };
+  return fn as LookupFunction;
+}
+
+/**
+ * Single GET over a connection pinned to a validated IP. Does not follow
+ * redirects (the caller re-validates each hop) and caps the response body.
+ */
+function pinnedRequest(
+  urlStr: string,
+  signal: AbortSignal | undefined,
+  isBlocked: (ip: string) => boolean
+): Promise<FetchLikeResponse> {
+  const url = new URL(urlStr);
+  const send = url.protocol === 'http:' ? httpRequest : httpsRequest;
+  return new Promise<FetchLikeResponse>((resolve, reject) => {
+    const req = send(
+      url,
+      { method: 'GET', lookup: pinningLookup(isBlocked), signal },
+      (res: IncomingMessage) => {
+        const status = res.statusCode ?? 0;
+        const chunks: Buffer[] = [];
+        let size = 0;
+        res.on('data', (chunk: Buffer) => {
+          size += chunk.length;
+          if (size > MAX_BODY_BYTES) {
+            req.destroy(new Error('response too large'));
+            return;
+          }
+          chunks.push(chunk);
+        });
+        res.on('end', () => {
+          const body = Buffer.concat(chunks).toString('utf8');
+          resolve({
+            ok: status >= 200 && status < 300,
+            status,
+            headers: {
+              get: (name) => {
+                const value = res.headers[name.toLowerCase()];
+                return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+              },
+            },
+            text: () => Promise.resolve(body),
+          });
+        });
+      }
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/**
+ * Default website fetcher used in production: pins the connection to a validated
+ * public IP. Exposed as a factory so tests can pass a permissive `isBlocked`
+ * (to reach a loopback test server). `fetch`-compatible enough for `checkWebsite`.
+ */
+export function createPinnedFetch(isBlocked: (ip: string) => boolean = isPrivateIp): typeof fetch {
+  return ((input: RequestInfo | URL, init?: RequestInit) =>
+    pinnedRequest(String(input), init?.signal ?? undefined, isBlocked)) as unknown as typeof fetch;
+}
+
 /**
  * Resolves a hostname and throws if any resolved address is private/loopback —
- * the second SSRF layer, closing DNS-rebinding where a public hostname points at
- * an internal IP. (Residual TOCTOU remains between resolve and connect; for full
- * protection pin the connection to the validated IP.)
+ * a pre-connect SSRF layer. The actual connection is additionally pinned to a
+ * validated IP (see `pinningLookup`), which closes the resolve→connect TOCTOU.
  */
 async function assertResolvesPublic(hostname: string, resolveImpl: HostResolver): Promise<void> {
   const records = await resolveImpl(hostname);
@@ -284,7 +389,7 @@ function aggregate(checks: CorroborationCheck[]): CorroborationLevel {
  */
 export async function corroborateBusiness(
   org: SuperAdminOrganizationDetail,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = createPinnedFetch(),
   resolveImpl: HostResolver = defaultResolver
 ): Promise<CorroborationResult> {
   const website = await checkWebsite(org.website, org.name, fetchImpl, resolveImpl);

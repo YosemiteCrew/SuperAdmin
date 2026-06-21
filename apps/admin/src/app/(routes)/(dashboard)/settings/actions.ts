@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import SuperTokens from 'supertokens-node';
 import EmailPasswordNode from 'supertokens-node/recipe/emailpassword';
@@ -10,9 +11,24 @@ import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { isValidEmail } from '@/app/features/settings/email';
 
+const SESSION_COOKIE_NAMES = [
+  'sAccessToken',
+  'sRefreshToken',
+  'sFrontToken',
+  'sAntiCsrf',
+  'st-last-access-token-update',
+];
+
 export async function signOutEverywhereAction() {
   const { userId } = await requireSuperAdmin();
   await SessionNode.revokeAllSessionsForUser(userId);
+  // Clear the local cookies too: otherwise the still-present sAccessToken makes
+  // middleware treat the follow-up /auth request as authenticated and bounce it
+  // back to /dashboard, where the revoked session is rejected — a redirect loop.
+  const cookieStore = await cookies();
+  for (const name of SESSION_COOKIE_NAMES) {
+    cookieStore.delete(name);
+  }
   redirect('/auth');
 }
 

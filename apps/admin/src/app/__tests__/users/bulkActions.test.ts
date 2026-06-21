@@ -32,6 +32,10 @@ jest.mock('@/app/config/backend', () => ({
   requireSuperAdmin: (...a: unknown[]) => requireSuperAdminMock(...a),
 }));
 
+jest.mock('@/app/config/env.server', () => ({
+  serverEnv: { superadminBootstrapEmails: ['boot@x.com'] },
+}));
+
 import {
   bulkDeleteUsersAction,
   bulkDisableUsersAction,
@@ -55,6 +59,30 @@ describe('bulkDisableUsersAction', () => {
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-2');
     expect(revokeAllSessionsForUserMock).not.toHaveBeenCalledWith('admin-1');
     expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips bootstrap-allowlisted admins so they cannot be locked out', async () => {
+    getUserMock.mockImplementation((id: string) =>
+      Promise.resolve({ emails: [id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'] })
+    );
+    await bulkDisableUsersAction(['u-1', 'boot-1']);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'u-1',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalledWith('boot-1');
+  });
+
+  it('skips an account whose bootstrap status cannot be confirmed (fails closed)', async () => {
+    getUserMock.mockRejectedValueOnce(new Error('down'));
+    await bulkDisableUsersAction(['u-9']);
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing for a non-array argument', async () => {
+    await bulkDisableUsersAction(undefined as unknown as string[]);
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
   });
 
   it('ignores non-string and empty ids', async () => {

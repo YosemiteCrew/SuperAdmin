@@ -24,9 +24,13 @@ jest.mock('supertokens-node/recipe/emailverification', () => ({
   default: { init: jest.fn(() => 'emailverification-recipe') },
 }));
 
+const revokeAllSessionsForUserMock = jest.fn();
 jest.mock('supertokens-node/recipe/session', () => ({
   __esModule: true,
-  default: { init: jest.fn(() => 'session-recipe') },
+  default: {
+    init: jest.fn(() => 'session-recipe'),
+    revokeAllSessionsForUser: (...args: unknown[]) => revokeAllSessionsForUserMock(...args),
+  },
 }));
 
 const updateUserMetadataMock = jest.fn();
@@ -111,6 +115,7 @@ beforeEach(() => {
   addRoleToUserMock.mockResolvedValue(undefined);
   updateUserMetadataMock.mockResolvedValue(undefined);
   getUserMetadataMock.mockResolvedValue({ metadata: {} });
+  revokeAllSessionsForUserMock.mockReset().mockResolvedValue(undefined);
 });
 
 describe('ensureSuperTokensInit / backendConfig', () => {
@@ -209,6 +214,24 @@ describe('requireSuperAdmin', () => {
       hasToken: true,
       error: null,
     });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+  });
+
+  it('rejects a disabled super admin whose session is still live, revoking it', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1700000000000 } });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('admin-1');
+  });
+
+  it('still allows access when the disabled-status read fails (fails open)', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('down'));
+    await expect(requireSuperAdmin()).resolves.toEqual({ userId: 'admin-1' });
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it('still denies a disabled admin when session revocation throws', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1 } });
+    revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('revoke down'));
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
   });
 });

@@ -2,6 +2,11 @@ import { redirect } from 'next/navigation';
 
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
+const cookieDeleteMock = jest.fn();
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(async () => ({ delete: (...args: unknown[]) => cookieDeleteMock(...args) })),
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -40,6 +45,7 @@ beforeEach(() => {
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'u-1' });
   revokeAllSessionsForUserMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
+  cookieDeleteMock.mockReset();
   updateEmailOrPasswordMock.mockReset().mockResolvedValue({ status: 'OK' });
   getUserMock.mockReset().mockResolvedValue({
     loginMethods: [{ recipeId: 'emailpassword', email: 'old@x.com', recipeUserId: 'rid-1' }],
@@ -47,10 +53,12 @@ beforeEach(() => {
 });
 
 describe('signOutEverywhereAction', () => {
-  it('revokes all sessions for the current user then redirects to /auth', async () => {
+  it('revokes all sessions, clears session cookies, then redirects to /auth', async () => {
     const { signOutEverywhereAction } = await import(ACTIONS);
     await signOutEverywhereAction();
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-1');
+    expect(cookieDeleteMock).toHaveBeenCalledWith('sAccessToken');
+    expect(cookieDeleteMock).toHaveBeenCalledWith('sRefreshToken');
     expect(redirectMock).toHaveBeenCalledWith('/auth');
   });
 

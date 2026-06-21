@@ -168,11 +168,35 @@ export async function assertSuperAdmin(userId: string): Promise<void> {
   }
 }
 
+/**
+ * Confirms a disabled flag for the per-request authorization gate. Fails OPEN
+ * (a metadata read error is treated as "not disabled") so a transient outage
+ * can't lock every admin out of every page — unlike the sign-in check, which
+ * fails closed. The sign-in block + session revocation remain the primary
+ * controls; this only catches a disabled account whose session outlived them.
+ */
+async function isConfirmedDisabled(userId: string): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.disabledAt === 'number';
+  } catch {
+    return false;
+  }
+}
+
 export async function requireSuperAdmin(): Promise<{ userId: string }> {
   const { userId, mfaComplete } = await getAuthenticatedSession();
   await assertSuperAdmin(userId);
   if (!mfaComplete) {
     redirect('/auth/mfa/totp');
+  }
+  if (await isConfirmedDisabled(userId)) {
+    try {
+      await SessionNode.revokeAllSessionsForUser(userId);
+    } catch {
+      /* best-effort; the redirect below still denies access */
+    }
+    redirect('/auth');
   }
   return { userId };
 }

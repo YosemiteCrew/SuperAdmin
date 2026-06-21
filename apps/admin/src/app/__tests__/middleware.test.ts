@@ -48,6 +48,12 @@ describe('middleware', () => {
     expect(res.headers.get('Location')).toBeNull();
   });
 
+  it('lets an authenticated admin reach /auth/reset-password (linked from Settings)', () => {
+    const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
+    const res = middleware(makeRequest('/auth/reset-password', validToken));
+    expect(res.headers.get('Location')).toBeNull();
+  });
+
   it('redirects authenticated visitor at / to /dashboard', () => {
     const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
     const res = middleware(makeRequest('/', validToken));
