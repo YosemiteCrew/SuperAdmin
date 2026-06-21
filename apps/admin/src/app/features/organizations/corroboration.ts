@@ -1,4 +1,15 @@
+import { lookup } from 'node:dns/promises';
+
 import type { OrganizationAddress, SuperAdminOrganizationDetail } from './types';
+
+/** Resolves a hostname to its IP addresses. Injectable so tests stay hermetic. */
+export type HostResolver = (hostname: string) => Promise<Array<{ address: string }>>;
+
+const defaultResolver: HostResolver = (hostname) => lookup(hostname, { all: true });
+
+/** Cap on redirect hops we will follow (each re-validated against the SSRF guard). */
+const MAX_REDIRECTS = 5;
+const FETCH_TIMEOUT_MS = 6000;
 
 export type CheckStatus = 'pass' | 'warn' | 'fail' | 'skipped';
 
@@ -16,13 +27,35 @@ export interface CorroborationResult {
   checks: CorroborationCheck[];
 }
 
-const PRIVATE_IPV4 = /^(?:10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.)/;
+// 10/8, 127/8, 0/8, 169.254/16 (link-local), 192.168/16, 172.16/12,
+// 100.64/10 (CGNAT), and 224+/multicast+reserved.
+const PRIVATE_IPV4 =
+  /^(?:10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|(?:22[4-9]|2[3-5]\d)\.)/;
+
+/**
+ * Classifies an IP literal (IPv4 dotted, IPv6, or IPv4-mapped IPv6) as private,
+ * loopback, link-local, or otherwise non-public. The WHATWG URL parser already
+ * normalizes decimal/hex/octal IPv4 to dotted form, so by the time a host
+ * reaches here those encodings are canonical.
+ */
+function isPrivateIp(ip: string): boolean {
+  const v = ip.replace(/^\[|\]$/g, '').toLowerCase();
+  // IPv4-mapped IPv6 in dotted tail form (e.g. ::ffff:127.0.0.1).
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(v);
+  if (mapped) return PRIVATE_IPV4.test(mapped[1]);
+  if (v.includes('.') && !v.includes(':')) return PRIVATE_IPV4.test(v);
+  // IPv6: loopback, unspecified, ULA (fc/fd), link-local (fe80), and any other
+  // IPv4-mapped form (hex tail) are all treated as non-public.
+  if (v === '::1' || v === '::') return true;
+  if (v.startsWith('fc') || v.startsWith('fd') || v.startsWith('fe80')) return true;
+  return v.startsWith('::ffff:');
+}
 
 /**
  * Parses an external website URL and rejects anything that isn't a public
- * http(s) endpoint — a best-effort SSRF guard, since the URL is supplied by the
- * business. (Full protection also requires checking the resolved IP at fetch
- * time; this blocks the obvious loopback / private / link-local literals.)
+ * http(s) endpoint — the first layer of the SSRF guard, since the URL is
+ * supplied by the business. The resolved IP is also validated at fetch time
+ * (see `checkWebsite`), and redirects are followed manually and re-checked.
  */
 export function isPublicHttpUrl(raw?: string): URL | null {
   if (!raw?.trim()) return null;
@@ -43,10 +76,7 @@ export function isPublicHttpUrl(raw?: string): URL | null {
   if (!host || host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) {
     return null;
   }
-  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) {
-    return null;
-  }
-  if (PRIVATE_IPV4.test(host)) return null;
+  if (isPrivateIp(host)) return null;
 
   return url;
 }
@@ -91,13 +121,54 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Resolves a hostname and throws if any resolved address is private/loopback —
+ * the second SSRF layer, closing DNS-rebinding where a public hostname points at
+ * an internal IP. (Residual TOCTOU remains between resolve and connect; for full
+ * protection pin the connection to the validated IP.)
+ */
+async function assertResolvesPublic(hostname: string, resolveImpl: HostResolver): Promise<void> {
+  const records = await resolveImpl(hostname);
+  if (records.length === 0 || records.some((r) => isPrivateIp(r.address))) {
+    throw new Error('host resolves to a non-public address');
+  }
+}
+
+/**
+ * Fetches `start`, following up to MAX_REDIRECTS hops manually. Every hop is
+ * re-validated through `isPublicHttpUrl` and its resolved IP re-checked, so an
+ * attacker cannot bounce a public URL into the internal network via a redirect.
+ */
+async function fetchFollowingSafely(
+  start: URL,
+  fetchImpl: typeof fetch,
+  resolveImpl: HostResolver
+): Promise<Response> {
+  let current: URL = start;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    await assertResolvesPublic(current.hostname, resolveImpl);
+    const res = await fetchImpl(current.toString(), {
+      method: 'GET',
+      redirect: 'manual',
+      signal: AbortSignal.timeout?.(FETCH_TIMEOUT_MS),
+    });
+    if (res.status < 300 || res.status >= 400) return res;
+    const location = res.headers.get('location');
+    const next = location ? isPublicHttpUrl(new URL(location, current).toString()) : null;
+    if (!next) throw new Error('blocked or invalid redirect target');
+    current = next;
+  }
+  throw new Error('too many redirects');
+}
+
+/**
  * Fetches the business website and checks that the rendered text mentions the
- * business name. `fetchImpl` is injectable for testing.
+ * business name. `fetchImpl` and `resolveImpl` are injectable for testing.
  */
 export async function checkWebsite(
   website: string | undefined,
   name: string,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  resolveImpl: HostResolver = defaultResolver
 ): Promise<CorroborationCheck> {
   const url = isPublicHttpUrl(website);
   if (!url) {
@@ -110,11 +181,7 @@ export async function checkWebsite(
   }
 
   try {
-    const res = await fetchImpl(url.toString(), {
-      method: 'GET',
-      redirect: 'follow',
-      signal: AbortSignal.timeout?.(6000),
-    });
+    const res = await fetchFollowingSafely(url, fetchImpl, resolveImpl);
     if (!res.ok) {
       return {
         id: 'website',
@@ -217,9 +284,10 @@ function aggregate(checks: CorroborationCheck[]): CorroborationLevel {
  */
 export async function corroborateBusiness(
   org: SuperAdminOrganizationDetail,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  resolveImpl: HostResolver = defaultResolver
 ): Promise<CorroborationResult> {
-  const website = await checkWebsite(org.website, org.name, fetchImpl);
+  const website = await checkWebsite(org.website, org.name, fetchImpl, resolveImpl);
   const checks = [website, ...structuralChecks(org)];
   return { level: aggregate(checks), checks };
 }
