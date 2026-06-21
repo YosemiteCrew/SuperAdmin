@@ -52,6 +52,24 @@ describe('publicEnv', () => {
       expect(publicEnv.appOrigin).toBe('http://localhost:3000');
     });
   });
+
+  it('allows an http loopback origin even in production (next build runs as production)', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
+    setEnv('NEXT_PUBLIC_APP_ORIGIN', 'http://localhost:3000');
+    try {
+      jest.isolateModules(() => {
+        const { publicEnv } =
+          jest.requireActual<typeof import('@/app/config/env.public')>('@/app/config/env.public');
+        expect(publicEnv.appOrigin).toBe('http://localhost:3000');
+      });
+    } finally {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: originalNodeEnv,
+        configurable: true,
+      });
+    }
+  });
 });
 
 describe('serverEnv', () => {
