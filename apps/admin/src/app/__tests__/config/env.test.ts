@@ -27,6 +27,31 @@ describe('publicEnv', () => {
       expect(publicEnv.appOrigin).toBe('https://admin.example.com');
     });
   });
+
+  it('rejects a non-https origin in production', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    Object.defineProperty(process.env, 'NODE_ENV', { value: 'production', configurable: true });
+    setEnv('NEXT_PUBLIC_APP_ORIGIN', 'http://admin.example.com');
+    try {
+      jest.isolateModules(() => {
+        expect(() => jest.requireActual('@/app/config/env.public')).toThrow(/https in production/);
+      });
+    } finally {
+      Object.defineProperty(process.env, 'NODE_ENV', {
+        value: originalNodeEnv,
+        configurable: true,
+      });
+    }
+  });
+
+  it('allows an http origin outside production', () => {
+    setEnv('NEXT_PUBLIC_APP_ORIGIN', 'http://localhost:3000');
+    jest.isolateModules(() => {
+      const { publicEnv } =
+        jest.requireActual<typeof import('@/app/config/env.public')>('@/app/config/env.public');
+      expect(publicEnv.appOrigin).toBe('http://localhost:3000');
+    });
+  });
 });
 
 describe('serverEnv', () => {

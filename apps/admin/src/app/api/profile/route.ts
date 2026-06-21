@@ -14,14 +14,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const firstName =
-    typeof (body as { firstName?: unknown })?.firstName === 'string'
-      ? (body as { firstName: string }).firstName.trim()
-      : '';
-  const lastName =
-    typeof (body as { lastName?: unknown })?.lastName === 'string'
-      ? (body as { lastName: string }).lastName.trim()
-      : '';
+  // Cap stored name length to bound metadata size (defense against oversized input).
+  const MAX_NAME_LEN = 100;
+  const readName = (value: unknown): string =>
+    typeof value === 'string' ? value.trim().slice(0, MAX_NAME_LEN) : '';
+  const firstName = readName((body as { firstName?: unknown })?.firstName);
+  const lastName = readName((body as { lastName?: unknown })?.lastName);
 
   if (!firstName) {
     return NextResponse.json({ error: 'firstName is required' }, { status: 400 });

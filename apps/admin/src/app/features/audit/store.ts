@@ -3,6 +3,7 @@ import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import type { JSONObject } from 'supertokens-node/types';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
+import { logger } from '@/app/lib/logger';
 
 import { buildAuditEvent, isValidAuditEvent, prependCapped } from './audit';
 import type { AuditAction, AuditEvent, AuditTargetType } from './types';
@@ -62,8 +63,14 @@ export async function recordAuditEvent(params: {
     await UserMetadataNode.updateUserMetadata(AUDIT_STORE_ID, {
       [AUDIT_KEY]: prependCapped(log, event),
     } as unknown as JSONObject);
-  } catch {
-    /* never let audit logging break the action it is recording */
+  } catch (error) {
+    // Never let audit logging break the action it is recording — but surface the
+    // failure so a silently-missing audit entry is at least observable in logs.
+    logger.error('Failed to record audit event', {
+      action: params.action,
+      targetId: params.targetId,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
@@ -72,6 +79,16 @@ export async function getRecentAuditEvents(limit = 20): Promise<AuditEvent[]> {
   try {
     ensureSuperTokensInit();
     return (await readLog()).slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
+/** Most-recent events performed BY an actor (for the "your activity" view). */
+export async function getAuditEventsForActor(actorId: string, limit = 20): Promise<AuditEvent[]> {
+  try {
+    ensureSuperTokensInit();
+    return (await readLog()).filter((event) => event.actorId === actorId).slice(0, limit);
   } catch {
     return [];
   }

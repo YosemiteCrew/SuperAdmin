@@ -17,6 +17,7 @@ jest.mock('supertokens-node/recipe/usermetadata', () => ({
 jest.mock('@/app/config/backend', () => ({ ensureSuperTokensInit: jest.fn() }));
 
 import {
+  getAuditEventsForActor,
   getAuditEventsForTarget,
   getRecentAuditEvents,
   recordAuditEvent,
@@ -126,6 +127,20 @@ describe('recordAuditEvent', () => {
       })
     ).resolves.toBeUndefined();
   });
+
+  it('swallows and stringifies a non-Error rejection', async () => {
+    updateUserMetadataMock.mockRejectedValue('catastrophe');
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    await expect(
+      recordAuditEvent({
+        action: 'user.delete',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: 'u-1',
+        targetLabel: 'v@x.com',
+      })
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe('getRecentAuditEvents', () => {
@@ -152,6 +167,27 @@ describe('getRecentAuditEvents', () => {
   it('returns an empty array when there is no stored log', async () => {
     getUserMetadataMock.mockResolvedValue({ metadata: {} });
     expect(await getRecentAuditEvents()).toEqual([]);
+  });
+});
+
+describe('getAuditEventsForActor', () => {
+  it('returns only events performed by the requested actor', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [
+          event({ id: 'a', actorId: 'admin-1' }),
+          event({ id: 'b', actorId: 'admin-2' }),
+          event({ id: 'c', actorId: 'admin-1' }),
+        ],
+      },
+    });
+    const result = await getAuditEventsForActor('admin-1');
+    expect(result.map((e) => e.id)).toEqual(['a', 'c']);
+  });
+
+  it('returns an empty array on error', async () => {
+    getUserMetadataMock.mockRejectedValue(new Error('down'));
+    expect(await getAuditEventsForActor('admin-1')).toEqual([]);
   });
 });
 
