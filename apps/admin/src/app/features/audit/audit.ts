@@ -54,11 +54,7 @@ export function buildAuditEvent(
 }
 
 /** Prepends the newest event and trims the log to `limit` entries. */
-export function prependCapped(
-  log: AuditEvent[],
-  event: AuditEvent,
-  limit = AUDIT_LOG_LIMIT
-): AuditEvent[] {
+export function prependCapped<T>(log: T[], event: T, limit = AUDIT_LOG_LIMIT): T[] {
   return [event, ...log].slice(0, limit);
 }
 
