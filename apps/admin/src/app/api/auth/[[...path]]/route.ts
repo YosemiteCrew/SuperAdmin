@@ -1,6 +1,7 @@
 import { getAppDirRequestHandler } from 'supertokens-node/nextjs';
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureSuperTokensInit } from '../../../config/backend';
+import { checkRateLimit } from '../../../lib/rateLimit';
 
 ensureSuperTokensInit();
 
@@ -25,6 +26,20 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown';
+  const { allowed, resetMs } = checkRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json(
+      { message: 'Too many requests' },
+      {
+        status: 429,
+        headers: { 'Retry-After': String(Math.ceil((resetMs - Date.now()) / 1000)) },
+      }
+    );
+  }
   return handleCall(request);
 }
 
