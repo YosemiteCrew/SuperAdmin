@@ -32,7 +32,7 @@ export async function DELETE(request: NextRequest) {
   const res = await handleCall(request);
   const { pathname } = new URL(request.url);
 
-  if (pathname.includes('/dashboard') && pathname.includes('signout')) {
+  if (pathname === '/api/auth/signout') {
     const next = new NextResponse(res.body, {
       status: res.status,
       headers: res.headers,
