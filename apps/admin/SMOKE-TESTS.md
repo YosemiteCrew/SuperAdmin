@@ -100,13 +100,11 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
 ## Security / misc ⚪
 
 - [ ] ⚪ **Security headers** (CSP etc.) present on responses.
-- [ ] 🔴 **CSP nonce rollout (finish #3)**: in a prod build, load every page type
-      (auth, dashboard, users, settings, org detail, **prebuilt MFA/TOTP**) with
-      DevTools open and confirm the `Content-Security-Policy-Report-Only` (strict,
-      no `unsafe-inline`) logs **zero** violations. Each HTML response must carry a
-      fresh `nonce-…`, and Next's scripts + the inline theme script must show that
-      nonce. Once clean, flip it to enforcing: in `securityHeaders.ts` make the
-      enforced policy use `buildStrictCsp(nonce)` and drop `buildEnforcedCsp`, and
-      in `middleware.ts` set `Content-Security-Policy` to the strict policy and
-      remove the Report-Only header.
+- [x] ✅ **CSP nonce (flipped to enforce — #3)**: `Content-Security-Policy` now uses
+      `buildStrictCsp(nonce)` (strict-dynamic, no `unsafe-inline`); `buildEnforcedCsp`
+      and the Report-Only header have been removed. Remaining verification: in a prod
+      build, open DevTools on each page type (auth, dashboard, users, settings, org
+      detail, prebuilt MFA/TOTP) and confirm **zero** CSP console errors. Each HTML
+      response should carry a fresh `nonce-…` on Next's scripts and the inline theme
+      script.
 - [ ] ⚪ **No console errors** on each page in production mode (`pnpm --filter admin run build` + start).
