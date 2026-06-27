@@ -96,10 +96,10 @@ describe('/api/auth/[[...path]] route', () => {
     expect(handleCallMock).toHaveBeenCalled();
   });
 
-  it('DELETE on /dashboard/signout appends cleared session cookies', async () => {
+  it('DELETE on /api/auth/signout appends cleared session cookies', async () => {
     const { DELETE } = await import('@/app/api/auth/[[...path]]/route');
     handleCallMock.mockResolvedValueOnce(mockResponse({ status: 200 }));
-    const res = await DELETE(makeRequest('/api/auth/dashboard/signout'));
+    const res = await DELETE(makeRequest('/api/auth/signout'));
     const cookies = res.headers.getSetCookie?.() ?? [];
     expect(cookies.length).toBeGreaterThanOrEqual(5);
     expect(cookies.join('\n')).toContain('sAccessToken=;');
