@@ -31,6 +31,15 @@ describe('DeleteUserButton', () => {
     expect(globalThis.confirm).toHaveBeenCalled();
   });
 
+  it('proceeds with submit and shows pending state when the confirm is accepted', () => {
+    globalThis.confirm = jest.fn(() => true);
+    render(<DeleteUserButton userId="user-1" email="a@b.com" variant="danger-zone" />);
+    const button = screen.getByRole('button', { name: /Delete user/i });
+    fireEvent.submit(button.closest('form') as HTMLFormElement);
+    expect(globalThis.confirm).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /Deleting…/i })).toBeDisabled();
+  });
+
   it('includes a hidden userId input on the form', () => {
     render(<DeleteUserButton userId="user-42" email="a@b.com" variant="danger-zone" />);
     const hidden = screen

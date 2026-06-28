@@ -33,6 +33,7 @@ function emit(level: LogLevel, message: string, context?: LogContext): void {
       return;
     case 'debug':
       console.debug(line);
+      return;
   }
 }
 

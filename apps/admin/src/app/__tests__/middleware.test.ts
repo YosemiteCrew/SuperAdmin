@@ -42,6 +42,18 @@ describe('middleware', () => {
     expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
+  it('lets an authenticated (MFA-incomplete) visitor reach /auth/mfa', () => {
+    const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
+    const res = middleware(makeRequest('/auth/mfa/totp', validToken));
+    expect(res.headers.get('Location')).toBeNull();
+  });
+
+  it('lets an authenticated admin reach /auth/reset-password (linked from Settings)', () => {
+    const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
+    const res = middleware(makeRequest('/auth/reset-password', validToken));
+    expect(res.headers.get('Location')).toBeNull();
+  });
+
   it('redirects authenticated visitor at / to /dashboard', () => {
     const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
     const res = middleware(makeRequest('/', validToken));
@@ -62,5 +74,32 @@ describe('middleware', () => {
   it('treats a malformed token as unauthenticated', () => {
     const res = middleware(makeRequest('/dashboard', 'not.a.jwt'));
     expect(res.headers.get('Location')).toContain('/auth');
+  });
+
+  it('sets the enforced CSP and a strict Report-Only CSP on pass-through responses', () => {
+    const res = middleware(makeRequest('/auth'));
+    const enforced = res.headers.get('Content-Security-Policy');
+    const reportOnly = res.headers.get('Content-Security-Policy-Report-Only');
+    expect(enforced).toContain("script-src 'self' 'unsafe-inline'");
+    expect(reportOnly).toContain("'strict-dynamic'");
+    expect(reportOnly).toContain("'nonce-");
+    expect(reportOnly).not.toContain("script-src 'self' 'unsafe-inline'");
+  });
+
+  it('also sets CSP headers on redirect responses', () => {
+    const res = middleware(makeRequest('/dashboard'));
+    expect(res.status).toBe(307);
+    expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'self'");
+    expect(res.headers.get('Content-Security-Policy-Report-Only')).toContain("'strict-dynamic'");
+  });
+
+  it('issues a unique nonce per request', () => {
+    const first = middleware(makeRequest('/auth')).headers.get(
+      'Content-Security-Policy-Report-Only'
+    );
+    const second = middleware(makeRequest('/auth')).headers.get(
+      'Content-Security-Policy-Report-Only'
+    );
+    expect(first).not.toBe(second);
   });
 });

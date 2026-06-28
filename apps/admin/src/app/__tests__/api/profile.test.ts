@@ -84,4 +84,18 @@ describe('POST /api/profile', () => {
       lastName: 'Doe',
     });
   });
+
+  it('caps over-long names at 100 characters', async () => {
+    const { POST } = await import('@/app/api/profile/route');
+    withSessionMock.mockImplementationOnce(async (_req, handler) => {
+      return handler(undefined, { getUserId: () => 'user-123' });
+    });
+    updateUserMetadataMock.mockResolvedValueOnce({ status: 'OK' });
+    const res = await POST(makeRequest({ firstName: 'a'.repeat(250), lastName: 'b'.repeat(250) }));
+    expect(res.status).toBe(200);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith('user-123', {
+      firstName: 'a'.repeat(100),
+      lastName: 'b'.repeat(100),
+    });
+  });
 });
