@@ -8,6 +8,7 @@ import type { IconType } from 'react-icons';
 import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-icons/io5';
 import {
   MdDashboard,
+  MdHistory,
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
@@ -42,7 +43,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
   },
   {
     label: 'Insights',
-    routes: [{ name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline }],
+    routes: [
+      { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
+      { name: 'Audit log', href: '/audit', icon: MdHistory },
+    ],
   },
   {
     label: 'Account',
@@ -53,7 +57,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
 const COLLAPSE_STORAGE_KEY = 'yc-admin-sidebar-collapsed';
 
 function isCollapsedByDefault(): boolean {
-  if (typeof globalThis.window === 'undefined') return false;
+  if (globalThis.window === undefined) return false;
   try {
     return globalThis.localStorage.getItem(COLLAPSE_STORAGE_KEY) === '1';
   } catch {
@@ -62,7 +66,7 @@ function isCollapsedByDefault(): boolean {
 }
 
 function setCollapsedPreference(value: boolean): void {
-  if (typeof globalThis.window === 'undefined') return;
+  if (globalThis.window === undefined) return;
   try {
     globalThis.localStorage.setItem(COLLAPSE_STORAGE_KEY, value ? '1' : '0');
   } catch {

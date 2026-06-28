@@ -1,9 +1,23 @@
-@import url('https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400,300&display=swap');
 @import 'tailwindcss';
 
-@theme {
-  --font-satoshi: 'Satoshi', sans-serif;
+/* Self-hosted Satoshi Variable — matches the Yosemite Crew design system
+   (apps/frontend/src/app/globals.css, apps/desktop/src/pages/tokens.css).
+   Replaces the previous Fontshare CDN dependency. */
+@font-face {
+  font-family: 'Satoshi Variable';
+  src:
+    url('/fonts/Satoshi-Variable.woff2') format('woff2'),
+    url('/fonts/Satoshi-Variable.woff') format('woff');
+  font-weight: 300 900;
+  font-display: swap;
+  font-style: normal;
+}
 
+@theme {
+  --font-satoshi:
+    'Satoshi Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* ── Palette ramps (theme-independent) ── */
   --color-neutral-950: #1d1c1b;
   --color-neutral-900: #302f2e;
   --color-neutral-800: #454341;
@@ -17,30 +31,111 @@
 
   --color-primary-500: #007cf5;
   --color-primary-600: #006ae0;
+  --color-primary-700: #0057c2;
+  --color-primary-100: #e6f2ff;
 
+  --color-success-700: #008255;
+  --color-success-600: #008f5d;
+  --color-success-100: #e6f4ef;
+  --color-warning-800: #af5e19;
+  --color-warning-600: #f68523;
+  --color-warning-100: #fef3e9;
   --color-danger-600: #ea3729;
+  --color-danger-100: #fdebea;
 
-  --color-input-border-default: #e9e6e3;
-  --color-input-border-active: #007cf5;
-  --color-input-border-error: #ea3729;
-
-  --color-surface-card: #ffffff;
-  --color-card-border: #d6d1cd;
-  --color-card-hover: #f5f3f1;
-  --color-text-primary: #1d1c1b;
-  --color-text-secondary: #5c5956;
-  --color-text-tertiary: #8f8984;
-  --color-text-brand: #007cf5;
-  --color-text-error: #ea3729;
   --color-brand-100: #e8f1ff;
   --color-brand-950: #003a8c;
-  --color-app-shell: #f8f6f4;
+
+  /* ── Semantic, theme-aware tokens (flip in dark mode, see :root below) ── */
+  --color-surface: var(--surface);
+  --color-canvas: var(--canvas);
+  --color-raised: var(--raised);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-btn: var(--btn);
+  --color-btn-ink: var(--btn-ink);
+  --color-text-brand: #007cf5;
+  --color-text-error: #ea3729;
+
+  /* Back-compat aliases (used by the auth styles below). */
+  --color-surface-card: var(--surface);
+  --color-card-border: var(--line-strong);
+  --color-card-hover: var(--raised);
+  --color-text-primary: var(--ink);
+  --color-text-secondary: var(--ink-2);
+  --color-text-tertiary: var(--ink-3);
+  --color-app-shell: var(--canvas);
+
+  --color-input-border-default: var(--line);
+  --color-input-border-active: #007cf5;
+  --color-input-border-error: #ea3729;
+}
+
+/* ── Light theme (default) ── */
+:root {
+  --surface: #ffffff;
+  --canvas: #f8f6f4;
+  --raised: #f5f3f1;
+  --line: #e9e6e3;
+  --line-strong: #d6d1cd;
+  --ink: #1d1c1b;
+  --ink-2: #5c5956;
+  --ink-3: #8f8984;
+  --btn: #1d1c1b;
+  --btn-ink: #ffffff;
+  --shadow-cta: 0 8px 20px rgba(29, 28, 27, 0.2);
+  --shadow-card: 0 1px 2px rgba(29, 28, 27, 0.04), 0 8px 28px rgba(29, 28, 27, 0.08);
+  /* Comma-form RGB triplets — consumed by SuperTokens' prebuilt UI palette,
+     which builds colours as rgba(var(--palette-x), a). These inherit through
+     the prebuilt UI's shadow DOM, so the MFA/TOTP screens follow the theme. */
+  --surface-rgb: 255, 255, 255;
+  --line-rgb: 233, 230, 227;
+  --ink-rgb: 29, 28, 27;
+  --ink-3-rgb: 143, 137, 132;
+  --btn-rgb: 29, 28, 27;
+  --btn-ink-rgb: 255, 255, 255;
+  --primary-rgb: 0, 124, 245;
+  --auth-bg-1: #fbfaf8;
+  --auth-bg-2: #f3efea;
+  --auth-glow-1: rgba(0, 124, 245, 0.08);
+  --auth-glow-2: rgba(255, 138, 163, 0.07);
+}
+
+/* Dark theme — opt-in via [data-theme='dark'], which the no-flash inline script
+   sets pre-paint from the saved preference or the system setting. Keeping it
+   off `prefers-color-scheme` avoids a flash of partially-themed dark UI. */
+[data-theme='dark'] {
+  --surface: #211f1e;
+  --canvas: #161514;
+  --raised: #2c2a28;
+  --line: #2c2a28;
+  --line-strong: #383532;
+  --ink: #f3f2f1;
+  --ink-2: #c9c5c1;
+  --ink-3: #a9a39e;
+  --btn: #f3f2f1;
+  --btn-ink: #161514;
+  --shadow-cta: 0 8px 20px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
+  --surface-rgb: 33, 31, 30;
+  --line-rgb: 44, 42, 40;
+  --ink-rgb: 243, 242, 241;
+  --ink-3-rgb: 169, 163, 158;
+  --btn-rgb: 243, 242, 241;
+  --btn-ink-rgb: 22, 21, 20;
+  --auth-bg-1: #161514;
+  --auth-bg-2: #0f0e0e;
+  --auth-glow-1: rgba(0, 124, 245, 0.12);
+  --auth-glow-2: rgba(255, 138, 163, 0.06);
 }
 
 body {
-  font-family: 'Satoshi', sans-serif;
-  background-color: #ffffff;
-  color: #302f2e;
+  font-family: var(--font-satoshi);
+  background-color: var(--canvas);
+  color: var(--ink);
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -63,9 +158,10 @@ textarea:focus-visible {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--color-neutral-900) 86%, white);
-  background: var(--color-neutral-900);
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--color-btn) 86%, var(--color-canvas));
+  background: var(--color-btn);
+  color: var(--color-btn-ink);
+  box-shadow: var(--shadow-cta);
   transition:
     background-color 200ms ease-out,
     border-color 200ms ease-out,
@@ -107,7 +203,7 @@ textarea:focus-visible {
 }
 
 .yc-primary-button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-neutral-900) 35%, white);
+  outline: 2px solid color-mix(in srgb, var(--color-btn) 35%, var(--color-canvas));
   outline-offset: 2px;
 }
 
@@ -125,9 +221,9 @@ textarea:focus-visible {
   min-height: 100vh;
   flex-direction: column;
   background:
-    radial-gradient(circle at 18% 12%, rgba(0, 124, 245, 0.08), transparent 42%),
-    radial-gradient(circle at 82% 88%, rgba(255, 138, 163, 0.07), transparent 48%),
-    linear-gradient(180deg, #fbfaf8, #f3efea);
+    radial-gradient(circle at 18% 12%, var(--auth-glow-1), transparent 42%),
+    radial-gradient(circle at 82% 88%, var(--auth-glow-2), transparent 48%),
+    linear-gradient(180deg, var(--auth-bg-1), var(--auth-bg-2));
 }
 
 .yc-auth-guest-header {
@@ -172,10 +268,10 @@ textarea:focus-visible {
   min-width: 7.5rem;
   height: 48px;
   padding: 0 1.5rem;
-  border: 1px solid var(--color-neutral-900);
+  border: 1px solid var(--color-btn);
   border-radius: 1rem;
-  background: var(--color-neutral-900);
-  color: #ffffff;
+  background: var(--color-btn);
+  color: var(--color-btn-ink);
   font-family: var(--font-satoshi);
   font-size: 1rem;
   font-weight: 500;
@@ -185,7 +281,7 @@ textarea:focus-visible {
 }
 
 .yc-auth-guest-cta:hover {
-  background: var(--color-neutral-800);
+  background: color-mix(in srgb, var(--color-btn) 86%, var(--color-canvas));
 }
 
 .yc-auth-stage {
@@ -198,7 +294,7 @@ textarea:focus-visible {
 
 .yc-auth-inline-text {
   margin: 0;
-  color: var(--color-neutral-900);
+  color: var(--ink);
   font-size: 0.95rem;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -220,7 +316,7 @@ textarea:focus-visible {
   width: min(36rem, 92vw);
   border: 1px solid rgba(48, 47, 46, 0.06);
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--surface);
   box-shadow:
     0 1px 2px rgba(29, 28, 27, 0.04),
     0 4px 12px rgba(29, 28, 27, 0.08),
@@ -235,7 +331,7 @@ textarea:focus-visible {
 }
 
 .yc-auth-title {
-  color: var(--color-neutral-900);
+  color: var(--ink);
   font-size: 2rem;
   font-weight: 500;
   letter-spacing: -0.04em;
@@ -255,11 +351,11 @@ textarea:focus-visible {
 }
 
 .yc-auth-success {
-  border: 1px solid rgba(34, 139, 87, 0.16);
+  border: 1px solid color-mix(in srgb, var(--color-success-600) 18%, transparent);
   border-radius: 1rem;
-  background: rgba(235, 250, 241, 0.95);
+  background: var(--color-success-100);
   padding: 0.85rem 1rem;
-  color: #1f7a4d;
+  color: var(--color-success-700);
   font-size: 0.9rem;
   line-height: 1.5;
   text-align: center;
@@ -294,7 +390,7 @@ textarea:focus-visible {
   background: transparent;
   min-height: 3.5rem;
   padding: 0.75rem 1.5rem;
-  color: var(--color-neutral-900);
+  color: var(--ink);
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: -0.02em;
@@ -323,11 +419,11 @@ textarea:focus-visible {
   top: 50%;
   transform: translateY(-50%);
   max-width: calc(100% - 2rem);
-  color: var(--color-neutral-600);
+  color: var(--ink-3);
   font-size: 1rem;
   font-weight: 400;
   letter-spacing: -0.02em;
-  background: #ffffff;
+  background: var(--surface);
   padding: 0;
   transition:
     top 180ms ease,
@@ -360,7 +456,7 @@ textarea:focus-visible {
   justify-content: center;
   border: 0;
   background: transparent;
-  color: var(--color-neutral-900);
+  color: var(--ink);
   cursor: pointer;
   padding: 0.2rem;
   z-index: 1;
@@ -373,7 +469,7 @@ textarea:focus-visible {
 }
 
 .yc-auth-link {
-  color: var(--color-neutral-900);
+  color: var(--ink);
   font-size: 0.95rem;
   font-weight: 500;
   letter-spacing: -0.02em;
@@ -564,7 +660,7 @@ textarea:focus-visible {
   gap: 8px;
   border: 1px solid color-mix(in srgb, var(--color-card-border) 72%, transparent);
   border-radius: var(--sidebar-radius);
-  background: color-mix(in srgb, var(--color-neutral-0) 72%, transparent);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
   color: var(--color-text-secondary);
   font-family: var(--font-satoshi);
   font-size: 14px;
@@ -620,7 +716,7 @@ textarea:focus-visible {
 
 .route:hover {
   border-color: color-mix(in srgb, var(--color-card-border) 82%, transparent);
-  background: color-mix(in srgb, var(--color-card-hover) 74%, white);
+  background: color-mix(in srgb, var(--color-card-hover) 74%, var(--surface));
   color: var(--color-text-primary);
 }
 
@@ -1026,4 +1122,79 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Dark-mode glass overrides. Light mode is unaffected (these only match under
+   [data-theme='dark']). The bespoke panels below layer a white sheen over the
+   surface for a frosted look; in dark we swap to a faint light sheen so the
+   panels read as elevated-on-dark instead of washing out to white.
+   ─────────────────────────────────────────────────────────────────────────── */
+[data-theme='dark'] .yc-auth-guest-header,
+[data-theme='dark'] .sidebar,
+[data-theme='dark'] .yc-user-header-shell,
+[data-theme='dark'] .yc-header-search,
+[data-theme='dark'] .yc-header-dropdown-panel,
+[data-theme='dark'] .yc-tooltip,
+[data-theme='dark'] .yc-command-key {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), var(--surface);
+  border-color: var(--line);
+}
+
+[data-theme='dark'] .yc-icon-button,
+[data-theme='dark'] .sidebar-collapse-btn {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)), var(--raised);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .yc-icon-button:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05)), var(--raised);
+}
+
+/* Sidebar nav active/hover states read off neutral-100 in light; keep them
+   legible on dark. */
+[data-theme='dark'] .sidebar {
+  box-shadow: 10px 0 28px rgba(0, 0, 0, 0.4);
+}
+
+/* Header/profile pill controls + menu hovers in dark mode. */
+[data-theme='dark'] .yc-profile-trigger,
+[data-theme='dark'] .yc-command-button {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+[data-theme='dark'] .yc-profile-trigger:hover,
+[data-theme='dark'] .yc-command-button:hover,
+[data-theme='dark'] .yc-header-trigger-open {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04)), var(--raised);
+  border-color: var(--line-strong);
+}
+
+[data-theme='dark'] .yc-profile-name {
+  color: var(--ink);
+}
+
+[data-theme='dark'] .yc-menu-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme='dark'] .yc-header-search input {
+  color: var(--ink);
+}
+
+/* Active nav + active collapse hover: a dark-blue tint instead of the bright
+   light-blue chip used in light mode. */
+[data-theme='dark'] .route-active,
+[data-theme='dark'] .sidebar-collapse-btn:hover {
+  background: color-mix(in srgb, var(--color-primary-500) 20%, var(--surface));
+  border-color: color-mix(in srgb, var(--color-primary-500) 45%, transparent);
+  color: #8fc0ff;
 }
