@@ -59,7 +59,7 @@ beforeEach(() => {
     expiresAt: 2000,
   });
   mockRevokeInvite.mockResolvedValue(undefined);
-  mockRecordAudit.mockResolvedValue({ status: 'OK' as const });
+  mockRecordAudit.mockResolvedValue(undefined);
 });
 
 describe('createInviteAction', () => {
