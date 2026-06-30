@@ -13,9 +13,12 @@ export type AuditAction =
   | 'role.revoke'
   | 'org.verify'
   | 'org.suspend'
-  | 'org.reactivate';
+  | 'org.reactivate'
+  | 'invite.create'
+  | 'invite.use'
+  | 'invite.revoke';
 
-export type AuditTargetType = 'user' | 'organization';
+export type AuditTargetType = 'user' | 'organization' | 'invite';
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
