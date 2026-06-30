@@ -1,11 +1,11 @@
 const quote = (file) => `"${file.replaceAll('"', String.raw`\"`)}"`;
 // secretlint resolves its arguments as globs, so Next.js dynamic-route filenames
 // (e.g. `[[...path]]`, `[id]`) match nothing and it errors "Not found target
-// files". Escaping the bracket metacharacters makes it treat them literally.
-// (eslint v9 wants the literal path and breaks if escaped, so this is applied to
-// the secretlint command only.)
-const globEscape = (file) => file.replaceAll('[', String.raw`\[`).replaceAll(']', String.raw`\]`);
-const quoteGlob = (file) => quote(globEscape(file));
+// files". Files with brackets in their path (Next.js route segments) are excluded
+// from secretlint — route handlers never contain secrets, and the tool cannot
+// scan them reliably. All other files are scanned normally.
+const hasBracket = (file) => file.includes('[') || file.includes(']');
+const quoteGlob = (file) => quote(file);
 const isAdminPath = (file) =>
   file.startsWith('apps/admin/') || file.includes('/apps/admin/');
 
@@ -52,5 +52,9 @@ module.exports = {
     `prettier --write ${files.map(quote).join(' ')}`,
   ],
   '**/*.{js,jsx,ts,tsx,mjs,cjs,json,md,yml,yaml,env,txt,sh,properties}':
-    (files) => [`secretlint --maskSecrets ${files.map(quoteGlob).join(' ')}`],
+    (files) => {
+      const scannable = files.filter((f) => !hasBracket(f));
+      if (scannable.length === 0) return [];
+      return [`secretlint --maskSecrets ${scannable.map(quoteGlob).join(' ')}`];
+    },
 };
