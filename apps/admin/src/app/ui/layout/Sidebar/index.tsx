@@ -12,6 +12,7 @@ import {
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
+  MdOutlineHub,
 } from 'react-icons/md';
 
 type RouteItem = {
@@ -47,6 +48,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
       { name: 'Audit log', href: '/audit', icon: MdHistory },
     ],
+  },
+  {
+    label: 'Federation',
+    routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
   },
   {
     label: 'Account',
