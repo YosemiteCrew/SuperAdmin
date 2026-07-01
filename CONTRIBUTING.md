@@ -6,6 +6,10 @@
 pnpm install
 ```
 
+## Architecture Decisions
+
+Decisions that would be expensive to reverse (persistence/storage trade-offs, auth model choices, accepted consistency limitations) are recorded in [docs/adr/](./docs/adr/README.md).
+
 ## Commit Format
 
 All commits must follow Conventional Commits:
