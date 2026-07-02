@@ -21,6 +21,8 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.verify': { label: 'Verified business', severity: 'info' },
   'org.suspend': { label: 'Suspended business', severity: 'warning' },
   'org.reactivate': { label: 'Reactivated business', severity: 'info' },
+  'user.approve': { label: 'Approved account', severity: 'info' },
+  'user.reject': { label: 'Rejected account', severity: 'warning' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));

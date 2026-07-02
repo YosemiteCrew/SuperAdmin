@@ -11,6 +11,7 @@ import {
   MdHistory,
   MdOutlineCampaign,
   MdOutlineCorporateFare,
+  MdOutlineHowToReg,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
 } from 'react-icons/md';
@@ -36,6 +37,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
     label: 'People & Access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
+      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
       {
         name: 'Organizations',
         href: '/organizations',

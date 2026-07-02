@@ -9,6 +9,7 @@ global.fetch = mockFetch;
 
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import {
+  notifyAccountDecision,
   notifyCampaignSent,
   sendDiscordEmbed,
   sendDiscordMessage,
@@ -96,6 +97,44 @@ describe('notifyCampaignSent', () => {
       metadata: { config: { webhookUrl: '', channelName: '', notifyOnEvents: true } },
     });
     await notifyCampaignSent({ subject: 'Test', sentCount: 1, sentByEmail: 'a@b.com' });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifyAccountDecision', () => {
+  it('sends an approved embed with account and actor', async () => {
+    withWebhook(true);
+    await notifyAccountDecision({
+      decision: 'approved',
+      accountEmail: 'new@user.com',
+      actorEmail: 'admin@yc.com',
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.embeds[0].title).toBe('Account approved');
+    expect(body.embeds[0].fields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ value: 'new@user.com' })])
+    );
+  });
+
+  it('sends a rejected embed with the danger color', async () => {
+    withWebhook(true);
+    await notifyAccountDecision({
+      decision: 'rejected',
+      accountEmail: 'bad@user.com',
+      actorEmail: 'admin@yc.com',
+    });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.embeds[0].title).toBe('Account rejected');
+    expect(body.embeds[0].color).toBe(0xef4444);
+  });
+
+  it('skips sending when notifyOnEvents is false', async () => {
+    withWebhook(false);
+    await notifyAccountDecision({
+      decision: 'approved',
+      accountEmail: 'a@b.com',
+      actorEmail: 'c@d.com',
+    });
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });
