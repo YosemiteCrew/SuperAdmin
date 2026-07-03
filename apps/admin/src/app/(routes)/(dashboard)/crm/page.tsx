@@ -36,7 +36,7 @@ export default async function CrmPage() {
         </div>
         <Link
           href="/crm/compose"
-          className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg inline-flex items-center"
+          className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink inline-flex items-center"
         >
           New campaign
         </Link>
