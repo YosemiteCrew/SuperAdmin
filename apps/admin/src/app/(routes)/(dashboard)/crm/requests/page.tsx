@@ -76,7 +76,7 @@ export default async function ContactRequestsPage({
               href={filterHref(f.key)}
               className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
                 filter === f.key
-                  ? 'border-btn bg-btn text-btn-fg'
+                  ? 'border-btn bg-btn text-btn-ink'
                   : 'border-line bg-surface text-ink hover:bg-raised'
               }`}
             >
@@ -151,7 +151,7 @@ export default async function ContactRequestsPage({
         {nextCursor ? (
           <Link
             href={`/crm/requests?${filter === 'all' ? '' : `status=${filter}&`}cursor=${nextCursor}`}
-            className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-fg hover:opacity-90"
+            className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-ink hover:opacity-90"
           >
             Next -&gt;
           </Link>
