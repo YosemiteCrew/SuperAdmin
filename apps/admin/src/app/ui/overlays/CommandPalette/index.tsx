@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { useDebounce } from '@/app/hooks/useDebounce';
 
-import { searchDirectoryAction, type DirectoryHit } from './searchAction';
+import type { DirectoryHit } from './searchAction';
 
 const LIVE_SEARCH_MIN_CHARS = 2;
 const LIVE_SEARCH_DEBOUNCE_MS = 250;
@@ -191,7 +191,10 @@ export function CommandPalette() {
       return;
     }
     const seq = ++searchSeq.current;
-    searchDirectoryAction(q)
+    // Lazy import: keeps the server-action module (and its server-only
+    // dependency chain) out of every consumer that merely renders the palette.
+    import('./searchAction')
+      .then(({ searchDirectoryAction }) => searchDirectoryAction(q))
       .then((hits) => {
         if (searchSeq.current === seq) setLiveHits(hits);
       })
