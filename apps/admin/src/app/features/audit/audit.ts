@@ -31,6 +31,9 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.flag_on': { label: 'Enabled feature flag on', severity: 'info' },
   'org.flag_off': { label: 'Disabled feature flag on', severity: 'info' },
   'org.note_add': { label: 'Added internal note to', severity: 'info' },
+  'invite.create': { label: 'Created invite for', severity: 'info' },
+  'invite.use': { label: 'Accepted super-admin invite', severity: 'warning' },
+  'invite.revoke': { label: 'Revoked invite for', severity: 'info' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));

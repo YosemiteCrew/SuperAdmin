@@ -18,6 +18,7 @@ import {
   MdOutlineHub,
   MdOutlineForwardToInbox,
   MdOutlineMonitor,
+  MdOutlineMailOutline,
 } from 'react-icons/md';
 import { SiDiscord } from 'react-icons/si';
 
@@ -48,6 +49,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
         icon: MdOutlineCorporateFare,
       },
       { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
+      { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
     ],
   },
   {
