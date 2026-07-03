@@ -86,7 +86,7 @@ export function DiscordSettings({ config }: { config: DiscordConfig }) {
             <p className="text-sm text-emerald-600 dark:text-emerald-400">Configuration saved.</p>
           ) : null}
 
-          <div className="flex items-center gap-3">
+          <div>
             <button
               type="submit"
               disabled={savePending}
@@ -94,21 +94,24 @@ export function DiscordSettings({ config }: { config: DiscordConfig }) {
             >
               {savePending ? 'Saving…' : 'Save'}
             </button>
-
-            <form action={testAction}>
-              <input type="hidden" name="webhookUrl" value={config.webhookUrl} />
-              <button
-                type="submit"
-                disabled={testPending || !config.webhookUrl}
-                className="h-10 rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink disabled:opacity-40 hover:bg-raised"
-              >
-                {testPending ? 'Testing…' : 'Send test'}
-              </button>
-            </form>
           </div>
-          {testState.error ? <p className="text-sm text-red-500">{testState.error}</p> : null}
+        </form>
+
+        {/* Sibling form — a form must never nest inside another form. */}
+        <form action={testAction} className="mt-3">
+          <input type="hidden" name="webhookUrl" value={config.webhookUrl} />
+          <button
+            type="submit"
+            disabled={testPending || !config.webhookUrl}
+            className="h-10 rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink disabled:opacity-40 hover:bg-raised"
+          >
+            {testPending ? 'Testing…' : 'Send test'}
+          </button>
+          {testState.error ? <p className="mt-2 text-sm text-red-500">{testState.error}</p> : null}
           {testState.success ? (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">Test message sent.</p>
+            <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
+              Test message sent.
+            </p>
           ) : null}
         </form>
       </div>
