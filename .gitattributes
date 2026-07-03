@@ -1,2 +1,4 @@
-* text=auto eol=lf
-*.bat text eol=crlf
+apps/admin/src/app/features/audit/types.ts merge=union
+apps/admin/src/app/features/audit/audit.ts merge=union
+apps/admin/src/app/ui/layout/Sidebar/index.tsx merge=union
+apps/admin/src/app/config/env.server.ts merge=union
