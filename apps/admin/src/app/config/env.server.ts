@@ -31,4 +31,8 @@ export const serverEnv = {
   // Optional — AP token issuance is disabled when absent.
   apSigningKey: process.env.AP_SIGNING_KEY ?? null,
   apSigningKeyId: process.env.AP_SIGNING_KEY_ID ?? 'yc-ap-2026-01',
+  // Shared secret the marketing site presents when POSTing contact-us
+  // submissions to /api/contact. Optional — the intake endpoint refuses all
+  // requests when absent, so the form cannot silently start dropping leads.
+  contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
 };

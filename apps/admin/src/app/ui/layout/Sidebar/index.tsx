@@ -13,6 +13,7 @@ import {
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
   MdOutlineHub,
+  MdOutlineForwardToInbox,
 } from 'react-icons/md';
 
 type RouteItem = {
@@ -52,6 +53,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
   {
     label: 'Federation',
     routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
+  },
+  {
+    label: 'CRM',
+    routes: [{ name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox }],
   },
   {
     label: 'Account',

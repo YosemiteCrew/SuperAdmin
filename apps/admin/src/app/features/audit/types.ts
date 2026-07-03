@@ -15,9 +15,10 @@ export type AuditAction =
   | 'org.suspend'
   | 'org.reactivate'
   | 'ap_token.issue'
-  | 'ap_token.revoke';
+  | 'ap_token.revoke'
+  | 'contact.status_change';
 
-export type AuditTargetType = 'user' | 'organization' | 'ap_token';
+export type AuditTargetType = 'user' | 'organization' | 'ap_token' | 'contact_request';
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
