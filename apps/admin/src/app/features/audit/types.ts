@@ -19,7 +19,8 @@ export type AuditAction =
   | 'contact.status_change'
   | 'user.approve'
   | 'user.reject'
-  | 'crm.contact_sync';
+  | 'crm.contact_sync'
+  | 'user.data_export';
 
 export type AuditTargetType =
   | 'user'

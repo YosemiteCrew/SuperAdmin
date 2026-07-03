@@ -27,6 +27,7 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'user.approve': { label: 'Approved account', severity: 'info' },
   'user.reject': { label: 'Rejected account', severity: 'warning' },
   'crm.contact_sync': { label: 'Synced contacts to', severity: 'info' },
+  'user.data_export': { label: 'Exported account data for', severity: 'warning' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));

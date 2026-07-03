@@ -16,6 +16,7 @@ import { getAuditEventsForTarget } from '@/app/features/audit/store';
 
 import { DeleteUserButton } from '../DeleteUserButton';
 import { DisableUserButton } from './DisableUserButton';
+import { ExportAccountDataButton } from './ExportAccountDataButton';
 import { ResetMfaButton } from './ResetMfaButton';
 import { RoleButton } from './RoleButton';
 import { SessionsSection } from './SessionsSection';
@@ -252,16 +253,19 @@ export default async function UserDetailPage({
         </Link>
       </div>
 
-      <header className="flex flex-col gap-1">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-medium tracking-tight text-ink">{primaryEmail}</h1>
-          {isDisabled ? (
-            <span className="rounded-full bg-warning-100 px-2.5 py-0.5 text-xs font-medium text-warning-800">
-              Disabled
-            </span>
-          ) : null}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-medium tracking-tight text-ink">{primaryEmail}</h1>
+            {isDisabled ? (
+              <span className="rounded-full bg-warning-100 px-2.5 py-0.5 text-xs font-medium text-warning-800">
+                Disabled
+              </span>
+            ) : null}
+          </div>
+          <p className="font-mono text-xs text-ink-3">{user.id}</p>
         </div>
-        <p className="font-mono text-xs text-ink-3">{user.id}</p>
+        <ExportAccountDataButton userId={user.id} />
       </header>
 
       <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
