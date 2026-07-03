@@ -56,6 +56,23 @@ model ContactRequest {
 // ActivityPub federation license tokens.
 // Issued by SuperAdmin to verified organizations so their self-hosted PIMS
 // instances can federate with the Yosemite Crew cloud via the AP protocol.
+// Clinic federation directory listings.
+// Explicit opt-in: a clinic can be license-verified and federating without
+// being listed. Only public actor-profile-level fields are stored - the
+// GET /api/directory payload must never expand beyond these.
+model DirectoryListing {
+  orgId          String   @id
+  listed         Boolean  @default(false)
+  actorUri       String
+  orgName        String
+  instanceHost   String
+  handle         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([listed])
+}
+
 model APLicenseToken {
   id             String    @id @default(cuid())
   orgId          String
