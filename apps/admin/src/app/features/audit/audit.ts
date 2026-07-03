@@ -23,6 +23,7 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.reactivate': { label: 'Reactivated business', severity: 'info' },
   'user.approve': { label: 'Approved account', severity: 'info' },
   'user.reject': { label: 'Rejected account', severity: 'warning' },
+  'crm.contact_sync': { label: 'Synced contacts to', severity: 'info' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));
@@ -74,7 +75,7 @@ export function isValidAuditEvent(value: unknown): value is AuditEvent {
     KNOWN_ACTIONS.has(e.action) &&
     typeof e.actorId === 'string' &&
     typeof e.actorEmail === 'string' &&
-    (e.targetType === 'user' || e.targetType === 'organization') &&
+    (e.targetType === 'user' || e.targetType === 'organization' || e.targetType === 'system') &&
     typeof e.targetId === 'string' &&
     typeof e.at === 'number'
   );

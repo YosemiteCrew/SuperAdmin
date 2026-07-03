@@ -15,9 +15,10 @@ export type AuditAction =
   | 'org.suspend'
   | 'org.reactivate'
   | 'user.approve'
-  | 'user.reject';
+  | 'user.reject'
+  | 'crm.contact_sync';
 
-export type AuditTargetType = 'user' | 'organization';
+export type AuditTargetType = 'user' | 'organization' | 'system';
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {

@@ -21,6 +21,10 @@ interface PlunkResponse {
   [key: string]: unknown;
 }
 
+export function isPlunkConfigured(): boolean {
+  return Boolean(serverEnv.plunkApiKey);
+}
+
 async function plunkFetch(path: string, body: unknown): Promise<PlunkResponse> {
   const { plunkApiKey, plunkApiEndpoint } = serverEnv;
   if (!plunkApiKey) throw new Error('PLUNK_API_KEY is not configured.');
@@ -61,13 +65,23 @@ export async function sendTransactional(payload: PlunkSendPayload): Promise<void
   });
 }
 
-export async function syncContacts(emails: string[]): Promise<{ synced: number; failed: number }> {
+/**
+ * Creates or updates Plunk contacts for the given emails. Contacts default to
+ * unsubscribed: this panel has no marketing-consent source, so opt-in status
+ * must come from the customer's own action (e.g. Plunk double opt-in) — never
+ * be manufactured by a bulk sync.
+ */
+export async function syncContacts(
+  emails: string[],
+  opts?: { subscribed?: boolean }
+): Promise<{ synced: number; failed: number }> {
+  const subscribed = opts?.subscribed ?? false;
   let synced = 0;
   let failed = 0;
 
   for (const email of emails) {
     try {
-      await trackContact({ email, subscribed: true });
+      await trackContact({ email, subscribed });
       synced++;
     } catch {
       failed++;

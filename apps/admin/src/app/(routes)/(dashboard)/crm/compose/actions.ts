@@ -3,9 +3,9 @@
 import SuperTokens from 'supertokens-node';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import { DEFAULT_TENANT_ID } from '@/app/constants';
 import { notifyCampaignSent } from '@/app/features/crm/discord/dispatcher';
 import { broadcastCampaign } from '@/app/features/crm/plunk';
+import { fetchRecipientEmails } from '@/app/features/crm/recipients';
 import { recordCampaign, type CampaignAudience } from '@/app/features/crm/campaigns/store';
 
 export interface SendCampaignResult {
@@ -15,33 +15,6 @@ export interface SendCampaignResult {
 }
 
 const VALID_AUDIENCES = new Set<CampaignAudience>(['all', 'admins']);
-
-async function fetchRecipientEmails(audience: CampaignAudience): Promise<string[]> {
-  if (audience === 'admins') {
-    const { users } = await SuperTokens.getUsersOldestFirst({
-      tenantId: DEFAULT_TENANT_ID,
-      limit: 500,
-    });
-    return users.map((u) => u.emails[0]).filter(Boolean);
-  }
-
-  const emails: string[] = [];
-  let paginationToken: string | undefined;
-
-  do {
-    const page = await SuperTokens.getUsersOldestFirst({
-      tenantId: DEFAULT_TENANT_ID,
-      limit: 500,
-      paginationToken,
-    });
-    for (const u of page.users) {
-      if (u.emails[0]) emails.push(u.emails[0]);
-    }
-    paginationToken = page.nextPaginationToken;
-  } while (paginationToken);
-
-  return emails;
-}
 
 export async function sendCampaignAction(formData: FormData): Promise<SendCampaignResult> {
   ensureSuperTokensInit();

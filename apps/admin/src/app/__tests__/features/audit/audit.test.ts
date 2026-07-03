@@ -121,6 +121,26 @@ describe('isValidAuditEvent', () => {
     expect(isValidAuditEvent(sample())).toBe(true);
   });
 
+  it('accepts every declared target type, so stored events survive re-reads', () => {
+    // A targetType missing here gets silently filtered out of readLog() and
+    // then permanently dropped from the store on the next audit write.
+    const targetTypes: AuditEvent['targetType'][] = ['user', 'organization', 'system'];
+    for (const targetType of targetTypes) {
+      expect(isValidAuditEvent(sample({ targetType }))).toBe(true);
+    }
+  });
+
+  it('accepts a crm.contact_sync system event round-tripped through the cap', () => {
+    const event = sample({
+      action: 'crm.contact_sync',
+      targetType: 'system',
+      targetId: 'plunk',
+      targetLabel: 'Plunk (2 synced, 0 failed)',
+    });
+    const [stored] = prependCapped([], event);
+    expect(isValidAuditEvent(JSON.parse(JSON.stringify(stored)))).toBe(true);
+  });
+
   it.each([
     ['null', null],
     ['a string', 'nope'],

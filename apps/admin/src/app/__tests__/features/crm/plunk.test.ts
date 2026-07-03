@@ -11,6 +11,7 @@ global.fetch = mockFetch;
 
 import {
   broadcastCampaign,
+  isPlunkConfigured,
   sendTransactional,
   syncContacts,
   trackContact,
@@ -71,6 +72,24 @@ describe('syncContacts', () => {
     const result = await syncContacts(['a@b.com', 'c@d.com']);
     expect(result.synced).toBe(1);
     expect(result.failed).toBe(1);
+  });
+
+  it('creates contacts unsubscribed by default — sync must never manufacture consent', async () => {
+    await syncContacts(['a@b.com']);
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.subscribed).toBe(false);
+  });
+
+  it('passes an explicit subscribed flag through', async () => {
+    await syncContacts(['a@b.com'], { subscribed: true });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.subscribed).toBe(true);
+  });
+});
+
+describe('isPlunkConfigured', () => {
+  it('reflects the presence of the API key', () => {
+    expect(isPlunkConfigured()).toBe(true);
   });
 });
 

@@ -6,6 +6,8 @@ import { getCampaigns } from '@/app/features/crm/campaigns/store';
 import { getDiscordConfig } from '@/app/features/crm/discord/store';
 import { serverEnv } from '@/app/config/env.server';
 
+import { SyncContactsButton } from './SyncContactsButton';
+
 export const metadata: Metadata = { title: 'CRM' };
 
 function formatDate(ms: number): string {
@@ -34,12 +36,15 @@ export default async function CrmPage() {
           <h1 className="text-2xl font-medium tracking-tight text-ink">CRM</h1>
           <p className="text-sm text-ink-3">Send campaigns via Plunk and post to Discord.</p>
         </div>
-        <Link
-          href="/crm/compose"
-          className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg inline-flex items-center"
-        >
-          New campaign
-        </Link>
+        <div className="flex items-start gap-3">
+          <SyncContactsButton />
+          <Link
+            href="/crm/compose"
+            className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg inline-flex items-center"
+          >
+            New campaign
+          </Link>
+        </div>
       </header>
 
       {/* Status cards */}

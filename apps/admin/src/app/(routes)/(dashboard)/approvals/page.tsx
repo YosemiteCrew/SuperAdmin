@@ -1,10 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import supertokens from 'supertokens-node';
-import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import { deriveApprovalState, type ApprovalStatus } from '@/app/features/approvals/store';
+import { annotateApprovalStatuses, countPending } from '@/app/features/approvals/queue';
+import type { ApprovalStatus } from '@/app/features/approvals/store';
 
 import { ApprovalRowActions } from './ApprovalRowActions';
 
@@ -38,14 +38,6 @@ function formatDate(ms: number): string {
   });
 }
 
-interface AccountRow {
-  id: string;
-  email: string;
-  joinedAt: number;
-  status: ApprovalStatus;
-  decidedAt?: number;
-}
-
 export default async function ApprovalsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
@@ -62,27 +54,10 @@ export default async function ApprovalsPage({
     limit: SCAN_LIMIT,
   });
 
-  const rows: AccountRow[] = await Promise.all(
-    users.map(async (user) => {
-      let state = deriveApprovalState({});
-      try {
-        const { metadata } = await UserMetadataNode.getUserMetadata(user.id);
-        state = deriveApprovalState(metadata);
-      } catch {
-        /* metadata read must not block the queue; unknown reads as pending */
-      }
-      return {
-        id: user.id,
-        email: user.emails[0] ?? user.id,
-        joinedAt: user.timeJoined,
-        status: state.status,
-        decidedAt: state.approvedAt ?? state.rejectedAt,
-      };
-    })
-  );
+  const rows = await annotateApprovalStatuses(users);
 
   const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
-  const pendingCount = rows.filter((r) => r.status === 'pending').length;
+  const pendingCount = countPending(rows);
 
   return (
     <div className="flex flex-col gap-6">
