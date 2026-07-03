@@ -31,4 +31,8 @@ export const serverEnv = {
   // Optional — AP token issuance is disabled when absent.
   apSigningKey: process.env.AP_SIGNING_KEY ?? null,
   apSigningKeyId: process.env.AP_SIGNING_KEY_ID ?? 'yc-ap-2026-01',
+  // Shared secret the mobile/web apps present when reporting consent decisions
+  // to /api/consent. Optional — the endpoint refuses all writes when absent so
+  // consent can never be recorded unauthenticated.
+  consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
 };
