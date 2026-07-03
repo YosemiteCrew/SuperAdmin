@@ -73,14 +73,14 @@ export function ComposeForm() {
 
         {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
 
-        {state.sent !== undefined ? (
+        {state.sent === undefined ? null : (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20 p-4">
             <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
-              Sent to {state.sent} recipient{state.sent !== 1 ? 's' : ''}
+              Sent to {state.sent} recipient{state.sent === 1 ? '' : 's'}
               {state.failed && state.failed > 0 ? ` (${state.failed} failed)` : ''}.
             </p>
           </div>
-        ) : null}
+        )}
 
         <div>
           <button
