@@ -103,3 +103,21 @@ export async function getAuditEventsForTarget(targetId: string, limit = 20): Pro
     return [];
   }
 }
+
+/**
+ * Throwing variant for the GDPR export path: a swallowed read failure there
+ * would present an incomplete subject-access bundle as a complete one, so
+ * callers must be able to observe the failure and mark the section as
+ * unreadable instead of silently emitting an empty history.
+ */
+export async function readAuditEventsInvolving(
+  userId: string,
+  limit: number
+): Promise<{ asTarget: AuditEvent[]; asActor: AuditEvent[] }> {
+  ensureSuperTokensInit();
+  const log = await readLog();
+  return {
+    asTarget: log.filter((event) => event.targetId === userId).slice(0, limit),
+    asActor: log.filter((event) => event.actorId === userId).slice(0, limit),
+  };
+}

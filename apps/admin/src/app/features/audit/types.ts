@@ -13,7 +13,8 @@ export type AuditAction =
   | 'role.revoke'
   | 'org.verify'
   | 'org.suspend'
-  | 'org.reactivate';
+  | 'org.reactivate'
+  | 'user.data_export';
 
 export type AuditTargetType = 'user' | 'organization';
 
