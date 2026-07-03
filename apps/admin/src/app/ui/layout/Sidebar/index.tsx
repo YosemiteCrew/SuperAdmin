@@ -10,6 +10,7 @@ import {
   MdDashboard,
   MdHistory,
   MdOutlineCampaign,
+  MdOutlineAdminPanelSettings,
   MdOutlineCorporateFare,
   MdOutlineHowToReg,
   MdOutlineKeyboardDoubleArrowLeft,
@@ -45,6 +46,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
         href: '/organizations',
         icon: MdOutlineCorporateFare,
       },
+      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
     ],
   },
   {
