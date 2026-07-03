@@ -57,6 +57,29 @@ export async function notifyAccountDecision(params: {
   });
 }
 
+export async function notifyBulkDecision(params: {
+  decision: 'approved' | 'rejected';
+  count: number;
+  actorEmail: string;
+}): Promise<void> {
+  const config = await getDiscordConfig();
+  if (!config.webhookUrl || !config.notifyOnEvents) return;
+
+  await postWebhook(config.webhookUrl, {
+    embeds: [
+      {
+        title: params.decision === 'approved' ? 'Accounts approved' : 'Accounts rejected',
+        color: params.decision === 'approved' ? 0x10b981 : 0xef4444,
+        fields: [
+          { name: 'Accounts', value: String(params.count), inline: true },
+          { name: 'By', value: params.actorEmail, inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
+}
+
 export async function notifyCampaignSent(params: {
   subject: string;
   sentCount: number;
