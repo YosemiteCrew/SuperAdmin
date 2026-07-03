@@ -33,6 +33,15 @@ describe('securityHeaders', () => {
     });
   });
 
+  it('includes X-Robots-Tag: noindex, nofollow to block search engine indexing', () => {
+    setNodeEnv('production');
+    jest.isolateModules(() => {
+      const { securityHeaders } = load();
+      const byKey = Object.fromEntries(securityHeaders.map((h) => [h.key, h.value]));
+      expect(byKey['X-Robots-Tag']).toBe('noindex, nofollow');
+    });
+  });
+
   it('skips HSTS in development', () => {
     setNodeEnv('development');
     jest.isolateModules(() => {
@@ -51,31 +60,6 @@ describe('securityHeaders', () => {
       for (const blocked of ['camera=()', 'microphone=()', 'geolocation=()']) {
         expect(pp).toContain(blocked);
       }
-    });
-  });
-});
-
-describe('buildEnforcedCsp', () => {
-  const originalEnv = process.env.NODE_ENV;
-  afterEach(() => setNodeEnv(originalEnv ?? 'test'));
-
-  it('keeps unsafe-inline for back-compat and upgrades insecure requests in prod', () => {
-    setNodeEnv('production');
-    jest.isolateModules(() => {
-      const csp = load().buildEnforcedCsp();
-      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
-      expect(csp).toContain('upgrade-insecure-requests');
-      expect(csp).toContain("object-src 'none'");
-      expect(csp).not.toContain("'unsafe-eval'");
-    });
-  });
-
-  it('adds unsafe-eval (HMR) and skips upgrade-insecure-requests in development', () => {
-    setNodeEnv('development');
-    jest.isolateModules(() => {
-      const csp = load().buildEnforcedCsp();
-      expect(csp).toContain("'unsafe-eval'");
-      expect(csp).not.toContain('upgrade-insecure-requests');
     });
   });
 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { buildEnforcedCsp, buildStrictCsp } from '@/securityHeaders';
+import { buildStrictCsp } from '@/securityHeaders';
 
 // NOTE: this decodes the JWT WITHOUT verifying its signature. It is deliberately
 // NOT a security boundary — it only decides client-side redirects (a forged token
@@ -16,19 +16,18 @@ function isTokenValid(token: string): boolean {
   }
 }
 
-/** Per-request, unguessable nonce for the strict (Report-Only) CSP. */
+/** Per-request, unguessable nonce for the enforced strict CSP. */
 function generateNonce(): string {
   return btoa(crypto.randomUUID());
 }
 
 /**
- * Attaches CSP headers to a response: the enforced policy (back-compat) plus the
- * strict nonce policy in Report-Only so violations are observed before we
- * enforce it. See securityHeaders.ts.
+ * Attaches the strict nonce CSP to a response as the enforced policy.
+ * The Report-Only pre-flight period is complete; unsafe-inline is gone.
+ * See securityHeaders.ts.
  */
 function withCsp(response: NextResponse, nonce: string): NextResponse {
-  response.headers.set('Content-Security-Policy', buildEnforcedCsp());
-  response.headers.set('Content-Security-Policy-Report-Only', buildStrictCsp(nonce));
+  response.headers.set('Content-Security-Policy', buildStrictCsp(nonce));
   return response;
 }
 

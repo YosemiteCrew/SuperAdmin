@@ -76,30 +76,29 @@ describe('middleware', () => {
     expect(res.headers.get('Location')).toContain('/auth');
   });
 
-  it('sets the enforced CSP and a strict Report-Only CSP on pass-through responses', () => {
+  it('sets the enforced strict nonce CSP on pass-through responses (no Report-Only)', () => {
     const res = middleware(makeRequest('/auth'));
-    const enforced = res.headers.get('Content-Security-Policy');
+    const enforced = res.headers.get('Content-Security-Policy') ?? '';
     const reportOnly = res.headers.get('Content-Security-Policy-Report-Only');
-    expect(enforced).toContain("script-src 'self' 'unsafe-inline'");
-    expect(reportOnly).toContain("'strict-dynamic'");
-    expect(reportOnly).toContain("'nonce-");
-    expect(reportOnly).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(enforced).toContain("'strict-dynamic'");
+    expect(enforced).toContain("'nonce-");
+    // script-src must not carry unsafe-inline (style-src retaining it for Tailwind is fine)
+    const scriptSrc = enforced.split(';').find((d) => d.trim().startsWith('script-src')) ?? '';
+    expect(scriptSrc).not.toContain("'unsafe-inline'");
+    expect(reportOnly).toBeNull();
   });
 
-  it('also sets CSP headers on redirect responses', () => {
+  it('also sets the enforced CSP on redirect responses', () => {
     const res = middleware(makeRequest('/dashboard'));
     expect(res.status).toBe(307);
-    expect(res.headers.get('Content-Security-Policy')).toContain("default-src 'self'");
-    expect(res.headers.get('Content-Security-Policy-Report-Only')).toContain("'strict-dynamic'");
+    expect(res.headers.get('Content-Security-Policy')).toContain("'strict-dynamic'");
+    expect(res.headers.get('Content-Security-Policy')).toContain("'nonce-");
+    expect(res.headers.get('Content-Security-Policy-Report-Only')).toBeNull();
   });
 
   it('issues a unique nonce per request', () => {
-    const first = middleware(makeRequest('/auth')).headers.get(
-      'Content-Security-Policy-Report-Only'
-    );
-    const second = middleware(makeRequest('/auth')).headers.get(
-      'Content-Security-Policy-Report-Only'
-    );
+    const first = middleware(makeRequest('/auth')).headers.get('Content-Security-Policy');
+    const second = middleware(makeRequest('/auth')).headers.get('Content-Security-Policy');
     expect(first).not.toBe(second);
   });
 });
