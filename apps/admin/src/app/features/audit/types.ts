@@ -21,6 +21,9 @@ export type AuditAction =
   | 'user.reject'
   | 'crm.contact_sync'
   | 'user.data_export';
+  | 'org.flag_on'
+  | 'org.flag_off'
+  | 'org.note_add';
 
 export type AuditTargetType =
   | 'user'

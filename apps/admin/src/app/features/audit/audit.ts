@@ -28,6 +28,9 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'user.reject': { label: 'Rejected account', severity: 'warning' },
   'crm.contact_sync': { label: 'Synced contacts to', severity: 'info' },
   'user.data_export': { label: 'Exported account data for', severity: 'warning' },
+  'org.flag_on': { label: 'Enabled feature flag on', severity: 'info' },
+  'org.flag_off': { label: 'Disabled feature flag on', severity: 'info' },
+  'org.note_add': { label: 'Added internal note to', severity: 'info' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));
