@@ -34,6 +34,13 @@ interface Feedback {
   message: string;
 }
 
+function feedbackClass(feedback: Feedback | null): string {
+  if (!feedback) return 'sr-only';
+  return feedback.kind === 'error'
+    ? 'text-sm text-red-500'
+    : 'text-sm text-emerald-600 dark:text-emerald-400';
+}
+
 export function ApprovalsTable({
   rows,
   emptyMessage = 'No accounts match.',
@@ -135,17 +142,7 @@ export function ApprovalsTable({
         </div>
       ) : null}
 
-      <p
-        role="status"
-        aria-live="polite"
-        className={
-          feedback
-            ? feedback.kind === 'error'
-              ? 'text-sm text-red-500'
-              : 'text-sm text-emerald-600 dark:text-emerald-400'
-            : 'sr-only'
-        }
-      >
+      <p role="status" aria-live="polite" className={feedbackClass(feedback)}>
         {feedback?.message ?? ''}
       </p>
 
