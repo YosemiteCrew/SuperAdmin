@@ -90,7 +90,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
             <button
               type="submit"
               disabled={savePending}
-              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg disabled:opacity-50"
+              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
             >
               {savePending ? 'Saving…' : 'Save'}
             </button>
@@ -143,7 +143,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
             <button
               type="submit"
               disabled={broadcastPending || !config.webhookUrl}
-              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg disabled:opacity-50"
+              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
             >
               {broadcastPending ? 'Sending…' : 'Send to Discord'}
             </button>

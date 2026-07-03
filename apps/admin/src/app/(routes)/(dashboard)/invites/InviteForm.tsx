@@ -51,7 +51,7 @@ export function InviteForm() {
           <button
             type="submit"
             disabled={pending}
-            className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-fg disabled:opacity-50"
+            className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
           >
             {pending ? 'Generating…' : 'Generate link'}
           </button>

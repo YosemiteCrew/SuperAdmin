@@ -39,15 +39,22 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [{ name: 'Dashboard', href: '/dashboard', icon: MdDashboard }],
   },
   {
+    // The full customer lifecycle in one place: leads from the marketing site,
+    // sign-ups awaiting approval, active businesses, and outbound engagement.
+    label: 'CRM',
+    routes: [
+      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
+      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
+      { name: 'Organizations', href: '/organizations', icon: MdOutlineCorporateFare },
+      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
+      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
+    ],
+  },
+  {
+    // Internal team + who can access this panel — not customers.
     label: 'People & Access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
-      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
-      {
-        name: 'Organizations',
-        href: '/organizations',
-        icon: MdOutlineCorporateFare,
-      },
       { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
       { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
     ],
@@ -63,14 +70,6 @@ const ROUTE_GROUPS: RouteGroup[] = [
   {
     label: 'Federation',
     routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
-  },
-  {
-    label: 'CRM',
-    routes: [
-      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
-      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
-      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
-    ],
   },
   {
     label: 'Account',

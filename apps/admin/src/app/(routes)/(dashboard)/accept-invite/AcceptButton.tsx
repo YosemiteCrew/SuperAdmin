@@ -19,7 +19,7 @@ export function AcceptButton({ token }: { token: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-xl bg-btn py-3 text-sm font-medium text-btn-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="w-full rounded-xl bg-btn py-3 text-sm font-medium text-btn-ink transition-opacity hover:opacity-90 disabled:opacity-50"
       >
         {pending ? 'Accepting…' : 'Accept invitation'}
       </button>

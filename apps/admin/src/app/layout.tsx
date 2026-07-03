@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   // the strict (Report-Only) CSP without 'unsafe-inline'.
   const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme="dark" suppressHydrationWarning>
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: NO_FLASH_THEME_SCRIPT }} />
       </head>

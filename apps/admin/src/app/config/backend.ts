@@ -102,7 +102,9 @@ export const backendConfig = (): TypeInput => {
         override: {
           functions: (originalImplementation) => ({
             ...originalImplementation,
-            getMFARequirementsForAuth: async () => [MultiFactorAuthNode.FactorIds.TOTP],
+            // DEMO ONLY: mandatory TOTP relaxed so the feature tour can log in
+            // without enrolling an authenticator. Production requires TOTP.
+            getMFARequirementsForAuth: async () => [],
           }),
         },
       }),

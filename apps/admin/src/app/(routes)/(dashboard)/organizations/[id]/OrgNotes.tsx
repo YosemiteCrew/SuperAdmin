@@ -47,7 +47,7 @@ export function OrgNotes({ orgId, notes }: { orgId: string; notes: OrgNote[] }) 
           <button
             type="submit"
             disabled={pending}
-            className="rounded-full bg-btn px-4 py-1.5 text-sm font-medium text-btn-fg transition-opacity disabled:opacity-50"
+            className="rounded-full bg-btn px-4 py-1.5 text-sm font-medium text-btn-ink transition-opacity disabled:opacity-50"
           >
             {pending ? 'Saving…' : 'Add note'}
           </button>
