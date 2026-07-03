@@ -1,8 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useReducer, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
+
+import { useDebounce } from '@/app/hooks/useDebounce';
+
+import { searchDirectoryAction, type DirectoryHit } from './searchAction';
+
+const LIVE_SEARCH_MIN_CHARS = 2;
+const LIVE_SEARCH_DEBOUNCE_MS = 250;
 
 export const COMMAND_PALETTE_EVENT = 'yc:command-palette-open';
 
@@ -171,7 +178,45 @@ export function CommandPalette() {
     () => false
   );
 
-  const resultItems = useMemo(() => buildResultItems(query), [query]);
+  const [liveHits, setLiveHits] = useState<DirectoryHit[]>([]);
+  const debouncedQuery = useDebounce(query, LIVE_SEARCH_DEBOUNCE_MS);
+  // Monotonic sequence: a slow earlier response must never clobber the
+  // results of a later query.
+  const searchSeq = useRef(0);
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (!isOpen || q.length < LIVE_SEARCH_MIN_CHARS) {
+      setLiveHits([]);
+      return;
+    }
+    const seq = ++searchSeq.current;
+    searchDirectoryAction(q)
+      .then((hits) => {
+        if (searchSeq.current === seq) setLiveHits(hits);
+      })
+      .catch(() => {
+        if (searchSeq.current === seq) setLiveHits([]);
+      });
+  }, [debouncedQuery, isOpen]);
+
+  const resultItems = useMemo(() => {
+    // Live directory hits lead: typing an email means the admin wants the
+    // account, not a page link.
+    const liveItems = liveHits.map(
+      (hit): SearchItem => ({
+        id: `live:${hit.kind}:${hit.id}`,
+        module: hit.kind === 'user' ? 'users' : 'organizations',
+        title: hit.title,
+        subtitle: hit.kind === 'user' ? 'Open user account' : 'Open organization',
+        keywords: hit.title,
+        href: hit.href,
+      })
+    );
+    return query.trim().length >= LIVE_SEARCH_MIN_CHARS
+      ? [...liveItems, ...buildResultItems(query)]
+      : buildResultItems(query);
+  }, [query, liveHits]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

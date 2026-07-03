@@ -4,6 +4,11 @@ import { useRouter } from 'next/navigation';
 
 import { CommandPalette, COMMAND_PALETTE_EVENT } from '@/app/ui/overlays/CommandPalette';
 
+const searchMock = jest.fn();
+jest.mock('@/app/ui/overlays/CommandPalette/searchAction', () => ({
+  searchDirectoryAction: (...args: unknown[]) => searchMock(...args),
+}));
+
 function openPalette() {
   act(() => {
     document.dispatchEvent(new Event(COMMAND_PALETTE_EVENT));
@@ -20,6 +25,8 @@ describe('CommandPalette', () => {
 
   beforeEach(() => {
     push.mockClear();
+    searchMock.mockReset();
+    searchMock.mockResolvedValue([]);
     (useRouter as jest.Mock).mockReturnValue({
       push,
       replace: jest.fn(),
@@ -130,5 +137,52 @@ describe('CommandPalette', () => {
     fireEvent.click(screen.getByRole('button', { name: /Open Settings/i }));
     expect(push).toHaveBeenCalledWith('/settings');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('CommandPalette live directory search', () => {
+  beforeEach(() => {
+    (useRouter as jest.Mock).mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+      prefetch: jest.fn(),
+      refresh: jest.fn(),
+    });
+    searchMock.mockReset();
+  });
+
+  it('surfaces live user and org hits above static results', async () => {
+    searchMock.mockResolvedValue([
+      { id: 'u1', kind: 'user', title: 'pet@owner.com', href: '/users/u1' },
+      { id: 'o1', kind: 'organization', title: 'Happy Paws Clinic', href: '/organizations/o1' },
+    ]);
+    render(<CommandPalette />);
+    openPalette();
+    await userEvent.type(screen.getByLabelText('Command palette input'), 'pet');
+
+    expect(await screen.findByText('pet@owner.com')).toBeInTheDocument();
+    expect(screen.getByText('Happy Paws Clinic')).toBeInTheDocument();
+    expect(searchMock).toHaveBeenCalledWith('pet');
+  });
+
+  it('does not query the directory for a single character', async () => {
+    searchMock.mockResolvedValue([]);
+    render(<CommandPalette />);
+    openPalette();
+    await userEvent.type(screen.getByLabelText('Command palette input'), 'p');
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(searchMock).not.toHaveBeenCalled();
+  });
+
+  it('drops live hits when the directory search rejects', async () => {
+    searchMock.mockRejectedValue(new Error('down'));
+    render(<CommandPalette />);
+    openPalette();
+    await userEvent.type(screen.getByLabelText('Command palette input'), 'pet');
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    expect(screen.queryByText('pet@owner.com')).not.toBeInTheDocument();
   });
 });
