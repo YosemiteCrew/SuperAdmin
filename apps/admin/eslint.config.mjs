@@ -23,6 +23,10 @@ const config = [
       // (pre-push) instead of only after a server-side scan.
       'sonarjs/pseudo-random': 'error',
       'sonarjs/slow-regex': 'error',
+      // Sonar issue rules first caught server-side (S7735 / S6759), mirrored
+      // locally per the parity mandate.
+      'no-negated-condition': 'error',
+      'react/prefer-read-only-props': 'error',
     },
   },
   {
