@@ -22,11 +22,11 @@ export function SyncContactsButton() {
         {pending ? 'Syncing…' : 'Sync contacts to Plunk'}
       </button>
       {state.error ? <p className="text-xs text-red-500">{state.error}</p> : null}
-      {state.synced !== undefined ? (
+      {state.synced === undefined ? null : (
         <p className="text-xs text-emerald-600 dark:text-emerald-400">
           {state.synced} synced{state.failed ? `, ${state.failed} failed` : ''}
         </p>
-      ) : null}
+      )}
     </form>
   );
 }
