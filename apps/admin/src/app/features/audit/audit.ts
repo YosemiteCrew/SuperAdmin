@@ -85,7 +85,12 @@ export function isValidAuditEvent(value: unknown): value is AuditEvent {
     KNOWN_ACTIONS.has(e.action) &&
     typeof e.actorId === 'string' &&
     typeof e.actorEmail === 'string' &&
-    (e.targetType === 'user' || e.targetType === 'organization' || e.targetType === 'system') &&
+    (e.targetType === 'user' ||
+      e.targetType === 'organization' ||
+      e.targetType === 'system' ||
+      e.targetType === 'ap_token' ||
+      e.targetType === 'contact_request' ||
+      e.targetType === 'invite') &&
     typeof e.targetId === 'string' &&
     typeof e.at === 'number'
   );

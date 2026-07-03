@@ -14,28 +14,27 @@ export type AuditAction =
   | 'org.verify'
   | 'org.suspend'
   | 'org.reactivate'
+  | 'org.flag_on'
+  | 'org.flag_off'
+  | 'org.note_add'
   | 'ap_token.issue'
   | 'ap_token.revoke'
   | 'contact.status_change'
   | 'user.approve'
   | 'user.reject'
   | 'crm.contact_sync'
-  | 'user.data_export';
-  | 'org.flag_on'
-  | 'org.flag_off'
-  | 'org.note_add';
+  | 'user.data_export'
+  | 'invite.create'
+  | 'invite.use'
+  | 'invite.revoke';
 
 export type AuditTargetType =
   | 'user'
   | 'organization'
   | 'ap_token'
   | 'contact_request'
-  | 'system';
-  | 'invite.create'
-  | 'invite.use'
-  | 'invite.revoke';
-
-export type AuditTargetType = 'user' | 'organization' | 'invite';
+  | 'system'
+  | 'invite';
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
