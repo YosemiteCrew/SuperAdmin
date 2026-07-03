@@ -6,7 +6,7 @@ import { approveAccountAction, rejectAccountAction, type ApprovalActionResult } 
 
 const INIT: ApprovalActionResult = {};
 
-export function ApprovalRowActions({ userId, email }: { userId: string; email: string }) {
+export function ApprovalRowActions({ userId, email }: Readonly<{ userId: string; email: string }>) {
   const [approveState, approveAction, approvePending] = useActionState(
     (_prev: ApprovalActionResult, fd: FormData) => approveAccountAction(fd),
     INIT
