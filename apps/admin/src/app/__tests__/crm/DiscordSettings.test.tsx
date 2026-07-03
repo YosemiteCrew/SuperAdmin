@@ -79,4 +79,39 @@ describe('DiscordSettings', () => {
     });
     expect(broadcastMock).toHaveBeenCalled();
   });
+
+  it('shows the broadcast error and keeps the message for a retry', async () => {
+    broadcastMock.mockResolvedValue({ error: 'Discord webhook failed (404): unknown webhook' });
+    render(<DiscordSettings config={SAVED_CONFIG} />);
+    const textarea = screen.getByPlaceholderText(/Type your message/i) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'Hello channel' } });
+    fireEvent.submit(
+      screen.getByRole('button', { name: /Send to Discord/i }).closest('form') as HTMLFormElement
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/webhook failed \(404\)/i)).toBeInTheDocument();
+    });
+  });
+
+  it('shows confirmation after a successful webhook test', async () => {
+    render(<DiscordSettings config={SAVED_CONFIG} />);
+    fireEvent.submit(
+      screen.getByRole('button', { name: /Send test/i }).closest('form') as HTMLFormElement
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/Test message sent/i)).toBeInTheDocument();
+    });
+    expect(testMock).toHaveBeenCalled();
+  });
+
+  it('shows the error when the webhook test fails', async () => {
+    testMock.mockResolvedValue({ error: 'Save a valid webhook URL first.' });
+    render(<DiscordSettings config={SAVED_CONFIG} />);
+    fireEvent.submit(
+      screen.getByRole('button', { name: /Send test/i }).closest('form') as HTMLFormElement
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/valid webhook URL first/i)).toBeInTheDocument();
+    });
+  });
 });

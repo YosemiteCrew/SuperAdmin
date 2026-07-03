@@ -13,7 +13,7 @@ import {
 
 const INIT: DiscordActionResult = {};
 
-export function DiscordSettings({ config }: { config: DiscordConfig }) {
+export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>) {
   const broadcastRef = useRef<HTMLFormElement>(null);
 
   const [saveState, saveAction, savePending] = useActionState(
