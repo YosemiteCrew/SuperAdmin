@@ -16,9 +16,17 @@ export type AuditAction =
   | 'org.reactivate'
   | 'ap_token.issue'
   | 'ap_token.revoke'
-  | 'contact.status_change';
+  | 'contact.status_change'
+  | 'user.approve'
+  | 'user.reject'
+  | 'crm.contact_sync';
 
-export type AuditTargetType = 'user' | 'organization' | 'ap_token' | 'contact_request';
+export type AuditTargetType =
+  | 'user'
+  | 'organization'
+  | 'ap_token'
+  | 'contact_request'
+  | 'system';
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {

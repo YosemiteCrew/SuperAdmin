@@ -9,12 +9,15 @@ import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-ic
 import {
   MdDashboard,
   MdHistory,
+  MdOutlineCampaign,
   MdOutlineCorporateFare,
+  MdOutlineHowToReg,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
   MdOutlineHub,
   MdOutlineForwardToInbox,
 } from 'react-icons/md';
+import { SiDiscord } from 'react-icons/si';
 
 type RouteItem = {
   name: string;
@@ -36,6 +39,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
     label: 'People & Access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
+      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
       {
         name: 'Organizations',
         href: '/organizations',
@@ -56,7 +60,11 @@ const ROUTE_GROUPS: RouteGroup[] = [
   },
   {
     label: 'CRM',
-    routes: [{ name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox }],
+    routes: [
+      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
+      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
+      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
+    ],
   },
   {
     label: 'Account',

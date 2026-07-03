@@ -75,6 +75,36 @@ describe('/api/auth/[[...path]] route', () => {
     expect(handleCallMock).not.toHaveBeenCalled();
   });
 
+  it('POST rate-limits by the first x-forwarded-for hop', async () => {
+    const { POST } = await import('@/app/api/auth/[[...path]]/route');
+    handleCallMock.mockResolvedValueOnce(mockResponse());
+    const req = new NextRequest('http://localhost:3000/api/auth/signin', {
+      method: 'POST',
+      headers: { 'x-forwarded-for': ' 203.0.113.7 , 10.0.0.1' },
+    });
+    await POST(req);
+    expect(checkRateLimitMock).toHaveBeenCalledWith('203.0.113.7');
+  });
+
+  it('POST falls back to x-real-ip when x-forwarded-for is absent', async () => {
+    const { POST } = await import('@/app/api/auth/[[...path]]/route');
+    handleCallMock.mockResolvedValueOnce(mockResponse());
+    const req = new NextRequest('http://localhost:3000/api/auth/signin', {
+      method: 'POST',
+      headers: { 'x-real-ip': '198.51.100.9' },
+    });
+    await POST(req);
+    expect(checkRateLimitMock).toHaveBeenCalledWith('198.51.100.9');
+  });
+
+  it('POST buckets requests with no client-IP headers as unknown', async () => {
+    const { POST } = await import('@/app/api/auth/[[...path]]/route');
+    handleCallMock.mockResolvedValueOnce(mockResponse());
+    const req = new NextRequest('http://localhost:3000/api/auth/signin', { method: 'POST' });
+    await POST(req);
+    expect(checkRateLimitMock).toHaveBeenCalledWith('unknown');
+  });
+
   it('GET requests are not rate-limited', async () => {
     checkRateLimitMock.mockReturnValue({
       allowed: false,
