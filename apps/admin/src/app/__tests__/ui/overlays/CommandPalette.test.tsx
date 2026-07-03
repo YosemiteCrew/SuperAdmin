@@ -159,7 +159,11 @@ describe('CommandPalette live directory search', () => {
     ]);
     render(<CommandPalette />);
     openPalette();
-    await userEvent.type(screen.getByLabelText('Command palette input'), 'pet');
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Command palette input'), {
+        target: { value: 'pet' },
+      });
+    });
 
     expect(await screen.findByText('pet@owner.com')).toBeInTheDocument();
     expect(screen.getByText('Happy Paws Clinic')).toBeInTheDocument();
@@ -170,7 +174,11 @@ describe('CommandPalette live directory search', () => {
     searchMock.mockResolvedValue([]);
     render(<CommandPalette />);
     openPalette();
-    await userEvent.type(screen.getByLabelText('Command palette input'), 'p');
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Command palette input'), {
+        target: { value: 'p' },
+      });
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 350));
     expect(searchMock).not.toHaveBeenCalled();
@@ -180,7 +188,11 @@ describe('CommandPalette live directory search', () => {
     searchMock.mockRejectedValue(new Error('down'));
     render(<CommandPalette />);
     openPalette();
-    await userEvent.type(screen.getByLabelText('Command palette input'), 'pet');
+    act(() => {
+      fireEvent.change(screen.getByLabelText('Command palette input'), {
+        target: { value: 'pet' },
+      });
+    });
 
     await new Promise((resolve) => setTimeout(resolve, 350));
     expect(screen.queryByText('pet@owner.com')).not.toBeInTheDocument();
