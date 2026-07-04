@@ -34,4 +34,8 @@ export const serverEnv = {
   contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
   plunkApiKey: process.env.PLUNK_API_KEY ?? '',
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
+  // Shared secret the mobile/web apps present when reporting consent decisions
+  // to /api/consent. Optional — the endpoint refuses all writes when absent so
+  // consent can never be recorded unauthenticated.
+  consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
 };

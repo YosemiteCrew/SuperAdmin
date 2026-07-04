@@ -19,6 +19,7 @@ import {
   MdOutlineForwardToInbox,
   MdOutlineMonitor,
   MdOutlineMailOutline,
+  MdOutlinePrivacyTip,
 } from 'react-icons/md';
 import { SiDiscord } from 'react-icons/si';
 
@@ -39,13 +40,15 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [{ name: 'Dashboard', href: '/dashboard', icon: MdDashboard }],
   },
   {
-    // The full customer lifecycle in one place: leads from the marketing site,
-    // sign-ups awaiting approval, active businesses, and outbound engagement.
+    // The customer lifecycle, in workflow order: a lead contacts us, signs up
+    // and waits for approval, becomes an active business, sets their consent,
+    // and we engage them. Everything customer-facing lives here.
     label: 'CRM',
     routes: [
       { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
       { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
       { name: 'Organizations', href: '/organizations', icon: MdOutlineCorporateFare },
+      { name: 'Consent', href: '/consent', icon: MdOutlinePrivacyTip },
       { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
       { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
     ],
