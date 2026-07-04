@@ -23,9 +23,12 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.reactivate': { label: 'Reactivated business', severity: 'info' },
   'ap_token.issue': { label: 'Issued AP license token for', severity: 'info' },
   'ap_token.revoke': { label: 'Revoked AP license token for', severity: 'warning' },
+  'privacy.request_create': { label: 'Logged data-subject request from', severity: 'info' },
+  'privacy.request_update': { label: 'Updated data-subject request for', severity: 'info' },
 };
 
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));
+const KNOWN_TARGET_TYPES = new Set<string>(['user', 'organization', 'ap_token', 'data_request']);
 
 function generateId(): string {
   const cryptoApi = globalThis.crypto;
@@ -74,7 +77,8 @@ export function isValidAuditEvent(value: unknown): value is AuditEvent {
     KNOWN_ACTIONS.has(e.action) &&
     typeof e.actorId === 'string' &&
     typeof e.actorEmail === 'string' &&
-    (e.targetType === 'user' || e.targetType === 'organization') &&
+    typeof e.targetType === 'string' &&
+    KNOWN_TARGET_TYPES.has(e.targetType) &&
     typeof e.targetId === 'string' &&
     typeof e.at === 'number'
   );

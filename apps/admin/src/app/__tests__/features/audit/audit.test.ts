@@ -121,6 +121,15 @@ describe('isValidAuditEvent', () => {
     expect(isValidAuditEvent(sample())).toBe(true);
   });
 
+  it.each([['user'], ['organization'], ['ap_token'], ['data_request']])(
+    'accepts the %s target type',
+    (targetType) => {
+      expect(
+        isValidAuditEvent(sample({ targetType: targetType as AuditEvent['targetType'] }))
+      ).toBe(true);
+    }
+  );
+
   it.each([
     ['null', null],
     ['a string', 'nope'],
