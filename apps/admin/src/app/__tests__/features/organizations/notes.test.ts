@@ -81,6 +81,32 @@ describe('addOrgNote', () => {
     expect((notes[0] as Record<string, unknown>).content).toBe('hi');
   });
 
+  it('generates an id via the CSPRNG fallback when randomUUID is unavailable', async () => {
+    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
+    mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
+
+    const original = globalThis.crypto.randomUUID;
+    // Force the getRandomValues fallback path in generateId.
+    Object.defineProperty(globalThis.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    });
+    try {
+      await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'x' });
+    } finally {
+      Object.defineProperty(globalThis.crypto, 'randomUUID', {
+        value: original,
+        configurable: true,
+      });
+    }
+
+    const [, payload] = mockUpdate.mock.calls[0];
+    const notes = (payload as Record<string, unknown>).notes as unknown[];
+    const id = (notes[0] as Record<string, unknown>).id as string;
+    // 8 bytes -> 16 lowercase hex chars.
+    expect(id).toMatch(/^[0-9a-f]{16}$/);
+  });
+
   it(`caps the list at MAX_NOTES (${MAX_NOTES})`, async () => {
     const existing = Array.from({ length: MAX_NOTES }, (_, i) => ({
       id: `n${i}`,
