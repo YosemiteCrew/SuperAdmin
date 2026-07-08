@@ -1,5 +1,7 @@
 import type { Config } from 'jest';
-import nextJest from 'next/jest';
+// Explicit .js extension: jest 30's stricter ESM resolver rejects the
+// extensionless 'next/jest' specifier.
+import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({ dir: './' });
 
