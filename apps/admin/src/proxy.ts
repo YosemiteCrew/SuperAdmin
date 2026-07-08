@@ -32,7 +32,7 @@ function withCsp(response: NextResponse, nonce: string): NextResponse {
   return response;
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get('sAccessToken')?.value;
   const isAuthenticated = !!token && isTokenValid(token);

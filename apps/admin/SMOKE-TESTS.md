@@ -107,6 +107,6 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
       fresh `nonce-…`, and Next's scripts + the inline theme script must show that
       nonce. Once clean, flip it to enforcing: in `securityHeaders.ts` make the
       enforced policy use `buildStrictCsp(nonce)` and drop `buildEnforcedCsp`, and
-      in `middleware.ts` set `Content-Security-Policy` to the strict policy and
+      in `proxy.ts` set `Content-Security-Policy` to the strict policy and
       remove the Report-Only header.
 - [ ] ⚪ **No console errors** on each page in production mode (`pnpm --filter admin run build` + start).
