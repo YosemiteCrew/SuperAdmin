@@ -126,7 +126,7 @@ describe('isValidAuditEvent', () => {
   // feature adding a target kind to AUDIT_TARGET_TYPES gets it registered here by
   // construction, and this fails if the validator is ever hand-listed again.
   // Supersedes this branch's hand-listed version of the same check, which had to
-  // be remembered; 'system' is now picked up from the list automatically.
+  // be remembered; 'data_request' is now picked up from the list automatically.
   it.each(AUDIT_TARGET_TYPES.map((targetType) => [targetType]))(
     'accepts every declared target type (%s)',
     (targetType) => {

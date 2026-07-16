@@ -71,6 +71,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
     ],
   },
   {
+    label: 'Compliance',
+    routes: [{ name: 'Data requests', href: '/privacy/requests', icon: MdOutlinePrivacyTip }],
+  },
+  {
     label: 'Federation',
     routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
   },

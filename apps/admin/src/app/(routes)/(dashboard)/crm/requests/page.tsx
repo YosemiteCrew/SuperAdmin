@@ -55,7 +55,8 @@ export default async function ContactRequestsPage({
 
   const accounts = await linkEmailsToAccounts(requests.map((r) => r.email));
 
-  const filterHref = (key: Filter) => (key === 'new' ? '/crm/requests' : `/crm/requests?status=${key}`);
+  const filterHref = (key: Filter) =>
+    key === 'new' ? '/crm/requests' : `/crm/requests?status=${key}`;
 
   return (
     <div className="flex flex-col gap-6">

@@ -30,7 +30,8 @@ function keyMatches(presented: string, expected: string): boolean {
 }
 
 export type IntakeGuard =
-  { ok: true; body: Record<string, unknown> } | { ok: false; response: NextResponse };
+  | { ok: true; body: Record<string, unknown> }
+  | { ok: false; response: NextResponse };
 
 export async function guardIntake(
   request: NextRequest,

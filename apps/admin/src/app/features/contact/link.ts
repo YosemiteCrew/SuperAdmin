@@ -15,9 +15,7 @@ export interface LinkedAccount {
  * reflected. A lookup failure for one email simply omits it (the request still
  * renders as an un-linked prospect).
  */
-export async function linkEmailsToAccounts(
-  emails: string[]
-): Promise<Map<string, LinkedAccount>> {
+export async function linkEmailsToAccounts(emails: string[]): Promise<Map<string, LinkedAccount>> {
   const unique = Array.from(new Set(emails.map((e) => e.toLowerCase())));
   const entries = await Promise.all(
     unique.map(async (email): Promise<[string, LinkedAccount] | null> => {

@@ -81,7 +81,11 @@ export function isHoneypotTripped(body: Record<string, unknown>): boolean {
  */
 export async function recordContactSubmission(input: ContactSubmission): Promise<void> {
   const consentPatch = input.newsletterConsent
-    ? { newsletterConsent: true, consentAt: new Date(), consentSource: input.sourceUrl ?? 'contact-us' }
+    ? {
+        newsletterConsent: true,
+        consentAt: new Date(),
+        consentSource: input.sourceUrl ?? 'contact-us',
+      }
     : {};
 
   const requestData = {

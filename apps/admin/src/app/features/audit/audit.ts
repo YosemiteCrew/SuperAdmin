@@ -29,6 +29,11 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'ap_token.issue': { label: 'Issued AP license token for', severity: 'info' },
   'ap_token.revoke': { label: 'Revoked AP license token for', severity: 'warning' },
   'contact.status_change': { label: 'Changed contact request status to', severity: 'info' },
+  // Phrased to be completed by the request type/status rather than the subject:
+  // a data-subject's email must not be denormalised into the audit log, since
+  // the log has no erasure workflow. See the call sites in privacy/requests.
+  'privacy.request_create': { label: 'Logged a data-subject request for', severity: 'info' },
+  'privacy.request_update': { label: 'Updated a data-subject request to', severity: 'info' },
   'invite.create': { label: 'Created invite for', severity: 'info' },
   'invite.use': { label: 'Accepted super-admin invite', severity: 'warning' },
   'invite.revoke': { label: 'Revoked invite for', severity: 'info' },

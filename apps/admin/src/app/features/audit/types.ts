@@ -21,6 +21,8 @@ export type AuditAction =
   | 'ap_token.issue'
   | 'ap_token.revoke'
   | 'contact.status_change'
+  | 'privacy.request_create'
+  | 'privacy.request_update'
   | 'invite.create'
   | 'invite.use'
   | 'invite.revoke'
@@ -43,6 +45,7 @@ export const AUDIT_TARGET_TYPES = [
   'system',
   'ap_token',
   'contact_request',
+  'data_request',
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
