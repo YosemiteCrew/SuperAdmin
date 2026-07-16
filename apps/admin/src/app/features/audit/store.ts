@@ -21,10 +21,19 @@ import type {
 const AUDIT_STORE_ID = 'superadmin:audit-log';
 const AUDIT_KEY = 'events';
 
-async function readLog(): Promise<StoredAuditEvent[]> {
+/** The stored array exactly as persisted, with no validation or filtering. */
+async function readRawLog(): Promise<unknown[]> {
   const { metadata } = await UserMetadataNode.getUserMetadata(AUDIT_STORE_ID);
   const raw = metadata[AUDIT_KEY];
-  return Array.isArray(raw) ? raw.filter(isValidAuditEvent) : [];
+  return Array.isArray(raw) ? raw : [];
+}
+
+// Drops records that are not well-formed events, so a corrupt entry cannot break
+// a reader. This is the DISPLAY path only: dropping a record makes it invisible,
+// which is indistinguishable from it never existing, so verifyAuditChain must
+// never read through here — it checks the raw array instead.
+async function readLog(): Promise<StoredAuditEvent[]> {
+  return (await readRawLog()).filter(isValidAuditEvent);
 }
 
 // Project a stored event to the public shape. The chain fields (prevHash/hash)
@@ -47,9 +56,14 @@ function toPublicEvent(event: StoredAuditEvent): AuditEvent {
 // Per-process serialisation queue for audit writes. UserMetadata has no
 // compare-and-set, so two concurrent read-modify-writes would last-writer-win
 // and silently drop an event. Chaining writes here makes each one observe the
-// previous, eliminating the lost update within an instance. This is in-process
-// only — the cross-instance gap is closed by the durable store tracked in
-// SECURITY-PENTEST.md #5.
+// previous, eliminating the lost update within an instance. It holds only the
+// queue tail (a Promise<void>) and never request-scoped data, so the only state
+// it couples across requests is write ORDERING, which is its purpose.
+//
+// This closes the lost update WITHIN one instance only. Concurrent writers in a
+// separate instance still race, and no in-process lock can fix that; closing it
+// needs a store with compare-and-set or a genuinely append-only log. That gap
+// remains OPEN and is tracked as SECURITY-PENTEST.md #5.
 let writeChain: Promise<void> = Promise.resolve();
 
 function serializeWrite(task: () => Promise<void>): Promise<void> {
@@ -130,16 +144,40 @@ export async function recordAuditEvent(params: {
   }
 }
 
+/** Best-effort id of a stored record, to pinpoint one that failed validation. */
+function storedRecordId(entry: unknown): string | undefined {
+  const id = (entry as { id?: unknown } | null | undefined)?.id;
+  return typeof id === 'string' ? id : undefined;
+}
+
 /**
  * Verifies the tamper-evidence hash chain over the stored log. Returns how many
  * events were verified from the newest, flagging the offending event id if an
  * interior entry was edited or deleted. Legacy (pre-chain) and cap-evicted tail
  * entries are tolerated. Read failures report `ok: false` rather than throwing.
+ *
+ * Reads the raw stored array rather than {@link readLog}: the display filter
+ * would delete a malformed record before it could be hashed, so an entry edited
+ * into an invalid shape (or given an unrecognised `action`) would vanish and the
+ * remaining entries would verify clean while `total` quietly shrank. A record the
+ * validator rejects is itself evidence of tampering, so it fails the check.
  */
 export async function verifyAuditChain(): Promise<AuditChainStatus> {
   try {
     ensureSuperTokensInit();
-    return verifyChain(await readLog());
+    const raw = await readRawLog();
+    const invalidAt = raw.findIndex((entry) => !isValidAuditEvent(entry));
+    if (invalidAt !== -1) {
+      const brokenAtId = storedRecordId(raw[invalidAt]);
+      return {
+        ok: false,
+        length: 0,
+        total: raw.length,
+        ...(brokenAtId ? { brokenAtId } : {}),
+        reason: 'invalid-record',
+      };
+    }
+    return verifyChain(raw as StoredAuditEvent[]);
   } catch {
     return { ok: false, length: 0, total: 0, reason: 'read-failed' };
   }

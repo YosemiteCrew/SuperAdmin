@@ -119,6 +119,28 @@ describe('verifyChain', () => {
     expect(status.reason).toBe('link-broken');
   });
 
+  it('detects the newest entry having its hash stripped above a chained region', () => {
+    // Stripping the head must not be readable as "this log predates the chain":
+    // the entries below it are demonstrably chained, so the hash was removed to
+    // end the walk before it started.
+    const events = chain([sample({ id: 'a' }), sample({ id: 'b' }), sample({ id: 'c' })]);
+    events[0] = strip(events[0]);
+    expect(verifyChain(events)).toEqual({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: 'c',
+      reason: 'head-unchained',
+    });
+  });
+
+  it('tolerates a fully pre-chain log where no entry was ever hashed', () => {
+    // The genuine legacy case the head guard must not regress: nothing below the
+    // newest entry is chained either, so there is no evidence of a strip.
+    const events: StoredAuditEvent[] = [sample({ id: 'a' }), sample({ id: 'b' })];
+    expect(verifyChain(events)).toEqual({ ok: true, length: 0, total: 2 });
+  });
+
   it('does not report any verified events when every hash is stripped', () => {
     const events = chain([sample({ id: 'a' }), sample({ id: 'b' })]).map(strip);
     // No tampering is provable on an all-hashless log, but length < total tells a

@@ -14,6 +14,15 @@ const TONE_DOT: Record<Tone, string> = {
   broken: 'bg-danger-600',
 };
 
+/** Why the hash walk failed, phrased to complete "The hash chain broke...: ". */
+const BROKEN_REASON: Partial<Record<NonNullable<AuditChainStatus['reason']>, string>> = {
+  'content-altered': 'an entry was modified after it was recorded',
+  'head-unchained': 'the newest entry carries no chain link while older entries do',
+};
+
+/** Wording for `link-broken`, and the fallback for an unrecognised reason. */
+const LINK_BROKEN_DETAIL = 'an entry is missing or out of order';
+
 function Banner({ tone, title, detail }: Readonly<{ tone: Tone; title: string; detail: string }>) {
   return (
     <div
@@ -51,12 +60,22 @@ export function AuditIntegrityBanner({ status }: Readonly<{ status: AuditChainSt
 
   if (status.total === 0) return null;
 
+  // A record the validator rejects never reaches the hash walk, so it needs its
+  // own wording rather than the "chain broke" template below.
+  if (status.reason === 'invalid-record') {
+    const where = status.brokenAtId ? ` (entry ${status.brokenAtId})` : '';
+    return (
+      <Banner
+        tone="broken"
+        title="Audit log integrity check failed"
+        detail={`A stored entry${where} is not a well-formed audit record, so the log could not be verified. The log may have been tampered with.`}
+      />
+    );
+  }
+
   if (!status.ok) {
     const where = status.brokenAtId ? ` at entry ${status.brokenAtId}` : '';
-    const why =
-      status.reason === 'content-altered'
-        ? 'an entry was modified after it was recorded'
-        : 'an entry is missing or out of order';
+    const why = (status.reason && BROKEN_REASON[status.reason]) ?? LINK_BROKEN_DETAIL;
     return (
       <Banner
         tone="broken"

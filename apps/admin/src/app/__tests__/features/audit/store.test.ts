@@ -342,6 +342,78 @@ describe('verifyAuditChain', () => {
       reason: 'read-failed',
     });
   });
+
+  // Records `count` events through the real write path, so the caller's store
+  // holds a genuinely chained log to tamper with. The caller installs the store
+  // itself: useStatefulMetadata is not a React hook, but rules-of-hooks reads the
+  // name and forbids calling it from an async function.
+  async function recordChain(count: number): Promise<void> {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    for (let i = 0; i < count; i += 1) {
+      await recordAuditEvent({
+        action: 'role.grant',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: `u-${i}`,
+        targetLabel: `u-${i}`,
+      });
+    }
+  }
+
+  it('fails the check when a stored record was edited into an invalid shape', async () => {
+    // The reader's validator drops a malformed record. If verification ran on the
+    // filtered output the tampered entry would simply vanish and the rest would
+    // verify clean, so the check must see the raw array and fail.
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    const tampered = [...stored];
+    tampered[1] = { ...tampered[1], actorId: 42 as unknown as string };
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: tampered } });
+
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: tampered[1].id,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('fails the check when a stored record carries an unrecognised action', async () => {
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    const tampered = [...stored];
+    tampered[1] = { ...tampered[1], action: 'user.exfiltrate' as never };
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: tampered } });
+
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: tampered[1].id,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('reports an invalid record with no usable id without a brokenAtId', async () => {
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: [null] } });
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 1,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('still verifies a clean log read straight from storage', async () => {
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: stored } });
+    expect(await verifyAuditChain()).toEqual({ ok: true, length: 3, total: 3 });
+  });
 });
 
 describe('reader projection', () => {

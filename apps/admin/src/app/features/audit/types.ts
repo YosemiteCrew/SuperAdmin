@@ -67,6 +67,12 @@ export interface AuditChainStatus {
   total: number;
   /** Id of the event where the chain broke, when `ok` is false. */
   brokenAtId?: string;
-  /** Why verification failed: content edited, link broken, or read failed. */
-  reason?: 'content-altered' | 'link-broken' | 'read-failed';
+  /**
+   * Why verification failed: an entry's fields were edited (`content-altered`),
+   * an entry is missing or out of order (`link-broken`), the newest entry carries
+   * no chain link while older ones do (`head-unchained`), a stored entry is not a
+   * well-formed audit record (`invalid-record`), or the log could not be read
+   * (`read-failed`).
+   */
+  reason?: 'content-altered' | 'link-broken' | 'head-unchained' | 'invalid-record' | 'read-failed';
 }

@@ -40,6 +40,40 @@ describe('AuditIntegrityBanner', () => {
     expect(alert).not.toHaveTextContent('at entry');
   });
 
+  it('alerts when the newest entry carries no chain link', () => {
+    renderBanner({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: 'evt-1',
+      reason: 'head-unchained',
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('at entry evt-1');
+    expect(alert).toHaveTextContent('newest entry carries no chain link');
+  });
+
+  it('alerts when a stored entry is not a well-formed record', () => {
+    renderBanner({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: 'evt-2',
+      reason: 'invalid-record',
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('Audit log integrity check failed');
+    expect(alert).toHaveTextContent('entry evt-2');
+    expect(alert).toHaveTextContent('not a well-formed audit record');
+  });
+
+  it('alerts on an invalid record with no id', () => {
+    renderBanner({ ok: false, length: 0, total: 1, reason: 'invalid-record' });
+    const alert = screen.getByRole('alert');
+    expect(alert).toHaveTextContent('not a well-formed audit record');
+    expect(alert).not.toHaveTextContent('(entry');
+  });
+
   it('reports a fully verified log (plural)', () => {
     renderBanner({ ok: true, length: 4, total: 4 });
     expect(screen.getByText('Audit log integrity verified')).toBeInTheDocument();
