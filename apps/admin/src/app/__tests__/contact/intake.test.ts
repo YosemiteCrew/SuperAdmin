@@ -29,6 +29,40 @@ beforeEach(() => {
   mockUpdateMany.mockResolvedValue({ count: 0 });
 });
 
+describe('parseSubmission query-operator payloads', () => {
+  // email reaches Prisma as a `where` value in recordContactSubmission,
+  // including two updateMany calls whose where accepts FILTERS. If a non-string
+  // ever got through, `{ not: 'x' }` would stop identifying one lead and start
+  // matching every other one, so the name/company backfill would land on
+  // strangers' rows. The endpoint is public, so the only thing standing in the
+  // way is the typeof check in parseSubmission - pinned here rather than left
+  // implicit.
+  it.each([
+    ['a not operator', { not: 'x' }],
+    ['an equality operator', { equals: 'x' }],
+    ['a contains operator', { contains: '@' }],
+    ['a Mongo-style operator', { $ne: 5 }],
+    ['an array', ['a@b.com']],
+    ['a number', 5],
+    ['null', null],
+  ])('rejects the whole submission when email is %s', (_label, email) => {
+    expect(parseSubmission({ ...VALID, email })).toBeNull();
+  });
+
+  it('rejects the whole submission when message is a query operator', () => {
+    expect(parseSubmission({ ...VALID, message: { not: 'x' } })).toBeNull();
+  });
+
+  it.each([['name'], ['company'], ['subject'], ['sourceUrl']])(
+    'drops %s when it is a query operator rather than a string',
+    (field) => {
+      const s = parseSubmission({ ...VALID, [field]: { not: 'x' } });
+      expect(s).not.toBeNull();
+      expect(s?.[field as 'name' | 'company' | 'subject' | 'sourceUrl']).toBeUndefined();
+    }
+  );
+});
+
 describe('parseSubmission', () => {
   it('normalizes and trims a valid submission', () => {
     const s = parseSubmission({ ...VALID });
