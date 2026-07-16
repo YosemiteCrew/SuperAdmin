@@ -20,6 +20,7 @@ export type AuditAction =
   | 'crm.contact_sync'
   | 'ap_token.issue'
   | 'ap_token.revoke'
+  | 'contact.status_change'
   | 'privacy.request_create'
   | 'privacy.request_update'
   | 'invite.create'
@@ -43,6 +44,7 @@ export const AUDIT_TARGET_TYPES = [
   'invite',
   'system',
   'ap_token',
+  'contact_request',
   'data_request',
 ] as const;
 

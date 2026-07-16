@@ -36,6 +36,48 @@ model DataRequest {
   @@index([subjectEmail])
 }
 
+// A person who has contacted Yosemite Crew (one row per email address).
+// Leads are prospects, not accounts: linkedUserId is set only if/when the
+// same email later matches a signed-up user. Consent captured here is the
+// record of WHEN and FROM WHERE consent was given; Plunk remains the
+// authority for live subscribed/unsubscribed state and delivery.
+model ContactLead {
+  id                String           @id @default(cuid())
+  email             String           @unique
+  name              String?
+  company           String?
+  newsletterConsent Boolean          @default(false)
+  // When newsletter consent was captured, and the URL it came from.
+  consentAt         DateTime?
+  consentSource     String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  requests          ContactRequest[]
+
+  @@index([createdAt])
+}
+
+// A single contact-us submission. Many requests can belong to one lead.
+model ContactRequest {
+  id        String      @id @default(cuid())
+  leadId    String
+  lead      ContactLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  subject   String?
+  message   String      @db.Text
+  // Origin page, e.g. https://www.yosemitecrew.com/contact-us.
+  sourceUrl String?
+  // new | in_progress | closed
+  status    String      @default("new")
+  // super-admin userId who last changed the status.
+  handledBy String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
+}
+
 // A person or device whose consent decisions we hold. Anonymous-first: keyed
 // by the consent/device id captured at the cookie banner (e.g. a PostHog
 // distinct_id), then linked to userId/email once the visitor authenticates.

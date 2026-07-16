@@ -16,6 +16,7 @@ import {
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
   MdOutlineHub,
+  MdOutlineForwardToInbox,
   MdOutlineMailOutline,
   MdOutlineMonitor,
   MdOutlinePrivacyTip,
@@ -66,6 +67,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [
       { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
       { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
+      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
     ],
   },
   {
