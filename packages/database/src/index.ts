@@ -1,2 +1,2 @@
 export { prisma } from './client';
-export type { APLicenseToken } from './generated/client';
+export type { APLicenseToken, DataRequest } from './generated/client';

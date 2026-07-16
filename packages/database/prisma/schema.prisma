@@ -11,6 +11,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// A GDPR data-subject rights request (access / erasure / rectification /
+// objection). The controller must respond within one month, so dueAt is the
+// statutory deadline; the row is the record that the request was handled.
+model DataRequest {
+  id           String    @id @default(cuid())
+  subjectEmail String
+  // 'access' | 'erasure' | 'rectification' | 'objection'
+  type         String
+  // 'received' | 'in_progress' | 'fulfilled' | 'rejected'
+  status       String    @default("received")
+  notes        String?   @db.Text
+  receivedAt   DateTime  @default(now())
+  // receivedAt + 30 days (the GDPR one-month response deadline).
+  dueAt        DateTime
+  fulfilledAt  DateTime?
+  // super-admin userId who last actioned the request.
+  handledBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([dueAt])
+  @@index([subjectEmail])
+}
+
 // A person who has contacted Yosemite Crew (one row per email address).
 // Leads are prospects, not accounts: linkedUserId is set only if/when the
 // same email later matches a signed-up user. Consent captured here is the
