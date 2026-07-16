@@ -11,7 +11,7 @@ const hasPattern = args.some(
 
 if (!isCI && !hasPattern) {
   console.error(
-    '\n❌ Full test suite run blocked. Pass --testPathPattern=<file> to target tests.\n' +
+    '\n❌ Full test suite run blocked. Pass --testPathPatterns=<file> to target tests.\n' +
       '   Use test:ci or test:coverage scripts for full-suite CI runs.\n'
   );
   process.exit(1);
