@@ -15,6 +15,7 @@ import {
   MdOutlineHowToReg,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
+  MdOutlineHub,
   MdOutlineMailOutline,
   MdOutlineMonitor,
 } from 'react-icons/md';
@@ -64,6 +65,10 @@ const ROUTE_GROUPS: RouteGroup[] = [
       { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
       { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
     ],
+  },
+  {
+    label: 'Federation',
+    routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
   },
   {
     label: 'Account',

@@ -29,4 +29,8 @@ export const serverEnv = {
   superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
   plunkApiKey: process.env.PLUNK_API_KEY ?? '',
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
+  // ActivityPub federation: RSA private key PEM used to sign license JWTs.
+  // Optional — AP token issuance is disabled when absent.
+  apSigningKey: process.env.AP_SIGNING_KEY ?? null,
+  apSigningKeyId: process.env.AP_SIGNING_KEY_ID ?? 'yc-ap-2026-01',
 };
