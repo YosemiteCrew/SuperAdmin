@@ -106,7 +106,13 @@ function CopyButton({ value }: { readonly value: string }) {
     <button
       type="button"
       onClick={() => {
-        navigator.clipboard?.writeText(value).then(
+        // lib.dom types navigator.clipboard as always present, but it is absent
+        // outside a secure context, so hold it in a nullable alias: an optional
+        // chain here reads as a guard against something the type calls
+        // impossible, and the textarea below is the fallback either way.
+        const clipboard: Clipboard | undefined = navigator.clipboard;
+        if (!clipboard) return;
+        clipboard.writeText(value).then(
           () => setCopied(true),
           () => setCopied(false)
         );
