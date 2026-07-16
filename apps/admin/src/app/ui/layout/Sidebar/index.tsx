@@ -9,6 +9,7 @@ import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-ic
 import {
   MdDashboard,
   MdHistory,
+  MdOutlineAdminPanelSettings,
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
@@ -40,6 +41,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
         href: '/organizations',
         icon: MdOutlineCorporateFare,
       },
+      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
     ],
   },
   {
