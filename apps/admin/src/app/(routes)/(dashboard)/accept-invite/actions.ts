@@ -45,9 +45,14 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
 
   await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });
+  // The actor is whoever accepted and thereby gained super-admin, not the
+  // inviter: this is the event that records a privilege escalation, so it has to
+  // show up in the new admin's own activity and name them as the one who acted.
+  // The inviter is not lost - targetId resolves to the invite, which carries
+  // createdBy.
   await recordAuditEvent({
     action: 'invite.use',
-    actorId: invite.createdBy,
+    actorId: userId,
     targetType: 'invite',
     targetId: invite.id,
     targetLabel: userEmail,

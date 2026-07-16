@@ -1,4 +1,6 @@
 import 'server-only';
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import type { JSONObject } from 'supertokens-node/types';
 
@@ -46,9 +48,22 @@ export async function getInvites(): Promise<InviteRecord[]> {
   return readInvites();
 }
 
+/**
+ * Constant-time token equality. `===` on strings returns at the first differing
+ * byte, which leaks how much of a candidate token was correct. Hashing first
+ * gives both sides a fixed 32-byte length (timingSafeEqual throws on a length
+ * mismatch, and comparing raw tokens would leak length anyway), then the compare
+ * itself is constant-time.
+ */
+function tokenMatches(candidate: string, stored: string): boolean {
+  const a = createHash('sha256').update(candidate).digest();
+  const b = createHash('sha256').update(stored).digest();
+  return timingSafeEqual(a, b);
+}
+
 export async function getInviteByToken(token: string): Promise<InviteRecord | null> {
   const invites = await readInvites();
-  return invites.find((inv) => inv.token === token) ?? null;
+  return invites.find((inv) => tokenMatches(token, inv.token)) ?? null;
 }
 
 export async function createInvite(params: {

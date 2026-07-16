@@ -106,7 +106,7 @@ describe('acceptInviteAction', () => {
     });
     expect(mockRecordAudit).toHaveBeenCalledWith({
       action: 'invite.use',
-      actorId: 'admin-1',
+      actorId: 'u-9',
       targetType: 'invite',
       targetId: 'inv-1',
       targetLabel: 'new@x.com',
@@ -170,13 +170,16 @@ describe('acceptInviteAction', () => {
     expect(mockRecordAudit).toHaveBeenCalledWith(expect.objectContaining({ targetLabel: 'u-9' }));
   });
 
-  it('audits the invite creator as the actor, not the accepting user', async () => {
-    // The event records who issued the privilege, so the trail points at the
-    // super-admin who granted it rather than the person who clicked accept.
+  it('audits the accepting user as the actor, not the inviter', async () => {
+    // This event is the privilege escalation itself, so the actor has to be the
+    // account that gained super-admin. Attributing it to the inviter would keep
+    // the escalation out of the new admin's own activity feed and leave them
+    // recorded only as a denormalised label. The inviter stays recoverable
+    // through targetId -> the invite's createdBy.
     mockGetInvite.mockResolvedValue(invite({ createdBy: 'admin-7' }));
     await acceptInviteAction(formData({ token: 'tok-1' }));
     expect(mockRecordAudit).toHaveBeenCalledWith(
-      expect.objectContaining({ actorId: 'admin-7', targetType: 'invite' })
+      expect.objectContaining({ actorId: 'u-9', targetType: 'invite', targetId: 'inv-1' })
     );
   });
 });
