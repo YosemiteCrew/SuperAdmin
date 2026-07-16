@@ -36,7 +36,7 @@ npx tsc --noemit
 pnpm --filter admin run lint
 
 # 3. Tests — TARGETED ONLY
-pnpm --filter admin run test -- --testPathPattern="<relevant-file>"
+pnpm --filter admin run test --testPathPatterns="<relevant-file>"
 ```
 
 **Full test suite runs are forbidden.** Always target the test file(s) related to what you changed.
