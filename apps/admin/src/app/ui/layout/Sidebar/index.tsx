@@ -9,10 +9,12 @@ import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-ic
 import {
   MdDashboard,
   MdHistory,
+  MdOutlineAdminPanelSettings,
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
   MdOutlineMailOutline,
+  MdOutlineMonitor,
 } from 'react-icons/md';
 
 type RouteItem = {
@@ -40,6 +42,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
         href: '/organizations',
         icon: MdOutlineCorporateFare,
       },
+      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
       { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
     ],
   },
@@ -48,6 +51,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
       { name: 'Audit log', href: '/audit', icon: MdHistory },
+      { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
     ],
   },
   {
