@@ -6,6 +6,10 @@
 pnpm install
 ```
 
+## Architecture Decisions
+
+Decisions that would be expensive to reverse (persistence/storage trade-offs, auth model choices, accepted consistency limitations) are recorded in [docs/adr/](./docs/adr/README.md).
+
 ## Commit Format
 
 All commits must follow Conventional Commits:
@@ -23,7 +27,7 @@ type(scope): subject
 ```bash
 pnpm run lint
 pnpm run type-check
-pnpm run test --filter admin -- --testPathPattern="<file>"
+pnpm --filter admin run test --testPathPatterns="<file>"
 ```
 
 Coverage must remain ≥ 95% on all touched files.
