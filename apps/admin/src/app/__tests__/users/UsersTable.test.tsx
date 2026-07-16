@@ -21,12 +21,12 @@ jest.mock('@/app/(routes)/(dashboard)/users/ConfirmDeleteDialog', () => ({
     count,
     onConfirm,
     onCancel,
-  }: {
+  }: Readonly<{
     open: boolean;
     count: number;
     onConfirm: () => void;
     onCancel: () => void;
-  }) =>
+  }>) =>
     open ? (
       <div data-testid="confirm-delete">
         <span>count {count}</span>

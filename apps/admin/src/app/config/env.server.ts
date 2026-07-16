@@ -27,6 +27,8 @@ export const serverEnv = {
   ),
   supertokensApiKey: requiredServer('SUPERTOKENS_API_KEY', process.env.SUPERTOKENS_API_KEY),
   superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
+  plunkApiKey: process.env.PLUNK_API_KEY ?? '',
+  plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
   // ActivityPub federation: RSA private key PEM used to sign license JWTs.
   // Optional — AP token issuance is disabled when absent.
   apSigningKey: process.env.AP_SIGNING_KEY ?? null,
