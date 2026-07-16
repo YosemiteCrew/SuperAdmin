@@ -7,7 +7,10 @@
     "SUPERTOKENS_API_KEY",
     "ADMIN_EMAILS",
     "PORT",
-    "SONAR_TOKEN"
+    "SONAR_TOKEN",
+    "DATABASE_URL",
+    "AP_SIGNING_KEY",
+    "AP_SIGNING_KEY_ID"
   ],
   "tasks": {
     "build": {
