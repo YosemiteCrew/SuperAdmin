@@ -77,6 +77,32 @@ export interface SubjectSummary {
   state: Record<ConsentCategory, CategoryState>;
 }
 
+/**
+ * Projects a subject row plus its resolved category states into the shape the
+ * pages render. Shared by the list and the detail view so the two cannot drift:
+ * a column added here shows up in both, rather than in whichever mapping the
+ * next change happens to touch.
+ */
+function toSubjectSummary(
+  row: {
+    id: string;
+    consentId: string;
+    userId: string | null;
+    email: string | null;
+    updatedAt: Date;
+  },
+  states: Map<string, Record<ConsentCategory, CategoryState>>
+): SubjectSummary {
+  return {
+    id: row.id,
+    consentId: row.consentId,
+    userId: row.userId,
+    email: row.email,
+    updatedAt: row.updatedAt,
+    state: states.get(row.id) ?? emptyState(),
+  };
+}
+
 function emptyState(): Record<ConsentCategory, CategoryState> {
   return { analytics: 'unset', marketing: 'unset' };
 }
@@ -144,14 +170,7 @@ export async function listConsentSubjects(params: {
   const states = await currentStateFor(page.map((r) => r.id));
 
   return {
-    subjects: page.map((r) => ({
-      id: r.id,
-      consentId: r.consentId,
-      userId: r.userId,
-      email: r.email,
-      updatedAt: r.updatedAt,
-      state: states.get(r.id) ?? emptyState(),
-    })),
+    subjects: page.map((r) => toSubjectSummary(r, states)),
     nextCursor: hasMore ? page[page.length - 1].id : null,
   };
 }
@@ -187,14 +206,7 @@ export async function getSubjectDetail(subjectId: string): Promise<SubjectDetail
   ]);
 
   return {
-    subject: {
-      id: row.id,
-      consentId: row.consentId,
-      userId: row.userId,
-      email: row.email,
-      updatedAt: row.updatedAt,
-      state: states.get(row.id) ?? emptyState(),
-    },
+    subject: toSubjectSummary(row, states),
     history: events.map((e) => ({
       id: e.id,
       category: e.category as ConsentCategory,
