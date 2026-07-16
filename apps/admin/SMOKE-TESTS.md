@@ -66,7 +66,18 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
       pagination (Previous / Next), and CSV export (downloads the full filtered set).
 - [ ] 🟡 **Bulk actions**: multi-select + bulk Disable / Enable; bulk **Delete requires typing
       `DELETE`**; all are audited.
-- [ ] ⚪ **Retention**: confirm the 250-entry cap behaves (oldest events roll off).
+- [ ] 🟡 **No dropped events under concurrency**: run a bulk action over many users (and/or
+      several privileged actions in quick succession) → every action produces its own entry
+      with no losses. Writes are serialized in-process, so concurrent records no longer
+      overwrite each other; this guard is in-process only (multi-instance still needs the
+      durable store - SECURITY-PENTEST.md #5).
+- [ ] 🟡 **Tamper-evidence**: `verifyAuditChain()` reports `ok: true` over an untouched log;
+      directly editing or deleting a stored event in `UserMetadata` makes it report `ok: false`
+      with the offending event id. Evident, not proof - the unkeyed chain is re-computable by a
+      metadata writer.
+- [ ] ⚪ **Retention (interim)**: the 250-entry cap still applies (oldest events roll off) until
+      the durable append-only store lands; confirm the cap behaves. Removing the cap is part of
+      closing SECURITY-PENTEST.md #5.
 
 ## Pages & real data 🟡
 
