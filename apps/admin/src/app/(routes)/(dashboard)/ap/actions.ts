@@ -27,13 +27,16 @@ function isValidDomain(value: unknown): value is string {
 
 export type IssueResult = { ok: true; token: string } | { ok: false; error: string };
 
-/**
- * Issues a signed RS256 ActivityPub license JWT for `orgId` and persists it.
- * Returns the raw JWT string on success so it can be displayed once to the caller.
- */
-export async function issueLicenseTokenAction(formData: FormData): Promise<IssueResult> {
-  const { userId: callerId } = await requireSuperAdmin();
+type IssueInput = { orgId: string; instanceDomain: string; tier: APTokenTier };
 
+/**
+ * Validates and normalises the issue form. Split out so the action below reads
+ * as its four steps (validate, sign, persist, audit) rather than opening with a
+ * wall of field checks, and so the rules can be exercised without signing a JWT.
+ */
+function parseIssueInput(
+  formData: FormData
+): { ok: true; input: IssueInput } | { ok: false; error: string } {
   const orgId = formData.get('orgId');
   const instanceDomain = formData.get('instanceDomain');
   const tier = formData.get('tier');
@@ -48,6 +51,20 @@ export async function issueLicenseTokenAction(formData: FormData): Promise<Issue
     return { ok: false, error: 'tier must be one of: free, pro, enterprise' };
   }
 
+  return { ok: true, input: { orgId: orgId.trim(), instanceDomain, tier } };
+}
+
+/**
+ * Issues a signed RS256 ActivityPub license JWT for `orgId` and persists it.
+ * Returns the raw JWT string on success so it can be displayed once to the caller.
+ */
+export async function issueLicenseTokenAction(formData: FormData): Promise<IssueResult> {
+  const { userId: callerId } = await requireSuperAdmin();
+
+  const parsed = parseIssueInput(formData);
+  if (!parsed.ok) return { ok: false, error: parsed.error };
+  const { orgId, instanceDomain, tier } = parsed.input;
+
   const privateKey = serverEnv.apSigningKey;
   if (!privateKey) {
     return { ok: false, error: 'AP signing key not configured' };
@@ -59,12 +76,12 @@ export async function issueLicenseTokenAction(formData: FormData): Promise<Issue
 
   const claims: APTokenClaims = {
     iss: 'yosemitecrew.com',
-    sub: orgId.trim(),
+    sub: orgId,
     aud: 'activitypub',
     jti: id,
     iat: nowSec,
     exp: nowSec + TOKEN_TTL_SECONDS,
-    orgId: orgId.trim(),
+    orgId,
     instanceDomain: instanceDomain,
     tier,
     keyId,

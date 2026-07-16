@@ -68,6 +68,9 @@ jest.mock('@/app/(routes)/(dashboard)/users/[id]/DisableUserButton', () => ({
 jest.mock('@/app/(routes)/(dashboard)/users/[id]/VerifyEmailButton', () => ({
   VerifyEmailButton: () => <div data-testid="verify-email" />,
 }));
+jest.mock('@/app/(routes)/(dashboard)/users/[id]/ExportAccountDataButton', () => ({
+  ExportAccountDataButton: () => <div data-testid="export-account-data" />,
+}));
 jest.mock('@/app/features/audit/AuditTimeline', () => ({
   AuditTimeline: () => <div data-testid="audit-timeline" />,
 }));
