@@ -12,11 +12,19 @@ export interface DiscordConfig {
   notifyOnEvents: boolean;
 }
 
-const DEFAULT: DiscordConfig = {
-  webhookUrl: '',
-  channelName: '',
-  notifyOnEvents: false,
-};
+/**
+ * The unconfigured config, built fresh per call. Returning one shared object
+ * would hand every caller the same instance for the lifetime of the process, so
+ * a single caller mutating what it got back would change what every later
+ * request reads.
+ */
+function defaultConfig(): DiscordConfig {
+  return {
+    webhookUrl: '',
+    channelName: '',
+    notifyOnEvents: false,
+  };
+}
 
 function isDiscordConfig(v: unknown): v is DiscordConfig {
   if (typeof v !== 'object' || v === null) return false;
@@ -27,7 +35,7 @@ function isDiscordConfig(v: unknown): v is DiscordConfig {
 export async function getDiscordConfig(): Promise<DiscordConfig> {
   const { metadata } = await UserMetadataNode.getUserMetadata(STORE_ID);
   const raw = metadata[KEY];
-  return isDiscordConfig(raw) ? raw : DEFAULT;
+  return isDiscordConfig(raw) ? raw : defaultConfig();
 }
 
 export async function saveDiscordConfig(config: DiscordConfig): Promise<void> {
