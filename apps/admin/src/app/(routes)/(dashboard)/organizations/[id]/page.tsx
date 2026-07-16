@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { getOrgFlags } from '@/app/features/feature-flags/store';
 import { corroborateBusiness } from '@/app/features/organizations/corroboration';
 import { getDemoOrganization } from '@/app/features/organizations/demo';
+import { getOrgNotes } from '@/app/features/organizations/notes';
 import { getOrganization } from '@/app/features/organizations/services/organizationsService';
 import type {
   OrganizationAddress,
@@ -14,6 +16,8 @@ import { VERIFICATION_META, verificationState } from '@/app/features/organizatio
 import { CorroborationFlag, CorroborationPanel } from '../CorroborationPanel';
 import { OrganizationAvatar } from '../OrganizationAvatar';
 import { OrganizationRowActions } from '../OrganizationRowActions';
+import { FlagToggles } from './FlagToggles';
+import { OrgNotes } from './OrgNotes';
 
 const CARD =
   'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
@@ -127,15 +131,22 @@ export default async function OrganizationDetailPage({
   const meta = VERIFICATION_META[state];
   // Corroboration performs a live outbound fetch, so run it only on demand.
   const corroboration = checks === '1' ? await corroborateBusiness(org) : null;
+
+  const [flags, notes] = await Promise.all([getOrgFlags(org.id), getOrgNotes(org.id)]);
   const checksHref = `/organizations/${encodeURIComponent(org.id)}?checks=1${
     demo === '1' ? '&demo=1' : ''
   }`;
 
   return (
     <div className="flex flex-col gap-[22px]">
-      <div>
+      {/* justify-between keeps the Activity link (#98) on the right; this branch
+          predates it and opened a bare div, which would stack the two links. */}
+      <div className="flex items-center justify-between">
         <Link href="/organizations" className={BACK_LINK}>
           ← Back to organizations
+        </Link>
+        <Link href={`/organizations/${id}/activity`} className={BACK_LINK}>
+          Activity →
         </Link>
       </div>
 
@@ -214,6 +225,16 @@ export default async function OrganizationDetailPage({
           <Field label="Created" value={formatDate(org.createdAt)} />
           <Field label="Last updated" value={formatDate(org.updatedAt)} />
         </dl>
+      </section>
+
+      <section className={CARD}>
+        <h2 className={CARD_HEAD}>Feature flags</h2>
+        <FlagToggles orgId={org.id} flags={flags} />
+      </section>
+
+      <section className={CARD}>
+        <h2 className={CARD_HEAD}>Internal notes</h2>
+        <OrgNotes orgId={org.id} notes={notes} />
       </section>
     </div>
   );

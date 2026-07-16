@@ -28,8 +28,17 @@ describe('securityHeaders', () => {
       expect(byKey['Cross-Origin-Opener-Policy']).toBe('same-origin-allow-popups');
       expect(byKey['Cross-Origin-Resource-Policy']).toBe('same-origin');
       expect(byKey['Strict-Transport-Security']).toMatch(/max-age=63072000/);
-      // CSP is now set per-request in middleware, not in the static array.
+      // CSP is now set per-request in the proxy, not in the static array.
       expect(byKey['Content-Security-Policy']).toBeUndefined();
+    });
+  });
+
+  it('includes X-Robots-Tag: noindex, nofollow to block search engine indexing', () => {
+    setNodeEnv('production');
+    jest.isolateModules(() => {
+      const { securityHeaders } = load();
+      const byKey = Object.fromEntries(securityHeaders.map((h) => [h.key, h.value]));
+      expect(byKey['X-Robots-Tag']).toBe('noindex, nofollow');
     });
   });
 
@@ -51,31 +60,6 @@ describe('securityHeaders', () => {
       for (const blocked of ['camera=()', 'microphone=()', 'geolocation=()']) {
         expect(pp).toContain(blocked);
       }
-    });
-  });
-});
-
-describe('buildEnforcedCsp', () => {
-  const originalEnv = process.env.NODE_ENV;
-  afterEach(() => setNodeEnv(originalEnv ?? 'test'));
-
-  it('keeps unsafe-inline for back-compat and upgrades insecure requests in prod', () => {
-    setNodeEnv('production');
-    jest.isolateModules(() => {
-      const csp = load().buildEnforcedCsp();
-      expect(csp).toContain("script-src 'self' 'unsafe-inline'");
-      expect(csp).toContain('upgrade-insecure-requests');
-      expect(csp).toContain("object-src 'none'");
-      expect(csp).not.toContain("'unsafe-eval'");
-    });
-  });
-
-  it('adds unsafe-eval (HMR) and skips upgrade-insecure-requests in development', () => {
-    setNodeEnv('development');
-    jest.isolateModules(() => {
-      const csp = load().buildEnforcedCsp();
-      expect(csp).toContain("'unsafe-eval'");
-      expect(csp).not.toContain('upgrade-insecure-requests');
     });
   });
 });

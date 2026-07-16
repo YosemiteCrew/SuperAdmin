@@ -3,6 +3,7 @@ import Link from 'next/link';
 import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
+import { annotateApprovalStatuses, countPending } from '@/app/features/approvals/queue';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getRecentAuditEvents } from '@/app/features/audit/store';
 
@@ -92,6 +93,8 @@ export default async function DashboardPage() {
   ]);
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
+  // Reuses the page of users fetched above — same window the /approvals queue scans.
+  const pendingApprovals = countPending(await annotateApprovalStatuses(newest.users));
   const cutoff = Date.now() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
@@ -112,7 +115,7 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Total users" value={String(totalUsers)} />
         <Stat
           label={`New in last ${ROLLING_WINDOW_DAYS} days`}
@@ -128,6 +131,13 @@ export default async function DashboardPage() {
           value={latestSignup ? relativeFromNow(latestSignup) : '—'}
           hint={latestSignup ? formatDate(latestSignup) : undefined}
         />
+        <Link href="/approvals" className="group">
+          <Stat
+            label="Pending approvals"
+            value={String(pendingApprovals)}
+            hint={pendingApprovals > 0 ? 'Review queue →' : 'Queue is clear'}
+          />
+        </Link>
       </section>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1.35fr_1fr] sm:items-start">

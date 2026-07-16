@@ -146,7 +146,7 @@ src/
 │  ├─ ui/                          # design-system primitives
 │  ├─ error.tsx, global-error.tsx  # error boundaries
 │  └─ layout.tsx                   # root layout (favicon, title template, SkipLink)
-├─ middleware.ts                   # auth-aware routing + matcher excludes public assets
+├─ proxy.ts                        # auth-aware routing + matcher excludes public assets (Next 16 proxy)
 └─ securityHeaders.ts              # CSP / HSTS / COOP / Permissions-Policy (prod-aware)
 ```
 

@@ -16,6 +16,7 @@ import { getAuditEventsForTarget } from '@/app/features/audit/store';
 
 import { DeleteUserButton } from '../DeleteUserButton';
 import { DisableUserButton } from './DisableUserButton';
+import { ExportAccountDataButton } from './ExportAccountDataButton';
 import { ResetMfaButton } from './ResetMfaButton';
 import { RoleButton } from './RoleButton';
 import { SessionsSection } from './SessionsSection';
@@ -265,29 +266,35 @@ export default async function UserDetailPage({
         </Link>
       </div>
 
-      <header className="flex items-center gap-[14px]">
-        <span
-          aria-hidden="true"
-          className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[var(--avatar-violet-bg)] text-[15px] font-bold text-[color:var(--avatar-violet-ink)]"
-        >
-          {initialsFor(primaryEmail)}
-        </span>
-        <div className="flex min-w-0 flex-col gap-[2px]">
-          <div className="flex items-baseline gap-3">
-            <h1
-              className="truncate text-[27px] font-normal tracking-[-0.015em] text-[color:var(--ink)]"
-              style={{ fontFamily: 'var(--font-serif-display)' }}
-            >
-              {primaryEmail}
-            </h1>
-            {isDisabled ? (
-              <span className="flex-none rounded-full border border-[color:var(--warn-border)] bg-[var(--warn-bg)] px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--warn-text)]">
-                Disabled
-              </span>
-            ) : null}
+      {/* sm:justify-between is dev's: it places ExportAccountDataButton (#105)
+          opposite the identity block. This branch predates that button and had a
+          plain centred row, which would push it under the heading. */}
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-[14px]">
+          <span
+            aria-hidden="true"
+            className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-[var(--avatar-violet-bg)] text-[15px] font-bold text-[color:var(--avatar-violet-ink)]"
+          >
+            {initialsFor(primaryEmail)}
+          </span>
+          <div className="flex min-w-0 flex-col gap-[2px]">
+            <div className="flex items-baseline gap-3">
+              <h1
+                className="truncate text-[27px] font-normal tracking-[-0.015em] text-[color:var(--ink)]"
+                style={{ fontFamily: 'var(--font-serif-display)' }}
+              >
+                {primaryEmail}
+              </h1>
+              {isDisabled ? (
+                <span className="flex-none rounded-full border border-[color:var(--warn-border)] bg-[var(--warn-bg)] px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--warn-text)]">
+                  Disabled
+                </span>
+              ) : null}
+            </div>
+            <p className="font-mono text-[11.5px] text-[color:var(--ink-faint)]">{user.id}</p>
           </div>
-          <p className="font-mono text-[11.5px] text-[color:var(--ink-faint)]">{user.id}</p>
         </div>
+        <ExportAccountDataButton userId={user.id} />
       </header>
 
       <section className={SECTION_CLASS}>
