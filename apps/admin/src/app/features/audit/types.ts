@@ -14,6 +14,7 @@ export type AuditAction =
   | 'org.verify'
   | 'org.suspend'
   | 'org.reactivate'
+  | 'user.data_export'
   | 'org.flag_on'
   | 'org.flag_off'
   | 'org.note_add';
