@@ -20,7 +20,7 @@ State is local React (`useState` / Server Components / URL params). No client st
 
 1. `pnpm --filter admin run type-check`
 2. `pnpm --filter admin run lint`
-3. `pnpm --filter admin run test --testPathPattern="<file>"`
+3. `pnpm --filter admin run test --testPathPatterns="<file>"`
 
 ## Directory Conventions
 
