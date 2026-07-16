@@ -17,6 +17,10 @@
   --font-satoshi:
     'Satoshi Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
+  /* Serif display face for page titles (warm-bone language). The variable is
+     provided by next/font in layout.tsx. */
+  --font-serif-display: var(--font-newsreader), Georgia, 'Times New Roman', serif;
+
   /* ── Palette ramps (theme-independent) ── */
   --color-neutral-950: #1d1c1b;
   --color-neutral-900: #302f2e;
@@ -83,62 +87,187 @@
   --color-input-border-error: #ea3729;
 }
 
-/* ── Light theme (default) ── */
+/* ── Light theme (default) — warm bone ──
+   Token names and values mirror the design system's site-theme.css so screens
+   built from the warm-bone designs can use them verbatim. The app's older
+   semantic names (--surface/--canvas/--line/…) are kept as aliases onto these,
+   so every existing page picks up the palette without touching its markup. */
 :root {
-  --surface: #ffffff;
-  --canvas: #f8f6f4;
-  --raised: #f5f3f1;
-  --line: #e9e6e3;
-  --line-strong: #d6d1cd;
+  color-scheme: light;
+
+  /* Warm-bone surfaces */
+  --page: #efe8dc;
+  --band: #e8e0d2;
+  --inset: #eae2d5;
+  --screen: #f7f3ec;
+  --screen-2: #f1ebe1;
+  --hairline: #e5dccf;
+  --divider: #d6d1cd;
+  --hairline-hover: #d6d1cd;
+  --hairline-soft: rgba(29, 28, 27, 0.09);
+  --pill-raised: #f7f3ec;
+  --surface-soft: rgba(239, 232, 220, 0.7);
+  --field-bg: #fafafa;
+
+  /* Ink ramp */
+  --ink-body: #302f2e;
+  --ink-muted: #5c5956;
+  --ink-soft: #423f3c;
+  --ink-faint: #8f8984;
+  --ink-faint2: #a9a39e;
+  --ink-6b: #6b6763;
+
+  /* Structural blue (accent is structural only), success, warn, danger */
+  --blue: #257bed;
+  --blue-text: #257bed;
+  --blue-soft: #e6f2ff;
+  --nav-active: #1657c9;
+  --nav-active-bg: rgba(37, 123, 237, 0.11);
+  --pink: #ff90d4;
+  --success: #008f5d;
+  --warn: #f59e0b;
+  --warn-text: #b45309;
+  --warn-bg: rgba(245, 158, 11, 0.12);
+  --warn-border: rgba(245, 158, 11, 0.3);
+  --danger: #ea3729;
+  --danger-text: #c2261a;
+  --danger-bg: rgba(234, 55, 41, 0.09);
+  --danger-bg-faint: rgba(234, 55, 41, 0.04);
+  --danger-border: rgba(234, 55, 41, 0.32);
+
+  /* Avatar chips */
+  --avatar-violet-bg: #f5f3ff;
+  --avatar-violet-ink: #5b21b6;
+  --avatar-green-bg: #e6f4ef;
+  --avatar-green-ink: #006642;
+  --avatar-amber-bg: #fef3e9;
+  --avatar-amber-ink: #af5e19;
+
+  /* Glass + elevation */
+  --glass-93: rgba(239, 232, 220, 0.93);
+  --glass-92: rgba(239, 232, 220, 0.92);
+  --sh03: rgba(29, 28, 27, 0.03);
+  --sh05: rgba(29, 28, 27, 0.05);
+  --sh06: rgba(29, 28, 27, 0.06);
+  --sh10: rgba(29, 28, 27, 0.1);
+  --sh12: rgba(29, 28, 27, 0.12);
+
+  /* ── App semantic aliases → warm bone ── */
+  --surface: var(--screen);
+  --canvas: var(--page);
+  --raised: var(--screen-2);
+  --line: var(--hairline);
+  --line-strong: var(--divider);
   --ink: #1d1c1b;
-  --ink-2: #5c5956;
-  --ink-3: #8f8984;
-  --btn: #1d1c1b;
+  --ink-2: var(--ink-muted);
+  --ink-3: var(--ink-faint);
+  --btn: #302f2e;
   --btn-ink: #ffffff;
   --shadow-cta: 0 8px 20px rgba(29, 28, 27, 0.2);
-  --shadow-card: 0 1px 2px rgba(29, 28, 27, 0.04), 0 8px 28px rgba(29, 28, 27, 0.08);
+  --shadow-card: 0 1px 2px var(--sh03), 0 10px 30px var(--sh06);
   /* Comma-form RGB triplets — consumed by SuperTokens' prebuilt UI palette,
      which builds colours as rgba(var(--palette-x), a). These inherit through
      the prebuilt UI's shadow DOM, so the MFA/TOTP screens follow the theme. */
-  --surface-rgb: 255, 255, 255;
-  --line-rgb: 233, 230, 227;
+  --surface-rgb: 247, 243, 236;
+  --line-rgb: 229, 220, 207;
   --ink-rgb: 29, 28, 27;
   --ink-3-rgb: 143, 137, 132;
-  --btn-rgb: 29, 28, 27;
+  --btn-rgb: 48, 47, 46;
   --btn-ink-rgb: 255, 255, 255;
-  --primary-rgb: 0, 124, 245;
-  --auth-bg-1: #fbfaf8;
-  --auth-bg-2: #f3efea;
-  --auth-glow-1: rgba(0, 124, 245, 0.08);
-  --auth-glow-2: rgba(255, 138, 163, 0.07);
+  --primary-rgb: 37, 123, 237;
+  /* Auth shell: the warm-bone gradient with structural-blue + pink glows. */
+  --auth-bg-1: #f7f3ec;
+  --auth-bg-2: #e8e0d2;
+  --auth-glow-1: rgba(37, 123, 237, 0.1);
+  --auth-glow-2: rgba(255, 144, 212, 0.08);
 }
 
 /* Dark theme — opt-in via [data-theme='dark'], which the no-flash inline script
    sets pre-paint from the saved preference or the system setting. Keeping it
    off `prefers-color-scheme` avoids a flash of partially-themed dark UI. */
 [data-theme='dark'] {
-  --surface: #211f1e;
-  --canvas: #161514;
-  --raised: #2c2a28;
-  --line: #2c2a28;
-  --line-strong: #383532;
-  --ink: #f3f2f1;
-  --ink-2: #c9c5c1;
-  --ink-3: #a9a39e;
-  --btn: #f3f2f1;
-  --btn-ink: #161514;
+  color-scheme: dark;
+
+  /* Warm charcoal / espresso surfaces */
+  --page: #201c18;
+  --band: #2a2216;
+  --inset: #302820;
+  --screen: #2f271e;
+  --screen-2: #221d17;
+  --hairline: #40362b;
+  --divider: #3a3128;
+  --hairline-hover: #4a4033;
+  --hairline-soft: rgba(255, 255, 255, 0.09);
+  --pill-raised: #383026;
+  --surface-soft: #2a2216;
+  --field-bg: #241f18;
+
+  /* Ink ramp */
+  --ink-body: #e6ddd0;
+  --ink-muted: #a89e90;
+  --ink-soft: #cabfb0;
+  --ink-faint: #9d9285;
+  --ink-faint2: #8b8173;
+  --ink-6b: #a1968a;
+
+  /* Accents — blue lifts for contrast on espresso */
+  --blue: #257bed;
+  --blue-text: #8fb6f5;
+  --blue-soft: rgba(143, 182, 245, 0.16);
+  --nav-active: #8fb6f5;
+  --nav-active-bg: rgba(143, 182, 245, 0.13);
+  --pink: #ff90d4;
+  --success: #2bbd86;
+  --warn: #f5a83c;
+  --warn-text: #f2b56b;
+  --warn-bg: rgba(245, 158, 11, 0.16);
+  --warn-border: rgba(245, 168, 60, 0.42);
+  --danger: #ea3729;
+  --danger-text: #f2938a;
+  --danger-bg: rgba(234, 55, 41, 0.18);
+  --danger-bg-faint: rgba(234, 55, 41, 0.08);
+  --danger-border: rgba(242, 147, 138, 0.42);
+
+  /* Avatar chips — tint on dark */
+  --avatar-violet-bg: rgba(167, 139, 250, 0.2);
+  --avatar-violet-ink: #cbb2f4;
+  --avatar-green-bg: rgba(74, 205, 155, 0.17);
+  --avatar-green-ink: #74d0a2;
+  --avatar-amber-bg: rgba(233, 170, 120, 0.17);
+  --avatar-amber-ink: #ecb488;
+
+  /* Glass + elevation — deeper black so depth survives on espresso */
+  --glass-93: rgba(34, 29, 23, 0.92);
+  --glass-92: rgba(34, 29, 23, 0.86);
+  --sh03: rgba(0, 0, 0, 0.14);
+  --sh05: rgba(0, 0, 0, 0.2);
+  --sh06: rgba(0, 0, 0, 0.24);
+  --sh10: rgba(0, 0, 0, 0.34);
+  --sh12: rgba(0, 0, 0, 0.36);
+
+  /* ── App semantic aliases → espresso ── */
+  --surface: var(--screen);
+  --canvas: var(--page);
+  --raised: var(--screen-2);
+  --line: var(--hairline);
+  --line-strong: var(--divider);
+  --ink: #f4efe6;
+  --ink-2: var(--ink-soft);
+  --ink-3: var(--ink-faint);
+  --btn: #f2ece1;
+  --btn-ink: #201c18;
   --shadow-cta: 0 8px 20px rgba(0, 0, 0, 0.5);
-  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.45);
-  --surface-rgb: 33, 31, 30;
-  --line-rgb: 44, 42, 40;
-  --ink-rgb: 243, 242, 241;
-  --ink-3-rgb: 169, 163, 158;
-  --btn-rgb: 243, 242, 241;
-  --btn-ink-rgb: 22, 21, 20;
-  --auth-bg-1: #161514;
-  --auth-bg-2: #0f0e0e;
-  --auth-glow-1: rgba(0, 124, 245, 0.12);
-  --auth-glow-2: rgba(255, 138, 163, 0.06);
+  --shadow-card: 0 1px 2px var(--sh03), 0 10px 30px var(--sh06);
+  --surface-rgb: 47, 39, 30;
+  --line-rgb: 64, 54, 43;
+  --ink-rgb: 244, 239, 230;
+  --ink-3-rgb: 157, 146, 133;
+  --btn-rgb: 242, 236, 225;
+  --btn-ink-rgb: 32, 28, 24;
+  --auth-bg-1: #2a2216;
+  --auth-bg-2: #201c18;
+  --auth-glow-1: rgba(37, 123, 237, 0.18);
+  --auth-glow-2: rgba(255, 144, 212, 0.12);
 }
 
 body {
