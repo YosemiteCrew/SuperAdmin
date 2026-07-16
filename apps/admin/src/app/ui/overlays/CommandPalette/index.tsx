@@ -101,17 +101,15 @@ const getNextResultIndex = (activeIndex: number, resultCount: number, direction:
 const buildResultItems = (query: string): SearchItem[] => {
   const q = query.trim().toLowerCase();
   if (!q) {
-    return quickLinks.map(
-      (link): SearchItem => ({
-        id: `quick:${link.href}`,
-        module: link.module,
-        title: link.title,
-        subtitle: '',
-        keywords: link.title,
-        href: link.href,
-        isQuick: true,
-      })
-    );
+    return quickLinks.map((link): SearchItem => ({
+      id: `quick:${link.href}`,
+      module: link.module,
+      title: link.title,
+      subtitle: '',
+      keywords: link.title,
+      href: link.href,
+      isQuick: true,
+    }));
   }
 
   const tokens = q.split(/\s+/).filter(Boolean);
