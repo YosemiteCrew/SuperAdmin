@@ -72,14 +72,37 @@ describe('recordConsent', () => {
       email: 'a@b.com',
       userId: 'u1',
     });
+    // consentId is matched with an explicit `equals` rather than a bare value:
+    // updateMany's where accepts filters, so a bare value that turned out to be
+    // an object at runtime would be read as one.
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: 'c1', userId: null },
+      where: { consentId: { equals: 'c1' }, userId: null },
       data: { userId: 'u1' },
     });
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: 'c1', email: null },
+      where: { consentId: { equals: 'c1' }, email: null },
       data: { email: 'a@b.com' },
     });
+  });
+
+  // Defence in depth at the query, not just at the parser. If a future caller
+  // reaches recordConsent without going through parseConsentSubmission, an
+  // object consentId must still be compared rather than interpreted as a filter:
+  // a bare `consentId: { not: 'x' }` would match every OTHER subject and write
+  // the identity onto their rows.
+  it('compares consentId by value even if a non-string reaches it', async () => {
+    await recordConsent({
+      consentId: { not: 'c1' } as unknown as string,
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: true }],
+      userId: 'u1',
+    });
+
+    const [call] = mockSubjUpdateMany.mock.calls;
+    // The injected object is nested under `equals`, so Prisma compares against it
+    // rather than treating `not` as an operator.
+    expect(call[0].where.consentId).toEqual({ equals: { not: 'c1' } });
+    expect(call[0].where.consentId).not.toHaveProperty('not');
   });
 
   it('does not attempt an identity backfill when none is supplied', async () => {
