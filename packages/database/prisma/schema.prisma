@@ -11,6 +11,51 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// A person or device whose consent decisions we hold. Anonymous-first: keyed
+// by the consent/device id captured at the cookie banner (e.g. a PostHog
+// distinct_id), then linked to userId/email once the visitor authenticates.
+model ConsentSubject {
+  id        String         @id @default(cuid())
+  consentId String         @unique
+  userId    String?
+  email     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  events    ConsentEvent[]
+
+  @@index([userId])
+  @@index([email])
+}
+
+// An immutable, append-only consent decision — the GDPR audit trail. Current
+// state for a subject+category is the most recent event; nothing is ever
+// updated or deleted here, so the full history of grants and withdrawals
+// stays provable.
+model ConsentEvent {
+  id            String         @id @default(cuid())
+  // Monotonic insertion order. `createdAt` is millisecond-precision, so two
+  // decisions in the same category within one millisecond (double-fired banner,
+  // grant-then-withdraw, concurrent writes) can't be ordered by time alone, and
+  // cuid ids are not time-sortable. `seq` is the authoritative "which came last"
+  // — deterministically resolving current-consent state.
+  seq           BigInt         @default(autoincrement())
+  subjectId     String
+  subject       ConsentSubject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  // 'analytics' | 'marketing'
+  category      String
+  // true = consent granted, false = withdrawn.
+  granted       Boolean
+  // 'web' | 'mobile'
+  source        String
+  // Version of the privacy/cookie policy the subject consented to.
+  policyVersion String?
+  userAgent     String?
+  createdAt     DateTime       @default(now())
+
+  @@index([subjectId, category, seq])
+  @@index([createdAt])
+}
+
 // ActivityPub federation license tokens.
 // Issued by SuperAdmin to verified organizations so their self-hosted PIMS
 // instances can federate with the Yosemite Crew cloud via the AP protocol.

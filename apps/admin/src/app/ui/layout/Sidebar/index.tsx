@@ -18,6 +18,7 @@ import {
   MdOutlineHub,
   MdOutlineMailOutline,
   MdOutlineMonitor,
+  MdOutlinePrivacyTip,
 } from 'react-icons/md';
 import { SiDiscord } from 'react-icons/si';
 
@@ -56,6 +57,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
       { name: 'Audit log', href: '/audit', icon: MdHistory },
+      { name: 'Consent', href: '/consent', icon: MdOutlinePrivacyTip },
       { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
     ],
   },
