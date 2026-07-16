@@ -203,7 +203,7 @@ No auth required. Suitable for k8s liveness/readiness and load-balancer probes.
 
 ```bash
 # Targeted (default in local dev)
-pnpm --filter admin run test --testPathPattern="<pattern>"
+pnpm --filter admin run test --testPathPatterns="<pattern>"
 
 # Full suite
 pnpm --filter admin run test:ci
