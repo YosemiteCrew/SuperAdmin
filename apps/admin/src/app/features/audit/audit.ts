@@ -1,3 +1,4 @@
+import { AUDIT_TARGET_TYPES } from './types';
 import type { AuditAction, AuditEvent, AuditEventInput } from './types';
 
 /** How many events the central log retains (most-recent-first). */
@@ -21,11 +22,24 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.verify': { label: 'Verified business', severity: 'info' },
   'org.suspend': { label: 'Suspended business', severity: 'warning' },
   'org.reactivate': { label: 'Reactivated business', severity: 'info' },
+  'user.data_export': { label: 'Exported account data for', severity: 'warning' },
   'user.approve': { label: 'Approved account', severity: 'info' },
   'user.reject': { label: 'Rejected account', severity: 'warning' },
+  'invite.create': { label: 'Created invite for', severity: 'info' },
+  'invite.use': { label: 'Accepted super-admin invite', severity: 'warning' },
+  'invite.revoke': { label: 'Revoked invite for', severity: 'info' },
+  'org.flag_on': { label: 'Enabled feature flag on', severity: 'info' },
+  'org.flag_off': { label: 'Disabled feature flag on', severity: 'info' },
+  'org.note_add': { label: 'Added internal note to', severity: 'info' },
 };
 
+// Both derived from the declarations above rather than hand-listed, so a new
+// action or target kind is registered for readback by construction. A kind the
+// reader does not know is dropped from the display path and fails the integrity
+// check (see verifyAuditChain), which is why these must never be maintained as a
+// second, separate list.
 const KNOWN_ACTIONS = new Set<string>(Object.keys(AUDIT_META));
+const KNOWN_TARGET_TYPES = new Set<string>(AUDIT_TARGET_TYPES);
 
 function generateId(): string {
   const cryptoApi = globalThis.crypto;
@@ -56,11 +70,7 @@ export function buildAuditEvent(
 }
 
 /** Prepends the newest event and trims the log to `limit` entries. */
-export function prependCapped(
-  log: AuditEvent[],
-  event: AuditEvent,
-  limit = AUDIT_LOG_LIMIT
-): AuditEvent[] {
+export function prependCapped<T>(log: T[], event: T, limit = AUDIT_LOG_LIMIT): T[] {
   return [event, ...log].slice(0, limit);
 }
 
@@ -74,7 +84,8 @@ export function isValidAuditEvent(value: unknown): value is AuditEvent {
     KNOWN_ACTIONS.has(e.action) &&
     typeof e.actorId === 'string' &&
     typeof e.actorEmail === 'string' &&
-    (e.targetType === 'user' || e.targetType === 'organization') &&
+    typeof e.targetType === 'string' &&
+    KNOWN_TARGET_TYPES.has(e.targetType) &&
     typeof e.targetId === 'string' &&
     typeof e.at === 'number'
   );

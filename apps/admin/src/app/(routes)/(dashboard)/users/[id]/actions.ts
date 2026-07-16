@@ -10,6 +10,7 @@ import { requireSuperAdmin } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
+import { collectAccountData } from '@/app/features/users/dataExport';
 import { setEmailVerified } from '@/app/features/users/emailVerification';
 
 function auditUser(action: AuditAction, actorId: string, userId: string): Promise<void> {
@@ -143,4 +144,22 @@ export async function revokeSuperAdminAction(formData: FormData) {
   await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   await auditUser('role.revoke', callerId, userId);
   revalidatePath(`/users/${userId}`);
+}
+
+/**
+ * Assembles the full GDPR subject-access bundle for one account. Handing a
+ * person's complete data to an employee is itself a sensitive act, so the
+ * export is audited before the payload is returned.
+ */
+export async function exportAccountDataAction(formData: FormData): Promise<string | null> {
+  const { userId: actorId } = await requireSuperAdmin();
+
+  const userId = formData.get('userId');
+  if (typeof userId !== 'string' || userId.length === 0) return null;
+
+  const data = await collectAccountData(userId);
+  if (!data) return null;
+
+  await auditUser('user.data_export', actorId, userId);
+  return JSON.stringify(data, null, 2);
 }
