@@ -22,8 +22,10 @@ import {
   getRecentAuditEvents,
   readAuditEventsInvolving,
   recordAuditEvent,
+  verifyAuditChain,
 } from '@/app/features/audit/store';
-import type { AuditEvent } from '@/app/features/audit/types';
+import type { AuditEvent, StoredAuditEvent } from '@/app/features/audit/types';
+import { logger } from '@/app/lib/logger';
 
 function event(over: Partial<AuditEvent> = {}): AuditEvent {
   return {
@@ -248,5 +250,257 @@ describe('readAuditEventsInvolving', () => {
   it('throws on a store read failure instead of masking it as an empty history', async () => {
     getUserMetadataMock.mockRejectedValue(new Error('down'));
     await expect(readAuditEventsInvolving('u-1', 10)).rejects.toThrow('down');
+  });
+});
+
+// A stateful UserMetadata backing store: getUserMetadata returns the current
+// array, updateUserMetadata replaces it. Both yield a microtask so concurrent
+// callers interleave at their await points under jest's single thread — that
+// interleaving is exactly what would lose an update without the store's write
+// queue, so it doubles as the regression guard for the concurrency fix.
+function useStatefulMetadata(): { current: () => StoredAuditEvent[] } {
+  let events: StoredAuditEvent[] = [];
+  getUserMetadataMock.mockImplementation(async () => {
+    await Promise.resolve();
+    return { metadata: { events: [...events] } };
+  });
+  updateUserMetadataMock.mockImplementation(
+    async (_id: string, payload: { events: StoredAuditEvent[] }) => {
+      await Promise.resolve();
+      events = payload.events;
+      return { status: 'OK' };
+    }
+  );
+  return { current: () => events };
+}
+
+describe('recordAuditEvent concurrency', () => {
+  it('serialises concurrent writes so no event is dropped', async () => {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    const store = useStatefulMetadata();
+
+    await Promise.all(
+      Array.from({ length: 50 }, (_, i) =>
+        recordAuditEvent({
+          action: 'user.disable',
+          actorId: 'admin-1',
+          targetType: 'user',
+          targetId: `u-${i}`,
+          targetLabel: `u-${i}`,
+        })
+      )
+    );
+
+    const events = store.current();
+    expect(events).toHaveLength(50);
+    expect(new Set(events.map((e) => e.id)).size).toBe(50);
+  });
+
+  it('chains each event to the previous so the log stays verifiable', async () => {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    const store = useStatefulMetadata();
+    for (let i = 0; i < 4; i += 1) {
+      await recordAuditEvent({
+        action: 'user.enable',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: `u-${i}`,
+        targetLabel: `u-${i}`,
+      });
+    }
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: store.current() } });
+    expect(await verifyAuditChain()).toEqual({ ok: true, length: 4, total: 4 });
+  });
+
+  it('keeps writing after a failed write so the queue is not poisoned', async () => {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    let events: StoredAuditEvent[] = [];
+    let call = 0;
+    getUserMetadataMock.mockImplementation(async () => ({ metadata: { events: [...events] } }));
+    updateUserMetadataMock.mockImplementation(
+      async (_id: string, payload: { events: StoredAuditEvent[] }) => {
+        call += 1;
+        if (call === 1) throw new Error('first write fails');
+        events = payload.events;
+        return { status: 'OK' };
+      }
+    );
+
+    await Promise.all([
+      recordAuditEvent({
+        action: 'user.disable',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: 'u-1',
+        targetLabel: 'u-1',
+      }),
+      recordAuditEvent({
+        action: 'user.enable',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: 'u-2',
+        targetLabel: 'u-2',
+      }),
+    ]);
+    errorSpy.mockRestore();
+
+    expect(events).toHaveLength(1);
+    expect(events[0].targetId).toBe('u-2');
+  });
+});
+
+describe('verifyAuditChain', () => {
+  it('detects an event whose contents were altered after recording', async () => {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    const store = useStatefulMetadata();
+    for (let i = 0; i < 3; i += 1) {
+      await recordAuditEvent({
+        action: 'role.grant',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: `u-${i}`,
+        targetLabel: `u-${i}`,
+      });
+    }
+    const tampered = store.current();
+    tampered[1] = { ...tampered[1], actorEmail: 'attacker@x.com' };
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: tampered } });
+
+    const status = await verifyAuditChain();
+    expect(status.ok).toBe(false);
+    expect(status.brokenAtId).toBe(tampered[1].id);
+  });
+
+  it('returns ok:false when the log cannot be read', async () => {
+    getUserMetadataMock.mockRejectedValue(new Error('down'));
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 0,
+      reason: 'read-failed',
+    });
+  });
+
+  // Records `count` events through the real write path, so the caller's store
+  // holds a genuinely chained log to tamper with. The caller installs the store
+  // itself: useStatefulMetadata is not a React hook, but rules-of-hooks reads the
+  // name and forbids calling it from an async function.
+  async function recordChain(count: number): Promise<void> {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    for (let i = 0; i < count; i += 1) {
+      await recordAuditEvent({
+        action: 'role.grant',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: `u-${i}`,
+        targetLabel: `u-${i}`,
+      });
+    }
+  }
+
+  it('fails the check when a stored record was edited into an invalid shape', async () => {
+    // The reader's validator drops a malformed record. If verification ran on the
+    // filtered output the tampered entry would simply vanish and the rest would
+    // verify clean, so the check must see the raw array and fail.
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    const tampered = [...stored];
+    tampered[1] = { ...tampered[1], actorId: 42 as unknown as string };
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: tampered } });
+
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: tampered[1].id,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('fails the check when a stored record carries an unrecognised action', async () => {
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    const tampered = [...stored];
+    tampered[1] = { ...tampered[1], action: 'user.exfiltrate' as never };
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: tampered } });
+
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 3,
+      brokenAtId: tampered[1].id,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('reports an invalid record with no usable id without a brokenAtId', async () => {
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: [null] } });
+    expect(await verifyAuditChain()).toEqual({
+      ok: false,
+      length: 0,
+      total: 1,
+      reason: 'invalid-record',
+    });
+  });
+
+  it('still verifies a clean log read straight from storage', async () => {
+    const store = useStatefulMetadata();
+    await recordChain(3);
+    const stored = store.current();
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: stored } });
+    expect(await verifyAuditChain()).toEqual({ ok: true, length: 3, total: 3 });
+  });
+});
+
+describe('reader projection', () => {
+  it('returns public events without the internal chain fields', async () => {
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    const store = useStatefulMetadata();
+    await recordAuditEvent({
+      action: 'user.delete',
+      actorId: 'admin-1',
+      targetType: 'user',
+      targetId: 'u-1',
+      targetLabel: 'v@x.com',
+    });
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: store.current() } });
+
+    const [event] = await getRecentAuditEvents();
+    expect(event).toEqual({
+      id: expect.any(String),
+      action: 'user.delete',
+      actorId: 'admin-1',
+      actorEmail: 'admin@x.com',
+      targetType: 'user',
+      targetId: 'u-1',
+      targetLabel: 'v@x.com',
+      at: expect.any(Number),
+    });
+    expect('hash' in event).toBe(false);
+    expect('prevHash' in event).toBe(false);
+  });
+});
+
+describe('recordAuditEvent observability', () => {
+  it('logs an alertable error when the durable write fails (fail-open)', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    getUserMock.mockResolvedValue({ emails: ['admin@x.com'] });
+    updateUserMetadataMock.mockRejectedValue(new Error('write failed'));
+
+    await expect(
+      recordAuditEvent({
+        action: 'user.delete',
+        actorId: 'admin-1',
+        targetType: 'user',
+        targetId: 'u-1',
+        targetLabel: 'v@x.com',
+      })
+    ).resolves.toBeUndefined();
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+    errorSpy.mockRestore();
   });
 });
