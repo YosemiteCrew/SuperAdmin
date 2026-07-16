@@ -35,7 +35,7 @@ const STATUS_LABELS: Record<DataRequestStatus, string> = {
   rejected: 'Rejected',
 };
 
-function StatusBadge({ status }: { status: DataRequestStatus }) {
+function StatusBadge({ status }: { readonly status: DataRequestStatus }) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}
@@ -51,9 +51,9 @@ function DeadlineBadge({
   status,
   nowMs,
 }: {
-  dueAt: Date;
-  status: DataRequestStatus;
-  nowMs: number;
+  readonly dueAt: Date;
+  readonly status: DataRequestStatus;
+  readonly nowMs: number;
 }) {
   const now = new Date(nowMs);
   if (!isOpenStatus(status)) {
@@ -79,7 +79,7 @@ function DeadlineBadge({
   );
 }
 
-function StatusControl({ request }: { request: DataRequest }) {
+function StatusControl({ request }: { readonly request: DataRequest }) {
   const [result, action, isPending] = useActionState<ActionResult | null, FormData>(
     async (_prev, formData) => updateDataRequestStatusAction(formData),
     null
@@ -181,7 +181,13 @@ function LogForm() {
   );
 }
 
-export function RequestsTable({ requests, nowMs }: { requests: DataRequest[]; nowMs: number }) {
+export function RequestsTable({
+  requests,
+  nowMs,
+}: {
+  readonly requests: DataRequest[];
+  readonly nowMs: number;
+}) {
   return (
     <div className="space-y-6">
       <LogForm />

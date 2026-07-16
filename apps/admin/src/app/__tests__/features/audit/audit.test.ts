@@ -6,6 +6,7 @@ import {
   isValidAuditEvent,
   prependCapped,
 } from '@/app/features/audit/audit';
+import { AUDIT_TARGET_TYPES } from '@/app/features/audit/types';
 import type { AuditEvent } from '@/app/features/audit/types';
 
 function sample(over: Partial<AuditEvent> = {}): AuditEvent {
@@ -121,14 +122,28 @@ describe('isValidAuditEvent', () => {
     expect(isValidAuditEvent(sample())).toBe(true);
   });
 
-  it.each([['user'], ['organization'], ['ap_token'], ['data_request']])(
-    'accepts the %s target type',
+  // Guards the union/validator drift that silently drops events on readback: a
+  // feature adding a target kind to AUDIT_TARGET_TYPES gets it registered here by
+  // construction, and this fails if the validator is ever hand-listed again.
+  // Supersedes this branch's hand-listed version of the same check, which had to
+  // be remembered; 'data_request' is now picked up from the list automatically.
+  it.each(AUDIT_TARGET_TYPES.map((targetType) => [targetType]))(
+    'accepts every declared target type (%s)',
     (targetType) => {
-      expect(
-        isValidAuditEvent(sample({ targetType: targetType as AuditEvent['targetType'] }))
-      ).toBe(true);
+      expect(isValidAuditEvent(sample({ targetType }))).toBe(true);
     }
   );
+
+  it('accepts a crm.contact_sync system event round-tripped through the cap', () => {
+    const event = sample({
+      action: 'crm.contact_sync',
+      targetType: 'system',
+      targetId: 'plunk',
+      targetLabel: 'Plunk (2 synced, 0 failed)',
+    });
+    const [stored] = prependCapped([], event);
+    expect(isValidAuditEvent(JSON.parse(JSON.stringify(stored)))).toBe(true);
+  });
 
   it.each([
     ['null', null],
