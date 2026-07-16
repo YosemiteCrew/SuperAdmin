@@ -34,6 +34,29 @@ export async function sendDiscordEmbed(embed: DiscordEmbed): Promise<void> {
   await postWebhook(config.webhookUrl, { embeds: [embed] });
 }
 
+export async function notifyAccountDecision(params: {
+  decision: 'approved' | 'rejected';
+  accountEmail: string;
+  actorEmail: string;
+}): Promise<void> {
+  const config = await getDiscordConfig();
+  if (!config.webhookUrl || !config.notifyOnEvents) return;
+
+  await postWebhook(config.webhookUrl, {
+    embeds: [
+      {
+        title: params.decision === 'approved' ? 'Account approved' : 'Account rejected',
+        color: params.decision === 'approved' ? 0x10b981 : 0xef4444,
+        fields: [
+          { name: 'Account', value: params.accountEmail, inline: true },
+          { name: 'By', value: params.actorEmail, inline: true },
+        ],
+        timestamp: new Date().toISOString(),
+      },
+    ],
+  });
+}
+
 export async function notifyCampaignSent(params: {
   subject: string;
   sentCount: number;
