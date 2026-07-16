@@ -55,7 +55,7 @@ export async function sendCampaignAction(formData: FormData): Promise<SendCampai
     body: body.trim(),
   });
 
-  await recordCampaign({
+  const campaign = await recordCampaign({
     subject: subject.trim(),
     preview: body.trim().slice(0, 120),
     audience,
@@ -70,13 +70,17 @@ export async function sendCampaignAction(formData: FormData): Promise<SendCampai
   // must not fail the action - but it must not vanish either, or the channel
   // silently stops reflecting sends. Swallow it for the caller, surface it for
   // the log pipeline.
+  //
+  // Logged by campaign id rather than subject: the record above already stores
+  // the subject, so the id is enough to find it, and operator-authored text
+  // stays out of the logs entirely.
   await notifyCampaignSent({
     subject: subject.trim(),
     sentCount: sent,
     sentByEmail: actorEmail,
   }).catch((error: unknown) => {
     logger.error('Campaign sent but the Discord notification failed', {
-      subject: subject.trim(),
+      campaignId: campaign.id,
       sentCount: sent,
       actorId,
       error: error instanceof Error ? error.message : String(error),
