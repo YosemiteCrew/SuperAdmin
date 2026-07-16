@@ -184,7 +184,7 @@ export default async function AuditLogPage({
           </div>
           <button
             type="submit"
-            className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full border border-btn bg-btn px-5 text-[13px] font-semibold text-btn-ink"
+            className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13px] font-semibold text-[color:var(--btn-ink)]"
           >
             <span>Filter</span>
           </button>

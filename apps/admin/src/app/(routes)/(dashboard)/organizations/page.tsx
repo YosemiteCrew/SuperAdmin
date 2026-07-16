@@ -60,13 +60,13 @@ function FilterTabs({
             aria-current={isActive ? 'page' : undefined}
             className={
               isActive
-                ? 'inline-flex h-9 items-center gap-[7px] rounded-full border border-btn bg-btn px-4 text-[13px] font-semibold text-btn-ink'
+                ? 'inline-flex h-9 items-center gap-[7px] rounded-full border border-[var(--btn)] bg-[var(--btn)] px-4 text-[13px] font-semibold text-[color:var(--btn-ink)]'
                 : 'inline-flex h-9 items-center gap-[7px] rounded-full border border-[var(--divider)] px-4 text-[13px] font-semibold text-[color:var(--ink-muted)] transition-colors hover:border-[var(--hairline-hover)] hover:bg-[var(--screen-2)]'
             }
           >
             {tab.label}
             <span
-              className={`tabular-nums ${isActive ? 'text-btn-ink/65' : 'text-[color:var(--ink-faint)]'}`}
+              className={`tabular-nums ${isActive ? 'text-[color:var(--btn-ink)]/65' : 'text-[color:var(--ink-faint)]'}`}
             >
               {counts[tab.key]}
             </span>

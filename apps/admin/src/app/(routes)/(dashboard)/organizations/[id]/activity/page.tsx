@@ -10,6 +10,13 @@ import { getOrganization } from '@/app/features/organizations/services/organizat
 
 const ACTIVITY_LIMIT = 50;
 
+const CARD =
+  'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+const CARD_HEAD =
+  'border-b border-[var(--hairline)] bg-[var(--screen-2)] px-[18px] py-[10px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
+const BACK_LINK =
+  'inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]';
+
 export async function generateMetadata({
   params,
 }: {
@@ -28,7 +35,7 @@ export async function generateMetadata({
 function ActionPill({ action }: { readonly action: AuditAction }) {
   const label = AUDIT_META[action]?.label ?? action;
   return (
-    <span className="inline-flex items-center rounded-full border border-line bg-raised px-2 py-0.5 text-xs font-medium text-ink-2">
+    <span className="inline-flex w-fit items-center rounded-full border border-[var(--hairline)] bg-[var(--inset)] px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--ink-muted)]">
       {label}
     </span>
   );
@@ -61,18 +68,18 @@ export default async function OrgActivityPage({
   const topActions = [...actionCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 4);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
       <div className="flex flex-col gap-1">
-        <Link href={`/organizations/${id}`} className="text-sm text-ink-2 hover:text-ink">
+        <Link href={`/organizations/${id}`} className={BACK_LINK}>
           ← Back to {orgName ?? 'organization'}
         </Link>
       </div>
 
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">
+      <header className="flex flex-col gap-[3px]">
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
           {orgName ? `${orgName} - Activity` : 'Organization activity'}
         </h1>
-        <p className="text-sm text-ink-3">
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
           Admin actions targeting this organization (last {ACTIVITY_LIMIT} events).
         </p>
       </header>
@@ -80,21 +87,18 @@ export default async function OrgActivityPage({
       {topActions.length > 0 ? (
         <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           {topActions.map(([action, count]) => (
-            <div
-              key={action}
-              className="rounded-2xl border border-line bg-surface p-4 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]"
-            >
-              <p className="text-2xl font-medium tracking-tight text-ink">{count}</p>
+            <div key={action} className={`flex flex-col gap-2 p-[18px] ${CARD}`}>
+              <p className="text-[32px] font-bold leading-none tracking-[-0.02em] text-[color:var(--ink)] tabular-nums">
+                {count}
+              </p>
               <ActionPill action={action} />
             </div>
           ))}
         </section>
       ) : null}
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <div className="border-b border-line bg-raised px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">Event history</h2>
-        </div>
+      <section className={CARD}>
+        <h2 className={CARD_HEAD}>Event history</h2>
         <AuditTimeline
           events={events}
           showTarget={false}
@@ -102,9 +106,9 @@ export default async function OrgActivityPage({
         />
       </section>
 
-      <p className="text-xs text-ink-3">
+      <p className="text-[12px] text-[color:var(--ink-faint)]">
         Showing the most recent {ACTIVITY_LIMIT} events. Full history is in the{' '}
-        <Link href="/audit" className="underline hover:text-ink">
+        <Link href="/audit" className="underline transition-colors hover:text-[color:var(--ink)]">
           audit log
         </Link>
         .

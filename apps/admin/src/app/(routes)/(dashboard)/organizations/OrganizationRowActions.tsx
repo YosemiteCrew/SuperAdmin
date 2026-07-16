@@ -12,7 +12,7 @@ import {
 
 const BTN = {
   primary:
-    'inline-flex h-[30px] items-center rounded-full border border-btn bg-btn px-[14px] text-xs font-semibold text-btn-ink transition-opacity hover:opacity-90 disabled:opacity-60',
+    'inline-flex h-[30px] items-center rounded-full border border-[var(--btn)] bg-[var(--btn)] px-[14px] text-xs font-semibold text-[color:var(--btn-ink)] transition-opacity hover:opacity-90 disabled:opacity-60',
   danger:
     'inline-flex h-[30px] items-center rounded-full border border-[var(--danger-border)] px-[14px] text-xs font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)] disabled:opacity-60',
   plain:
