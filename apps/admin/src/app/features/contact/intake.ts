@@ -111,13 +111,13 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
   // the null column keeps this atomic — no read-modify-write race.
   if (input.name) {
     await prisma.contactLead.updateMany({
-      where: { email: input.email, name: null },
+      where: { email: { equals: input.email }, name: null },
       data: { name: input.name },
     });
   }
   if (input.company) {
     await prisma.contactLead.updateMany({
-      where: { email: input.email, company: null },
+      where: { email: { equals: input.email }, company: null },
       data: { company: input.company },
     });
   }
