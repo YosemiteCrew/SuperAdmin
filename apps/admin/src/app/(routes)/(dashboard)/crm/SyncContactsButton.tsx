@@ -4,12 +4,14 @@ import { useActionState } from 'react';
 
 import { syncContactsAction, type SyncContactsResult } from './actions';
 
-const INIT: SyncContactsResult = {};
-
 export function SyncContactsButton() {
+  // The initial state is built here rather than held in a module-level constant:
+  // module scope outlives every render, so a shared object would be one mutation
+  // away from leaking state between renders. useActionState only reads it on the
+  // first render, so allocating per render costs nothing.
   const [state, formAction, pending] = useActionState<SyncContactsResult, FormData>(
-    () => syncContactsAction(),
-    INIT
+    syncContactsAction,
+    {}
   );
 
   return (
