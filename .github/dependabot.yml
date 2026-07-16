@@ -38,3 +38,16 @@ updates:
       # Lift once those two declare TS 7 support.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # prisma 7 + @prisma/client 7 drop `url` from the schema's datasource
+      # block: connection URLs move to a prisma.config.ts for Migrate, and the
+      # client takes an `adapter` (or accelerateUrl) instead. packages/database
+      # still declares `url = env("DATABASE_URL")`, so v7 fails schema validation
+      # (P1012) inside `prisma generate` — which runs in that package's
+      # postinstall, so `pnpm install` itself dies and EVERY job goes red, not
+      # just the database ones. That is what happened in #143 and #144.
+      # The two must move together, and only once the migration is done.
+      # Lift both rules in the same PR.
+      - dependency-name: 'prisma'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
+        update-types: ['version-update:semver-major']
