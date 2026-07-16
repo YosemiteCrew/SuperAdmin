@@ -9,7 +9,13 @@ import { toggleFlagAction } from './flagActions';
 
 const FLAG_KEYS = Object.keys(FEATURE_FLAGS) as FeatureFlagKey[];
 
-export function FlagToggles({ orgId, flags }: { orgId: string; flags: OrgFlags }) {
+export function FlagToggles({
+  orgId,
+  flags,
+}: {
+  readonly orgId: string;
+  readonly flags: OrgFlags;
+}) {
   const [isPending, startTransition] = useTransition();
   const [optimistic, addOptimistic] = useOptimistic(
     flags,

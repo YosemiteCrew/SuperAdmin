@@ -17,6 +17,7 @@ export type AuditAction =
   | 'user.data_export'
   | 'user.approve'
   | 'user.reject'
+  | 'crm.contact_sync'
   | 'invite.create'
   | 'invite.use'
   | 'invite.revoke'
@@ -32,7 +33,7 @@ export type AuditAction =
  * cannot be allowed to drift apart. A feature adding a target kind adds it HERE
  * and nowhere else.
  */
-export const AUDIT_TARGET_TYPES = ['user', 'organization', 'invite'] as const;
+export const AUDIT_TARGET_TYPES = ['user', 'organization', 'invite', 'system'] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

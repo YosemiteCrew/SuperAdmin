@@ -125,12 +125,25 @@ describe('isValidAuditEvent', () => {
   // Guards the union/validator drift that silently drops events on readback: a
   // feature adding a target kind to AUDIT_TARGET_TYPES gets it registered here by
   // construction, and this fails if the validator is ever hand-listed again.
+  // Supersedes this branch's hand-listed version of the same check, which had to
+  // be remembered; 'system' is now picked up from the list automatically.
   it.each(AUDIT_TARGET_TYPES.map((targetType) => [targetType]))(
     'accepts every declared target type (%s)',
     (targetType) => {
       expect(isValidAuditEvent(sample({ targetType }))).toBe(true);
     }
   );
+
+  it('accepts a crm.contact_sync system event round-tripped through the cap', () => {
+    const event = sample({
+      action: 'crm.contact_sync',
+      targetType: 'system',
+      targetId: 'plunk',
+      targetLabel: 'Plunk (2 synced, 0 failed)',
+    });
+    const [stored] = prependCapped([], event);
+    expect(isValidAuditEvent(JSON.parse(JSON.stringify(stored)))).toBe(true);
+  });
 
   it.each([
     ['null', null],

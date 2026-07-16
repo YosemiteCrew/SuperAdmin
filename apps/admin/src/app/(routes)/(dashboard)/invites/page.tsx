@@ -28,7 +28,7 @@ function formatDate(ms: number): string {
   });
 }
 
-function InviteRow({ invite }: { invite: InviteRecord }) {
+function InviteRow({ invite }: { readonly invite: InviteRecord }) {
   const status = inviteStatus(invite);
   return (
     <tr className="border-b border-line last:border-b-0">

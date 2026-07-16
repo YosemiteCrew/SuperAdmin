@@ -102,7 +102,7 @@ export default async function AnalyticsPage() {
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Stat
           label="Email verification rate"
-          value={verificationPct !== null ? `${verificationPct}%` : 'N/A'}
+          value={verificationPct === null ? 'N/A' : `${verificationPct}%`}
           sub={
             emailUsers.length > 0
               ? `${verifiedEmailUsers.length} of ${emailUsers.length} email accounts`

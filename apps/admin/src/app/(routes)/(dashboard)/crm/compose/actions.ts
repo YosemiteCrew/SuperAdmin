@@ -1,12 +1,11 @@
 'use server';
 
 import SuperTokens from 'supertokens-node';
-import UserRolesNode from 'supertokens-node/recipe/userroles';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { notifyCampaignSent } from '@/app/features/crm/discord/dispatcher';
 import { broadcastCampaign } from '@/app/features/crm/plunk';
+import { fetchRecipientEmails } from '@/app/features/crm/recipients';
 import { recordCampaign, type CampaignAudience } from '@/app/features/crm/campaigns/store';
 import { logger } from '@/app/lib/logger';
 
@@ -17,54 +16,6 @@ export interface SendCampaignResult {
 }
 
 const VALID_AUDIENCES = new Set<CampaignAudience>(['all', 'admins']);
-
-/**
- * Emails of the accounts actually holding the super-admin role.
- *
- * Resolved from the role directory, never from a user listing: the audience is a
- * promise to the operator that "Super-admins only" reaches nobody else, so it
- * must be derived from the same source that grants the privilege. Throws rather
- * than degrading if the role lookup is not OK - the caller turns that into a
- * visible error, so an unresolvable admin list cancels the send instead of
- * quietly broadcasting to a wider or empty audience.
- */
-async function fetchAdminEmails(): Promise<string[]> {
-  const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
-  if (roleHolders.status !== 'OK') {
-    throw new Error('Could not resolve the super-admin role holders.');
-  }
-
-  const emails = await Promise.all(
-    roleHolders.users.map(async (id) => {
-      const user = await SuperTokens.getUser(id);
-      return user?.emails[0];
-    })
-  );
-  return emails.filter((email): email is string => Boolean(email));
-}
-
-async function fetchRecipientEmails(audience: CampaignAudience): Promise<string[]> {
-  if (audience === 'admins') {
-    return fetchAdminEmails();
-  }
-
-  const emails: string[] = [];
-  let paginationToken: string | undefined;
-
-  do {
-    const page = await SuperTokens.getUsersOldestFirst({
-      tenantId: DEFAULT_TENANT_ID,
-      limit: 500,
-      paginationToken,
-    });
-    for (const u of page.users) {
-      if (u.emails[0]) emails.push(u.emails[0]);
-    }
-    paginationToken = page.nextPaginationToken;
-  } while (paginationToken);
-
-  return emails;
-}
 
 export async function sendCampaignAction(formData: FormData): Promise<SendCampaignResult> {
   ensureSuperTokensInit();
