@@ -10,12 +10,14 @@ import {
   MdDashboard,
   MdHistory,
   MdOutlineAdminPanelSettings,
+  MdOutlineCampaign,
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
   MdOutlineMailOutline,
   MdOutlineMonitor,
 } from 'react-icons/md';
+import { SiDiscord } from 'react-icons/si';
 
 type RouteItem = {
   name: string;
@@ -52,6 +54,13 @@ const ROUTE_GROUPS: RouteGroup[] = [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
       { name: 'Audit log', href: '/audit', icon: MdHistory },
       { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
+    ],
+  },
+  {
+    label: 'CRM',
+    routes: [
+      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
+      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
     ],
   },
   {
