@@ -37,4 +37,8 @@ export const serverEnv = {
   // to /api/consent. Optional — the endpoint refuses all writes when absent so
   // consent can never be recorded unauthenticated.
   consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
+  // Shared secret the marketing site presents when POSTing contact-us
+  // submissions to /api/contact. Optional — the intake endpoint refuses all
+  // requests when absent, so the form cannot silently start dropping leads.
+  contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
 };

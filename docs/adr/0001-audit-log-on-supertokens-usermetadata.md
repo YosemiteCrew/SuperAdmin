@@ -16,10 +16,12 @@ Store the audit log as a single append-only record inside a reserved, non-user k
 ## Consequences
 
 **Good:**
+
 - No second datastore to provision, migrate, back up, or reason about for a single low-traffic feature.
 - Zero new infrastructure — reuses the auth system SuperAdmin already depends on.
 
 **Bad / accepted trade-offs:**
+
 - UserMetadata has no compare-and-swap / optimistic-locking primitive. `recordAuditEvent()`'s read-modify-write cycle has a race window: two concurrent admin actions can both read the same log state and the second write overwrites the first, silently dropping one event.
 - Audit is advisory, not authoritative — because failures are swallowed and the write isn't atomic with the action it records, this log cannot be relied on as a complete or tamper-evident record for compliance purposes. It's a debugging/visibility aid, not a compliance audit trail.
 - Capped at 250 events with no archival — older entries are dropped, not stored elsewhere.

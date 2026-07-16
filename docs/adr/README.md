@@ -14,6 +14,6 @@ Write an ADR when a decision is expensive to reverse or picks between two reason
 
 ## Index
 
-| # | Title | Status | Date |
-|---|-------|--------|------|
+| #                                                       | Title                                                                     | Status   | Date       |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- | -------- | ---------- |
 | [0001](./0001-audit-log-on-supertokens-usermetadata.md) | Audit log persisted in SuperTokens UserMetadata (no dedicated DB, no CAS) | Accepted | 2026-07-01 |
