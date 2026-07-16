@@ -184,8 +184,20 @@ describe('sendCampaignAction notification failure', () => {
     expect(result).toEqual({ sent: 2, failed: 0 });
     expect(logger.error).toHaveBeenCalledWith(
       'Campaign sent but the Discord notification failed',
-      expect.objectContaining({ error: 'webhook 500' })
+      expect.objectContaining({ campaignId: 'c1', error: 'webhook 500' })
     );
+  });
+
+  it('identifies the campaign by id and keeps operator-authored text out of the log', async () => {
+    // The campaign record already stores the subject, so the id is enough to
+    // find it. Logging the subject itself would copy user-provided text into the
+    // log for no added reach.
+    mockNotify.mockRejectedValue(new Error('webhook 500'));
+    await sendCampaignAction(fd({ ...VALID, subject: 'Quarterly update' }));
+
+    const [, context] = (logger.error as jest.Mock).mock.calls[0];
+    expect(context).not.toHaveProperty('subject');
+    expect(JSON.stringify(context)).not.toContain('Quarterly update');
   });
 });
 
