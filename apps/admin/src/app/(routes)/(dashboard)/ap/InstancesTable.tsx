@@ -46,15 +46,24 @@ function StatusBadge({ status }: { readonly status: TokenStatus }) {
   return <span className={`${BADGE} ${STATUS_CLASSES[status]}`}>{STATUS_LABELS[status]}</span>;
 }
 
-const TIER_CLASSES: Record<string, string> = {
+const FREE_TIER_CLASS = 'border-[var(--hairline)] bg-[var(--inset)] text-[color:var(--ink-faint)]';
+
+/**
+ * `tier` is an unconstrained string column, so a value with no entry here is
+ * reachable. The lookup is typed as possibly-undefined to say that out loud:
+ * as a plain Record<string, string> the type claims every key resolves, which
+ * makes the fallback below look like dead code while it is in fact the only
+ * thing standing between an unknown tier and an `undefined` in the class list.
+ */
+const TIER_CLASSES: Record<string, string | undefined> = {
   pro: 'border-[var(--blue-soft)] bg-[var(--blue-soft)] text-[color:var(--blue-text)]',
   enterprise:
     'border-[var(--avatar-violet-bg)] bg-[var(--avatar-violet-bg)] text-[color:var(--avatar-violet-ink)]',
-  free: 'border-[var(--hairline)] bg-[var(--inset)] text-[color:var(--ink-faint)]',
+  free: FREE_TIER_CLASS,
 };
 
 function TierBadge({ tier }: { readonly tier: string }) {
-  const cls = TIER_CLASSES[tier] ?? TIER_CLASSES.free;
+  const cls = TIER_CLASSES[tier] ?? FREE_TIER_CLASS;
   return <span className={`${BADGE} ${cls}`}>{tier}</span>;
 }
 
