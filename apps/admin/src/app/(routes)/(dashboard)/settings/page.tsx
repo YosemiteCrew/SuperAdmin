@@ -26,7 +26,19 @@ export const metadata: Metadata = {
 };
 
 const CARD =
-  'rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]';
+  'rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] p-5 shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+
+/** Uppercase strip that heads the read-only cards (System, recent activity). */
+const CARD_STRIP =
+  'border-b border-[color:var(--hairline)] bg-[var(--screen-2)] px-[18px] py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
+
+const CARD_TITLE = 'text-[15.5px] font-bold text-[color:var(--ink)]';
+
+const ROW_LABEL = 'text-[13.5px] font-semibold text-[color:var(--ink)]';
+
+const ROW_SUB = 'text-[12px] text-[color:var(--ink-faint)]';
+
+const LINK_ACTION = 'text-[12.5px] font-semibold text-[color:var(--blue-text)] hover:underline';
 
 async function loadNames(userId: string): Promise<{ firstName: string; lastName: string }> {
   try {
@@ -96,146 +108,171 @@ export default async function SettingsPage() {
   const bootstrapEmails = serverEnv.superadminBootstrapEmails;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <header>
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Settings</h1>
-        <p className="mt-1 text-sm text-ink-3">Manage your profile, security, and the panel.</p>
+    <div className="flex w-full flex-col gap-[22px]">
+      <header className="flex flex-col gap-[3px]">
+        <h1 className="m-0 font-[family-name:var(--font-serif-display)] text-[26px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
+          Settings
+        </h1>
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
+          Manage your profile, security, and the panel.
+        </p>
       </header>
 
-      <section className={CARD} aria-labelledby="profile-heading">
-        <h2 id="profile-heading" className="text-lg font-medium text-ink">
-          Profile
-        </h2>
-        <p className="mt-1 mb-4 text-sm text-ink-3">
-          Signed in as <span className="font-medium text-ink">{email}</span>
-        </p>
-        <ProfileForm firstName={firstName} lastName={lastName} />
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[1.15fr_1fr]">
+        <div className="flex flex-col gap-4">
+          <section className={CARD} aria-labelledby="profile-heading">
+            <h2 id="profile-heading" className={CARD_TITLE}>
+              Profile
+            </h2>
+            <p className="mt-0.5 mb-4 text-[12.5px] text-[color:var(--ink-faint)]">
+              Signed in as{' '}
+              <span className="font-semibold text-[color:var(--ink-muted)]">{email}</span>
+            </p>
+            <ProfileForm firstName={firstName} lastName={lastName} />
 
-        <div className="mt-6 border-t border-line pt-6">
-          <h3 className="text-sm font-medium text-ink">Sign-in email</h3>
-          <p className="mt-1 mb-4 text-sm text-ink-3">
-            Change the email you sign in with. The new address must be verified.
-          </p>
-          <ChangeEmailForm currentEmail={email} />
+            <div className="mt-[14px] border-t border-[color:var(--hairline)] pt-[14px]">
+              <h3 className={ROW_LABEL}>Sign-in email</h3>
+              <p className="mt-0.5 mb-4 text-[11.5px] text-[color:var(--ink-faint)]">
+                Change the email you sign in with. The new address must be verified.
+              </p>
+              <ChangeEmailForm currentEmail={email} />
+            </div>
+          </section>
+
+          <section className={CARD} aria-labelledby="appearance-heading">
+            <div className="flex items-center justify-between gap-[14px]">
+              <div className="flex flex-col gap-0.5">
+                <h2 id="appearance-heading" className={CARD_TITLE}>
+                  Appearance
+                </h2>
+                <p className="text-[12.5px] text-[color:var(--ink-faint)]">
+                  Match the system setting, or force light or dark.
+                </p>
+              </div>
+              <ThemeToggle />
+            </div>
+          </section>
+
+          <section className={CARD} aria-labelledby="security-heading">
+            <h2 id="security-heading" className={CARD_TITLE}>
+              Security
+            </h2>
+            <dl className="mt-[13px] flex flex-col gap-[13px]">
+              <div className="flex items-center justify-between gap-[14px]">
+                <div className="flex flex-col gap-px">
+                  <dt className={ROW_LABEL}>Password</dt>
+                  <dd className={ROW_SUB}>Change the password for this account.</dd>
+                </div>
+                <Link href="/auth/reset-password" className={`yc-auth-link-brand ${LINK_ACTION}`}>
+                  Reset password
+                </Link>
+              </div>
+
+              <div className="flex items-center justify-between gap-[14px]">
+                <div className="flex flex-col gap-px">
+                  <dt className={ROW_LABEL}>Two-factor authentication</dt>
+                  <dd className={ROW_SUB}>{totpLabel} · TOTP is required for all super admins.</dd>
+                </div>
+                <Link href="/auth/mfa/totp" className={`yc-auth-link-brand ${LINK_ACTION}`}>
+                  Manage device
+                </Link>
+              </div>
+
+              <div className="flex items-center justify-between gap-[14px] border-t border-[color:var(--hairline)] pt-[13px]">
+                <div className="flex flex-col gap-px">
+                  <dt className={ROW_LABEL}>Sign out everywhere</dt>
+                  <dd className={ROW_SUB}>End every session and return to sign-in.</dd>
+                </div>
+                <form action={signOutEverywhereAction}>
+                  <button
+                    type="submit"
+                    className="h-[34px] rounded-full border border-[color:var(--danger-border)] px-[15px] text-[12.5px] font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)]"
+                  >
+                    Sign out everywhere
+                  </button>
+                </form>
+              </div>
+            </dl>
+          </section>
+
+          <SessionsSection sessions={sessions} userId={userId} showRevokeAll={false} />
         </div>
-      </section>
 
-      <section className={CARD} aria-labelledby="appearance-heading">
-        <h2 id="appearance-heading" className="text-lg font-medium text-ink">
-          Appearance
-        </h2>
-        <div className="mt-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-ink">Color theme</p>
-            <p className="text-sm text-ink-3">Match the system setting, or force light or dark.</p>
-          </div>
-          <ThemeToggle />
-        </div>
-      </section>
+        <div className="flex flex-col gap-4">
+          <section
+            className="overflow-hidden rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+            aria-labelledby="system-heading"
+          >
+            <h2 id="system-heading" className={CARD_STRIP}>
+              System
+            </h2>
+            <dl className="flex flex-col py-1.5">
+              {systemRows.map((row) => (
+                <div
+                  key={row.label}
+                  className="flex items-center justify-between gap-[14px] px-[18px] py-[9px]"
+                >
+                  <dt className="text-[12.5px] text-[color:var(--ink-faint)]">{row.label}</dt>
+                  <dd className="text-right text-[12.5px] font-semibold text-[color:var(--ink)]">
+                    {row.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
 
-      <section className={CARD} aria-labelledby="security-heading">
-        <h2 id="security-heading" className="text-lg font-medium text-ink">
-          Security
-        </h2>
-        <dl className="mt-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <dt className="text-sm font-medium text-ink">Password</dt>
-              <dd className="text-sm text-ink-3">Change the password for this account.</dd>
-            </div>
-            <Link href="/auth/reset-password" className="yc-auth-link-brand text-sm">
-              Reset password
-            </Link>
-          </div>
+          <section className={CARD} aria-labelledby="access-heading">
+            <h2 id="access-heading" className={CARD_TITLE}>
+              Access
+            </h2>
+            <dl className="mt-3 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-[14px]">
+                <div className="flex flex-col gap-px">
+                  <dt className="text-[13px] font-semibold text-[color:var(--ink)]">
+                    Super admins
+                  </dt>
+                  <dd className={ROW_SUB}>
+                    {adminCount} {adminCount === 1 ? 'account holds' : 'accounts hold'} the
+                    superadmin role.
+                  </dd>
+                </div>
+                <Link href="/users" className={`yc-auth-link-brand ${LINK_ACTION}`}>
+                  Manage
+                </Link>
+              </div>
+              <div className="border-t border-[color:var(--hairline)] pt-3">
+                <dt className="text-[13px] font-semibold text-[color:var(--ink)]">
+                  Bootstrap allowlist
+                </dt>
+                <dd className={`mt-0.5 break-words ${ROW_SUB}`}>
+                  {bootstrapEmails.length > 0
+                    ? bootstrapEmails.join(', ')
+                    : 'None configured (set SUPERADMIN_BOOTSTRAP_EMAILS).'}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <dt className="text-sm font-medium text-ink">Two-factor authentication</dt>
-              <dd className="text-sm text-ink-3">
-                {totpLabel} · TOTP is required for all super admins.
-              </dd>
-            </div>
-            <Link href="/auth/mfa/totp" className="yc-auth-link-brand text-sm">
-              Manage device
-            </Link>
-          </div>
-
-          <div className="flex items-center justify-between gap-4 border-t border-line pt-4">
-            <div>
-              <dt className="text-sm font-medium text-ink">Sign out everywhere</dt>
-              <dd className="text-sm text-ink-3">End every session and return to sign-in.</dd>
-            </div>
-            <form action={signOutEverywhereAction}>
-              <button
-                type="submit"
-                className="rounded-xl border border-danger-600 px-4 py-2 text-sm font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white"
+          <section className="overflow-hidden rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+            <div className="flex items-center justify-between border-b border-[color:var(--hairline)] bg-[var(--screen-2)] px-[18px] py-[11px]">
+              <h2 className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
+                Your recent activity
+              </h2>
+              <Link
+                href="/audit"
+                className="text-[12px] font-semibold text-[color:var(--blue-text)] hover:underline"
               >
-                Sign out everywhere
-              </button>
-            </form>
-          </div>
-        </dl>
-      </section>
-
-      <SessionsSection sessions={sessions} userId={userId} showRevokeAll={false} />
-
-      <section className={CARD} aria-labelledby="system-heading">
-        <h2 id="system-heading" className="text-lg font-medium text-ink">
-          System
-        </h2>
-        <dl className="mt-4 flex flex-col gap-3">
-          {systemRows.map((row) => (
-            <div key={row.label} className="flex items-center justify-between gap-4">
-              <dt className="text-sm text-ink-3">{row.label}</dt>
-              <dd className="text-right text-sm font-medium text-ink">{row.value}</dd>
+                View all →
+              </Link>
             </div>
-          ))}
-        </dl>
-      </section>
-
-      <section className={CARD} aria-labelledby="access-heading">
-        <h2 id="access-heading" className="text-lg font-medium text-ink">
-          Access
-        </h2>
-        <dl className="mt-4 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <dt className="text-sm font-medium text-ink">Super admins</dt>
-              <dd className="text-sm text-ink-3">
-                {adminCount} {adminCount === 1 ? 'account holds' : 'accounts hold'} the superadmin
-                role.
-              </dd>
-            </div>
-            <Link href="/users" className="yc-auth-link-brand text-sm">
-              Manage
-            </Link>
-          </div>
-          <div className="border-t border-line pt-4">
-            <dt className="text-sm font-medium text-ink">Bootstrap allowlist</dt>
-            <dd className="mt-1 break-words text-sm text-ink-3">
-              {bootstrapEmails.length > 0
-                ? bootstrapEmails.join(', ')
-                : 'None configured (set SUPERADMIN_BOOTSTRAP_EMAILS).'}
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <div className="flex items-center justify-between border-b border-line bg-raised px-5 py-3">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">
-            Your recent activity
-          </h2>
-          <Link href="/audit" className="text-xs font-medium text-ink hover:underline">
-            View all →
-          </Link>
+            <AuditTimeline
+              events={myActivity}
+              showTarget
+              emptyMessage="You haven't taken any recorded actions yet."
+            />
+          </section>
         </div>
-        <AuditTimeline
-          events={myActivity}
-          showTarget
-          emptyMessage="You haven't taken any recorded actions yet."
-        />
-      </section>
+      </div>
     </div>
   );
 }

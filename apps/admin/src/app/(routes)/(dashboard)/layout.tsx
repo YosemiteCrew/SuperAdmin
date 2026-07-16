@@ -6,6 +6,7 @@ import { requireSuperAdmin } from '@/app/config/backend';
 import { Header } from '@/app/ui/layout/Header';
 import { Sidebar } from '@/app/ui/layout/Sidebar';
 import { CommandPalette } from '@/app/ui/overlays/CommandPalette';
+import styles from '@/app/ui/layout/shell.module.css';
 
 type SessionResult = {
   email: string;
@@ -45,11 +46,11 @@ export default async function DashboardLayout({
   const { email, firstName, lastName } = await requireSession();
 
   return (
-    <div className="yc-shell">
+    <div className={styles.shellRoot}>
       <Sidebar />
-      <div className="yc-shell-main">
+      <div className={styles.shellMain}>
         <Header email={email} firstName={firstName} lastName={lastName} />
-        <main id="main-content" className="yc-shell-content" tabIndex={-1}>
+        <main id="main-content" className={styles.shellContent} tabIndex={-1}>
           {children}
         </main>
       </div>

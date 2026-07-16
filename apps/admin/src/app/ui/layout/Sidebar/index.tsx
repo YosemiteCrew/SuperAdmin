@@ -14,6 +14,8 @@ import {
   MdOutlineKeyboardDoubleArrowRight,
 } from 'react-icons/md';
 
+import styles from '../shell.module.css';
+
 type RouteItem = {
   name: string;
   href: string;
@@ -111,51 +113,57 @@ export function Sidebar() {
   return (
     <nav
       aria-label="Main navigation"
-      className={collapsed ? 'sidebar sidebar-collapsed' : 'sidebar'}
+      className={collapsed ? `${styles.sidebar} ${styles.sidebarCollapsed}` : styles.sidebar}
     >
-      <div className="sidebar-top">
+      <div>
         <Link
           href="/dashboard"
           aria-label="Yosemite Crew Super Admin home"
-          className={collapsed ? 'logo logo-collapsed' : 'logo'}
+          className={collapsed ? `${styles.brand} ${styles.brandCollapsed}` : styles.brand}
         >
           <Image
             src="/yosemite-crew-logo.png"
             alt="Yosemite Crew"
-            width={112}
-            height={52}
+            width={30}
+            height={30}
             priority
-            style={{ width: 'auto' }}
+            className={styles.brandMark}
           />
+          {collapsed ? null : (
+            <span className={styles.brandText}>
+              <span className={styles.brandName}>Yosemite Crew</span>
+              <span className={styles.brandKicker}>Super Admin</span>
+            </span>
+          )}
         </Link>
       </div>
 
-      <div className="sidebar-routes">
+      <div className={styles.routes}>
         {ROUTE_GROUPS.map((group) => (
-          <div className="sidebar-route-group" key={group.label}>
-            {collapsed ? null : <div className="sidebar-route-group-label">{group.label}</div>}
-            <div className="sidebar-route-group-items">
+          <div className={styles.routeGroup} key={group.label}>
+            {collapsed ? null : <div className={styles.routeGroupLabel}>{group.label}</div>}
+            <div className={styles.routeGroupItems}>
               {group.routes.map((route) => {
                 const active = isActive(pathname, route.href);
                 const RouteIcon = route.icon;
-                const className = active ? 'route route-active' : 'route';
+                const className = active ? `${styles.route} ${styles.routeActive}` : styles.route;
 
                 if (collapsed) {
                   return (
-                    <span className="yc-tooltip-host" key={route.name}>
+                    <span className={styles.tooltipHost} key={route.name}>
                       <Link
                         href={route.href}
                         className={className}
                         aria-current={active ? 'page' : undefined}
                       >
                         <span className="sr-only">{route.name}</span>
-                        <span className="route-collapsed-icon-wrap">
-                          <span className="route-icon" aria-hidden>
+                        <span className={styles.routeCollapsedIconWrap}>
+                          <span className={styles.routeIcon} aria-hidden>
                             <RouteIcon size={18} />
                           </span>
                         </span>
                       </Link>
-                      <span className="yc-tooltip" role="tooltip">
+                      <span className={styles.tooltip} role="tooltip">
                         {group.label}: {route.name}
                       </span>
                     </span>
@@ -169,10 +177,10 @@ export function Sidebar() {
                     className={className}
                     aria-current={active ? 'page' : undefined}
                   >
-                    <span className="route-icon" aria-hidden>
+                    <span className={styles.routeIcon} aria-hidden>
                       <RouteIcon size={18} />
                     </span>
-                    <span className="route-label">{route.name}</span>
+                    <span className={styles.routeLabel}>{route.name}</span>
                   </Link>
                 );
               })}
@@ -181,21 +189,33 @@ export function Sidebar() {
         ))}
       </div>
 
-      <div className="sidebar-footer">
-        <span className="yc-tooltip-host">
+      <div
+        className={
+          collapsed
+            ? `${styles.sidebarFooter} ${styles.sidebarFooterCollapsed}`
+            : styles.sidebarFooter
+        }
+      >
+        {collapsed ? null : (
+          <span className={styles.status}>
+            <span className={styles.statusDot} aria-hidden />
+            <span className={styles.statusLabel}>Core connected</span>
+          </span>
+        )}
+        <span className={styles.tooltipHost}>
           <button
             type="button"
             onClick={handleToggle}
-            className="sidebar-collapse-btn"
+            className={styles.collapseBtn}
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? (
-              <MdOutlineKeyboardDoubleArrowRight size={21} />
+              <MdOutlineKeyboardDoubleArrowRight size={17} />
             ) : (
-              <MdOutlineKeyboardDoubleArrowLeft size={21} />
+              <MdOutlineKeyboardDoubleArrowLeft size={17} />
             )}
           </button>
-          <span className="yc-tooltip" role="tooltip">
+          <span className={styles.tooltip} role="tooltip">
             {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           </span>
         </span>

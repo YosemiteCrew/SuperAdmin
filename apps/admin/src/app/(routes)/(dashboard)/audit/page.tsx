@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { IoCalendarClearOutline, IoSearchOutline } from 'react-icons/io5';
 
 import { AUDIT_LOG_LIMIT, AUDIT_META } from '@/app/features/audit/audit';
 import { AuditTable } from '@/app/features/audit/AuditTable';
@@ -27,7 +28,7 @@ const ACTION_OPTIONS = Object.entries(AUDIT_META).map(([value, meta]) => ({
 }));
 
 const INPUT_CLASS =
-  'h-10 rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none transition-colors focus:border-btn';
+  'h-10 rounded-xl border border-[color:var(--hairline)] bg-[var(--field-bg)] px-4 text-[13px] text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--blue)]';
 
 type HrefParams = {
   action: AuditActionFilter;
@@ -49,7 +50,7 @@ function buildAuditHref({ action, search, from, to, page }: HrefParams): string 
 }
 
 const PAGER_LINK =
-  'rounded-lg border border-line px-3 py-1.5 text-ink transition-colors hover:bg-raised';
+  'inline-flex h-8 items-center gap-1.5 rounded-full border border-[color:var(--divider)] px-3.5 text-[12.5px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--pill-raised)]';
 
 function Pagination({
   base,
@@ -59,7 +60,10 @@ function Pagination({
 }: Readonly<{ base: Omit<HrefParams, 'page'>; page: number; totalPages: number; total: number }>) {
   if (totalPages <= 1) return null;
   return (
-    <nav className="flex items-center justify-between text-sm text-ink-2" aria-label="Pagination">
+    <nav
+      className="flex items-center justify-between rounded-2xl border border-[color:var(--hairline)] bg-[var(--screen)] px-5 py-3 text-[12.5px] text-[color:var(--ink-muted)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]"
+      aria-label="Pagination"
+    >
       <span>
         Page {page} of {totalPages} · {total} {total === 1 ? 'event' : 'events'}
       </span>
@@ -99,16 +103,21 @@ export default async function AuditLogPage({
   const hrefBase = { action: activeAction, search: searchTerm, from: fromRaw, to: toRaw };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Audit log</h1>
-        <p className="text-sm text-ink-3">
+        <h1 className="m-0 flex items-baseline gap-3 font-[family-name:var(--font-serif-display)] text-[26px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
+          Audit log
+          <span className="text-[16px] italic text-[color:var(--ink-faint)]">
+            {AUDIT_LOG_LIMIT} most-recent events kept
+          </span>
+        </h1>
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
           Every privileged action taken in this panel — who did what, to whom, and when.
         </p>
       </header>
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <form action="/audit" method="get" className="flex flex-wrap items-end gap-2">
+        <form action="/audit" method="get" className="flex flex-wrap items-end gap-2.5">
           <select
             name="action"
             defaultValue={activeAction}
@@ -122,31 +131,52 @@ export default async function AuditLogPage({
               </option>
             ))}
           </select>
-          <input
-            type="search"
-            name="q"
-            defaultValue={searchTerm}
-            placeholder="Search actor or target"
-            aria-label="Search by actor or target"
-            className={`${INPUT_CLASS} sm:w-56`}
-          />
-          <input
-            type="date"
-            name="from"
-            defaultValue={fromRaw}
-            aria-label="From date"
-            className={INPUT_CLASS}
-          />
-          <input
-            type="date"
-            name="to"
-            defaultValue={toRaw}
-            aria-label="To date"
-            className={INPUT_CLASS}
-          />
+          <div className="relative">
+            <IoSearchOutline
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[14px] text-[color:var(--ink-faint)]"
+            />
+            <input
+              type="search"
+              name="q"
+              defaultValue={searchTerm}
+              placeholder="Search actor or target"
+              aria-label="Search by actor or target"
+              className={`${INPUT_CLASS} pl-10 sm:w-56`}
+            />
+          </div>
+          <div className="relative">
+            <IoCalendarClearOutline
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[14px] text-[color:var(--ink-faint)]"
+            />
+            <input
+              type="date"
+              name="from"
+              defaultValue={fromRaw}
+              aria-label="From date"
+              className={`${INPUT_CLASS} pl-10`}
+            />
+          </div>
+          <span aria-hidden className="pb-2.5 text-[12px] text-[color:var(--ink-faint)]">
+            →
+          </span>
+          <div className="relative">
+            <IoCalendarClearOutline
+              aria-hidden
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[14px] text-[color:var(--ink-faint)]"
+            />
+            <input
+              type="date"
+              name="to"
+              defaultValue={toRaw}
+              aria-label="To date"
+              className={`${INPUT_CLASS} pl-10`}
+            />
+          </div>
           <button
             type="submit"
-            className="yc-primary-button inline-flex h-10 items-center justify-center rounded-xl border border-btn bg-btn px-5 text-sm font-medium text-btn-ink"
+            className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full border border-btn bg-btn px-5 text-[13px] font-semibold text-btn-ink"
           >
             <span>Filter</span>
           </button>

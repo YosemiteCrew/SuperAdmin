@@ -43,21 +43,26 @@ export function ConfirmDeleteDialog({
         type="button"
         aria-label="Cancel"
         onClick={onCancel}
-        className="absolute inset-0 bg-[rgba(29,28,27,0.45)]"
+        className="absolute inset-0 bg-[var(--glass-93)] backdrop-blur-[2px]"
       />
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-[0_24px_70px_rgba(29,28,27,0.24)]"
+        className="relative w-full max-w-md rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] p-6 shadow-[0_2px_6px_var(--sh05),0_28px_70px_var(--sh12)]"
       >
-        <h2 id={titleId} className="text-lg font-medium text-ink">
+        <h2
+          id={titleId}
+          className="text-[22px] font-normal tracking-[-0.015em] text-[color:var(--ink)]"
+          style={{ fontFamily: 'var(--font-serif-display)' }}
+        >
           Delete {count} {noun}?
         </h2>
-        <p className="mt-2 text-sm text-ink-3">
+        <p className="mt-2 text-[13px] leading-relaxed text-[color:var(--ink-muted)]">
           This permanently removes the selected {noun} from SuperTokens core, revokes their
           sessions, and cannot be undone. Type{' '}
-          <span className="font-mono font-medium text-ink">{CONFIRM_WORD}</span> to confirm.
+          <span className="font-mono font-semibold text-[color:var(--ink)]">{CONFIRM_WORD}</span> to
+          confirm.
         </p>
         <input
           ref={inputRef}
@@ -65,13 +70,13 @@ export function ConfirmDeleteDialog({
           onChange={(event) => setTyped(event.target.value)}
           placeholder={CONFIRM_WORD}
           aria-label={`Type ${CONFIRM_WORD} to confirm`}
-          className="mt-4 h-10 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none transition-colors focus:border-danger-600"
+          className="mt-4 h-10 w-full rounded-xl border border-[color:var(--hairline)] bg-[var(--field-bg)] px-4 text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--danger-border)]"
         />
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-raised"
+            className="inline-flex h-[34px] items-center rounded-full border border-[color:var(--divider)] px-[15px] text-[12.5px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
           >
             Cancel
           </button>
@@ -79,7 +84,7 @@ export function ConfirmDeleteDialog({
             type="button"
             disabled={!canConfirm}
             onClick={onConfirm}
-            className="rounded-xl border border-danger-600 bg-danger-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[#d53225] disabled:opacity-50"
+            className="inline-flex h-[34px] items-center rounded-full bg-[var(--danger)] px-[15px] text-[12.5px] font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             {pending ? 'Deleting…' : `Delete ${count} ${noun}`}
           </button>

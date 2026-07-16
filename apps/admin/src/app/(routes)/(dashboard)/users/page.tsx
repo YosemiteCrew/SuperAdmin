@@ -87,36 +87,41 @@ export default async function UsersPage({
   );
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-medium tracking-tight text-ink">Users</h1>
-          <p className="text-sm text-ink-3">
+    <div className="flex flex-col gap-[22px]">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-[3px]">
+          <h1
+            className="text-[26px] font-normal tracking-[-0.015em] text-[color:var(--ink)]"
+            style={{ fontFamily: 'var(--font-serif-display)' }}
+          >
+            Users
+          </h1>
+          <p className="text-[13.5px] text-[color:var(--ink-muted)]">
             Manage everyone with access to your Yosemite Crew account.
           </p>
         </div>
         <ExportUsersButton />
       </header>
 
-      <form action="/users" method="get" className="flex w-full max-w-xl items-center gap-2">
+      <form action="/users" method="get" className="flex w-full max-w-xl items-center gap-[10px]">
         <input
           type="search"
           name="search"
           defaultValue={trimmedSearch}
           placeholder="Search by email"
-          className="h-11 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none transition-colors focus:border-btn"
+          className="h-10 w-full rounded-xl border border-[color:var(--hairline)] bg-[var(--field-bg)] px-4 text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]"
           aria-label="Search users by email"
         />
         <button
           type="submit"
-          className="yc-primary-button inline-flex h-11 min-w-[6.5rem] items-center justify-center rounded-xl border border-btn bg-btn px-5 text-sm font-medium text-btn-ink"
+          className="yc-primary-button inline-flex h-10 min-w-[6.5rem] items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13.5px] font-semibold text-[color:var(--btn-ink)]"
         >
           <span>Search</span>
         </button>
         {trimmedSearch ? (
           <Link
             href="/users"
-            className="inline-flex h-11 min-w-[5.5rem] items-center justify-center rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-raised"
+            className="inline-flex h-10 min-w-[5.5rem] items-center justify-center rounded-full border border-[color:var(--divider)] px-5 text-[13px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
           >
             Clear
           </Link>
@@ -124,22 +129,25 @@ export default async function UsersPage({
       </form>
 
       {users.length === 0 ? (
-        <div className="rounded-2xl border border-line bg-surface p-10 text-center text-sm text-ink-3 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+        <div className="rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] p-10 text-center text-[13.5px] text-[color:var(--ink-muted)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
           {trimmedSearch ? `No users matched “${trimmedSearch}”.` : 'No users yet.'}
         </div>
       ) : (
         <UsersTable rows={userRows} />
       )}
 
-      <nav className="flex items-center justify-between text-sm text-ink-2" aria-label="Pagination">
+      <nav
+        className="flex items-center justify-between text-[12.5px] text-[color:var(--ink-muted)]"
+        aria-label="Pagination"
+      >
         <span>
           Showing {users.length} {users.length === 1 ? 'user' : 'users'}
         </span>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[10px]">
           {cursor ? (
             <Link
               href={buildHref({ search: trimmedSearch || undefined })}
-              className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-raised"
+              className="inline-flex h-8 items-center rounded-full border border-[color:var(--divider)] px-[14px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
             >
               ← First page
             </Link>
@@ -150,7 +158,7 @@ export default async function UsersPage({
                 search: trimmedSearch || undefined,
                 cursor: nextPaginationToken,
               })}
-              className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-ink hover:opacity-90"
+              className="inline-flex h-8 items-center rounded-full bg-[var(--btn)] px-[14px] font-semibold text-[color:var(--btn-ink)] transition-opacity hover:opacity-90"
             >
               Next →
             </Link>

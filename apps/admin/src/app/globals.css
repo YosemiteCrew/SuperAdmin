@@ -134,14 +134,30 @@
   --avatar-amber-bg: #fef3e9;
   --avatar-amber-ink: #af5e19;
 
+  /* Primary CTA (dark fill on light) */
+  --cta: #302f2e;
+  --cta-hover: #1d1c1b;
+  --cta-text: #ffffff;
+  --nav-hover: rgba(255, 255, 255, 0.5);
+
   /* Glass + elevation */
+  --glass-95: rgba(239, 232, 220, 0.94);
   --glass-93: rgba(239, 232, 220, 0.93);
   --glass-92: rgba(239, 232, 220, 0.92);
   --sh03: rgba(29, 28, 27, 0.03);
   --sh05: rgba(29, 28, 27, 0.05);
   --sh06: rgba(29, 28, 27, 0.06);
+  --sh08: rgba(29, 28, 27, 0.08);
+  --sh09: rgba(29, 28, 27, 0.09);
   --sh10: rgba(29, 28, 27, 0.1);
   --sh12: rgba(29, 28, 27, 0.12);
+  --sh14: rgba(29, 28, 27, 0.14);
+  --sh16: rgba(29, 28, 27, 0.16);
+  --sh18: rgba(29, 28, 27, 0.18);
+  --sh20: rgba(29, 28, 27, 0.2);
+  --sh22: rgba(29, 28, 27, 0.22);
+  --sh28: rgba(29, 28, 27, 0.28);
+  --sh55: rgba(29, 28, 27, 0.55);
 
   /* ── App semantic aliases → warm bone ── */
   --surface: var(--screen);
@@ -227,14 +243,30 @@
   --avatar-amber-bg: rgba(233, 170, 120, 0.17);
   --avatar-amber-ink: #ecb488;
 
+  /* Primary CTA — inverts to warm white on espresso */
+  --cta: #f2ece1;
+  --cta-hover: #fbf8f1;
+  --cta-text: #201c18;
+  --nav-hover: rgba(255, 255, 255, 0.06);
+
   /* Glass + elevation — deeper black so depth survives on espresso */
+  --glass-95: rgba(30, 26, 21, 0.9);
   --glass-93: rgba(34, 29, 23, 0.92);
   --glass-92: rgba(34, 29, 23, 0.86);
   --sh03: rgba(0, 0, 0, 0.14);
   --sh05: rgba(0, 0, 0, 0.2);
   --sh06: rgba(0, 0, 0, 0.24);
+  --sh08: rgba(0, 0, 0, 0.3);
+  --sh09: rgba(0, 0, 0, 0.32);
   --sh10: rgba(0, 0, 0, 0.34);
   --sh12: rgba(0, 0, 0, 0.36);
+  --sh14: rgba(0, 0, 0, 0.4);
+  --sh16: rgba(0, 0, 0, 0.44);
+  --sh18: rgba(0, 0, 0, 0.48);
+  --sh20: rgba(0, 0, 0, 0.52);
+  --sh22: rgba(0, 0, 0, 0.55);
+  --sh28: rgba(0, 0, 0, 0.62);
+  --sh55: rgba(0, 0, 0, 0.8);
 
   /* ── App semantic aliases → espresso ── */
   --surface: var(--screen);
