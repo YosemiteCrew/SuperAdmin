@@ -66,29 +66,60 @@ export async function sendTransactional(payload: PlunkSendPayload): Promise<void
 }
 
 /**
+ * How many Plunk calls are allowed in flight at once. Awaiting each recipient in
+ * turn costs one round trip per address, which for a full campaign is minutes of
+ * serial latency. Firing them all at once is worse: an 'all' campaign resolves
+ * every user in the tenant, so Promise.all over that list would open thousands of
+ * simultaneous connections to a third-party API and earn a rate-limit or a block.
+ * A small pool gets the parallelism without the stampede.
+ */
+const PLUNK_CONCURRENCY = 8;
+
+/**
+ * Runs `task` over `items` with bounded concurrency, tallying outcomes. A failure
+ * is counted, never thrown: one bad address must not abandon the rest of the
+ * send, and the caller reports the tally.
+ */
+async function tallyBounded<T>(
+  items: T[],
+  task: (item: T) => Promise<unknown>
+): Promise<{ ok: number; failed: number }> {
+  let ok = 0;
+  let failed = 0;
+  let cursor = 0;
+
+  async function worker(): Promise<void> {
+    while (cursor < items.length) {
+      const item = items[cursor];
+      cursor += 1;
+      try {
+        await task(item);
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+  }
+
+  const workers = Math.min(PLUNK_CONCURRENCY, items.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return { ok, failed };
+}
+
+/**
  * Creates or updates Plunk contacts for the given emails. Contacts default to
  * unsubscribed: this panel has no marketing-consent source, so opt-in status
- * must come from the customer's own action (e.g. Plunk double opt-in) — never
- * be manufactured by a bulk sync.
+ * must come from the customer's own action (e.g. Plunk double opt-in) and must
+ * never be manufactured by a bulk sync. A caller that genuinely has consent
+ * passes it explicitly.
  */
 export async function syncContacts(
   emails: string[],
   opts?: { subscribed?: boolean }
 ): Promise<{ synced: number; failed: number }> {
   const subscribed = opts?.subscribed ?? false;
-  let synced = 0;
-  let failed = 0;
-
-  for (const email of emails) {
-    try {
-      await trackContact({ email, subscribed });
-      synced++;
-    } catch {
-      failed++;
-    }
-  }
-
-  return { synced, failed };
+  const { ok, failed } = await tallyBounded(emails, (email) => trackContact({ email, subscribed }));
+  return { synced: ok, failed };
 }
 
 export async function broadcastCampaign(payload: {
@@ -96,21 +127,12 @@ export async function broadcastCampaign(payload: {
   subject: string;
   body: string;
 }): Promise<{ sent: number; failed: number }> {
-  let sent = 0;
-  let failed = 0;
-
-  for (const email of payload.emails) {
-    try {
-      await sendTransactional({
-        to: email,
-        subject: payload.subject,
-        body: payload.body,
-      });
-      sent++;
-    } catch {
-      failed++;
-    }
-  }
-
-  return { sent, failed };
+  const { ok, failed } = await tallyBounded(payload.emails, (email) =>
+    sendTransactional({
+      to: email,
+      subject: payload.subject,
+      body: payload.body,
+    })
+  );
+  return { sent: ok, failed };
 }

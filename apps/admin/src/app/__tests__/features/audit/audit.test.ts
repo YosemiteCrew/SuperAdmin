@@ -6,6 +6,7 @@ import {
   isValidAuditEvent,
   prependCapped,
 } from '@/app/features/audit/audit';
+import { AUDIT_TARGET_TYPES } from '@/app/features/audit/types';
 import type { AuditEvent } from '@/app/features/audit/types';
 
 function sample(over: Partial<AuditEvent> = {}): AuditEvent {
@@ -121,14 +122,17 @@ describe('isValidAuditEvent', () => {
     expect(isValidAuditEvent(sample())).toBe(true);
   });
 
-  it('accepts every declared target type, so stored events survive re-reads', () => {
-    // A targetType missing here gets silently filtered out of readLog() and
-    // then permanently dropped from the store on the next audit write.
-    const targetTypes: AuditEvent['targetType'][] = ['user', 'organization', 'system'];
-    for (const targetType of targetTypes) {
+  // Guards the union/validator drift that silently drops events on readback: a
+  // feature adding a target kind to AUDIT_TARGET_TYPES gets it registered here by
+  // construction, and this fails if the validator is ever hand-listed again.
+  // Supersedes this branch's hand-listed version of the same check, which had to
+  // be remembered; 'system' is now picked up from the list automatically.
+  it.each(AUDIT_TARGET_TYPES.map((targetType) => [targetType]))(
+    'accepts every declared target type (%s)',
+    (targetType) => {
       expect(isValidAuditEvent(sample({ targetType }))).toBe(true);
     }
-  });
+  );
 
   it('accepts a crm.contact_sync system event round-tripped through the cap', () => {
     const event = sample({

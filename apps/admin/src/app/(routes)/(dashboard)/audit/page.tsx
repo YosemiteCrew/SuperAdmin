@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { AUDIT_LOG_LIMIT, AUDIT_META } from '@/app/features/audit/audit';
+import { AuditIntegrityBanner } from '@/app/features/audit/AuditIntegrityBanner';
 import { AuditTable } from '@/app/features/audit/AuditTable';
 import {
   type AuditActionFilter,
@@ -11,7 +12,7 @@ import {
   parseAuditDate,
   parsePage,
 } from '@/app/features/audit/filter';
-import { getRecentAuditEvents } from '@/app/features/audit/store';
+import { getRecentAuditEvents, verifyAuditChain } from '@/app/features/audit/store';
 
 import { ExportAuditButton } from './ExportAuditButton';
 
@@ -88,7 +89,12 @@ export default async function AuditLogPage({
   const fromRaw = (from ?? '').trim();
   const toRaw = (to ?? '').trim();
 
-  const allEvents = await getRecentAuditEvents(AUDIT_LOG_LIMIT);
+  // verifyAuditChain reads the raw stored log (with chain fields); the public
+  // reader returns projected events. Run both reads concurrently.
+  const [allEvents, integrity] = await Promise.all([
+    getRecentAuditEvents(AUDIT_LOG_LIMIT),
+    verifyAuditChain(),
+  ]);
   const filtered = filterAuditEvents(allEvents, {
     action: activeAction,
     search: searchTerm,
@@ -106,6 +112,8 @@ export default async function AuditLogPage({
           Every privileged action taken in this panel — who did what, to whom, and when.
         </p>
       </header>
+
+      <AuditIntegrityBanner status={integrity} />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <form action="/audit" method="get" className="flex flex-wrap items-end gap-2">
