@@ -15,6 +15,9 @@ export type AuditAction =
   | 'org.suspend'
   | 'org.reactivate'
   | 'user.data_export'
+  | 'invite.create'
+  | 'invite.use'
+  | 'invite.revoke'
   | 'org.flag_on'
   | 'org.flag_off'
   | 'org.note_add';
@@ -27,7 +30,7 @@ export type AuditAction =
  * cannot be allowed to drift apart. A feature adding a target kind adds it HERE
  * and nowhere else.
  */
-export const AUDIT_TARGET_TYPES = ['user', 'organization'] as const;
+export const AUDIT_TARGET_TYPES = ['user', 'organization', 'invite'] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 

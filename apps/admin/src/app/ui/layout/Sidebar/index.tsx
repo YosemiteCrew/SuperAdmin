@@ -13,6 +13,7 @@ import {
   MdOutlineCorporateFare,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
+  MdOutlineMailOutline,
   MdOutlineMonitor,
 } from 'react-icons/md';
 
@@ -42,6 +43,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
         icon: MdOutlineCorporateFare,
       },
       { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
+      { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
     ],
   },
   {
