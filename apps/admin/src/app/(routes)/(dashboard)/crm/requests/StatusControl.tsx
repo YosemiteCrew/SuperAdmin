@@ -35,7 +35,7 @@ export function StatusControl({
         defaultValue={status}
         disabled={pending}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="h-8 rounded-lg border border-line bg-raised px-2 text-xs text-ink focus:border-btn focus:outline-none disabled:opacity-50"
+        className="h-[30px] rounded-full border border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[12px] font-semibold text-[color:var(--ink)] outline-none transition-colors focus:border-[color:var(--blue)] disabled:opacity-50"
       >
         {OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>
@@ -43,7 +43,11 @@ export function StatusControl({
           </option>
         ))}
       </select>
-      {state.error ? <span className="text-xs text-red-500">{state.error}</span> : null}
+      {state.error ? (
+        <span className="text-[11.5px] font-semibold text-[color:var(--danger-text)]">
+          {state.error}
+        </span>
+      ) : null}
     </form>
   );
 }

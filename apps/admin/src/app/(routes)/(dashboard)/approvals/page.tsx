@@ -22,6 +22,12 @@ const FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'all', label: 'All' },
 ];
 
+const FILTER_PILL =
+  'inline-flex h-[34px] items-center gap-1.5 rounded-full border px-[15px] text-[12.5px] font-semibold transition-colors';
+const FILTER_PILL_ON = 'border-[var(--cta)] bg-[var(--cta)] text-[color:var(--cta-text)]';
+const FILTER_PILL_OFF =
+  'border-[var(--divider)] bg-transparent text-[color:var(--ink-muted)] hover:bg-[var(--surface-soft)]';
+
 export default async function ApprovalsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
@@ -44,10 +50,12 @@ export default async function ApprovalsPage({
   const pendingCount = countPending(rows);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Account approvals</h1>
-        <p className="text-sm text-ink-3">
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+          Account approvals
+        </h1>
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
           Review the newest {SCAN_LIMIT} accounts. Approving sends a welcome email; rejecting
           disables the account and signs it out everywhere. Select rows to act in bulk.
         </p>
@@ -58,14 +66,12 @@ export default async function ApprovalsPage({
           <Link
             key={f.key}
             href={f.key === 'pending' ? '/approvals' : `/approvals?status=${f.key}`}
-            className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
-              filter === f.key
-                ? 'border-btn bg-btn text-btn-ink'
-                : 'border-line bg-surface text-ink hover:bg-raised'
-            }`}
+            className={`${FILTER_PILL} ${filter === f.key ? FILTER_PILL_ON : FILTER_PILL_OFF}`}
           >
             {f.label}
-            {f.key === 'pending' && pendingCount > 0 ? ` (${pendingCount})` : ''}
+            {f.key === 'pending' && pendingCount > 0 ? (
+              <span className="tabular-nums opacity-65">{pendingCount}</span>
+            ) : null}
           </Link>
         ))}
       </nav>

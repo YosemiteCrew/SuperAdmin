@@ -122,7 +122,8 @@
   min-height: 0;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
+  /* No gap: each group label carries the 9px of lead-in the design gives it. */
+  gap: 0;
   overflow-x: visible;
   overflow-y: auto;
   scrollbar-gutter: stable;
@@ -131,41 +132,41 @@
 .routeGroup {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 1px;
 }
 
 .routeGroupLabel {
-  color: var(--ink-faint);
+  color: var(--ink-faint2);
   font-family: var(--font-satoshi);
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   line-height: 14px;
-  padding: 0 10px;
+  padding: 9px 12px 3px;
   text-transform: uppercase;
 }
 
 .routeGroupItems {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .route {
   display: flex;
-  height: 40px;
+  height: 33px;
   align-items: center;
   gap: 10px;
   border: 0;
-  border-radius: 12px;
+  border-radius: 11px;
   background: transparent;
-  color: var(--ink-muted);
+  color: var(--ink-soft);
   font-family: var(--font-satoshi);
-  font-size: 13.5px;
+  font-size: 12.5px;
   font-weight: 500;
   letter-spacing: -0.015em;
   line-height: 18px;
-  padding: 0 10px;
+  padding: 0 12px;
   text-decoration: none;
   transition:
     background-color 0.18s ease,
@@ -191,12 +192,23 @@
 
 .routeIcon {
   display: inline-flex;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  color: currentColor;
+  /* The design tints the icon a step fainter than its label, and lifts both to
+     the active colour together. */
+  color: var(--ink-faint);
+}
+
+.route:hover .routeIcon {
+  color: var(--ink);
+}
+
+.routeActive .routeIcon,
+.routeActive:hover .routeIcon {
+  color: var(--nav-active);
 }
 
 .routeLabel {

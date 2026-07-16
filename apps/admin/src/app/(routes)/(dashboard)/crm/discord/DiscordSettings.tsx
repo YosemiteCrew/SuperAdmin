@@ -13,6 +13,21 @@ import {
 
 const INIT: DiscordActionResult = {};
 
+const CARD =
+  'rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+const CARD_TITLE = 'text-[15.5px] font-bold text-[color:var(--ink)]';
+const CARD_SUB = 'text-[12.5px] text-[color:var(--ink-faint)]';
+const LABEL = 'mb-[5px] block text-[12px] font-semibold text-[color:var(--ink-soft)]';
+const FIELD =
+  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+const PRIMARY_BTN =
+  'yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-50';
+/** Inline status copy sitting beside its button, per the design: green when the
+ *  action succeeded, danger when it failed. Green reads as "good status" here,
+ *  which is what the mockup shows — it is not decoration. */
+const OK_TEXT = 'text-[12px] font-semibold text-[color:var(--success)]';
+const ERROR_TEXT = 'text-[12px] font-semibold text-[color:var(--danger-text)]';
+
 export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>) {
   const broadcastRef = useRef<HTMLFormElement>(null);
 
@@ -34,17 +49,19 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
       {/* Webhook configuration */}
-      <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <h2 className="text-lg font-medium text-ink">Webhook configuration</h2>
-        <p className="mt-1 mb-5 text-sm text-ink-3">
-          Create a webhook in your Discord server under Channel Settings → Integrations.
-        </p>
+      <section className={CARD}>
+        <div className="mb-[14px] flex flex-col gap-0.5">
+          <h2 className={CARD_TITLE}>Webhook configuration</h2>
+          <p className={CARD_SUB}>
+            Create a webhook in your Discord server under Channel Settings → Integrations.
+          </p>
+        </div>
 
-        <form action={saveAction} className="flex flex-col gap-4">
+        <form action={saveAction} className="flex flex-col gap-[14px]">
           <div>
-            <label htmlFor="discord-url" className="mb-1.5 block text-sm font-medium text-ink">
+            <label htmlFor="discord-url" className={LABEL}>
               Webhook URL
             </label>
             <input
@@ -53,13 +70,14 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
               name="webhookUrl"
               defaultValue={config.webhookUrl}
               placeholder="https://discord.com/api/webhooks/..."
-              className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
+              className={`h-10 font-mono text-[12.5px] ${FIELD}`}
             />
           </div>
 
           <div>
-            <label htmlFor="discord-channel" className="mb-1.5 block text-sm font-medium text-ink">
-              Channel name <span className="text-ink-3">(display only)</span>
+            <label htmlFor="discord-channel" className={LABEL}>
+              Channel name{' '}
+              <span className="font-medium text-[color:var(--ink-faint)]">(display only)</span>
             </label>
             <input
               id="discord-channel"
@@ -67,89 +85,78 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
               name="channelName"
               defaultValue={config.channelName}
               placeholder="#announcements"
-              className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
+              className={`h-10 ${FIELD}`}
             />
           </div>
 
-          <label className="flex cursor-pointer items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-[10px]">
             <input
               type="checkbox"
               name="notifyOnEvents"
               defaultChecked={config.notifyOnEvents}
-              className="h-4 w-4 rounded border-line accent-btn"
+              className="h-4 w-4 rounded-[5px] accent-[var(--btn)]"
             />
-            <span className="text-sm text-ink">Notify this channel when a campaign is sent</span>
+            <span className="text-[13px] text-[color:var(--ink)]">
+              Notify this channel when a campaign is sent
+            </span>
           </label>
 
-          {saveState.error ? <p className="text-sm text-red-500">{saveState.error}</p> : null}
-          {saveState.success ? (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">Configuration saved.</p>
-          ) : null}
-
-          <div>
-            <button
-              type="submit"
-              disabled={savePending}
-              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
-            >
-              {savePending ? 'Saving…' : 'Save'}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="submit" disabled={savePending} className={PRIMARY_BTN}>
+              <span>{savePending ? 'Saving…' : 'Save'}</span>
             </button>
+            {saveState.error ? <p className={ERROR_TEXT}>{saveState.error}</p> : null}
+            {saveState.success ? <p className={OK_TEXT}>Configuration saved.</p> : null}
           </div>
         </form>
 
         {/* Sibling form — a form must never nest inside another form. */}
-        <form action={testAction} className="mt-3">
+        <form
+          action={testAction}
+          className="mt-[14px] flex flex-wrap items-center gap-3 border-t border-[var(--hairline)] pt-[14px]"
+        >
           <input type="hidden" name="webhookUrl" value={config.webhookUrl} />
           <button
             type="submit"
             disabled={testPending || !config.webhookUrl}
-            className="h-10 rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink disabled:opacity-40 hover:bg-raised"
+            className="inline-flex h-9 items-center justify-center rounded-full border border-[color:var(--divider)] bg-[var(--screen)] px-4 text-[12.5px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-40"
           >
             {testPending ? 'Testing…' : 'Send test'}
           </button>
-          {testState.error ? <p className="mt-2 text-sm text-red-500">{testState.error}</p> : null}
-          {testState.success ? (
-            <p className="mt-2 text-sm text-emerald-600 dark:text-emerald-400">
-              Test message sent.
-            </p>
-          ) : null}
+          {testState.error ? <p className={ERROR_TEXT}>{testState.error}</p> : null}
+          {testState.success ? <p className={OK_TEXT}>Test message sent.</p> : null}
         </form>
-      </div>
+      </section>
 
       {/* Manual broadcast */}
-      <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-        <h2 className="text-lg font-medium text-ink">Broadcast to Discord</h2>
-        <p className="mt-1 mb-5 text-sm text-ink-3">
-          Post a one-off message to the configured channel.
-        </p>
+      <section className={CARD}>
+        <div className="mb-3 flex flex-col gap-0.5">
+          <h2 className={CARD_TITLE}>Broadcast to Discord</h2>
+          <p className={CARD_SUB}>Post a one-off message to the configured channel.</p>
+        </div>
 
-        <form ref={broadcastRef} action={broadcastAction} className="flex flex-col gap-4">
+        <form ref={broadcastRef} action={broadcastAction} className="flex flex-col gap-3">
           <textarea
             name="message"
             rows={4}
             placeholder="Type your message…"
             disabled={!config.webhookUrl}
-            className="w-full rounded-xl border border-line bg-raised px-4 py-3 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none disabled:opacity-50"
+            className={`min-h-[90px] py-3 leading-[1.6] disabled:opacity-50 ${FIELD}`}
           />
 
-          {broadcastState.error ? (
-            <p className="text-sm text-red-500">{broadcastState.error}</p>
-          ) : null}
-          {broadcastState.success ? (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">Message sent.</p>
-          ) : null}
-
-          <div>
+          <div className="flex flex-wrap items-center gap-3">
             <button
               type="submit"
               disabled={broadcastPending || !config.webhookUrl}
-              className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
+              className={PRIMARY_BTN}
             >
-              {broadcastPending ? 'Sending…' : 'Send to Discord'}
+              <span>{broadcastPending ? 'Sending…' : 'Send to Discord'}</span>
             </button>
+            {broadcastState.error ? <p className={ERROR_TEXT}>{broadcastState.error}</p> : null}
+            {broadcastState.success ? <p className={OK_TEXT}>Message sent.</p> : null}
           </div>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

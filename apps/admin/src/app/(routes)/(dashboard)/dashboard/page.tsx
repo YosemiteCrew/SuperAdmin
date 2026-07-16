@@ -107,7 +107,7 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="font-[family-name:var(--font-serif-display)] text-[26px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
           Dashboard
         </h1>
         <p className="text-[13.5px] text-[color:var(--ink-muted)]">

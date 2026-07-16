@@ -162,7 +162,7 @@ describe('ApprovalsTable', () => {
     expect(screen.getByText(/max 50 per batch/)).toBeInTheDocument();
   });
 
-  it('styles errors red and successes green in a live region', async () => {
+  it('styles errors with the danger token in a live region', async () => {
     bulkApproveMock.mockResolvedValue({ error: 'No accounts selected.' });
     render(<ApprovalsTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select a@b.com' }));
@@ -171,7 +171,7 @@ describe('ApprovalsTable', () => {
     await waitFor(() => {
       const status = screen.getByRole('status');
       expect(status).toHaveTextContent('No accounts selected.');
-      expect(status.className).toContain('text-red-500');
+      expect(status.className).toContain('var(--danger-text)');
     });
   });
 

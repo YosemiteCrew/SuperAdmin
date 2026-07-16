@@ -150,7 +150,7 @@ export default async function AnalyticsPage() {
   return (
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="font-[family-name:var(--font-serif-display)] text-[26px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
           Analytics
         </h1>
         {/* dev's wording: the page gained the verification/MFA stats, so "security

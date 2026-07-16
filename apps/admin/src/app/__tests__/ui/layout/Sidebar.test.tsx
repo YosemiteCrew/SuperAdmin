@@ -19,17 +19,35 @@ describe('Sidebar', () => {
     globalThis.localStorage.clear();
   });
 
+  // The full target-state nav. Listed exhaustively on purpose: an earlier merge
+  // silently collided two groups onto one React key, and the previous version of
+  // this test only named six rows, so it stayed green through the regression.
+  const NAV_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ['Overview', ['Dashboard']],
+    ['People & access', ['Users', 'Approvals', 'Organizations', 'Invites', 'Admins']],
+    ['CRM', ['Campaigns', 'Requests', 'Discord']],
+    ['Privacy', ['Consent', 'Data requests']],
+    ['Insights', ['Analytics', 'Audit log', 'Health']],
+    ['Platform', ['Federation']],
+    ['Account', ['Settings']],
+  ];
+  const NAV_ROWS = NAV_GROUPS.flatMap(([, rows]) => rows);
+
   it('renders every nav item', () => {
     render(<Sidebar />);
-    for (const label of [
-      'Dashboard',
-      'Users',
-      'Organizations',
-      'Analytics',
-      'Audit log',
-      'Settings',
-    ]) {
+    for (const label of NAV_ROWS) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
+    }
+    // Nothing extra, nothing dropped: the 16 rows plus the brand home link.
+    expect(screen.getAllByRole('link')).toHaveLength(NAV_ROWS.length + 1);
+  });
+
+  it('renders each nav group label exactly once', () => {
+    render(<Sidebar />);
+    for (const [group] of NAV_GROUPS) {
+      // A duplicate label is the collision signature, so assert on all matches
+      // rather than getByText, which would throw before we could count them.
+      expect(screen.getAllByText(group)).toHaveLength(1);
     }
   });
 

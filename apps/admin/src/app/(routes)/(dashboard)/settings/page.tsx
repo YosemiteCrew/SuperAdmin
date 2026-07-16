@@ -110,7 +110,7 @@ export default async function SettingsPage() {
   return (
     <div className="flex w-full flex-col gap-[22px]">
       <header className="flex flex-col gap-[3px]">
-        <h1 className="m-0 font-[family-name:var(--font-serif-display)] text-[26px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
+        <h1 className="m-0 font-[family-name:var(--font-serif-display)] text-[28px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
           Settings
         </h1>
         <p className="text-[13.5px] text-[color:var(--ink-muted)]">

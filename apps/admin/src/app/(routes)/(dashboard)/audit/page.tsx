@@ -111,7 +111,7 @@ export default async function AuditLogPage({
   return (
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="m-0 flex items-baseline gap-3 font-[family-name:var(--font-serif-display)] text-[26px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
+        <h1 className="m-0 flex items-baseline gap-3 font-[family-name:var(--font-serif-display)] text-[28px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
           Audit log
           <span className="text-[16px] italic text-[color:var(--ink-faint)]">
             {AUDIT_LOG_LIMIT} most-recent events kept

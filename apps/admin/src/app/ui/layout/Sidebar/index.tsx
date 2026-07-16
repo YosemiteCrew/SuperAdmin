@@ -5,23 +5,28 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { IconType } from 'react-icons';
-import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-icons/io5';
 import {
-  MdDashboard,
-  MdHistory,
-  MdOutlineAdminPanelSettings,
-  MdOutlineCampaign,
-  MdOutlineCorporateFare,
-  MdOutlineHowToReg,
+  IoAnalyticsOutline,
+  IoBusinessOutline,
+  IoChatboxEllipsesOutline,
+  IoCheckmarkCircleOutline,
+  IoFileTrayFullOutline,
+  IoFingerPrintOutline,
+  IoGridOutline,
+  IoLogoDiscord,
+  IoMegaphoneOutline,
+  IoPeopleOutline,
+  IoPersonAddOutline,
+  IoPlanetOutline,
+  IoPulseOutline,
+  IoSettingsOutline,
+  IoShieldCheckmarkOutline,
+  IoTimeOutline,
+} from 'react-icons/io5';
+import {
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
-  MdOutlineHub,
-  MdOutlineForwardToInbox,
-  MdOutlineMailOutline,
-  MdOutlineMonitor,
-  MdOutlinePrivacyTip,
 } from 'react-icons/md';
-import { SiDiscord } from 'react-icons/si';
 
 import styles from '../shell.module.css';
 
@@ -36,49 +41,52 @@ type RouteGroup = {
   routes: RouteItem[];
 };
 
+/**
+ * Groups, order, labels and icons all follow the design's own nav model. Every
+ * group label must stay unique: the render keys off it, so a duplicate silently
+ * collides two groups into one React key.
+ */
 const ROUTE_GROUPS: RouteGroup[] = [
   {
     label: 'Overview',
-    routes: [{ name: 'Dashboard', href: '/dashboard', icon: MdDashboard }],
+    routes: [{ name: 'Dashboard', href: '/dashboard', icon: IoGridOutline }],
   },
   {
-    label: 'People & Access',
+    label: 'People & access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
-      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
-      {
-        name: 'Organizations',
-        href: '/organizations',
-        icon: MdOutlineCorporateFare,
-      },
-      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
-      { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
+      { name: 'Approvals', href: '/approvals', icon: IoCheckmarkCircleOutline },
+      { name: 'Organizations', href: '/organizations', icon: IoBusinessOutline },
+      { name: 'Invites', href: '/invites', icon: IoPersonAddOutline },
+      { name: 'Admins', href: '/admins', icon: IoShieldCheckmarkOutline },
+    ],
+  },
+  {
+    label: 'CRM',
+    routes: [
+      { name: 'Campaigns', href: '/crm', icon: IoMegaphoneOutline },
+      { name: 'Requests', href: '/crm/requests', icon: IoChatboxEllipsesOutline },
+      { name: 'Discord', href: '/crm/discord', icon: IoLogoDiscord },
+    ],
+  },
+  {
+    label: 'Privacy',
+    routes: [
+      { name: 'Consent', href: '/consent', icon: IoFingerPrintOutline },
+      { name: 'Data requests', href: '/privacy/requests', icon: IoFileTrayFullOutline },
     ],
   },
   {
     label: 'Insights',
     routes: [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
-      { name: 'Audit log', href: '/audit', icon: MdHistory },
-      { name: 'Consent', href: '/consent', icon: MdOutlinePrivacyTip },
-      { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
+      { name: 'Audit log', href: '/audit', icon: IoTimeOutline },
+      { name: 'Health', href: '/health', icon: IoPulseOutline },
     ],
   },
   {
-    label: 'CRM',
-    routes: [
-      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
-      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
-      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
-    ],
-  },
-  {
-    label: 'Compliance',
-    routes: [{ name: 'Data requests', href: '/privacy/requests', icon: MdOutlinePrivacyTip }],
-  },
-  {
-    label: 'Federation',
-    routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
+    label: 'Platform',
+    routes: [{ name: 'Federation', href: '/ap', icon: IoPlanetOutline }],
   },
   {
     label: 'Account',
@@ -189,7 +197,7 @@ export function Sidebar() {
                         <span className="sr-only">{route.name}</span>
                         <span className={styles.routeCollapsedIconWrap}>
                           <span className={styles.routeIcon} aria-hidden>
-                            <RouteIcon size={18} />
+                            <RouteIcon size={15} />
                           </span>
                         </span>
                       </Link>
@@ -208,7 +216,7 @@ export function Sidebar() {
                     aria-current={active ? 'page' : undefined}
                   >
                     <span className={styles.routeIcon} aria-hidden>
-                      <RouteIcon size={18} />
+                      <RouteIcon size={15} />
                     </span>
                     <span className={styles.routeLabel}>{route.name}</span>
                   </Link>
