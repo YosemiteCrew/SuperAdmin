@@ -31,6 +31,31 @@ function cleanIds(userIds: unknown): string[] {
   );
 }
 
+/** Shared entry gate: dedupe the selection and hold it to the batch cap. */
+function validateSelection(userIds: unknown): { ids: string[] } | { error: string } {
+  const ids = cleanIds(userIds);
+  if (ids.length === 0) return { error: 'No accounts selected.' };
+  if (ids.length > MAX_BULK) return { error: `Select at most ${MAX_BULK} accounts per batch.` };
+  return { ids };
+}
+
+/**
+ * Shared tail: one Discord summary per batch, never per account, and only when
+ * the sweep actually did something. Failing to announce must not fail the sweep
+ * that already happened.
+ */
+async function announceDecision(
+  decision: 'approved' | 'rejected',
+  processed: number,
+  actorId: string
+): Promise<void> {
+  if (processed === 0) return;
+  const actorEmail = await resolveActorEmail(actorId);
+  await notifyBulkDecision({ decision, count: processed, actorEmail }).catch((err) => {
+    console.error('[approvals] bulk discord notify failed', { err });
+  });
+}
+
 async function resolveActorEmail(actorId: string): Promise<string> {
   try {
     const actor = await SuperTokens.getUser(actorId);
@@ -66,18 +91,15 @@ export async function bulkApproveAccountsAction(userIds: string[]): Promise<Bulk
   ensureSuperTokensInit();
   const { userId: actorId } = await requireSuperAdmin();
 
-  const ids = cleanIds(userIds);
-  if (ids.length === 0) return { error: 'No accounts selected.' };
-  if (ids.length > MAX_BULK) {
-    return { error: `Select at most ${MAX_BULK} accounts per batch.` };
-  }
+  const selection = validateSelection(userIds);
+  if ('error' in selection) return { error: selection.error };
 
   let processed = 0;
   let skipped = 0;
   let failed = 0;
   let emailsSent = 0;
 
-  for (const userId of ids) {
+  for (const userId of selection.ids) {
     const targetEmail = await resolvePendingTarget(userId);
     if (!targetEmail) {
       skipped++;
@@ -113,14 +135,7 @@ export async function bulkApproveAccountsAction(userIds: string[]): Promise<Bulk
     }
   }
 
-  if (processed > 0) {
-    const actorEmail = await resolveActorEmail(actorId);
-    await notifyBulkDecision({ decision: 'approved', count: processed, actorEmail }).catch(
-      (err) => {
-        console.error('[approvals] bulk discord notify failed', { err });
-      }
-    );
-  }
+  await announceDecision('approved', processed, actorId);
 
   revalidatePath('/approvals');
   return { processed, skipped, failed, emailsSent };
@@ -130,17 +145,14 @@ export async function bulkRejectAccountsAction(userIds: string[]): Promise<BulkA
   ensureSuperTokensInit();
   const { userId: actorId } = await requireSuperAdmin();
 
-  const ids = cleanIds(userIds);
-  if (ids.length === 0) return { error: 'No accounts selected.' };
-  if (ids.length > MAX_BULK) {
-    return { error: `Select at most ${MAX_BULK} accounts per batch.` };
-  }
+  const selection = validateSelection(userIds);
+  if ('error' in selection) return { error: selection.error };
 
   let processed = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (const userId of ids) {
+  for (const userId of selection.ids) {
     // Never reject yourself or a break-glass admin in a sweep — rejection
     // disables sign-in, which for a bootstrap account is a lockout.
     if (userId === actorId || (await isBootstrapAdmin(userId))) {
@@ -177,14 +189,7 @@ export async function bulkRejectAccountsAction(userIds: string[]): Promise<BulkA
     }
   }
 
-  if (processed > 0) {
-    const actorEmail = await resolveActorEmail(actorId);
-    await notifyBulkDecision({ decision: 'rejected', count: processed, actorEmail }).catch(
-      (err) => {
-        console.error('[approvals] bulk discord notify failed', { err });
-      }
-    );
-  }
+  await announceDecision('rejected', processed, actorId);
 
   revalidatePath('/approvals');
   return { processed, skipped, failed };
