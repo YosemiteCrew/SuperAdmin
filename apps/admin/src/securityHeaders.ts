@@ -36,19 +36,8 @@ function cspDirectives(scriptSrc: string): string[] {
 }
 
 /**
- * Current ENFORCED policy. Retains 'unsafe-inline' for scripts during the nonce
- * rollout so nothing breaks. Once the Report-Only strict policy (below) logs no
- * violations in production, swap this to `buildStrictCsp` and drop this one.
- */
-export function buildEnforcedCsp(): string {
-  return cspDirectives(`'self' 'unsafe-inline'${devOnlyEval}`).join('; ');
-}
-
-/**
- * Target STRICT policy — no 'unsafe-inline'. Scripts must carry the per-request
+ * Strict nonce CSP — no 'unsafe-inline'. Scripts must carry the per-request
  * nonce; 'strict-dynamic' lets nonce'd scripts load their own dependencies.
- * Shipped Report-Only first (see middleware) so violations are observed before
- * enforcement.
  */
 export function buildStrictCsp(nonce: string): string {
   return cspDirectives(`'self' 'nonce-${nonce}' 'strict-dynamic'${devOnlyEval}`).join('; ');
@@ -70,6 +59,7 @@ const permissionsPolicy = [
 // Static headers applied via next.config. The CSP is set per-request in
 // middleware instead (it needs a fresh nonce each request).
 export const securityHeaders: { key: string; value: string }[] = [
+  { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
   { key: 'X-DNS-Prefetch-Control', value: 'on' },
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },

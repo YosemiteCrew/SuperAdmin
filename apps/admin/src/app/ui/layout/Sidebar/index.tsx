@@ -9,10 +9,19 @@ import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-ic
 import {
   MdDashboard,
   MdHistory,
+  MdOutlineAdminPanelSettings,
+  MdOutlineCampaign,
   MdOutlineCorporateFare,
+  MdOutlineHowToReg,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
+  MdOutlineHub,
+  MdOutlineForwardToInbox,
+  MdOutlineMailOutline,
+  MdOutlineMonitor,
+  MdOutlinePrivacyTip,
 } from 'react-icons/md';
+import { SiDiscord } from 'react-icons/si';
 
 type RouteItem = {
   name: string;
@@ -34,11 +43,14 @@ const ROUTE_GROUPS: RouteGroup[] = [
     label: 'People & Access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
+      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
       {
         name: 'Organizations',
         href: '/organizations',
         icon: MdOutlineCorporateFare,
       },
+      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
+      { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
     ],
   },
   {
@@ -46,7 +58,25 @@ const ROUTE_GROUPS: RouteGroup[] = [
     routes: [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
       { name: 'Audit log', href: '/audit', icon: MdHistory },
+      { name: 'Consent', href: '/consent', icon: MdOutlinePrivacyTip },
+      { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
     ],
+  },
+  {
+    label: 'CRM',
+    routes: [
+      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
+      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
+      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
+    ],
+  },
+  {
+    label: 'Compliance',
+    routes: [{ name: 'Data requests', href: '/privacy/requests', icon: MdOutlinePrivacyTip }],
+  },
+  {
+    label: 'Federation',
+    routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
   },
   {
     label: 'Account',

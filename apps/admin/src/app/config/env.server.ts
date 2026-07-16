@@ -27,4 +27,18 @@ export const serverEnv = {
   ),
   supertokensApiKey: requiredServer('SUPERTOKENS_API_KEY', process.env.SUPERTOKENS_API_KEY),
   superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
+  plunkApiKey: process.env.PLUNK_API_KEY ?? '',
+  plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
+  // ActivityPub federation: RSA private key PEM used to sign license JWTs.
+  // Optional — AP token issuance is disabled when absent.
+  apSigningKey: process.env.AP_SIGNING_KEY ?? null,
+  apSigningKeyId: process.env.AP_SIGNING_KEY_ID ?? 'yc-ap-2026-01',
+  // Shared secret the mobile/web apps present when reporting consent decisions
+  // to /api/consent. Optional — the endpoint refuses all writes when absent so
+  // consent can never be recorded unauthenticated.
+  consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
+  // Shared secret the marketing site presents when POSTing contact-us
+  // submissions to /api/contact. Optional — the intake endpoint refuses all
+  // requests when absent, so the form cannot silently start dropping leads.
+  contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
 };
