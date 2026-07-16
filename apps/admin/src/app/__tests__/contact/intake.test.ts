@@ -152,13 +152,16 @@ describe('recordContactSubmission', () => {
     // Update branch touches neither name nor company directly.
     expect(arg.update).not.toHaveProperty('name');
     expect(arg.update).not.toHaveProperty('company');
-    // Backfill only fills the columns that are still null.
+    // Backfill only fills the columns that are still null. The email is matched
+    // with an explicit `equals` rather than a bare value: updateMany's where
+    // accepts filters, so a bare value that turned out to be an object at
+    // runtime would be read as one.
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { email: 'a@b.com', name: null },
+      where: { email: { equals: 'a@b.com' }, name: null },
       data: { name: 'jane' },
     });
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { email: 'a@b.com', company: null },
+      where: { email: { equals: 'a@b.com' }, company: null },
       data: { company: 'newco' },
     });
   });

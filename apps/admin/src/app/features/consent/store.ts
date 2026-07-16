@@ -41,15 +41,23 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
   // Fill identity only when the column is still null. Filtering on null keeps
   // this atomic (no read-modify-write race) and makes overwriting an existing
   // identity impossible.
+  //
+  // `consentId: { equals }` for the same reason as the contact intake: updateMany's
+  // where accepts FILTERS, so a value that turned out to be an object at runtime
+  // would be read as one — `{ not: 'x' }` would stop identifying this subject and
+  // start matching every other one, writing an identity onto strangers' rows.
+  // parseConsentSubmission already rejects a non-string consentId and is the only
+  // path here today, but that makes this function's safety a property of its
+  // caller; this makes it a property of the query.
   if (input.userId) {
     await prisma.consentSubject.updateMany({
-      where: { consentId: input.consentId, userId: null },
+      where: { consentId: { equals: input.consentId }, userId: null },
       data: { userId: input.userId },
     });
   }
   if (input.email) {
     await prisma.consentSubject.updateMany({
-      where: { consentId: input.consentId, email: null },
+      where: { consentId: { equals: input.consentId }, email: null },
       data: { email: input.email },
     });
   }

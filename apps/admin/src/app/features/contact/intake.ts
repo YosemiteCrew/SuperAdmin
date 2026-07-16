@@ -113,15 +113,24 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
 
   // Backfill name/company only when we don't already have them. Filtering on
   // the null column keeps this atomic — no read-modify-write race.
+  //
+  // `email: { equals }` rather than a bare `email: input.email`: updateMany's
+  // where accepts FILTERS, so a value that turned out to be an object at runtime
+  // would be read as one — `{ not: 'x' }` would stop identifying this lead and
+  // start matching every other one, backfilling onto strangers' rows. `equals`
+  // forces the value to be compared rather than interpreted. parseSubmission
+  // already rejects a non-string email and is the only path here today, but that
+  // makes this function's safety a property of its caller; this makes it a
+  // property of the query.
   if (input.name) {
     await prisma.contactLead.updateMany({
-      where: { email: input.email, name: null },
+      where: { email: { equals: input.email }, name: null },
       data: { name: input.name },
     });
   }
   if (input.company) {
     await prisma.contactLead.updateMany({
-      where: { email: input.email, company: null },
+      where: { email: { equals: input.email }, company: null },
       data: { company: input.company },
     });
   }
