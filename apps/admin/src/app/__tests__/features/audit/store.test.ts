@@ -20,6 +20,7 @@ import {
   getAuditEventsForActor,
   getAuditEventsForTarget,
   getRecentAuditEvents,
+  readAuditEventsInvolving,
   recordAuditEvent,
   verifyAuditChain,
 } from '@/app/features/audit/store';
@@ -211,6 +212,44 @@ describe('getAuditEventsForTarget', () => {
   it('returns an empty array on error', async () => {
     getUserMetadataMock.mockRejectedValue(new Error('down'));
     expect(await getAuditEventsForTarget('u-1')).toEqual([]);
+  });
+});
+
+describe('readAuditEventsInvolving', () => {
+  it('splits events into asTarget and asActor for the same user', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [
+          event({ id: 'a', targetId: 'u-1', actorId: 'admin-1' }),
+          event({ id: 'b', targetId: 'u-2', actorId: 'u-1' }),
+          event({ id: 'c', targetId: 'u-1', actorId: 'u-1' }),
+        ],
+      },
+    });
+
+    const { asTarget, asActor } = await readAuditEventsInvolving('u-1', 10);
+    expect(asTarget.map((e) => e.id)).toEqual(['a', 'c']);
+    expect(asActor.map((e) => e.id)).toEqual(['b', 'c']);
+  });
+
+  it('honors the limit on both directions', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [
+          event({ id: 'a', targetId: 'u-1', actorId: 'u-1' }),
+          event({ id: 'b', targetId: 'u-1', actorId: 'u-1' }),
+        ],
+      },
+    });
+
+    const { asTarget, asActor } = await readAuditEventsInvolving('u-1', 1);
+    expect(asTarget).toHaveLength(1);
+    expect(asActor).toHaveLength(1);
+  });
+
+  it('throws on a store read failure instead of masking it as an empty history', async () => {
+    getUserMetadataMock.mockRejectedValue(new Error('down'));
+    await expect(readAuditEventsInvolving('u-1', 10)).rejects.toThrow('down');
   });
 });
 

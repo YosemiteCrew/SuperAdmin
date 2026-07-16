@@ -14,6 +14,7 @@ export type AuditAction =
   | 'org.verify'
   | 'org.suspend'
   | 'org.reactivate'
+  | 'user.data_export'
   | 'invite.create'
   | 'invite.use'
   | 'invite.revoke'

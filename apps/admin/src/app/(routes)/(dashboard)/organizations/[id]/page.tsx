@@ -131,9 +131,12 @@ export default async function OrganizationDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
+      <div className="flex items-center justify-between">
         <Link href="/organizations" className="text-sm text-ink-2 hover:text-ink">
           ← Back to organizations
+        </Link>
+        <Link href={`/organizations/${id}/activity`} className="text-sm text-ink-2 hover:text-ink">
+          Activity →
         </Link>
       </div>
 
