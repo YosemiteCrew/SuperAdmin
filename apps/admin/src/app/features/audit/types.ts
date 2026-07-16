@@ -13,7 +13,10 @@ export type AuditAction =
   | 'role.revoke'
   | 'org.verify'
   | 'org.suspend'
-  | 'org.reactivate';
+  | 'org.reactivate'
+  | 'org.flag_on'
+  | 'org.flag_off'
+  | 'org.note_add';
 
 /**
  * Every kind of thing an audit event can point at, and the single source of
