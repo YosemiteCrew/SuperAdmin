@@ -10,6 +10,7 @@ global.fetch = mockFetch;
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import {
   notifyAccountDecision,
+  notifyBulkDecision,
   notifyCampaignSent,
   sendDiscordEmbed,
   sendDiscordMessage,
@@ -135,6 +136,32 @@ describe('notifyAccountDecision', () => {
       accountEmail: 'a@b.com',
       actorEmail: 'c@d.com',
     });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifyBulkDecision', () => {
+  it('sends an approved summary embed with the batch count', async () => {
+    withWebhook(true);
+    await notifyBulkDecision({ decision: 'approved', count: 12, actorEmail: 'admin@yc.com' });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.embeds[0].title).toBe('Accounts approved');
+    expect(body.embeds[0].fields).toEqual(
+      expect.arrayContaining([expect.objectContaining({ value: '12' })])
+    );
+  });
+
+  it('sends a rejected summary with the danger color', async () => {
+    withWebhook(true);
+    await notifyBulkDecision({ decision: 'rejected', count: 3, actorEmail: 'admin@yc.com' });
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.embeds[0].title).toBe('Accounts rejected');
+    expect(body.embeds[0].color).toBe(0xef4444);
+  });
+
+  it('skips sending when notifyOnEvents is false', async () => {
+    withWebhook(false);
+    await notifyBulkDecision({ decision: 'approved', count: 1, actorEmail: 'a@b.com' });
     expect(mockFetch).not.toHaveBeenCalled();
   });
 });

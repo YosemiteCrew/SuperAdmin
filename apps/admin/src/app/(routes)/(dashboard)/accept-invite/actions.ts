@@ -8,11 +8,22 @@ import { ensureSuperTokensInit, getAuthenticatedSession } from '@/app/config/bac
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
-import { inviteStatus } from '@/app/features/invites/types';
+import { inviteStatus, type InviteStatus } from '@/app/features/invites/types';
 
 export interface AcceptInviteResult {
   error?: string;
 }
+
+/**
+ * Why a non-pending invite cannot be accepted. Keyed by status rather than
+ * nested ternaries, so adding an InviteStatus fails to compile until it has a
+ * message rather than silently falling through to the wrong one.
+ */
+const NOT_PENDING_MESSAGE: Record<Exclude<InviteStatus, 'pending'>, string> = {
+  expired: 'This invite link has expired. Ask a super-admin to generate a new one.',
+  revoked: 'This invite has been revoked.',
+  used: 'This invite has already been used.',
+};
 
 export async function acceptInviteAction(formData: FormData): Promise<AcceptInviteResult> {
   ensureSuperTokensInit();
@@ -27,14 +38,7 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
 
   const status = inviteStatus(invite);
   if (status !== 'pending') {
-    return {
-      error:
-        status === 'expired'
-          ? 'This invite link has expired. Ask a super-admin to generate a new one.'
-          : status === 'revoked'
-            ? 'This invite has been revoked.'
-            : 'This invite has already been used.',
-    };
+    return { error: NOT_PENDING_MESSAGE[status] };
   }
 
   // The invitee is not yet a super-admin; getAuthenticatedSession checks only that
