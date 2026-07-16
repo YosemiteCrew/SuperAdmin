@@ -15,7 +15,17 @@ export type AuditAction =
   | 'org.suspend'
   | 'org.reactivate';
 
-export type AuditTargetType = 'user' | 'organization';
+/**
+ * Every kind of thing an audit event can point at, and the single source of
+ * truth for it: {@link AuditTargetType} is derived from this list, and the
+ * reader's validator checks against this same list. Adding a target kind to one
+ * place and not the other is what silently drops events on readback, so the two
+ * cannot be allowed to drift apart. A feature adding a target kind adds it HERE
+ * and nowhere else.
+ */
+export const AUDIT_TARGET_TYPES = ['user', 'organization'] as const;
+
+export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
