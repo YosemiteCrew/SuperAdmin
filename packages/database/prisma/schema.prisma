@@ -1,0 +1,34 @@
+// Prisma schema for the SuperAdmin panel.
+// Run `pnpm --filter @superadmin/database run generate` after changes.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ActivityPub federation license tokens.
+// Issued by SuperAdmin to verified organizations so their self-hosted PIMS
+// instances can federate with the Yosemite Crew cloud via the AP protocol.
+model APLicenseToken {
+  id             String    @id @default(cuid())
+  orgId          String
+  instanceDomain String
+  // The signed RS256 JWT — stored so it can be re-served without re-signing.
+  token          String    @db.Text
+  keyId          String
+  tier           String
+  issuedAt       DateTime
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  // userId of the super-admin who revoked the token.
+  revokedBy      String?
+
+  @@index([orgId])
+  @@index([instanceDomain])
+  @@index([revokedAt])
+}

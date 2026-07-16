@@ -150,7 +150,7 @@ function isMfaComplete(payload: Record<string, unknown>): boolean {
   return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
 }
 
-async function getAuthenticatedSession(): Promise<{ userId: string; mfaComplete: boolean }> {
+export async function getAuthenticatedSession(): Promise<{ userId: string; mfaComplete: boolean }> {
   ensureSuperTokensInit();
   const cookieStore = await cookies();
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
