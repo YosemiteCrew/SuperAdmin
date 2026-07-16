@@ -2,9 +2,39 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: '/'
+    # Open dependency PRs against `dev`, not the default branch. Everything is
+    # integrated on `dev` and promoted to `main` via `dev -> main`; without this
+    # Dependabot targets the default branch (`main`), so dependency updates land
+    # on `main` and never reach `dev`. That one-way drift is what left `dev` 23
+    # commits behind on tooling (stuck on Next 15 / jest 29 while `main` moved to
+    # Next 16 / jest 30) and made every feature PR's green CI a false signal.
+    # See #130 for the back-merge that repaired it.
+    #
+    # Note: Dependabot reads this file from the DEFAULT branch, so this setting
+    # only takes effect once it reaches `main` via the next `dev -> main`.
+    target-branch: 'dev'
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # These majors are held back deliberately. Without these rules Dependabot
+      # re-proposes them in every dev-dependencies batch, which lands a red PR
+      # and costs a manual revert each time (this happened in #116, #121, #127).
+      #
+      # eslint 10 + eslint-config-next 16: apps/admin loads eslint-config-next
+      # through FlatCompat (@eslint/eslintrc). Under eslint 10 that loader dies
+      # with "Converting circular structure to JSON" in config-validator, so lint
+      # fails repo-wide. The two must move together, and only once the flat-config
+      # migration is done. Lift both rules in the same PR.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint-config-next'
+        update-types: ['version-update:semver-major']
+      # typescript 7 is the Go-based native compiler rewrite; ts-jest@29 and
+      # ts-node@10 do not support it, so type-check and the jest transform break.
+      # Lift once those two declare TS 7 support.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
