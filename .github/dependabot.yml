@@ -8,3 +8,22 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: development
+    ignore:
+      # These majors are held back deliberately. Without these rules Dependabot
+      # re-proposes them in every dev-dependencies batch, which lands a red PR
+      # and costs a manual revert each time (this happened in #116, #121, #127).
+      #
+      # eslint 10 + eslint-config-next 16: apps/admin loads eslint-config-next
+      # through FlatCompat (@eslint/eslintrc). Under eslint 10 that loader dies
+      # with "Converting circular structure to JSON" in config-validator, so lint
+      # fails repo-wide. The two must move together, and only once the flat-config
+      # migration is done. Lift both rules in the same PR.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'eslint-config-next'
+        update-types: ['version-update:semver-major']
+      # typescript 7 is the Go-based native compiler rewrite; ts-jest@29 and
+      # ts-node@10 do not support it, so type-check and the jest transform break.
+      # Lift once those two declare TS 7 support.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
