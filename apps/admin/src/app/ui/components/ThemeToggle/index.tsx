@@ -40,7 +40,7 @@ export function ThemeToggle() {
     <div
       role="radiogroup"
       aria-label="Color theme"
-      className="inline-flex rounded-xl border border-line bg-canvas p-1"
+      className="inline-flex rounded-full border border-[color:var(--hairline)] bg-[var(--inset)] p-[3px]"
     >
       {OPTIONS.map((option) => {
         const active = theme === option.value;
@@ -53,8 +53,8 @@ export function ThemeToggle() {
             onClick={() => apply(option.value)}
             className={
               active
-                ? 'rounded-lg bg-surface px-3 py-1.5 text-sm font-medium text-ink shadow-[0_1px_2px_rgba(29,28,27,0.08)]'
-                : 'rounded-lg px-3 py-1.5 text-sm font-medium text-ink-3 transition-colors hover:text-ink'
+                ? 'flex h-[30px] items-center rounded-full bg-[var(--screen)] px-[15px] text-[12.5px] font-semibold text-[color:var(--ink)] shadow-[0_1px_2px_var(--sh10)]'
+                : 'flex h-[30px] items-center rounded-full px-[15px] text-[12.5px] font-semibold text-[color:var(--ink-faint)] transition-colors hover:text-[color:var(--ink)]'
             }
           >
             {option.label}

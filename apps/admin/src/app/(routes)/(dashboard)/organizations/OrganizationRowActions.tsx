@@ -12,11 +12,11 @@ import {
 
 const BTN = {
   primary:
-    'rounded-lg border border-btn bg-btn px-3 py-1 text-xs font-medium text-btn-ink transition-colors hover:opacity-90 disabled:opacity-60',
+    'inline-flex h-[30px] items-center rounded-full border border-[var(--btn)] bg-[var(--btn)] px-[14px] text-xs font-semibold text-[color:var(--btn-ink)] transition-opacity hover:opacity-90 disabled:opacity-60',
   danger:
-    'rounded-lg border border-danger-600 px-3 py-1 text-xs font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white disabled:opacity-60',
+    'inline-flex h-[30px] items-center rounded-full border border-[var(--danger-border)] px-[14px] text-xs font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)] disabled:opacity-60',
   plain:
-    'rounded-lg border border-line px-3 py-1 text-xs font-medium text-ink transition-colors hover:bg-raised disabled:opacity-60',
+    'inline-flex h-[30px] items-center rounded-full border border-[var(--divider)] px-[14px] text-xs font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--screen-2)] disabled:opacity-60',
 } as const;
 
 export function OrganizationRowActions({

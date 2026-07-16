@@ -6,6 +6,11 @@ import { type SendCampaignResult, sendCampaignAction } from './actions';
 
 const INITIAL: SendCampaignResult = {};
 
+const LABEL = 'mb-[5px] block text-[12px] font-semibold text-[color:var(--ink-soft)]';
+const FIELD =
+  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+const HINT = 'mt-[5px] text-[11.5px] text-[color:var(--ink-faint)]';
+
 export function ComposeForm() {
   const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, pending] = useActionState(
@@ -18,22 +23,24 @@ export function ComposeForm() {
   );
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-      <h2 className="text-lg font-medium text-ink">New campaign</h2>
-      <p className="mt-1 mb-5 text-sm text-ink-3">
-        Sent via your self-hosted Plunk instance to all matched contacts.
-      </p>
+    <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="mb-[14px] flex flex-col gap-0.5">
+        <h2 className="text-[15.5px] font-bold text-[color:var(--ink)]">Compose</h2>
+        <p className="text-[12.5px] text-[color:var(--ink-faint)]">
+          Sent via your self-hosted Plunk instance to all matched contacts.
+        </p>
+      </div>
 
-      <form ref={formRef} action={formAction} className="flex flex-col gap-4">
+      <form ref={formRef} action={formAction} className="flex flex-col gap-[14px]">
         <div>
-          <label htmlFor="campaign-audience" className="mb-1.5 block text-sm font-medium text-ink">
+          <label htmlFor="campaign-audience" className={LABEL}>
             Audience
           </label>
           <select
             id="campaign-audience"
             name="audience"
             defaultValue="all"
-            className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink focus:border-btn focus:outline-none"
+            className={`h-10 ${FIELD}`}
           >
             <option value="all">All users</option>
             <option value="admins">Super-admins only</option>
@@ -41,7 +48,7 @@ export function ComposeForm() {
         </div>
 
         <div>
-          <label htmlFor="campaign-subject" className="mb-1.5 block text-sm font-medium text-ink">
+          <label htmlFor="campaign-subject" className={LABEL}>
             Subject
           </label>
           <input
@@ -50,12 +57,12 @@ export function ComposeForm() {
             name="subject"
             placeholder="What's new at Yosemite Crew"
             required
-            className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
+            className={`h-10 ${FIELD}`}
           />
         </div>
 
         <div>
-          <label htmlFor="campaign-body" className="mb-1.5 block text-sm font-medium text-ink">
+          <label htmlFor="campaign-body" className={LABEL}>
             Body
           </label>
           <textarea
@@ -64,18 +71,23 @@ export function ComposeForm() {
             rows={8}
             placeholder="Write your message here…"
             required
-            className="w-full rounded-xl border border-line bg-raised px-4 py-3 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
+            className={`py-3 ${FIELD}`}
           />
-          <p className="mt-1 text-xs text-ink-3">
-            Plain text or HTML. Plunk handles unsubscribe links.
-          </p>
+          <p className={HINT}>Plain text or HTML. Plunk handles unsubscribe links.</p>
         </div>
 
-        {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
+        {state.error ? (
+          <p className="text-[13px] font-semibold text-[color:var(--danger-text)]">{state.error}</p>
+        ) : null}
 
+        {/* The design's "campaign delivered" panel: a green-bordered card whose
+            headline carries the status colour and whose detail stays ink. */}
         {state.sent === undefined ? null : (
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20 p-4">
-            <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">
+          <div className="flex flex-col gap-[3px] rounded-[18px] border border-[var(--success)]/40 bg-[var(--screen)] px-[18px] py-[14px]">
+            <p className="text-[12.5px] font-bold text-[color:var(--avatar-green-ink)]">
+              Campaign delivered
+            </p>
+            <p className="text-[12px] text-[color:var(--ink-muted)]">
               Sent to {state.sent} recipient{state.sent === 1 ? '' : 's'}
               {state.failed && state.failed > 0 ? ` (${state.failed} failed)` : ''}.
             </p>
@@ -86,9 +98,9 @@ export function ComposeForm() {
           <button
             type="submit"
             disabled={pending}
-            className="h-10 rounded-xl bg-btn px-6 text-sm font-medium text-btn-ink disabled:opacity-50"
+            className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-[22px] text-[13.5px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-50"
           >
-            {pending ? 'Sending…' : 'Send campaign'}
+            <span>{pending ? 'Sending…' : 'Send campaign'}</span>
           </button>
         </div>
       </form>

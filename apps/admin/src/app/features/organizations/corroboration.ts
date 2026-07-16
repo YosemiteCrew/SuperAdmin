@@ -410,7 +410,19 @@ export async function corroborateBusiness(
 
 export const CORROBORATION_META: Record<CorroborationLevel, { label: string; badgeClass: string }> =
   {
-    corroborated: { label: 'Details corroborated', badgeClass: 'bg-success-100 text-success-700' },
-    partial: { label: 'Partly corroborated', badgeClass: 'bg-warning-100 text-warning-800' },
-    unverified: { label: 'Not corroborated', badgeClass: 'bg-raised text-ink-2' },
+    corroborated: {
+      label: 'Details corroborated',
+      badgeClass:
+        'bg-[var(--avatar-green-bg)] text-[color:var(--avatar-green-ink)] border border-[var(--success)]/40',
+    },
+    partial: {
+      label: 'Partly corroborated',
+      badgeClass:
+        'bg-[var(--warn-bg)] text-[color:var(--warn-text)] border border-[var(--warn-border)]',
+    },
+    unverified: {
+      label: 'Not corroborated',
+      badgeClass:
+        'bg-[var(--screen-2)] text-[color:var(--ink-muted)] border border-[var(--hairline)]',
+    },
   };

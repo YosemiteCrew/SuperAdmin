@@ -45,11 +45,13 @@ export function FlagToggles({
         return (
           <li
             key={key}
-            className="flex items-start justify-between gap-4 border-b border-line px-5 py-4 last:border-b-0"
+            className="flex items-start justify-between gap-4 border-b border-[var(--hairline)] px-[18px] py-3.5 last:border-b-0"
           >
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium text-ink">{meta.label}</span>
-              <span className="text-xs text-ink-3">{meta.description}</span>
+              <span className="text-[13.5px] font-semibold text-[color:var(--ink)]">
+                {meta.label}
+              </span>
+              <span className="text-[12px] text-[color:var(--ink-faint)]">{meta.description}</span>
             </div>
             <button
               type="button"
@@ -57,14 +59,14 @@ export function FlagToggles({
               aria-checked={enabled}
               onClick={() => toggle(key, enabled)}
               disabled={isPending}
-              className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-btn disabled:cursor-not-allowed disabled:opacity-50 ${
-                enabled ? 'bg-btn' : 'bg-raised'
+              className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--blue)] disabled:cursor-not-allowed disabled:opacity-50 ${
+                enabled ? 'bg-[var(--btn)]' : 'bg-[var(--inset)]'
               }`}
             >
               <span
                 aria-hidden
-                className={`pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow ring-0 transition-transform ${
-                  enabled ? 'translate-x-4' : 'translate-x-0'
+                className={`pointer-events-none inline-block h-4 w-4 rounded-full shadow ring-0 transition-transform ${
+                  enabled ? 'translate-x-4 bg-[var(--btn-ink)]' : 'translate-x-0 bg-[var(--screen)]'
                 }`}
               />
               <span className="sr-only">

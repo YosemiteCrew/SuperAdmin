@@ -14,14 +14,18 @@ import type {
 import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
 
 import { CorroborationFlag, CorroborationPanel } from '../CorroborationPanel';
+import { OrganizationAvatar } from '../OrganizationAvatar';
 import { OrganizationRowActions } from '../OrganizationRowActions';
 import { FlagToggles } from './FlagToggles';
 import { OrgNotes } from './OrgNotes';
 
 const CARD =
-  'overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]';
+  'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
 const CARD_HEAD =
-  'border-b border-line bg-raised px-5 py-3 text-xs font-medium uppercase tracking-wide text-ink-2';
+  'border-b border-[var(--hairline)] bg-[var(--screen-2)] px-[18px] py-[10px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
+const CARD_BODY = 'grid grid-cols-1 gap-x-5 gap-y-[11px] p-[18px] sm:grid-cols-2';
+const BACK_LINK =
+  'inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]';
 
 export async function generateMetadata({
   params,
@@ -68,16 +72,20 @@ function ratingLabel(org: SuperAdminOrganizationDetail): string {
 
 function Field({ label, value }: Readonly<{ label: string; value?: string }>) {
   return (
-    <div>
-      <dt className="text-xs uppercase tracking-wide text-ink-3">{label}</dt>
-      <dd className="mt-1 text-sm text-ink">{value?.trim() ? value : '—'}</dd>
+    <div className="flex flex-col gap-0.5">
+      <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]">
+        {label}
+      </dt>
+      <dd className="text-[13px] font-medium text-[color:var(--ink)]">
+        {value?.trim() ? value : '—'}
+      </dd>
     </div>
   );
 }
 
 function UnavailableCard() {
   return (
-    <div className="rounded-2xl border border-dashed border-line-strong bg-surface p-10 text-center text-sm text-ink-3">
+    <div className="rounded-[18px] border border-dashed border-[var(--divider)] bg-[var(--screen)] p-10 text-center text-[13.5px] text-[color:var(--ink-muted)]">
       Couldn&apos;t load this organization. It will be available once the{' '}
       <span className="font-mono">/v1/super-admin/businesses/:id</span> endpoint is connected.
     </div>
@@ -110,8 +118,8 @@ export default async function OrganizationDetailPage({
 
   if (!org) {
     return (
-      <div className="flex flex-col gap-6">
-        <Link href="/organizations" className="text-sm text-ink-2 hover:text-ink">
+      <div className="flex flex-col gap-[22px]">
+        <Link href="/organizations" className={BACK_LINK}>
           ← Back to organizations
         </Link>
         <UnavailableCard />
@@ -130,27 +138,37 @@ export default async function OrganizationDetailPage({
   }`;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
+      {/* justify-between keeps the Activity link (#98) on the right; this branch
+          predates it and opened a bare div, which would stack the two links. */}
       <div className="flex items-center justify-between">
-        <Link href="/organizations" className="text-sm text-ink-2 hover:text-ink">
+        <Link href="/organizations" className={BACK_LINK}>
           ← Back to organizations
         </Link>
-        <Link href={`/organizations/${id}/activity`} className="text-sm text-ink-2 hover:text-ink">
+        <Link href={`/organizations/${id}/activity`} className={BACK_LINK}>
           Activity →
         </Link>
       </div>
 
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-medium tracking-tight text-ink">{org.name}</h1>
-            <span
-              className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.badgeClass}`}
-            >
-              {meta.label}
-            </span>
+        <div className="flex items-center gap-3.5">
+          <OrganizationAvatar type={org.type} size={46} />
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-baseline gap-3">
+              <h1
+                className="text-[27px] tracking-[-0.015em] text-[color:var(--ink)]"
+                style={{ fontFamily: 'var(--font-serif-display)', fontWeight: 400 }}
+              >
+                {org.name}
+              </h1>
+              <span
+                className={`inline-flex rounded-full px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${meta.badgeClass}`}
+              >
+                {meta.label}
+              </span>
+            </div>
+            <p className="font-mono text-[11.5px] text-[color:var(--ink-faint)]">{org.id}</p>
           </div>
-          <p className="font-mono text-xs text-ink-3">{org.id}</p>
         </div>
         <div className="flex flex-col items-start gap-2 sm:items-end">
           {corroboration ? (
@@ -158,7 +176,7 @@ export default async function OrganizationDetailPage({
           ) : (
             <Link
               href={checksHref}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-ink-2 transition-colors hover:bg-raised"
+              className="inline-flex h-[34px] items-center gap-1.5 rounded-full border border-[var(--hairline)] bg-[var(--screen)] px-[14px] text-xs font-semibold text-[color:var(--ink-muted)] transition-colors hover:bg-[var(--screen-2)]"
             >
               Run pre-verification checks
             </Link>
@@ -171,7 +189,7 @@ export default async function OrganizationDetailPage({
 
       <section className={CARD}>
         <h2 className={CARD_HEAD}>Identity</h2>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+        <dl className={CARD_BODY}>
           <Field label="Type" value={org.type} />
           <Field label="Sub-type" value={org.subType} />
           <Field label="Tax ID" value={org.taxId} />
@@ -181,7 +199,7 @@ export default async function OrganizationDetailPage({
 
       <section className={CARD}>
         <h2 className={CARD_HEAD}>Contact</h2>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+        <dl className={CARD_BODY}>
           <Field label="Phone" value={org.phoneNo} />
           <Field label="Website" value={org.website} />
           <div className="sm:col-span-2">
@@ -192,7 +210,7 @@ export default async function OrganizationDetailPage({
 
       <section className={CARD}>
         <h2 className={CARD_HEAD}>Compliance</h2>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+        <dl className={CARD_BODY}>
           <Field label="Health & safety cert" value={org.healthAndSafetyCertNo} />
           <Field label="Animal welfare cert" value={org.animalWelfareComplianceCertNo} />
           <Field label="Fire & emergency cert" value={org.fireAndEmergencyCertNo} />
@@ -201,7 +219,7 @@ export default async function OrganizationDetailPage({
 
       <section className={CARD}>
         <h2 className={CARD_HEAD}>Activity</h2>
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
+        <dl className={CARD_BODY}>
           <Field label="Members" value={String(org.memberCount)} />
           <Field label="Rating" value={ratingLabel(org)} />
           <Field label="Created" value={formatDate(org.createdAt)} />
