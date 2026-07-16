@@ -55,12 +55,17 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
     notes,
   });
 
+  // The subject's email is deliberately NOT recorded here. It lives on the
+  // DataRequest row this event points at (targetId), which is erasable; copying
+  // it into the audit log would mean honouring an erasure request still left the
+  // requester's address behind, in a log with no erasure workflow of its own.
+  // The type is what the trail needs: who logged what kind of request, when.
   await recordAuditEvent({
     action: 'privacy.request_create',
     actorId: callerId,
     targetType: 'data_request',
     targetId: request.id,
-    targetLabel: `${type} request from ${request.subjectEmail}`,
+    targetLabel: type,
   });
 
   revalidatePath(REQUESTS_PATH);
@@ -84,14 +89,16 @@ export async function updateDataRequestStatusAction(formData: FormData): Promise
     return { ok: false, error: 'Unknown status' };
   }
 
-  const updated = await updateDataRequestStatus({ id, status, handledBy: callerId });
+  await updateDataRequestStatus({ id, status, handledBy: callerId });
 
+  // Status only, for the same reason as the create path above: the row behind
+  // targetId carries the subject, and it is the thing erasure deletes.
   await recordAuditEvent({
     action: 'privacy.request_update',
     actorId: callerId,
     targetType: 'data_request',
     targetId: id,
-    targetLabel: `${updated.subjectEmail} -> ${status}`,
+    targetLabel: status,
   });
 
   revalidatePath(REQUESTS_PATH);

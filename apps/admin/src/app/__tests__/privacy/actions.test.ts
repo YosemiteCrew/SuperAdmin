@@ -82,8 +82,25 @@ describe('logDataRequestAction', () => {
         actorId: 'admin_1',
         targetType: 'data_request',
         targetId: 'dr_1',
+        targetLabel: 'access',
       })
     );
+  });
+
+  // The subject's email must not be denormalised into the audit log: the log has
+  // no erasure workflow, so honouring an erasure request would otherwise leave
+  // the requester's address behind in it. The DataRequest row behind targetId is
+  // the thing that holds the email and the thing erasure deletes.
+  it('never writes the subject email into the audit trail', async () => {
+    mockCreate.mockResolvedValue({ id: 'dr_9', subjectEmail: 'subject@person.com' } as never);
+    await logDataRequestAction(
+      makeFormData({ subjectEmail: 'subject@person.com', type: 'erasure' })
+    );
+
+    const [event] = mockAudit.mock.calls[0];
+    expect(JSON.stringify(event)).not.toContain('subject@person.com');
+    expect(JSON.stringify(event)).not.toContain('@');
+    expect(event.targetId).toBe('dr_9');
   });
 
   it('passes undefined notes when the field is absent', async () => {
@@ -135,7 +152,17 @@ describe('updateDataRequestStatusAction', () => {
         actorId: 'admin_1',
         targetType: 'data_request',
         targetId: 'dr_1',
+        targetLabel: 'fulfilled',
       })
     );
+  });
+
+  it('never writes the subject email into the audit trail on update', async () => {
+    mockUpdate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'subject@person.com' } as never);
+    await updateDataRequestStatusAction(makeFormData({ id: 'dr_1', status: 'fulfilled' }));
+
+    const [event] = mockAudit.mock.calls[0];
+    expect(JSON.stringify(event)).not.toContain('subject@person.com');
+    expect(JSON.stringify(event)).not.toContain('@');
   });
 });
