@@ -55,6 +55,23 @@ describe('daysUntilDue', () => {
     const due = new Date('2026-07-05T00:00:00.000Z'); // 12 hours away
     expect(daysUntilDue(due, now)).toBe(1);
   });
+
+  // Rounding away from zero in BOTH directions. Ceil alone reports a request
+  // that blew its deadline an hour ago as 0, which the table renders via
+  // Math.abs as "Overdue by 0 days"; floor alone would report one due in twelve
+  // hours as "Due in 0 days". Neither direction may round toward looking
+  // compliant.
+  it('counts a partial day already lost as a full day overdue', () => {
+    const due = new Date('2026-07-04T11:00:00.000Z'); // 1 hour ago
+    expect(daysUntilDue(due, now)).toBe(-1);
+  });
+
+  it('never reports an overdue request as zero days', () => {
+    for (const minutesOverdue of [1, 30, 60, 60 * 23]) {
+      const due = new Date(now.getTime() - minutesOverdue * 60 * 1000);
+      expect(daysUntilDue(due, now)).toBeLessThan(0);
+    }
+  });
 });
 
 describe('isOverdue', () => {

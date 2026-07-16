@@ -23,10 +23,17 @@ export function isOpenStatus(status: DataRequestStatus): boolean {
 /**
  * Whole days until the deadline (negative when overdue). Open requests past
  * their dueAt are the ones compliance must chase.
+ *
+ * Rounds away from zero, in both directions. A partial day still to run counts
+ * as a day left, and a partial day already lost counts as a day over: rounding
+ * one way for both would report a request that blew its deadline an hour ago as
+ * "Overdue by 0 days", or one due in twelve hours as "Due in 0 days". Statutory
+ * deadlines are the point of this table, so neither direction may round toward
+ * looking compliant.
  */
 export function daysUntilDue(dueAt: Date, now: Date): number {
-  const ms = dueAt.getTime() - now.getTime();
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+  const days = (dueAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return days < 0 ? Math.floor(days) : Math.ceil(days);
 }
 
 export function isOverdue(dueAt: Date, status: DataRequestStatus, now: Date): boolean {
