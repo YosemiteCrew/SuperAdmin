@@ -76,7 +76,7 @@ export default async function ApprovalsPage({
             href={f.key === 'pending' ? '/approvals' : `/approvals?status=${f.key}`}
             className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
               filter === f.key
-                ? 'border-btn bg-btn text-btn-fg'
+                ? 'border-btn bg-btn text-btn-ink'
                 : 'border-line bg-surface text-ink hover:bg-raised'
             }`}
           >

@@ -86,7 +86,7 @@ export function ComposeForm() {
           <button
             type="submit"
             disabled={pending}
-            className="h-10 rounded-xl bg-btn px-6 text-sm font-medium text-btn-fg disabled:opacity-50"
+            className="h-10 rounded-xl bg-btn px-6 text-sm font-medium text-btn-ink disabled:opacity-50"
           >
             {pending ? 'Sending…' : 'Send campaign'}
           </button>
