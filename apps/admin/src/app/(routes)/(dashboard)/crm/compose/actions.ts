@@ -7,6 +7,7 @@ import { notifyCampaignSent } from '@/app/features/crm/discord/dispatcher';
 import { broadcastCampaign } from '@/app/features/crm/plunk';
 import { fetchRecipientEmails } from '@/app/features/crm/recipients';
 import { recordCampaign, type CampaignAudience } from '@/app/features/crm/campaigns/store';
+import { logger } from '@/app/lib/logger';
 
 export interface SendCampaignResult {
   sent?: number;
@@ -65,11 +66,22 @@ export async function sendCampaignAction(formData: FormData): Promise<SendCampai
     sentByEmail: actorEmail,
   });
 
+  // The campaign has already gone out by this point, so a failed Discord notice
+  // must not fail the action - but it must not vanish either, or the channel
+  // silently stops reflecting sends. Swallow it for the caller, surface it for
+  // the log pipeline.
   await notifyCampaignSent({
     subject: subject.trim(),
     sentCount: sent,
     sentByEmail: actorEmail,
-  }).catch(() => undefined);
+  }).catch((error: unknown) => {
+    logger.error('Campaign sent but the Discord notification failed', {
+      subject: subject.trim(),
+      sentCount: sent,
+      actorId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
 
   return { sent, failed };
 }

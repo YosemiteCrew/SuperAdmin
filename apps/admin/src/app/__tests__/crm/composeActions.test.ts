@@ -10,6 +10,15 @@ jest.mock('supertokens-node', () => ({
   default: { getUser: jest.fn(), getUsersOldestFirst: jest.fn() },
 }));
 
+jest.mock('supertokens-node/recipe/userroles', () => ({
+  __esModule: true,
+  default: { getUsersThatHaveRole: jest.fn() },
+}));
+
+jest.mock('@/app/lib/logger', () => ({
+  logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
+}));
+
 jest.mock('@/app/features/crm/plunk', () => ({
   broadcastCampaign: jest.fn(),
 }));
@@ -23,7 +32,9 @@ jest.mock('@/app/features/crm/discord/dispatcher', () => ({
 }));
 
 import SuperTokens from 'supertokens-node';
+import UserRolesNode from 'supertokens-node/recipe/userroles';
 import { requireSuperAdmin } from '@/app/config/backend';
+import { logger } from '@/app/lib/logger';
 import { recordCampaign } from '@/app/features/crm/campaigns/store';
 import { notifyCampaignSent } from '@/app/features/crm/discord/dispatcher';
 import { broadcastCampaign } from '@/app/features/crm/plunk';
@@ -37,6 +48,10 @@ const mockGetUsers = SuperTokens.getUsersOldestFirst as jest.MockedFunction<
 const mockBroadcast = broadcastCampaign as jest.MockedFunction<typeof broadcastCampaign>;
 const mockRecord = recordCampaign as jest.MockedFunction<typeof recordCampaign>;
 const mockNotify = notifyCampaignSent as jest.MockedFunction<typeof notifyCampaignSent>;
+const mockGetRoleUsers = UserRolesNode.getUsersThatHaveRole as jest.MockedFunction<
+  typeof UserRolesNode.getUsersThatHaveRole
+>;
+type RoleResult = Awaited<ReturnType<typeof UserRolesNode.getUsersThatHaveRole>>;
 
 type UsersPage = Awaited<ReturnType<typeof SuperTokens.getUsersOldestFirst>>;
 type StUser = Awaited<ReturnType<typeof SuperTokens.getUser>>;
@@ -74,6 +89,104 @@ beforeEach(() => {
     sentByEmail: 'admin@yc.com',
   });
   mockNotify.mockResolvedValue(undefined);
+  mockGetRoleUsers.mockResolvedValue({ status: 'OK', users: [] } as unknown as RoleResult);
+});
+
+describe('sendCampaignAction admins audience', () => {
+  /** Two super-admins among a much larger user base of non-admins. */
+  function twoAdminsAmongMany() {
+    mockGetRoleUsers.mockResolvedValue({
+      status: 'OK',
+      users: ['admin-1', 'admin-2'],
+    } as unknown as RoleResult);
+    mockGetUser.mockImplementation((id: string) => {
+      const emails: Record<string, string> = {
+        'admin-1': 'admin@yc.com',
+        'admin-2': 'second@yc.com',
+      };
+      return Promise.resolve({ emails: [emails[id] ?? `${id}@customer.com`] } as unknown as StUser);
+    });
+    // The user directory is full of customers who must never receive this.
+    mockGetUsers.mockResolvedValue(
+      usersPage(['customer1@x.com', 'customer2@x.com', 'customer3@x.com'])
+    );
+  }
+
+  it('sends only to accounts holding the super-admin role', async () => {
+    twoAdminsAmongMany();
+    await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+
+    expect(mockBroadcast).toHaveBeenCalledWith(
+      expect.objectContaining({ emails: ['admin@yc.com', 'second@yc.com'] })
+    );
+  });
+
+  it('never sends an admins-only campaign to a non-admin', async () => {
+    // The regression guard: the audience used to be the oldest page of ALL
+    // users, so selecting "Super-admins only" mailed customers.
+    twoAdminsAmongMany();
+    await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+
+    const { emails } = mockBroadcast.mock.calls[0][0];
+    expect(emails).not.toContain('customer1@x.com');
+    expect(emails.some((e) => e.endsWith('@customer.com'))).toBe(false);
+    expect(emails).toHaveLength(2);
+  });
+
+  it('resolves the audience from the role directory, not a user listing', async () => {
+    twoAdminsAmongMany();
+    await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+
+    expect(mockGetRoleUsers).toHaveBeenCalledWith('public', 'superadmin');
+    expect(mockGetUsers).not.toHaveBeenCalled();
+  });
+
+  it('cancels the send when the role lookup does not return OK', async () => {
+    // Fail closed: an unresolvable admin list must not fall back to a wider one.
+    twoAdminsAmongMany();
+    mockGetRoleUsers.mockResolvedValue({ status: 'UNKNOWN_ROLE_ERROR' } as unknown as RoleResult);
+
+    const result = await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+    expect(result.error).toMatch(/Failed to fetch/);
+    expect(mockBroadcast).not.toHaveBeenCalled();
+  });
+
+  it('skips role holders whose account has no email', async () => {
+    mockGetRoleUsers.mockResolvedValue({
+      status: 'OK',
+      users: ['admin-1', 'ghost'],
+    } as unknown as RoleResult);
+    mockGetUser.mockImplementation((id: string) =>
+      Promise.resolve(
+        id === 'admin-1' ? ({ emails: ['admin@yc.com'] } as unknown as StUser) : undefined
+      )
+    );
+
+    await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+    expect(mockBroadcast).toHaveBeenCalledWith(
+      expect.objectContaining({ emails: ['admin@yc.com'] })
+    );
+  });
+
+  it('errors rather than sending when no admin has a usable email', async () => {
+    mockGetRoleUsers.mockResolvedValue({ status: 'OK', users: [] } as unknown as RoleResult);
+    const result = await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
+    expect(result.error).toMatch(/No recipients/);
+    expect(mockBroadcast).not.toHaveBeenCalled();
+  });
+});
+
+describe('sendCampaignAction notification failure', () => {
+  it('still reports the send but logs when the Discord notice fails', async () => {
+    mockNotify.mockRejectedValue(new Error('webhook 500'));
+    const result = await sendCampaignAction(fd(VALID));
+
+    expect(result).toEqual({ sent: 2, failed: 0 });
+    expect(logger.error).toHaveBeenCalledWith(
+      'Campaign sent but the Discord notification failed',
+      expect.objectContaining({ error: 'webhook 500' })
+    );
+  });
 });
 
 describe('sendCampaignAction validation', () => {
@@ -137,11 +250,6 @@ describe('sendCampaignAction sending', () => {
     expect(mockBroadcast).toHaveBeenCalledWith(
       expect.objectContaining({ emails: ['a@b.com', 'c@d.com'] })
     );
-  });
-
-  it('fetches a single page for the admins audience', async () => {
-    await sendCampaignAction(fd({ ...VALID, audience: 'admins' }));
-    expect(mockGetUsers).toHaveBeenCalledTimes(1);
   });
 
   it('notifies Discord after sending', async () => {
