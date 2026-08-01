@@ -1,5 +1,6 @@
 'use server';
 
+import { headers } from 'next/headers';
 import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
@@ -39,7 +40,8 @@ async function searchUsers(q: string): Promise<DirectoryHit[]> {
 
 async function searchOrgs(q: string): Promise<DirectoryHit[]> {
   try {
-    const orgs = await listOrganizations();
+    const cookie = (await headers()).get('cookie') ?? '';
+    const orgs = await listOrganizations({ headers: { cookie } });
     const needle = q.toLowerCase();
     return orgs
       .filter((org) => org.name.toLowerCase().includes(needle))
