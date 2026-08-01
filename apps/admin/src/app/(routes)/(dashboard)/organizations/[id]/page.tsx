@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { headers } from 'next/headers';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { getOrgFlags } from '@/app/features/feature-flags/store';
@@ -96,13 +97,14 @@ export default async function OrganizationDetailPage({
 
   const { id } = await params;
   const { demo, checks } = await searchParams;
+  const cookie = (await headers()).get('cookie') ?? '';
 
   let org: SuperAdminOrganizationDetail | null = null;
   if (demo === '1') {
     org = getDemoOrganization(id);
   } else {
     try {
-      org = await getOrganization(id);
+      org = await getOrganization(id, { headers: { cookie } });
     } catch {
       /* backend not connected (or business missing) — render the unavailable state */
     }

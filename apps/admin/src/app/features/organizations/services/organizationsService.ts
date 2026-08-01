@@ -8,14 +8,21 @@ import type {
   SuperAdminOrganizationDetail,
 } from '../types';
 
+type OrganizationRequestConfig = {
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+};
+
 /**
  * Reads tenant ("business") records from the platform backend's super-admin API.
  * Wired against `GET /v1/super-admin/businesses`; resolves once NEXT_PUBLIC_API_URL
  * points at the Yosemite backend.
  */
-export async function listOrganizations(signal?: AbortSignal): Promise<SuperAdminOrganization[]> {
+export async function listOrganizations(
+  requestConfig?: OrganizationRequestConfig
+): Promise<SuperAdminOrganization[]> {
   const { data } = await httpClient.get<ListOrganizationsResponse>('/v1/super-admin/businesses', {
-    signal,
+    ...requestConfig,
   });
   return data.businesses ?? [];
 }
@@ -23,11 +30,11 @@ export async function listOrganizations(signal?: AbortSignal): Promise<SuperAdmi
 /** Reads a single business by id from `GET /v1/super-admin/businesses/:id`. */
 export async function getOrganization(
   id: string,
-  signal?: AbortSignal
+  requestConfig?: OrganizationRequestConfig
 ): Promise<SuperAdminOrganizationDetail> {
   const { data } = await httpClient.get<GetOrganizationResponse>(
     `/v1/super-admin/businesses/${encodeURIComponent(id)}`,
-    { signal }
+    requestConfig
   );
   return data.business;
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { headers } from 'next/headers';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { AUDIT_META } from '@/app/features/audit/audit';
@@ -43,10 +44,11 @@ export default async function OrgActivityPage({
   await requireSuperAdmin();
 
   const { id } = await params;
+  const cookie = (await headers()).get('cookie') ?? '';
 
   let orgName: string | null = null;
   try {
-    const org = await getOrganization(id);
+    const org = await getOrganization(id, { headers: { cookie } });
     orgName = org.name;
   } catch {
     /* backend not connected — activity still available from local audit log */
