@@ -15,6 +15,7 @@ export interface ContactRequestView {
   email: string;
   name: string | null;
   company: string | null;
+  phone: string | null;
   subject: string | null;
   message: string;
   sourceUrl: string | null;
@@ -48,6 +49,7 @@ export async function listContactRequests(params: {
       email: r.lead.email,
       name: r.lead.name,
       company: r.lead.company,
+      phone: r.lead.phone,
       subject: r.subject,
       message: r.message,
       sourceUrl: r.sourceUrl,

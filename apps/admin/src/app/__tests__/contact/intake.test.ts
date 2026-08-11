@@ -53,14 +53,82 @@ describe('parseSubmission query-operator payloads', () => {
     expect(parseSubmission({ ...VALID, message: { not: 'x' } })).toBeNull();
   });
 
-  it.each([['name'], ['company'], ['subject'], ['sourceUrl']])(
+  it.each([['name'], ['company'], ['phone'], ['subject'], ['sourceUrl']])(
     'drops %s when it is a query operator rather than a string',
     (field) => {
       const s = parseSubmission({ ...VALID, [field]: { not: 'x' } });
       expect(s).not.toBeNull();
-      expect(s?.[field as 'name' | 'company' | 'subject' | 'sourceUrl']).toBeUndefined();
+      expect(s?.[field as 'name' | 'company' | 'phone' | 'subject' | 'sourceUrl']).toBeUndefined();
     }
   );
+
+  it.each([['fullName'], ['type']])(
+    'drops the %s alias when it is a query operator rather than a string',
+    (field) => {
+      const s = parseSubmission({
+        email: 'a@b.com',
+        message: 'hello there',
+        [field]: { not: 'x' },
+      });
+      expect(s).not.toBeNull();
+      expect(s?.name).toBeUndefined();
+      expect(s?.subject).toBeUndefined();
+    }
+  );
+});
+
+describe('parseSubmission marketing-site payload shape', () => {
+  // The yosemitecrew.com contact form (forwarded verbatim by the site's
+  // backend) sends fullName/type/phone rather than name/subject. Pinned here so
+  // the panel keeps accepting the body the form actually produces.
+  const MARKETING = {
+    type: 'GENERAL_ENQUIRY',
+    source: 'PMS_WEB',
+    fullName: 'Lena Weber',
+    email: 'Lena@Example.com',
+    phone: '+49 152 277 63275',
+    message: 'Which plan fits a two-vet clinic?',
+  };
+
+  it('maps fullName to name, type to a readable subject, and keeps phone', () => {
+    expect(parseSubmission({ ...MARKETING })).toEqual({
+      email: 'lena@example.com',
+      name: 'Lena Weber',
+      company: undefined,
+      phone: '+49 152 277 63275',
+      subject: 'General Enquiry',
+      message: 'Which plan fits a two-vet clinic?',
+      newsletterConsent: false,
+      sourceUrl: undefined,
+    });
+  });
+
+  it.each([
+    ['FEATURE_REQUEST', 'Feature Request'],
+    ['DSAR', 'Data Service Access Request'],
+    ['COMPLAINT', 'Complaint'],
+  ])('maps the %s type to the label the visitor clicked', (type, subject) => {
+    expect(parseSubmission({ ...MARKETING, type })?.subject).toBe(subject);
+  });
+
+  it.each([
+    ['an unknown enum', 'SOMETHING_ELSE'],
+    ['a prototype key', '__proto__'],
+    ['a non-string', 42],
+  ])('leaves subject unset when type is %s', (_label, type) => {
+    expect(parseSubmission({ ...MARKETING, type })?.subject).toBeUndefined();
+  });
+
+  it('prefers an explicit name and subject over the fullName/type aliases', () => {
+    const s = parseSubmission({ ...MARKETING, name: 'Dr Smith', subject: 'Demo request' });
+    expect(s?.name).toBe('Dr Smith');
+    expect(s?.subject).toBe('Demo request');
+  });
+
+  it('drops a blank or oversized phone', () => {
+    expect(parseSubmission({ ...MARKETING, phone: '   ' })?.phone).toBeUndefined();
+    expect(parseSubmission({ ...MARKETING, phone: '1'.repeat(51) })?.phone).toBeUndefined();
+  });
 });
 
 describe('parseSubmission', () => {
@@ -140,18 +208,20 @@ describe('recordContactSubmission', () => {
     expect(arg.update.requests.create.message).toBe('hi');
   });
 
-  it('never overwrites an existing name/company from the update branch', async () => {
+  it('never overwrites an existing name/company/phone from the update branch', async () => {
     await recordContactSubmission({
       email: 'a@b.com',
       name: 'jane',
       company: 'newco',
+      phone: '+49 152 277 63275',
       message: 'hi',
       newsletterConsent: false,
     });
     const arg = mockUpsert.mock.calls[0][0];
-    // Update branch touches neither name nor company directly.
+    // Update branch touches none of name/company/phone directly.
     expect(arg.update).not.toHaveProperty('name');
     expect(arg.update).not.toHaveProperty('company');
+    expect(arg.update).not.toHaveProperty('phone');
     // Backfill only fills the columns that are still null. The email is matched
     // with an explicit `equals` rather than a bare value: updateMany's where
     // accepts filters, so a bare value that turned out to be an object at
@@ -164,9 +234,23 @@ describe('recordContactSubmission', () => {
       where: { email: { equals: 'a@b.com' }, company: null },
       data: { company: 'newco' },
     });
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { email: { equals: 'a@b.com' }, phone: null },
+      data: { phone: '+49 152 277 63275' },
+    });
   });
 
-  it('skips the backfill when no name/company was provided', async () => {
+  it('stores the phone on a brand-new lead', async () => {
+    await recordContactSubmission({
+      email: 'a@b.com',
+      phone: '+49 152 277 63275',
+      message: 'hi',
+      newsletterConsent: false,
+    });
+    expect(mockUpsert.mock.calls[0][0].create.phone).toBe('+49 152 277 63275');
+  });
+
+  it('skips the backfill when no name/company/phone was provided', async () => {
     await recordContactSubmission({ email: 'a@b.com', message: 'hi', newsletterConsent: false });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
