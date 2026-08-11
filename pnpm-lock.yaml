@@ -73,19 +73,19 @@ importers:
         version: 2.1.1
       next:
         specifier: 16.2.11
-        version: 16.2.11(@babel/core@8.0.1)(react-dom@19.2.3)(react@19.2.3)
+        version: 16.2.11(@babel/core@8.0.1)(react-dom@19.2.8)(react@19.2.8)
       react:
-        specifier: ^19.1.1
-        version: 19.2.3
+        specifier: ^19.2.8
+        version: 19.2.8
       react-dom:
-        specifier: ^19.1.1
-        version: 19.2.3(react@19.2.3)
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       react-icons:
         specifier: 5.7.0
-        version: 5.7.0(react@19.2.3)
+        version: 5.7.0(react@19.2.8)
       supertokens-auth-react:
         specifier: ^0.51.3
-        version: 0.51.3(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0)
+        version: 0.51.3(react-dom@19.2.8)(react@19.2.8)(supertokens-web-js@0.16.0)
       supertokens-node:
         specifier: ^24.0.3
         version: 24.0.3
@@ -110,7 +110,7 @@ importers:
         version: 6.9.1
       '@testing-library/react':
         specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.3)(react@19.2.3)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4)(@types/react@19.2.18)(react-dom@19.2.8)(react@19.2.8)
       '@testing-library/user-event':
         specifier: ^14.6.1
         version: 14.6.1(@testing-library/dom@10.4.1)
@@ -124,11 +124,11 @@ importers:
         specifier: ^26
         version: 26.1.1
       '@types/react':
-        specifier: ^19.1.1
-        version: 19.2.10
+        specifier: ^19.2.18
+        version: 19.2.18
       '@types/react-dom':
-        specifier: ^19.1.1
-        version: 19.2.3(@types/react@19.2.10)
+        specifier: ^19.2.4
+        version: 19.2.4(@types/react@19.2.18)
       eslint:
         specifier: ^9
         version: 9.39.4
@@ -2064,7 +2064,7 @@ packages:
       redent: 3.0.0
     dev: true
 
-  /@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3)(@types/react@19.2.10)(react-dom@19.2.3)(react@19.2.3):
+  /@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.4)(@types/react@19.2.18)(react-dom@19.2.8)(react@19.2.8):
     resolution: {integrity: sha512-XU5/SytQM+ykqMnAnvB2umaJNIOsLF3PVv//1Ew4CTcpz0/BRyy/af40qqrt7SjKpDdT1saBMc42CUok5gaw+g==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -2081,10 +2081,10 @@ packages:
     dependencies:
       '@babel/runtime': 7.29.7
       '@testing-library/dom': 10.4.1
-      '@types/react': 19.2.10
-      '@types/react-dom': 19.2.3(@types/react@19.2.10)
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
+      '@types/react': 19.2.18
+      '@types/react-dom': 19.2.4(@types/react@19.2.18)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
     dev: true
 
   /@testing-library/user-event@14.6.1(@testing-library/dom@10.4.1):
@@ -2312,16 +2312,16 @@ packages:
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
     dev: true
 
-  /@types/react-dom@19.2.3(@types/react@19.2.10):
-    resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
+  /@types/react-dom@19.2.4(@types/react@19.2.18):
+    resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
     peerDependencies:
       '@types/react': ^19.2.0
     dependencies:
-      '@types/react': 19.2.10
+      '@types/react': 19.2.18
     dev: true
 
-  /@types/react@19.2.10:
-    resolution: {integrity: sha512-WPigyYuGhgZ/cTPRXB2EwUw+XvsRA3GqHlsP4qteqrnnjDrApbS7MxcGr/hke5iUoeB7E/gQtrs9I37zAJ0Vjw==}
+  /@types/react@19.2.18:
+    resolution: {integrity: sha512-AnzbBERsrLKtk2XSfTbYRLjQPdy116Sty4q+T+Bp3IC4l6jNBvreVPAHmpq9qhXQM7CXZPjLVmGMw9sy+hxQ3w==}
     dependencies:
       csstype: 3.2.3
     dev: true
@@ -6291,7 +6291,7 @@ packages:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
     dev: true
 
-  /next@16.2.11(@babel/core@8.0.1)(react-dom@19.2.3)(react@19.2.3):
+  /next@16.2.11(@babel/core@8.0.1)(react-dom@19.2.8)(react@19.2.8):
     resolution: {integrity: sha512-B339zaqbyK8cmxhoAvLrcwoabwCP1wz21zSzfqxqXAemTu2BXnH7tQnfcglKv1vnMUIDBc+Hth7XODQriTZiRQ==}
     engines: {node: '>=20.9.0'}
     hasBin: true
@@ -6317,9 +6317,9 @@ packages:
       baseline-browser-mapping: 2.10.42
       caniuse-lite: 1.0.30001803
       postcss: 8.5.16
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-      styled-jsx: 5.1.6(@babel/core@8.0.1)(react@19.2.3)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      styled-jsx: 5.1.6(@babel/core@8.0.1)(react@19.2.8)
     optionalDependencies:
       '@next/swc-darwin-arm64': 16.2.11
       '@next/swc-darwin-x64': 16.2.11
@@ -6826,20 +6826,20 @@ packages:
       defu: 6.1.7
       destr: 2.0.5
 
-  /react-dom@19.2.3(react@19.2.3):
-    resolution: {integrity: sha512-yELu4WmLPw5Mr/lmeEpox5rw3RETacE++JgHqQzd2dg+YbJuat3jH4ingc+WPZhxaoFzdv9y33G+F7Nl5O0GBg==}
+  /react-dom@19.2.8(react@19.2.8):
+    resolution: {integrity: sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==}
     peerDependencies:
-      react: ^19.2.3
+      react: ^19.2.8
     dependencies:
-      react: 19.2.3
+      react: 19.2.8
       scheduler: 0.27.0
 
-  /react-icons@5.7.0(react@19.2.3):
+  /react-icons@5.7.0(react@19.2.8):
     resolution: {integrity: sha512-LBLy340Rzqy6+/yVhZKT3B/QpP1BZaesGqasf09HPOBzRarcDIFH0WwXlXQfE7q7ipxK4MSiC5DIBWURCny6fw==}
     peerDependencies:
       react: '*'
     dependencies:
-      react: 19.2.3
+      react: 19.2.8
     dev: false
 
   /react-is@16.13.1:
@@ -6857,18 +6857,18 @@ packages:
     resolution: {integrity: sha512-s5un28nYxKJw5gvUHyW5PCC28CvBqLu9r3cWgzHT4Vo/5fqqkFcdRYsGcKf50WMPpjjFZS5d76fn3YCo2njKwQ==}
     dev: true
 
-  /react-qr-code@2.2.0(react@19.2.3):
+  /react-qr-code@2.2.0(react@19.2.8):
     resolution: {integrity: sha512-e5nS0UUN22K3Nf8KBRUzemfdJ6OmnN5w+kbnj1lvJaol9RyVRFeGl05bCkxSN2ZegbLxjjYjX1+mmAoX9+fAhw==}
     peerDependencies:
       react: '*'
     dependencies:
       prop-types: 15.8.1
       qrcode-generator: 2.0.4
-      react: 19.2.3
+      react: 19.2.8
     dev: false
 
-  /react@19.2.3:
-    resolution: {integrity: sha512-Ku/hhYbVjOQnXDZFv2+RibmLFGwFdeeKHFcOTlrt7xplBnya5OGn/hIRDsqDiSUcfORsDC7MPxwork8jBwsIWA==}
+  /react@19.2.8:
+    resolution: {integrity: sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==}
     engines: {node: '>=0.10.0'}
 
   /read-pkg@10.1.0:
@@ -7527,7 +7527,7 @@ packages:
       boundary: 2.0.0
     dev: true
 
-  /styled-jsx@5.1.6(@babel/core@8.0.1)(react@19.2.3):
+  /styled-jsx@5.1.6(@babel/core@8.0.1)(react@19.2.8):
     resolution: {integrity: sha512-qSVyDTeMotdvQYoHWLNGwRFJHC+i+ZvdBRYosOFgC+Wg1vx4frN2/RG/NA7SYqqvKNLf39P2LSRA2pu6n0XYZA==}
     engines: {node: '>= 12.0.0'}
     peerDependencies:
@@ -7542,10 +7542,10 @@ packages:
     dependencies:
       '@babel/core': 8.0.1
       client-only: 0.0.1
-      react: 19.2.3
+      react: 19.2.8
     dev: false
 
-  /supertokens-auth-react@0.51.3(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0):
+  /supertokens-auth-react@0.51.3(react-dom@19.2.8)(react@19.2.8)(supertokens-web-js@0.16.0):
     resolution: {integrity: sha512-Gpa/CeLJAP6MKMSvTt6T1xs7SkqM5BaJBuhwPgm/s0IrI+CgCt7AMM1nfKGden2iEU9vsHkMXQVaSjbANY/Yhg==}
     engines: {node: '>=16.0.0', npm: '>=8'}
     peerDependencies:
@@ -7556,9 +7556,9 @@ packages:
       '@simplewebauthn/types': 12.0.0
       intl-tel-input: 17.0.21
       prop-types: 15.8.1
-      react: 19.2.3
-      react-dom: 19.2.3(react@19.2.3)
-      react-qr-code: 2.2.0(react@19.2.3)
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      react-qr-code: 2.2.0(react@19.2.8)
       supertokens-js-override: 0.0.4
       supertokens-web-js: 0.16.0
     dev: false
