@@ -31,7 +31,7 @@ importers:
     devDependencies:
       '@commitlint/cli':
         specifier: ^21.2.1
-        version: 21.2.1(@types/node@26.1.1)(typescript@7.0.2)
+        version: 21.2.1(@types/node@26.2.0)(typescript@7.0.2)
       '@commitlint/config-conventional':
         specifier: ^21.2.0
         version: 21.2.0
@@ -87,8 +87,8 @@ importers:
         specifier: ^0.51.2
         version: 0.51.2(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0)
       supertokens-node:
-        specifier: ^24.0.2
-        version: 24.0.2
+        specifier: ^24.0.3
+        version: 24.0.3
       supertokens-web-js:
         specifier: ^0.16.0
         version: 0.16.0
@@ -556,7 +556,7 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@commitlint/cli@21.2.1(@types/node@26.1.1)(typescript@7.0.2):
+  /@commitlint/cli@21.2.1(@types/node@26.2.0)(typescript@7.0.2):
     resolution: {integrity: sha512-blsZGe29hJ72VGEFVl72IVYX+1vsfINpjA9yWQA6i7OKD/McGEOXg08sKIRKjFk4JvzhV/9n0l3i6NooPLTNfg==}
     engines: {node: '>=22.12.0'}
     hasBin: true
@@ -564,7 +564,7 @@ packages:
       '@commitlint/config-conventional': 21.2.0
       '@commitlint/format': 21.2.0
       '@commitlint/lint': 21.2.0
-      '@commitlint/load': 21.2.0(@types/node@26.1.1)(typescript@7.0.2)
+      '@commitlint/load': 21.2.0(@types/node@26.2.0)(typescript@7.0.2)
       '@commitlint/read': 21.2.1
       '@commitlint/types': 21.2.0
       tinyexec: 1.2.4
@@ -631,7 +631,7 @@ packages:
       '@commitlint/types': 21.2.0
     dev: true
 
-  /@commitlint/load@21.2.0(@types/node@26.1.1)(typescript@7.0.2):
+  /@commitlint/load@21.2.0(@types/node@26.2.0)(typescript@7.0.2):
     resolution: {integrity: sha512-RjlzWQqruRwIenJEfZtq7kG97co97nKoHpflE5YnF61tDLXxHPrdWImgzw6VL6MlFyaOcVlk74eBV8ZQmc3oIA==}
     engines: {node: '>=22.12.0'}
     dependencies:
@@ -640,7 +640,7 @@ packages:
       '@commitlint/resolve-extends': 21.2.0
       '@commitlint/types': 21.2.0
       cosmiconfig: 9.0.2(typescript@7.0.2)
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.1.1)(cosmiconfig@9.0.2)(typescript@7.0.2)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@26.2.0)(cosmiconfig@9.0.2)(typescript@7.0.2)
       es-toolkit: 1.49.0
       is-plain-obj: 4.1.0
       picocolors: 1.1.1
@@ -806,8 +806,8 @@ packages:
     dev: true
     optional: true
 
-  /@emnapi/runtime@1.11.2:
-    resolution: {integrity: sha512-kyOl3X0DuTiT1h2ft8r2fYO8JYtU9a9Xis/zBSiGArNaagCOWx90N1k2wxp18czFDH+OgcWGb5ZP/XMt3dcyPA==}
+  /@emnapi/runtime@1.11.3:
+    resolution: {integrity: sha512-Xz4Tpyki7XyrpbUK1jR1AhdAdaXyhhY4lZ3neLodmhpuWfy2PAQN5B46sAiU4liOXGLkHypn/qU+jvfWSCYYLA==}
     requiresBuild: true
     dependencies:
       tslib: 2.8.1
@@ -1156,7 +1156,7 @@ packages:
     engines: {node: '>=20.9.0'}
     requiresBuild: true
     dependencies:
-      '@emnapi/runtime': 1.11.2
+      '@emnapi/runtime': 1.11.3
     dev: false
     optional: true
 
@@ -1521,12 +1521,13 @@ packages:
       '@jridgewell/sourcemap-codec': 1.5.5
     dev: true
 
-  /@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
-    resolution: {integrity: sha512-ZLv/JdUfkvOy9eCnnBaGfiO+XimbjebAeO+MRQqD/B+FR1tnRN0tpKSJHRbE8sFfS6aqsXZ67TQjfwfsxULVbg==}
+  /@napi-rs/wasm-runtime@1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0):
+    resolution: {integrity: sha512-JfB4kuJQjaoHuCTseIINHtHWeJnvgEcxjwA5t/Y00ZgaOO1Crz3fjT/p8kT28zA/Caz7oiUMn3d6H2yOVCVwuw==}
+    engines: {node: ^20.19.0 || ^22.13.0 || >=23.5.0}
     requiresBuild: true
     peerDependencies:
-      '@emnapi/core': ^1.7.1
-      '@emnapi/runtime': ^1.7.1
+      '@emnapi/core': ^1.7.1 || ^2.0.0-alpha.3
+      '@emnapi/runtime': ^1.7.1 || ^2.0.0-alpha.3
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
@@ -2301,6 +2302,12 @@ packages:
       undici-types: 8.3.0
     dev: true
 
+  /@types/node@26.2.0:
+    resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
+    dependencies:
+      undici-types: 8.3.0
+    dev: true
+
   /@types/normalize-package-data@2.4.4:
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
     dev: true
@@ -2823,7 +2830,7 @@ packages:
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
-      '@napi-rs/wasm-runtime': 1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@napi-rs/wasm-runtime': 1.2.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     dev: true
     optional: true
 
@@ -3607,7 +3614,7 @@ packages:
     engines: {node: '>= 0.6'}
     dev: false
 
-  /cosmiconfig-typescript-loader@6.3.0(@types/node@26.1.1)(cosmiconfig@9.0.2)(typescript@7.0.2):
+  /cosmiconfig-typescript-loader@6.3.0(@types/node@26.2.0)(cosmiconfig@9.0.2)(typescript@7.0.2):
     resolution: {integrity: sha512-Akr82WH1Wfqatyiqpj8HDkO2o2KmJRu1FhKfSNJP3K4IdXwHfEyL7MOb62i1AGQVLtIQM+iCE9CGOtrfhR+mmA==}
     engines: {node: '>=v18'}
     peerDependencies:
@@ -3615,7 +3622,7 @@ packages:
       cosmiconfig: '>=9'
       typescript: '>=5'
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 26.2.0
       cosmiconfig: 9.0.2(typescript@7.0.2)
       jiti: 2.6.1
       typescript: 7.0.2
@@ -3660,6 +3667,7 @@ packages:
 
   /crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
     dev: false
 
   /css.escape@1.5.1:
@@ -5917,8 +5925,8 @@ packages:
       type-check: 0.4.0
     dev: true
 
-  /libphonenumber-js@1.13.6:
-    resolution: {integrity: sha512-NdB6O6QvlGMCoG003m0YIKG2+Xw7DjmCZhmc1RH+K6HncADUbRf8TZeLegxBBN1VFyPHcNpPTKpIhYLXzJVy1Q==}
+  /libphonenumber-js@1.13.10:
+    resolution: {integrity: sha512-xJxrdqvbl2rtn2MaUJrUejz8J7/uZNC0V77oks2LxYrO/+ZtVpRmz+fEQMuu6VusnEB1fmpByiLS1WXecOnAnw==}
     dev: false
 
   /lightningcss-android-arm64@1.32.0:
@@ -6558,8 +6566,8 @@ packages:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
     dev: true
 
-  /pako@2.1.0:
-    resolution: {integrity: sha512-w+eufiZ1WuJYgPXbV/PO3NCMEc3xqylkKHzp8bxp1uW4qaSNQUkwmLLEc3kKsfz8lpV1F8Ht3U1Cm+9Srog2ug==}
+  /pako@2.2.0:
+    resolution: {integrity: sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==}
     dev: false
 
   /parent-module@1.0.1:
@@ -6728,7 +6736,7 @@ packages:
       '@jest/schemas': 30.4.1
       ansi-styles: 5.2.0
       react-is-18: /react-is@18.3.1
-      react-is-19: /react-is@19.2.7
+      react-is-19: /react-is@19.2.8
     dev: true
 
   /prisma@6.19.3(typescript@5.9.3):
@@ -6785,10 +6793,11 @@ packages:
     resolution: {integrity: sha512-c4iYnWb+k2E+vYpRimHqSu575b1/wKl4XFeJGpFmrJQz5I88v9aY2czh7s0w36srfCM1sXgC/xpoJz5dJfq+OQ==}
     dev: false
 
-  /qs@6.15.2:
-    resolution: {integrity: sha512-Rzq0KEyX/w/tEybncDgdkZrJgVUsUMk3xjh3t5bv3S1HTAtg+uOYt72+ZfwiQwKdysThkTBdL/rTi6HDmX9Ddw==}
+  /qs@6.15.3:
+    resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
     engines: {node: '>=0.6'}
     dependencies:
+      es-define-property: 1.0.1
       side-channel: 1.1.1
     dev: false
 
@@ -6844,8 +6853,8 @@ packages:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
     dev: true
 
-  /react-is@19.2.7:
-    resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
+  /react-is@19.2.8:
+    resolution: {integrity: sha512-s5un28nYxKJw5gvUHyW5PCC28CvBqLu9r3cWgzHT4Vo/5fqqkFcdRYsGcKf50WMPpjjFZS5d76fn3YCo2njKwQ==}
     dev: true
 
   /react-qr-code@2.0.21(react@19.2.3):
@@ -7558,8 +7567,8 @@ packages:
     resolution: {integrity: sha512-r0JFBjkMIdep3Lbk3JA+MpnpuOtw4RSyrlRAbrzMcxwiYco3GFWl/daimQZ5b1forOiUODpOlXbSOljP/oyurg==}
     dev: false
 
-  /supertokens-node@24.0.2:
-    resolution: {integrity: sha512-L4n0zchL3K36aMgUWT5WVuNCw7KWWGtZq//Ti+jWcyRphb/sVaKM76fI8I2/JBqTIGXre9dAQx3myETRSA+etQ==}
+  /supertokens-node@24.0.3:
+    resolution: {integrity: sha512-bidA9avgA5gBSus4p/H2HHahARj44qGsRJeXN8p7NMqjDN+F80aBsOF/aozB+xnm+ELOKQlQFTDgcAG8Ag/5QQ==}
     dependencies:
       buffer: 6.0.3
       content-type: 1.0.5
@@ -7567,9 +7576,9 @@ packages:
       cross-fetch: 4.1.0
       debug: 4.4.3
       jose: 6.2.5
-      libphonenumber-js: 1.13.6
+      libphonenumber-js: 1.13.10
       nodemailer: 9.0.5
-      pako: 2.1.0
+      pako: 2.2.0
       pkce-challenge: 3.1.0
       process: 0.11.10
       set-cookie-parser: 2.7.2
@@ -7885,7 +7894,7 @@ packages:
       dayjs: 1.11.21
       https-proxy-agent: 5.0.1
       jsonwebtoken: 9.0.3
-      qs: 6.15.2
+      qs: 6.15.3
       scmp: 2.1.0
       url-parse: 1.5.10
       xmlbuilder: 13.0.2
