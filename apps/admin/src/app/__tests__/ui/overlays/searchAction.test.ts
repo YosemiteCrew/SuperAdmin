@@ -10,6 +10,12 @@ jest.mock('supertokens-node', () => ({
   default: { getUsersNewestFirst: jest.fn() },
 }));
 
+jest.mock('next/headers', () => ({
+  headers: jest.fn(async () => ({
+    get: jest.fn((name: string) => (name === 'cookie' ? 'session=abc' : null)),
+  })),
+}));
+
 jest.mock('@/app/features/organizations/services/organizationsService', () => ({
   listOrganizations: jest.fn(),
 }));

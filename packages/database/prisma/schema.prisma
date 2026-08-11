@@ -46,6 +46,7 @@ model ContactLead {
   email             String           @unique
   name              String?
   company           String?
+  phone             String?
   newsletterConsent Boolean          @default(false)
   // When newsletter consent was captured, and the URL it came from.
   consentAt         DateTime?

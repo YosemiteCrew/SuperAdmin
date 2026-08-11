@@ -23,7 +23,7 @@ export async function signOutEverywhereAction() {
   const { userId } = await requireSuperAdmin();
   await SessionNode.revokeAllSessionsForUser(userId);
   // Clear the local cookies too: otherwise the still-present sAccessToken makes
-  // middleware treat the follow-up /auth request as authenticated and bounce it
+  // the proxy treat the follow-up /auth request as authenticated and bounce it
   // back to /dashboard, where the revoked session is rejected — a redirect loop.
   const cookieStore = await cookies();
   for (const name of SESSION_COOKIE_NAMES) {

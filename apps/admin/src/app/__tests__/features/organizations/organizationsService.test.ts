@@ -32,7 +32,7 @@ describe('listOrganizations', () => {
     ];
     getMock.mockResolvedValue({ data: { businesses }, status: 200 });
     const signal = new AbortController().signal;
-    const result = await listOrganizations(signal);
+    const result = await listOrganizations({ signal });
     expect(getMock).toHaveBeenCalledWith('/v1/super-admin/businesses', { signal });
     expect(result).toEqual(businesses);
   });
@@ -63,7 +63,7 @@ describe('getOrganization', () => {
     };
     getMock.mockResolvedValue({ data: { business }, status: 200 });
     const signal = new AbortController().signal;
-    const result = await getOrganization('a/b', signal);
+    const result = await getOrganization('a/b', { signal });
     expect(getMock).toHaveBeenCalledWith('/v1/super-admin/businesses/a%2Fb', { signal });
     expect(result).toEqual(business);
   });

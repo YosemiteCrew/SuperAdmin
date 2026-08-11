@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { headers } from 'next/headers';
 
+import { config } from '@/app/config';
 import { DEMO_ORGANIZATIONS } from '@/app/features/organizations/demo';
 import {
   type OrgFilter,
@@ -150,14 +152,27 @@ function OrganizationsTable({
   );
 }
 
-async function loadOrganizations(
-  demo: boolean
-): Promise<{ organizations: SuperAdminOrganization[]; loadError: boolean }> {
+function buildLoadErrorMessage(baseUrl: string, detail?: string): string {
+  const resolvedBaseUrl = baseUrl || '(empty NEXT_PUBLIC_API_URL)';
+  const message = `Couldn't reach the platform backend at ${resolvedBaseUrl}/v1/super-admin/businesses.`;
+  return detail ? `${message} Error: ${detail}` : message;
+}
+
+async function loadOrganizations(demo: boolean): Promise<{
+  organizations: SuperAdminOrganization[];
+  loadError: boolean;
+  loadErrorDetail?: string;
+}> {
   if (demo) return { organizations: DEMO_ORGANIZATIONS, loadError: false };
   try {
-    return { organizations: await listOrganizations(), loadError: false };
-  } catch {
-    return { organizations: [], loadError: true };
+    const cookie = (await headers()).get('cookie') ?? '';
+    return { organizations: await listOrganizations({ headers: { cookie } }), loadError: false };
+  } catch (error) {
+    return {
+      organizations: [],
+      loadError: true,
+      loadErrorDetail: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -169,14 +184,14 @@ export default async function OrganizationsPage({
   const searchTerm = (search ?? '').trim();
   const demo = demoRaw === '1';
 
-  const { organizations, loadError } = await loadOrganizations(demo);
+  const { organizations, loadError, loadErrorDetail } = await loadOrganizations(demo);
 
   const counts = organizationCounts(organizations);
   const filtered = filterOrganizations(organizations, { state: activeFilter, search: searchTerm });
   const allEmpty = loadError || organizations.length === 0;
   const showPendingBanner = !allEmpty && counts.pending > 0;
   const emptyMessage = loadError
-    ? "Couldn't reach the platform backend. Organizations appear here once the /v1/super-admin/businesses API is connected (set NEXT_PUBLIC_API_URL)."
+    ? buildLoadErrorMessage(config.api.baseUrl, loadErrorDetail)
     : 'No organizations yet.';
 
   return (

@@ -59,17 +59,19 @@ describe('frontend config', () => {
   it('setRouter wires up router + pathName for the windowHandler', async () => {
     const { setRouter, frontendConfig } = await import('@/app/config/frontend');
     const push = jest.fn();
-    setRouter(
-      {
-        push,
-        back: jest.fn(),
-        forward: jest.fn(),
-        refresh: jest.fn(),
-        replace: jest.fn(),
-        prefetch: jest.fn(),
-      },
-      '/dashboard'
-    );
+    // Built as a variable, not an inline literal: next 16.3 adds a required
+    // `bfcacheId` to AppRouterInstance, and a variable (unlike a fresh literal)
+    // also type-checks on 16.2 where the property does not exist yet.
+    const router = {
+      push,
+      back: jest.fn(),
+      forward: jest.fn(),
+      refresh: jest.fn(),
+      replace: jest.fn(),
+      prefetch: jest.fn(),
+      bfcacheId: 'test-bfcache',
+    };
+    setRouter(router, '/dashboard');
 
     const cfg = frontendConfig();
     const handler = cfg.windowHandler!({

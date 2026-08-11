@@ -6,6 +6,7 @@ export interface ContactSubmission {
   email: string;
   name?: string;
   company?: string;
+  phone?: string;
   subject?: string;
   message: string;
   newsletterConsent: boolean;
@@ -16,10 +17,27 @@ export const LIMITS = {
   email: 254,
   name: 200,
   company: 200,
+  phone: 50,
   subject: 300,
   message: 5000,
   sourceUrl: 500,
 } as const;
+
+// The yosemitecrew.com contact form sends a `type` enum instead of a free-text
+// subject. Mapped back to the label the visitor actually clicked so the panel
+// shows "Data Service Access Request", not an API constant. A Map (not an
+// object literal) so an untrusted string like '__proto__' can never resolve to
+// anything but undefined.
+const TYPE_SUBJECTS = new Map<string, string>([
+  ['GENERAL_ENQUIRY', 'General Enquiry'],
+  ['FEATURE_REQUEST', 'Feature Request'],
+  ['DSAR', 'Data Service Access Request'],
+  ['COMPLAINT', 'Complaint'],
+]);
+
+function subjectFromType(value: unknown): string | undefined {
+  return typeof value === 'string' ? TYPE_SUBJECTS.get(value) : undefined;
+}
 
 /** Regex-free email sanity check (avoids ReDoS); Plunk/verification is the real gate. */
 function looksLikeEmail(value: string): boolean {
@@ -41,6 +59,11 @@ function optionalString(value: unknown, max: number): string | undefined {
  * Parses and validates an untrusted intake payload from the public endpoint.
  * Returns null on anything invalid; the caller responds 400 without echoing
  * the reason back to an anonymous client.
+ *
+ * Accepts two shapes so the marketing-site backend can forward the contact-us
+ * form body VERBATIM (no field mapping on its side): the panel's own shape
+ * (`name`/`subject`) and the site's shape (`fullName`/`type`/`phone`). When
+ * both are present the explicit `name`/`subject` win.
  */
 export function parseSubmission(body: Record<string, unknown>): ContactSubmission | null {
   const rawEmail = body.email;
@@ -55,9 +78,10 @@ export function parseSubmission(body: Record<string, unknown>): ContactSubmissio
 
   return {
     email,
-    name: optionalString(body.name, LIMITS.name),
+    name: optionalString(body.name, LIMITS.name) ?? optionalString(body.fullName, LIMITS.name),
     company: optionalString(body.company, LIMITS.company),
-    subject: optionalString(body.subject, LIMITS.subject),
+    phone: optionalString(body.phone, LIMITS.phone),
+    subject: optionalString(body.subject, LIMITS.subject) ?? subjectFromType(body.type),
     message,
     newsletterConsent: body.newsletterConsent === true,
     sourceUrl: optionalString(body.sourceUrl, LIMITS.sourceUrl),
@@ -100,19 +124,21 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
       email: input.email,
       name: input.name ?? null,
       company: input.company ?? null,
+      phone: input.phone ?? null,
       newsletterConsent: input.newsletterConsent,
       consentAt: input.newsletterConsent ? new Date() : null,
       consentSource: input.newsletterConsent ? (input.sourceUrl ?? 'contact-us') : null,
       requests: { create: requestData },
     },
-    // The update branch never overwrites an existing name/company (a returning
-    // contact must not clobber the better value we already hold) and never
-    // downgrades consent — it only appends the new request and promotes consent.
+    // The update branch never overwrites an existing name/company/phone (a
+    // returning contact must not clobber the better value we already hold) and
+    // never downgrades consent — it only appends the new request and promotes
+    // consent.
     update: { ...consentPatch, requests: { create: requestData } },
   });
 
-  // Backfill name/company only when we don't already have them. Filtering on
-  // the null column keeps this atomic — no read-modify-write race.
+  // Backfill name/company/phone only when we don't already have them. Filtering
+  // on the null column keeps this atomic — no read-modify-write race.
   //
   // `email: { equals }` rather than a bare `email: input.email`: updateMany's
   // where accepts FILTERS, so a value that turned out to be an object at runtime
@@ -132,6 +158,12 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
     await prisma.contactLead.updateMany({
       where: { email: { equals: input.email }, company: null },
       data: { company: input.company },
+    });
+  }
+  if (input.phone) {
+    await prisma.contactLead.updateMany({
+      where: { email: { equals: input.email }, phone: null },
+      data: { phone: input.phone },
     });
   }
 }
