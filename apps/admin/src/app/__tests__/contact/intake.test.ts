@@ -105,7 +105,7 @@ describe('parseSubmission marketing-site payload shape', () => {
 
   it.each([
     ['FEATURE_REQUEST', 'Feature Request'],
-    ['DSAR', 'Data Service Access Request'],
+    ['DSAR', 'Data Subject Access Request'],
     ['COMPLAINT', 'Complaint'],
   ])('maps the %s type to the label the visitor clicked', (type, subject) => {
     expect(parseSubmission({ ...MARKETING, type })?.subject).toBe(subject);
