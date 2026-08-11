@@ -29,6 +29,7 @@ function row(id: string, over: Record<string, unknown> = {}) {
       email: `${id}@clinic.com`,
       name: 'Dr Smith',
       company: 'Happy Paws',
+      phone: '+49 152 277 63275',
       newsletterConsent: true,
       consentAt: new Date('2026-07-01T00:00:00Z'),
     },
@@ -61,6 +62,7 @@ describe('listContactRequests', () => {
       id: 'r1',
       email: 'r1@clinic.com',
       name: 'Dr Smith',
+      phone: '+49 152 277 63275',
       newsletterConsent: true,
       status: 'new',
     });

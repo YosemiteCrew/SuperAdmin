@@ -106,6 +106,7 @@ export default async function ContactRequestsPage({
                     <p className="font-medium text-ink">{r.name ?? r.email}</p>
                     <p className="text-sm text-ink-2">{r.email}</p>
                     {r.company ? <p className="text-xs text-ink-3">{r.company}</p> : null}
+                    {r.phone ? <p className="text-xs text-ink-3">{r.phone}</p> : null}
                   </div>
                   <div className="flex items-center gap-3">
                     <span

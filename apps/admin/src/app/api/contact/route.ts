@@ -9,10 +9,13 @@ import {
 import { guardIntake } from '@/app/lib/intakeGuard';
 
 /**
- * Public contact-us intake. The marketing site POSTs each submission here with
- * the shared intake key. Persists the lead + request so the team can track it;
- * the site's existing email to support@ is unchanged. Hardened against abuse:
- * required shared secret, per-IP rate limit, honeypot, and strict validation.
+ * Public contact-us intake. The marketing site's backend forwards each
+ * contact-us submission here with the shared intake key — the form body can be
+ * sent verbatim (parseSubmission accepts the site's `fullName`/`type`/`phone`
+ * shape as well as the panel's own). Persists the lead + request so the team
+ * can track it; the site's existing storage/handling of the submission is
+ * unchanged. Hardened against abuse: required shared secret, per-IP rate
+ * limit, honeypot, and strict validation.
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const guard = await guardIntake(request, {

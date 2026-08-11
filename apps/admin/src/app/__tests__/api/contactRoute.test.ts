@@ -77,6 +77,29 @@ describe('POST /api/contact', () => {
     );
   });
 
+  it('accepts the yosemitecrew.com form body forwarded verbatim and maps it', async () => {
+    const res = await POST(
+      req({
+        type: 'GENERAL_ENQUIRY',
+        source: 'PMS_WEB',
+        fullName: 'Lena Weber',
+        email: 'lena@example.com',
+        phone: '+49 152 277 63275',
+        message: 'Which plan fits a two-vet clinic?',
+      })
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(recordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'lena@example.com',
+        name: 'Lena Weber',
+        phone: '+49 152 277 63275',
+        subject: 'General Enquiry',
+      })
+    );
+  });
+
   it('silently accepts and drops a honeypot-tripped bot submission', async () => {
     const res = await POST(req({ ...VALID_BODY, website: 'http://spam.example' }));
     expect(res.status).toBe(200);
