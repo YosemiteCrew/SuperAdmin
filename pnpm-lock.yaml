@@ -84,8 +84,8 @@ importers:
         specifier: 5.7.0
         version: 5.7.0(react@19.2.3)
       supertokens-auth-react:
-        specifier: ^0.51.2
-        version: 0.51.2(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0)
+        specifier: ^0.51.3
+        version: 0.51.3(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0)
       supertokens-node:
         specifier: ^24.0.3
         version: 24.0.3
@@ -6789,8 +6789,8 @@ packages:
     resolution: {integrity: sha512-oTUZM/NAZS8p7ANR3SHh30kXB+zK2r2BPcEn/awJIbOvq82WoMN4p62AWWp3Hhw50G0xMsw1mhIBLqHw64EcNQ==}
     dev: true
 
-  /qr.js@0.0.0:
-    resolution: {integrity: sha512-c4iYnWb+k2E+vYpRimHqSu575b1/wKl4XFeJGpFmrJQz5I88v9aY2czh7s0w36srfCM1sXgC/xpoJz5dJfq+OQ==}
+  /qrcode-generator@2.0.4:
+    resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
     dev: false
 
   /qs@6.15.3:
@@ -6857,13 +6857,13 @@ packages:
     resolution: {integrity: sha512-s5un28nYxKJw5gvUHyW5PCC28CvBqLu9r3cWgzHT4Vo/5fqqkFcdRYsGcKf50WMPpjjFZS5d76fn3YCo2njKwQ==}
     dev: true
 
-  /react-qr-code@2.0.21(react@19.2.3):
-    resolution: {integrity: sha512-xaywjo0eaF4S3LOz6ns5eoPbM2E+q9HYl4VATYpxK4bBniOhQ9noY2RJ9G4SnZFhUwzx63FUT6KdHzfKgUwyuQ==}
+  /react-qr-code@2.2.0(react@19.2.3):
+    resolution: {integrity: sha512-e5nS0UUN22K3Nf8KBRUzemfdJ6OmnN5w+kbnj1lvJaol9RyVRFeGl05bCkxSN2ZegbLxjjYjX1+mmAoX9+fAhw==}
     peerDependencies:
       react: '*'
     dependencies:
       prop-types: 15.8.1
-      qr.js: 0.0.0
+      qrcode-generator: 2.0.4
       react: 19.2.3
     dev: false
 
@@ -7545,8 +7545,8 @@ packages:
       react: 19.2.3
     dev: false
 
-  /supertokens-auth-react@0.51.2(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0):
-    resolution: {integrity: sha512-nOFPqY2OHTZ0CaKDc88V7GxA780jmmu1jJ+KoNk1WW4KOiPMVPXSbJIbAnME9KByXeUkO1ZsEBk2c1xmDZUFzQ==}
+  /supertokens-auth-react@0.51.3(react-dom@19.2.3)(react@19.2.3)(supertokens-web-js@0.16.0):
+    resolution: {integrity: sha512-Gpa/CeLJAP6MKMSvTt6T1xs7SkqM5BaJBuhwPgm/s0IrI+CgCt7AMM1nfKGden2iEU9vsHkMXQVaSjbANY/Yhg==}
     engines: {node: '>=16.0.0', npm: '>=8'}
     peerDependencies:
       react: '>=16.8.0'
@@ -7558,7 +7558,7 @@ packages:
       prop-types: 15.8.1
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
-      react-qr-code: 2.0.21(react@19.2.3)
+      react-qr-code: 2.2.0(react@19.2.3)
       supertokens-js-override: 0.0.4
       supertokens-web-js: 0.16.0
     dev: false
