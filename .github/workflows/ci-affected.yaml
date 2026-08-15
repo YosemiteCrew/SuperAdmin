@@ -21,6 +21,9 @@ env:
   NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
   SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
   SUPERTOKENS_API_KEY: placeholder-ci-key
+  # Credential-free on purpose: the secret scanner rejects a placeholder that
+  # carries a user:password pair. Nothing connects during lint/build/test.
+  DATABASE_URL: postgresql://localhost:5432/placeholder
 
 jobs:
   ci:

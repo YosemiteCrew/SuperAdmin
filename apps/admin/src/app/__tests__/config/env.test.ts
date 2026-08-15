@@ -77,11 +77,18 @@ describe('serverEnv', () => {
     SUPERTOKENS_CONNECTION_URI: process.env.SUPERTOKENS_CONNECTION_URI,
     SUPERTOKENS_API_KEY: process.env.SUPERTOKENS_API_KEY,
     SUPERADMIN_BOOTSTRAP_EMAILS: process.env.SUPERADMIN_BOOTSTRAP_EMAILS,
+    DATABASE_URL: process.env.DATABASE_URL,
   };
+  // Every case below other than the DATABASE_URL one needs a value present,
+  // since the var is read while the serverEnv object literal is built.
+  beforeEach(() => {
+    setEnv('DATABASE_URL', 'postgresql://u:p@localhost:5432/db');
+  });
   afterEach(() => {
     setEnv('SUPERTOKENS_CONNECTION_URI', originals.SUPERTOKENS_CONNECTION_URI);
     setEnv('SUPERTOKENS_API_KEY', originals.SUPERTOKENS_API_KEY);
     setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', originals.SUPERADMIN_BOOTSTRAP_EMAILS);
+    setEnv('DATABASE_URL', originals.DATABASE_URL);
   });
 
   it('throws when SUPERTOKENS_CONNECTION_URI is missing', () => {
@@ -102,6 +109,15 @@ describe('serverEnv', () => {
     });
   });
 
+  it('throws when DATABASE_URL is missing', () => {
+    setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
+    setEnv('SUPERTOKENS_API_KEY', 'k');
+    setEnv('DATABASE_URL', undefined);
+    jest.isolateModules(() => {
+      expect(() => jest.requireActual('@/app/config/env.server')).toThrow(/DATABASE_URL/);
+    });
+  });
+
   it('returns both values when set', () => {
     setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
     setEnv('SUPERTOKENS_API_KEY', 'secret');
@@ -110,6 +126,17 @@ describe('serverEnv', () => {
         jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
       expect(serverEnv.supertokensConnectionUri).toBe('https://s.example.com');
       expect(serverEnv.supertokensApiKey).toBe('secret');
+    });
+  });
+
+  it('exposes databaseUrl when set', () => {
+    setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
+    setEnv('SUPERTOKENS_API_KEY', 'secret');
+    setEnv('DATABASE_URL', 'postgresql://u:p@db.example.com:5432/admin');
+    jest.isolateModules(() => {
+      const { serverEnv } =
+        jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
+      expect(serverEnv.databaseUrl).toBe('postgresql://u:p@db.example.com:5432/admin');
     });
   });
 

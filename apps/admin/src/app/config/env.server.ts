@@ -26,6 +26,15 @@ export const serverEnv = {
     process.env.SUPERTOKENS_CONNECTION_URI
   ),
   supertokensApiKey: requiredServer('SUPERTOKENS_API_KEY', process.env.SUPERTOKENS_API_KEY),
+  // Postgres connection string for the Prisma client. Prisma reads
+  // process.env.DATABASE_URL itself, so nothing here consumes this value — it
+  // is validated purely so a missing one fails at startup like every other
+  // required var. Left unvalidated, the app boots reporting healthy, serves
+  // sign-in and every SuperTokens-backed page, and then throws on each of the
+  // Prisma-backed routes; in production the error boundary hides the message
+  // behind a digest, so the panel looks selectively broken rather than
+  // misconfigured.
+  databaseUrl: requiredServer('DATABASE_URL', process.env.DATABASE_URL),
   superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
   plunkApiKey: process.env.PLUNK_API_KEY ?? '',
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
