@@ -24,14 +24,15 @@ export const LIMITS = {
 } as const;
 
 // The yosemitecrew.com contact form sends a `type` enum instead of a free-text
-// subject. Mapped back to the label the visitor actually clicked so the panel
-// shows "Data Service Access Request", not an API constant. A Map (not an
-// object literal) so an untrusted string like '__proto__' can never resolve to
-// anything but undefined.
+// subject. Mapped back to a readable label so the panel shows "Complaint", not
+// an API constant. DSAR deliberately uses the correct GDPR term ("data
+// subject") rather than the form's current "Data Service" wording — this is
+// the compliance-facing side. A Map (not an object literal) so an untrusted
+// string like '__proto__' can never resolve to anything but undefined.
 const TYPE_SUBJECTS = new Map<string, string>([
   ['GENERAL_ENQUIRY', 'General Enquiry'],
   ['FEATURE_REQUEST', 'Feature Request'],
-  ['DSAR', 'Data Service Access Request'],
+  ['DSAR', 'Data Subject Access Request'],
   ['COMPLAINT', 'Complaint'],
 ]);
 
