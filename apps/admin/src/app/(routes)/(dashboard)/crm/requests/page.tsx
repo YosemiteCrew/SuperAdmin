@@ -6,6 +6,7 @@ import { linkEmailsToAccounts } from '@/app/features/contact/link';
 import {
   countRequestsByStatus,
   listContactRequests,
+  normalizeCursor,
   type RequestStatus,
 } from '@/app/features/contact/store';
 
@@ -39,17 +40,24 @@ function formatDate(ms: number): string {
   });
 }
 
+// searchParams is typed the way Next actually hands it over: a repeated query
+// param arrives as an array, so neither value can be trusted to be a string.
 export default async function ContactRequestsPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ status?: string; cursor?: string }> }>) {
+}: Readonly<{
+  searchParams: Promise<{ status?: string | string[]; cursor?: string | string[] }>;
+}>) {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   const { status, cursor } = await searchParams;
-  const filter: Filter = FILTERS.some((f) => f.key === status) ? (status as Filter) : 'new';
+  const filter: Filter = FILTERS.find((f) => f.key === status)?.key ?? 'new';
 
   const [{ requests, nextCursor }, counts] = await Promise.all([
-    listContactRequests({ status: filter === 'all' ? undefined : filter, cursor }),
+    listContactRequests({
+      status: filter === 'all' ? undefined : filter,
+      cursor: normalizeCursor(cursor),
+    }),
     countRequestsByStatus(),
   ]);
 
