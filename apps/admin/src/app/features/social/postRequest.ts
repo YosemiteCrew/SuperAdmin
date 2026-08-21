@@ -1,6 +1,6 @@
 import { MAX_TITLE_LENGTH, MAX_VIDEO_BYTES, type PostMode } from './limits';
 import { isPrivacyLevel } from './tiktok';
-import type { TikTokPostOptions } from './types';
+import type { InstagramPostOptions, TikTokPostOptions } from './types';
 
 /** The subset of File this parser uses, so tests need no DOM File implementation. */
 export interface UploadedVideo {
@@ -30,7 +30,8 @@ function isUploadedVideo(value: unknown): value is UploadedVideo {
   );
 }
 
-function checkVideo(value: unknown): ParseFailure | UploadedVideo {
+/** Shared by both networks: the file itself has the same limits either way. */
+export function checkVideo(value: unknown): ParseFailure | UploadedVideo {
   if (!isUploadedVideo(value)) return { message: 'A video file is required', status: 400 };
   if (value.size === 0) return { message: 'The video file is empty', status: 400 };
   if (value.size > MAX_VIDEO_BYTES) {
@@ -77,6 +78,35 @@ export function parsePostForm(form: FormData): ParsedPost | ParseFailure {
       disableDuet: form.get('disableDuet') === 'true',
       disableStitch: form.get('disableStitch') === 'true',
       coverMs: 1000,
+    },
+  };
+}
+
+/** Instagram's caption limit. */
+export const MAX_CAPTION_LENGTH = 2200;
+
+export interface ParsedReel {
+  video: UploadedVideo;
+  options: InstagramPostOptions;
+}
+
+/** Validates a multipart Instagram Reel body from the composer or the scheduler. */
+export function parseReelForm(form: FormData): ParsedReel | ParseFailure {
+  const video = checkVideo(form.get('video'));
+  if ('message' in video) return video;
+
+  const caption = String(form.get('caption') ?? '').trim();
+  if (caption.length > MAX_CAPTION_LENGTH) {
+    return { message: `The caption exceeds ${MAX_CAPTION_LENGTH} characters`, status: 400 };
+  }
+
+  return {
+    video,
+    options: {
+      caption,
+      // Default ON: a Reel that does not reach the profile grid is invisible to
+      // anyone browsing the account, which is not what "post to Instagram" means.
+      shareToFeed: form.get('shareToFeed') !== 'false',
     },
   };
 }

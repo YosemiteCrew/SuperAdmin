@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { outcomeResponse, upstreamFailure } from '@/app/features/social/apiResult';
-import { getSocialConfig, missingSocialEnv } from '@/app/features/social/config';
+import { getTikTokConfig, missingTikTokEnv } from '@/app/features/social/config';
 import { isSameOrigin, withSuperAdmin } from '@/app/features/social/guard';
 import { parsePostForm } from '@/app/features/social/postRequest';
 import { publishVideo } from '@/app/features/social/publisher';
@@ -11,7 +11,7 @@ import { fetchPublishStatus } from '@/app/features/social/tiktok';
 
 function notConfigured(): NextResponse {
   return NextResponse.json(
-    { error: 'TikTok posting is not configured', missing: missingSocialEnv() },
+    { error: 'TikTok posting is not configured', missing: missingTikTokEnv() },
     { status: 503 }
   );
 }
@@ -25,7 +25,7 @@ export function POST(request: NextRequest): Promise<Response> {
   }
 
   return withSuperAdmin(request, async (actor) => {
-    const config = getSocialConfig();
+    const config = getTikTokConfig();
     if (!config) return notConfigured();
 
     let form: FormData;
@@ -65,7 +65,7 @@ export function GET(request: NextRequest): Promise<Response> {
       return NextResponse.json({ error: 'publishId is required' }, { status: 400 });
     }
 
-    const config = getSocialConfig();
+    const config = getTikTokConfig();
     if (!config) return notConfigured();
 
     const connection = await getUsableConnection(config);

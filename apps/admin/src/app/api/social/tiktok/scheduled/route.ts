@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 import { serverEnv } from '@/app/config/env.server';
 import { outcomeResponse, upstreamFailure } from '@/app/features/social/apiResult';
-import { getSocialConfig, missingSocialEnv } from '@/app/features/social/config';
+import { getTikTokConfig, missingTikTokEnv } from '@/app/features/social/config';
 import { parsePostForm } from '@/app/features/social/postRequest';
 import { publishVideo } from '@/app/features/social/publisher';
 import { constantTimeEquals } from '@/app/features/social/secrets';
@@ -36,10 +36,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const config = getSocialConfig();
+  const config = getTikTokConfig();
   if (!config) {
     return NextResponse.json(
-      { error: 'TikTok posting is not configured', missing: missingSocialEnv() },
+      { error: 'TikTok posting is not configured', missing: missingTikTokEnv() },
       { status: 503 }
     );
   }

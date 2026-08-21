@@ -13,8 +13,8 @@ jest.mock('@/app/features/social/guard', () => ({
 }));
 
 jest.mock('@/app/features/social/config', () => ({
-  getSocialConfig: jest.fn(),
-  missingSocialEnv: jest.fn(() => ['TIKTOK_CLIENT_KEY']),
+  getTikTokConfig: jest.fn(),
+  missingTikTokEnv: jest.fn(() => ['TIKTOK_CLIENT_KEY']),
 }));
 jest.mock('@/app/features/social/store', () => ({ writeConnection: jest.fn() }));
 jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
@@ -25,7 +25,7 @@ jest.mock('@/app/features/social/tiktok', () => ({
 }));
 
 import { recordAuditEvent } from '@/app/features/audit/store';
-import { getSocialConfig } from '@/app/features/social/config';
+import { getTikTokConfig } from '@/app/features/social/config';
 import { OAUTH_COOKIE } from '@/app/features/social/oauthCookie';
 import { parseKey, seal } from '@/app/features/social/secrets';
 import { writeConnection } from '@/app/features/social/store';
@@ -34,7 +34,7 @@ import { exchangeCode, fetchDisplayName } from '@/app/features/social/tiktok';
 import { GET as connect } from '@/app/api/social/tiktok/connect/route';
 import { GET as callback } from '@/app/api/social/tiktok/callback/route';
 
-const getSocialConfigMock = getSocialConfig as jest.Mock;
+const getTikTokConfigMock = getTikTokConfig as jest.Mock;
 const exchangeCodeMock = exchangeCode as jest.Mock;
 const fetchDisplayNameMock = fetchDisplayName as jest.Mock;
 const writeConnectionMock = writeConnection as jest.Mock;
@@ -67,7 +67,7 @@ function location(response: Response): URL {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  getSocialConfigMock.mockReturnValue(CONFIG);
+  getTikTokConfigMock.mockReturnValue(CONFIG);
 });
 
 describe('GET /api/social/tiktok/connect', () => {
@@ -99,7 +99,7 @@ describe('GET /api/social/tiktok/connect', () => {
   });
 
   it('returns 503 listing what is missing when unconfigured', async () => {
-    getSocialConfigMock.mockReturnValue(null);
+    getTikTokConfigMock.mockReturnValue(null);
     const response = await connect(
       new NextRequest('https://admin.example.com/api/social/tiktok/connect')
     );
@@ -185,7 +185,7 @@ describe('GET /api/social/tiktok/callback', () => {
   });
 
   it('reports an unconfigured host', async () => {
-    getSocialConfigMock.mockReturnValue(null);
+    getTikTokConfigMock.mockReturnValue(null);
     const response = await callback(callbackRequest({ code: 'c', state: 'st' }));
     expect(location(response).searchParams.get('error')).toBe('unconfigured');
   });

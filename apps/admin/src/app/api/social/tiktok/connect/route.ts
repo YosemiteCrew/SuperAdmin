@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { getSocialConfig, missingSocialEnv } from '@/app/features/social/config';
+import { getTikTokConfig, missingTikTokEnv } from '@/app/features/social/config';
 import { withSuperAdmin } from '@/app/features/social/guard';
 import { OAUTH_COOKIE, OAUTH_COOKIE_MAX_AGE } from '@/app/features/social/oauthCookie';
 import { createOAuthState, createPkcePair } from '@/app/features/social/pkce';
@@ -15,10 +15,10 @@ import { buildAuthorizeUrl } from '@/app/features/social/tiktok';
  */
 export function GET(request: NextRequest): Promise<Response> {
   return withSuperAdmin(request, async () => {
-    const config = getSocialConfig();
+    const config = getTikTokConfig();
     if (!config) {
       return NextResponse.json(
-        { error: 'TikTok posting is not configured', missing: missingSocialEnv() },
+        { error: 'TikTok posting is not configured', missing: missingTikTokEnv() },
         { status: 503 }
       );
     }

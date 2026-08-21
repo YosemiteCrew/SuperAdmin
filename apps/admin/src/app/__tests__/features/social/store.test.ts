@@ -10,18 +10,28 @@ jest.mock('@/app/features/social/tiktok', () => ({
   refreshAccessToken: (...args: unknown[]) => refreshMock(...args),
 }));
 
+const refreshLongLivedMock = jest.fn();
+jest.mock('@/app/features/social/instagram', () => ({
+  refreshLongLived: (...args: unknown[]) => refreshLongLivedMock(...args),
+}));
+
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
-import type { SocialConfig } from '@/app/features/social/config';
+import type { InstagramConfig, TikTokConfig } from '@/app/features/social/config';
 import { parseKey, seal } from '@/app/features/social/secrets';
 import {
   clearConnection,
+  clearInstagramConnection,
   getUsableConnection,
+  getUsableInstagramConnection,
   readConnection,
+  readInstagramConnection,
+  toInstagramSummary,
   toSummary,
   writeConnection,
+  writeInstagramConnection,
 } from '@/app/features/social/store';
-import type { TikTokConnection } from '@/app/features/social/types';
+import type { InstagramConnection, TikTokConnection } from '@/app/features/social/types';
 
 const mockGet = UserMetadataNode.getUserMetadata as jest.MockedFunction<
   typeof UserMetadataNode.getUserMetadata
@@ -30,7 +40,7 @@ const mockUpdate = UserMetadataNode.updateUserMetadata as jest.MockedFunction<
   typeof UserMetadataNode.updateUserMetadata
 >;
 
-const CONFIG: SocialConfig = {
+const CONFIG: TikTokConfig = {
   clientKey: 'ck',
   clientSecret: 'cs',
   redirectUri: 'https://admin/cb',
@@ -207,5 +217,123 @@ describe('getUsableConnection', () => {
     storedAs(connection({ expiresAt: NOW + 60_000 }));
     refreshMock.mockRejectedValue(new Error('revoked'));
     expect(await getUsableConnection(CONFIG, NOW)).toBeNull();
+  });
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Same sealing key, Instagram-shaped credentials. */
+const IG_CONFIG: InstagramConfig = {
+  appId: 'ig-app',
+  appSecret: 'ig-secret',
+  redirectUri: 'https://admin/ig-cb',
+  tokenKey: CONFIG.tokenKey,
+};
+
+function igConnection(overrides: Partial<InstagramConnection> = {}): InstagramConnection {
+  return {
+    userId: '178414',
+    username: 'yosemite_crew',
+    accessToken: 'ig-token',
+    expiresAt: NOW + 60 * DAY,
+    connectedAt: NOW,
+    connectedByEmail: 'admin@example.com',
+    ...overrides,
+  };
+}
+
+function igStoredAs(value: InstagramConnection) {
+  mockGet.mockResolvedValue({
+    status: 'OK' as const,
+    metadata: { instagram: seal(JSON.stringify(value), CONFIG.tokenKey) },
+  });
+}
+
+describe('Instagram connection storage', () => {
+  it('writes under its own key, so it cannot clobber the TikTok connection', async () => {
+    await writeInstagramConnection(IG_CONFIG, igConnection());
+    const [storeId, written] = mockUpdate.mock.calls[0] as [string, Record<string, string>];
+    expect(storeId).toBe('superadmin:social-poster');
+    expect(Object.keys(written)).toEqual(['instagram']);
+    expect(written.instagram).toMatch(/^v1\./);
+    expect(written.instagram).not.toContain('accessToken');
+  });
+
+  it('clears only its own key', async () => {
+    await clearInstagramConnection();
+    expect(mockUpdate).toHaveBeenCalledWith('superadmin:social-poster', { instagram: null });
+  });
+
+  it('round-trips a stored connection', async () => {
+    igStoredAs(igConnection());
+    expect(await readInstagramConnection(IG_CONFIG)).toEqual(igConnection());
+  });
+
+  it('returns null for absent, unreadable, malformed or non-string values', async () => {
+    expect(await readInstagramConnection(IG_CONFIG)).toBeNull();
+
+    igStoredAs(igConnection());
+    expect(
+      await readInstagramConnection({ ...IG_CONFIG, tokenKey: parseKey('b'.repeat(64)) })
+    ).toBeNull();
+
+    mockGet.mockResolvedValue({
+      status: 'OK' as const,
+      metadata: { instagram: seal(JSON.stringify({ userId: 5 }), CONFIG.tokenKey) },
+    });
+    expect(await readInstagramConnection(IG_CONFIG)).toBeNull();
+
+    mockGet.mockResolvedValue({ status: 'OK' as const, metadata: { instagram: 42 } });
+    expect(await readInstagramConnection(IG_CONFIG)).toBeNull();
+  });
+
+  it('returns null rather than throwing when the metadata read fails', async () => {
+    mockGet.mockRejectedValue(new Error('core down'));
+    expect(await readInstagramConnection(IG_CONFIG)).toBeNull();
+  });
+
+  it('drops the token from the summary', () => {
+    const summary = toInstagramSummary(igConnection()) as Record<string, unknown>;
+    expect(summary.accessToken).toBeUndefined();
+    expect(summary.username).toBe('yosemite_crew');
+  });
+});
+
+describe('getUsableInstagramConnection', () => {
+  it('returns a token that is still far from expiry without refreshing', async () => {
+    igStoredAs(igConnection());
+    expect((await getUsableInstagramConnection(IG_CONFIG, NOW))?.accessToken).toBe('ig-token');
+    expect(refreshLongLivedMock).not.toHaveBeenCalled();
+  });
+
+  it('returns null when there is no connection', async () => {
+    expect(await getUsableInstagramConnection(IG_CONFIG, NOW)).toBeNull();
+  });
+
+  it('renews and persists inside the one-week margin', async () => {
+    igStoredAs(igConnection({ expiresAt: NOW + 2 * DAY }));
+    refreshLongLivedMock.mockResolvedValue({ accessToken: 'renewed', expiresIn: 60 * 24 * 3600 });
+    const result = await getUsableInstagramConnection(IG_CONFIG, NOW);
+    expect(result?.accessToken).toBe('renewed');
+    expect(mockUpdate).toHaveBeenCalled();
+  });
+
+  it('keeps the old token when the renewal response omits one', async () => {
+    igStoredAs(igConnection({ expiresAt: NOW + 2 * DAY }));
+    refreshLongLivedMock.mockResolvedValue({ accessToken: '', expiresIn: 100 });
+    expect((await getUsableInstagramConnection(IG_CONFIG, NOW))?.accessToken).toBe('ig-token');
+  });
+
+  it('returns null once the token has actually lapsed, since nothing can renew it', async () => {
+    igStoredAs(igConnection({ expiresAt: NOW - 1 }));
+    expect(await getUsableInstagramConnection(IG_CONFIG, NOW)).toBeNull();
+    expect(refreshLongLivedMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps using the still-valid token when renewal fails', async () => {
+    igStoredAs(igConnection({ expiresAt: NOW + 2 * DAY }));
+    refreshLongLivedMock.mockRejectedValue(new Error('rate limited'));
+    // The old token has days left, so today's post should still go out.
+    expect((await getUsableInstagramConnection(IG_CONFIG, NOW))?.accessToken).toBe('ig-token');
   });
 });

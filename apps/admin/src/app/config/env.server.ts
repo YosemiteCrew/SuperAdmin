@@ -62,4 +62,11 @@ export const serverEnv = {
   // scheduled. Optional — the endpoint refuses every request when absent, so an
   // unset key can never mean "unauthenticated posting to the company account".
   socialSchedulerKey: process.env.SOCIAL_SCHEDULER_KEY ?? null,
+  // Instagram poster credentials. Optional for the same reason as TikTok's: the
+  // panel must boot on a host where the poster was never provisioned. Note these
+  // are the INSTAGRAM app id/secret from the use case's "API setup with Instagram
+  // login" panel, not the Meta app id.
+  instagramAppId: process.env.INSTAGRAM_APP_ID ?? null,
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET ?? null,
+  instagramRedirectUri: process.env.INSTAGRAM_REDIRECT_URI ?? null,
 };

@@ -2,9 +2,12 @@
 
 import { useState, useTransition } from 'react';
 
-import { disconnectTikTokAction } from './actions';
+import { disconnectInstagramAction, disconnectTikTokAction } from './actions';
 
-export function DisconnectButton({ accountLabel }: Readonly<{ accountLabel: string }>) {
+export function DisconnectButton({
+  accountLabel,
+  platform = 'tiktok',
+}: Readonly<{ accountLabel: string; platform?: 'tiktok' | 'instagram' }>) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState('');
 
@@ -15,7 +18,10 @@ export function DisconnectButton({ accountLabel }: Readonly<{ accountLabel: stri
     if (!confirmed) return;
     setError('');
     startTransition(async () => {
-      const result = await disconnectTikTokAction();
+      const result =
+        platform === 'instagram'
+          ? await disconnectInstagramAction()
+          : await disconnectTikTokAction();
       if (!result.ok) setError(result.message);
     });
   }

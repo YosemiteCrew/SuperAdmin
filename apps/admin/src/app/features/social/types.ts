@@ -1,5 +1,5 @@
-/** Networks the poster can hold a connection for. Instagram follows TikTok. */
-export type SocialPlatform = 'tiktok';
+/** Networks the poster can hold a connection for. */
+export type SocialPlatform = 'tiktok' | 'instagram';
 
 /**
  * Audience settings TikTok accepts on a post. The account's *allowed* subset is
@@ -52,3 +52,34 @@ export type SocialConnectionState =
   | { status: 'unconfigured'; missing: string[] }
   | { status: 'disconnected' }
   | { status: 'connected'; connection: TikTokConnectionSummary };
+
+/** Identity of the connected Instagram professional account. */
+export interface InstagramProfile {
+  userId: string;
+  username: string;
+}
+
+/** A stored Instagram connection, including its secret. Never send to a client. */
+export interface InstagramConnection {
+  userId: string;
+  username: string;
+  accessToken: string;
+  /**
+   * Epoch ms after which the long-lived token stops working (~60 days). There is
+   * no refresh token: the token refreshes ITSELF while still valid, so letting
+   * this lapse means a full reconnect.
+   */
+  expiresAt: number;
+  connectedAt: number;
+  connectedByEmail: string;
+}
+
+/** The connection minus its secret - this is what the UI is allowed to see. */
+export type InstagramConnectionSummary = Omit<InstagramConnection, 'accessToken'>;
+
+/** Caption and placement for a single Reel. */
+export interface InstagramPostOptions {
+  caption: string;
+  /** Reels also appear on the main profile grid when true. */
+  shareToFeed: boolean;
+}
