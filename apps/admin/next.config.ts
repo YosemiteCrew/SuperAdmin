@@ -2,15 +2,20 @@ import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
 const nextConfig: NextConfig = {
-  // Keep Prisma out of the bundle so its query engine binary is traced from
-  // node_modules instead, rather than being left out of the deployed artifact.
+  // NO serverExternalPackages here. Marking @prisma/client external makes
+  // Turbopack emit a HASHED specifier that does not exist at runtime, and the
+  // whole server chunk then fails to load - taking every route handler with
+  // it, including ones that never touch Prisma:
   //
-  // Only real package names belong here. '.prisma/client' was listed too and
-  // broke EVERY route handler with a 500 - it is a generated directory, not a
-  // resolvable specifier, so marking it external makes Next emit a require()
-  // for it that throws at module load. Pages kept rendering, which is what
-  // made it look like a Prisma problem rather than a config one.
-  serverExternalPackages: ['@prisma/client'],
+  //   Error: Failed to load external module @prisma/client-2c3a283f134fdcb6:
+  //   Cannot find module '@prisma/client-2c3a283f134fdcb6'
+  //   Require stack:
+  //     - .next/server/chunks/[turbopack]_runtime.js
+  //     - .next/server/app/api/ap/revoked.json/route.js
+  //
+  // Letting Next bundle Prisma normally is what worked before. The query
+  // engine is handled by generating into node_modules and pinning
+  // binaryTargets, not by externalising the package.
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'cdn.yourdomain.com' }],
   },
