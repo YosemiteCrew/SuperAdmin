@@ -19,6 +19,7 @@ import {
   MdOutlineForwardToInbox,
   MdOutlineMailOutline,
   MdOutlineMonitor,
+  MdOutlineShare,
   MdOutlinePrivacyTip,
 } from 'react-icons/md';
 import { SiDiscord } from 'react-icons/si';
@@ -68,6 +69,7 @@ const ROUTE_GROUPS: RouteGroup[] = [
       { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
       { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
       { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
+      { name: 'Social', href: '/social', icon: MdOutlineShare },
     ],
   },
   {
