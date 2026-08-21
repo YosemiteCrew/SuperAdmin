@@ -1,8 +1,13 @@
 # AWS Amplify Hosting build spec for the Superadmin panel.
 #
 # This is a pnpm workspace monorepo, so the `applications` form is required:
-# Amplify starts each phase with the working directory at `appRoot`, and the
-# install has to happen at the repo root for the workspace links to resolve.
+# the working directory starts at `appRoot`, and the install has to happen at
+# the repo root for the workspace links to resolve.
+#
+# Every `cd` is wrapped in a subshell. Amplify runs all phases in ONE shell, so
+# a bare `cd ../..` in preBuild leaks into build and the next `cd ../..`
+# overshoots the repo entirely (ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND). Subshells
+# keep each command anchored at `appRoot` no matter what ran before it.
 version: 1
 applications:
   - appRoot: apps/admin
@@ -17,7 +22,7 @@ applications:
             # it under --frozen-lockfile.
             - corepack enable
             - corepack prepare pnpm@8.15.6 --activate
-            - cd ../.. && pnpm install --frozen-lockfile
+            - (cd ../.. && pnpm install --frozen-lockfile)
         build:
           commands:
             # Migrations run on the production branch only. Amplify builds every
@@ -26,11 +31,11 @@ applications:
             # shipped ahead of the schema because nothing ran migrate deploy.
             - |
               if [ "$AWS_BRANCH" = "main" ]; then
-                cd ../.. && pnpm run migrate:deploy
+                (cd ../.. && pnpm run migrate:deploy)
               else
                 echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
               fi
-            - cd ../.. && pnpm run build --filter admin
+            - (cd ../.. && pnpm run build --filter admin)
       artifacts:
         baseDirectory: .next
         files:
