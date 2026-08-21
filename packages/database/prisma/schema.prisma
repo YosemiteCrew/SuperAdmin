@@ -3,15 +3,18 @@
 
 generator client {
   provider = "prisma-client-js"
-  // No custom `output`. Generating into node_modules/.prisma/client is what
-  // Next's output file tracing and `serverExternalPackages` already understand.
-  // A custom output path put the query engine binary outside node_modules,
-  // where tracing missed it, and the deployed panel returned
-  // PrismaClientInitializationError on every query while the build stayed green.
+  // Keep this custom output. It is load bearing in a way that is easy to undo
+  // by accident: importing the client by RELATIVE PATH is what stops Next
+  // externalising it. "@prisma/client" is in Next's built-in
+  // dist/lib/server-external-packages.jsonc, so importing it by package name
+  // makes Turbopack emit a hashed specifier (@prisma/client-<hash>) that is
+  // absent from the Amplify compute bundle - and the whole server chunk then
+  // fails to load, taking EVERY route handler down, not just Prisma ones.
   //
   // binaryTargets pins the engines built at generate time. "native" covers
   // local development; the rhel target covers the Amazon Linux that both the
   // Amplify build container and its SSR compute run on.
+  output        = "../src/generated/client"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 

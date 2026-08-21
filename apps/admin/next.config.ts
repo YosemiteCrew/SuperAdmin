@@ -1,21 +1,26 @@
+import path from 'node:path';
+
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
 const nextConfig: NextConfig = {
-  // NO serverExternalPackages here. Marking @prisma/client external makes
-  // Turbopack emit a HASHED specifier that does not exist at runtime, and the
-  // whole server chunk then fails to load - taking every route handler with
-  // it, including ones that never touch Prisma:
+  // The Prisma client is generated into packages/database/src/generated/client
+  // and imported by relative path, so Next BUNDLES it (see the schema comment -
+  // importing it as "@prisma/client" instead would hit Next's built-in
+  // externals list and break every route handler).
   //
-  //   Error: Failed to load external module @prisma/client-2c3a283f134fdcb6:
-  //   Cannot find module '@prisma/client-2c3a283f134fdcb6'
-  //   Require stack:
-  //     - .next/server/chunks/[turbopack]_runtime.js
-  //     - .next/server/app/api/ap/revoked.json/route.js
+  // Bundling the JS is not enough: the query engine is a .node binary loaded at
+  // runtime through dynamic filesystem access, which tracing cannot follow. It
+  // has to be named explicitly or it never reaches the compute bundle, and
+  // every query fails with PrismaClientInitializationError while the build
+  // stays green.
   //
-  // Letting Next bundle Prisma normally is what worked before. The query
-  // engine is handled by generating into node_modules and pinning
-  // binaryTargets, not by externalising the package.
+  // tracingRoot must be the monorepo root; without it tracing will not look
+  // outside apps/admin and the include below silently matches nothing.
+  outputFileTracingRoot: path.join(__dirname, '../..'),
+  outputFileTracingIncludes: {
+    '/**': ['../../packages/database/src/generated/client/**/*'],
+  },
   images: {
     remotePatterns: [{ protocol: 'https', hostname: 'cdn.yourdomain.com' }],
   },
