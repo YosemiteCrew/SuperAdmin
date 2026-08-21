@@ -44,7 +44,7 @@ const request = {
 beforeEach(() => {
   jest.clearAllMocks();
   getUsableInstagramConnectionMock.mockResolvedValue(CONNECTION);
-  ig.createResumableReel.mockResolvedValue({ containerId: 'c1', uploadUri: 'https://rupload' });
+  ig.createResumableReel.mockResolvedValue({ containerId: '17901', uploadUri: 'https://rupload' });
   ig.uploadReelBytes.mockResolvedValue(undefined);
   ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'FINISHED', error: '' });
   ig.publishContainer.mockResolvedValue('media-9');
@@ -85,7 +85,7 @@ describe('publishReel', () => {
     ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'IN_PROGRESS', error: '' });
     // A deadline already in the past means the loop checks once and gives up.
     const result = await publishReel(CONFIG, ACTOR, request, NOW - 10_000_000_000);
-    expect(result).toEqual({ ok: true, state: 'processing', containerId: 'c1' });
+    expect(result).toEqual({ ok: true, state: 'processing', containerId: '17901' });
     // Nothing was published, so nothing is audited yet.
     expect(ig.publishContainer).not.toHaveBeenCalled();
     expect(recordAuditEventMock).not.toHaveBeenCalled();
@@ -130,24 +130,24 @@ describe('publishReel', () => {
 
 describe('finishReel', () => {
   it('publishes a container that has finished transcoding', async () => {
-    const result = await finishReel(CONFIG, ACTOR, 'c1');
+    const result = await finishReel(CONFIG, ACTOR, '17901');
     expect(result).toEqual({ ok: true, state: 'published', mediaId: 'media-9' });
     expect(recordAuditEventMock).toHaveBeenCalled();
   });
 
   it('reports still-processing without publishing, so it is safe to retry', async () => {
     ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'IN_PROGRESS', error: '' });
-    expect(await finishReel(CONFIG, ACTOR, 'c1')).toEqual({
+    expect(await finishReel(CONFIG, ACTOR, '17901')).toEqual({
       ok: true,
       state: 'processing',
-      containerId: 'c1',
+      containerId: '17901',
     });
     expect(ig.publishContainer).not.toHaveBeenCalled();
   });
 
   it('reports a failed container with its reason', async () => {
     ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'ERROR', error: 'too short' });
-    expect(await finishReel(CONFIG, ACTOR, 'c1')).toEqual({
+    expect(await finishReel(CONFIG, ACTOR, '17901')).toEqual({
       ok: false,
       reason: 'container_failed',
       detail: 'too short',
@@ -156,6 +156,9 @@ describe('finishReel', () => {
 
   it('reports not_connected', async () => {
     getUsableInstagramConnectionMock.mockResolvedValue(null);
-    expect(await finishReel(CONFIG, ACTOR, 'c1')).toEqual({ ok: false, reason: 'not_connected' });
+    expect(await finishReel(CONFIG, ACTOR, '17901')).toEqual({
+      ok: false,
+      reason: 'not_connected',
+    });
   });
 });

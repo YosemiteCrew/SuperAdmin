@@ -204,7 +204,7 @@ describe('InstagramComposer', () => {
   });
 
   it('offers a Publish now button while the container is transcoding, then finishes it', async () => {
-    submitReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: 'c9' });
+    submitReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17909' });
     render(<InstagramComposer />);
     await userEvent.upload(screen.getByLabelText('Reel video'), mp4('reel.mp4'));
     await userEvent.click(screen.getByRole('button', { name: 'Post to Instagram' }));
@@ -213,13 +213,13 @@ describe('InstagramComposer', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('still processing');
 
     await userEvent.click(publishNow);
-    await waitFor(() => expect(finishReelMock).toHaveBeenCalledWith('c9'));
+    await waitFor(() => expect(finishReelMock).toHaveBeenCalledWith('17909'));
     expect(await screen.findByRole('status')).toHaveTextContent('Published to Instagram.');
   });
 
   it('keeps the Publish now button when the container is still not ready', async () => {
-    submitReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: 'c9' });
-    finishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: 'c9' });
+    submitReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17909' });
+    finishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17909' });
     render(<InstagramComposer />);
     await userEvent.upload(screen.getByLabelText('Reel video'), mp4('reel.mp4'));
     await userEvent.click(screen.getByRole('button', { name: 'Post to Instagram' }));

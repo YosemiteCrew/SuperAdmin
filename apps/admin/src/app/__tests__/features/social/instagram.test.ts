@@ -151,7 +151,7 @@ describe('uploadReelBytes', () => {
 describe('fetchContainerStatus', () => {
   it('reads the status code', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ status_code: 'FINISHED', status: '' }));
-    expect(await fetchContainerStatus({ accessToken: 't', containerId: 'c' })).toEqual({
+    expect(await fetchContainerStatus({ accessToken: 't', containerId: '17901' })).toEqual({
       statusCode: 'FINISHED',
       error: '',
     });
@@ -198,15 +198,15 @@ describe('account id validation', () => {
         caption: '',
         shareToFeed: true,
       })
-    ).rejects.toMatchObject({ code: 'invalid_account_id' });
+    ).rejects.toMatchObject({ code: 'invalid_graph_id' });
     expect(fetchMock).not.toHaveBeenCalled();
 
     await expect(
       publishContainer({ accessToken: 't', igUserId: 'not-numeric', containerId: 'c' })
-    ).rejects.toMatchObject({ code: 'invalid_account_id' });
+    ).rejects.toMatchObject({ code: 'invalid_graph_id' });
 
     await expect(fetchPublishingLimit({ accessToken: 't', igUserId: 'x/y' })).rejects.toMatchObject(
-      { code: 'invalid_account_id' }
+      { code: 'invalid_graph_id' }
     );
   });
 });

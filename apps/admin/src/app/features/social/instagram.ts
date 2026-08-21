@@ -5,6 +5,7 @@ const TOKEN_URL = 'https://api.instagram.com/oauth/access_token';
 const GRAPH = 'https://graph.instagram.com';
 const GRAPH_VERSION = 'v23.0';
 const FORM_CONTENT_TYPE = 'application/x-www-form-urlencoded';
+const ACCOUNT_ID = 'account id';
 
 /**
  * Least privilege: basic identifies the account, content_publish posts. The
@@ -41,14 +42,14 @@ export function buildAuthorizeUrl(params: {
 }
 
 /**
- * Instagram account ids are numeric. They come from our own sealed store rather
- * than from request input, but they are interpolated into a Graph URL path, so
- * they are checked here too: a single place that guarantees no id can ever add a
- * path segment or a host to a request we make.
+ * Graph ids - account ids and container ids alike - are numeric. Every id that
+ * reaches a URL path goes through here, so none of them can add a path segment
+ * or a host to a request we make. This matters most for container ids, which
+ * arrive as request input on the finish endpoint rather than from our own store.
  */
-function safeId(value: string): string {
+function safeGraphId(value: string, kind: string): string {
   if (!/^[0-9]+$/.test(value)) {
-    throw new InstagramApiError('invalid_account_id', 'Instagram account id is not numeric');
+    throw new InstagramApiError('invalid_graph_id', `Instagram ${kind} is not numeric`);
   }
   return value;
 }
@@ -193,7 +194,7 @@ export async function createResumableReel(params: {
     access_token: params.accessToken,
   });
   const payload = await readJson(
-    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/media`, {
+    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeGraphId(params.igUserId, ACCOUNT_ID)}/media`, {
       method: 'POST',
       headers: { 'Content-Type': FORM_CONTENT_TYPE },
       body,
@@ -243,7 +244,9 @@ export async function fetchContainerStatus(params: {
     access_token: params.accessToken,
   });
   const payload = await readJson(
-    await fetch(`${GRAPH}/${GRAPH_VERSION}/${params.containerId}?${query.toString()}`)
+    await fetch(
+      `${GRAPH}/${GRAPH_VERSION}/${safeGraphId(params.containerId, 'container id')}?${query.toString()}`
+    )
   );
   return {
     statusCode: readString(payload, 'status_code'),
@@ -257,14 +260,17 @@ export async function publishContainer(params: {
   containerId: string;
 }): Promise<string> {
   const payload = await readJson(
-    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/media_publish`, {
-      method: 'POST',
-      headers: { 'Content-Type': FORM_CONTENT_TYPE },
-      body: new URLSearchParams({
-        creation_id: params.containerId,
-        access_token: params.accessToken,
-      }),
-    })
+    await fetch(
+      `${GRAPH}/${GRAPH_VERSION}/${safeGraphId(params.igUserId, ACCOUNT_ID)}/media_publish`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': FORM_CONTENT_TYPE },
+        body: new URLSearchParams({
+          creation_id: params.containerId,
+          access_token: params.accessToken,
+        }),
+      }
+    )
   );
   return readString(payload, 'id');
 }
@@ -280,7 +286,7 @@ export async function fetchPublishingLimit(params: {
   });
   const payload = await readJson(
     await fetch(
-      `${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/content_publishing_limit?${query.toString()}`
+      `${GRAPH}/${GRAPH_VERSION}/${safeGraphId(params.igUserId, ACCOUNT_ID)}/content_publishing_limit?${query.toString()}`
     )
   );
   const first = asRecord(Array.isArray(payload.data) ? payload.data[0] : {});

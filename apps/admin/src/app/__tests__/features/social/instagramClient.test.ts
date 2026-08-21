@@ -36,11 +36,11 @@ describe('submitReel', () => {
   });
 
   it('carries the container id through on a 202 so the caller can finish it', async () => {
-    fetchMock.mockResolvedValue(response({ state: 'processing', containerId: 'c9' }, 202));
+    fetchMock.mockResolvedValue(response({ state: 'processing', containerId: '17909' }, 202));
     expect(await submitReel(INPUT)).toEqual({
       ok: true,
       state: 'processing',
-      containerId: 'c9',
+      containerId: '17909',
     });
   });
 
@@ -75,15 +75,15 @@ describe('submitReel', () => {
 describe('finishReel', () => {
   it('POSTs the container id, because finishing publishes the Reel', async () => {
     fetchMock.mockResolvedValue(response({ state: 'published' }));
-    expect(await finishReel('c9')).toEqual({ ok: true, state: 'published' });
+    expect(await finishReel('17909')).toEqual({ ok: true, state: 'published' });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/social/instagram/finish');
     expect(init.method).toBe('POST');
-    expect(JSON.parse(init.body as string)).toEqual({ containerId: 'c9' });
+    expect(JSON.parse(init.body as string)).toEqual({ containerId: '17909' });
   });
 
   it('reports still-processing', async () => {
-    fetchMock.mockResolvedValue(response({ state: 'processing', containerId: 'c9' }, 202));
-    expect(await finishReel('c9')).toMatchObject({ state: 'processing' });
+    fetchMock.mockResolvedValue(response({ state: 'processing', containerId: '17909' }, 202));
+    expect(await finishReel('17909')).toMatchObject({ state: 'processing' });
   });
 });

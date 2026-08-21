@@ -220,10 +220,10 @@ describe('POST /api/social/instagram/post', () => {
   });
 
   it('returns 202 with the container id while Instagram is still transcoding', async () => {
-    publishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: 'c9' });
+    publishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17909' });
     const response = await post(postRequest(form()));
     expect(response.status).toBe(202);
-    expect(await response.json()).toEqual({ state: 'processing', containerId: 'c9' });
+    expect(await response.json()).toEqual({ state: 'processing', containerId: '17909' });
   });
 
   it('refuses a cross-origin request before doing any work', async () => {
@@ -275,14 +275,14 @@ describe('POST /api/social/instagram/finish', () => {
     });
 
   it('finishes a container that is ready', async () => {
-    const response = await finish(req({ containerId: 'c9' }));
+    const response = await finish(req({ containerId: '17909' }));
     expect(response.status).toBe(200);
-    expect(finishReelMock).toHaveBeenCalledWith(CONFIG, { actorId: 'user-1' }, 'c9');
+    expect(finishReelMock).toHaveBeenCalledWith(CONFIG, { actorId: 'user-1' }, '17909');
   });
 
   it('refuses a cross-origin request, because finishing PUBLISHES the Reel', async () => {
     isSameOriginMock.mockReturnValue(false);
-    expect((await finish(req({ containerId: 'c9' }))).status).toBe(403);
+    expect((await finish(req({ containerId: '17909' }))).status).toBe(403);
     expect(finishReelMock).not.toHaveBeenCalled();
   });
 
@@ -294,12 +294,12 @@ describe('POST /api/social/instagram/finish', () => {
 
   it('reports an unconfigured host', async () => {
     getInstagramConfigMock.mockReturnValue(null);
-    expect((await finish(req({ containerId: 'c9' }))).status).toBe(503);
+    expect((await finish(req({ containerId: '17909' }))).status).toBe(503);
   });
 
   it('maps a thrown error to 500', async () => {
     finishReelMock.mockRejectedValue(new Error('boom'));
-    expect((await finish(req({ containerId: 'c9' }))).status).toBe(500);
+    expect((await finish(req({ containerId: '17909' }))).status).toBe(500);
   });
 });
 
