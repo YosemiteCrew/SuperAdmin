@@ -3,7 +3,16 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/client"
+  // No custom `output`. Generating into node_modules/.prisma/client is what
+  // Next's output file tracing and `serverExternalPackages` already understand.
+  // A custom output path put the query engine binary outside node_modules,
+  // where tracing missed it, and the deployed panel returned
+  // PrismaClientInitializationError on every query while the build stayed green.
+  //
+  // binaryTargets pins the engines built at generate time. "native" covers
+  // local development; the rhel target covers the Amazon Linux that both the
+  // Amplify build container and its SSR compute run on.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
