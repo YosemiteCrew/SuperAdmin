@@ -170,9 +170,40 @@ If the password contains special characters, percent-encode it in the URI.
 Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
 pulls Prisma **7** off the registry against this Prisma **6** project.
 
-## The panel must own a Postgres schema
+## The panel must own its database
 
-**`DATABASE_URL` has to end `?schema=superadmin`.** Without it the panel targets
+**Target architecture: SuperAdmin runs against its own Supabase project** - not
+`yosemitecrew-production`, and not `yosemitecrew-dev`. Decided 2026-08-21.
+
+The reasoning is worth keeping, because the obvious middle option is the wrong
+one. A Postgres schema gives **namespace** isolation, not **permission**
+isolation: `?schema=superadmin` prevents the migration collision described
+below, but the connection still authenticates as a role that can read `public`
+anyway. This repository is public and the panel is the highest-privilege surface
+in the estate, so "a compromise of the panel must not reach production data" is
+a requirement a schema cannot satisfy.
+
+Nor is the dev database a home for it. These tables are not scratch data:
+`ContactLead`/`ContactRequest` are leads from the live marketing site,
+`ConsentSubject`/`ConsentEvent` are the consent ledger, and `DataRequest`
+carries a statutory one-month deadline. A dev database is somewhere people
+reset, reseed and restore from snapshots.
+
+Two things follow once the panel has its own project:
+
+- `?schema=superadmin` stops being load bearing. There is no foreign `public` to
+  collide with. Harmless to keep, no longer required.
+- The **session pooler** requirement does NOT go away. `prisma migrate deploy`
+  takes a session-level advisory lock, so the transaction pooler still breaks it
+  regardless of which project you are pointed at.
+
+The API to panel contact mirror is HTTP (`/api/contact` with `x-contact-key`),
+not a shared database, so separating the projects costs no coupling.
+
+### Until then: the schema requirement, and why
+
+**While the panel shares a database with the API, `DATABASE_URL` has to end
+`?schema=superadmin`.** Without it the panel targets
 `public`, which it shares with the main Yosemite-Crew API, and the first
 `migrate deploy` half-applies and then wedges. This is not a precaution; it was
 reproduced against a copy of production.
