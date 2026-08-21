@@ -125,7 +125,13 @@ async function grantSuperAdmin(userId: string): Promise<void> {
   await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
 }
 
-async function isSuperAdmin(userId: string): Promise<boolean> {
+/**
+ * Whether a user holds the super-admin role, granting it on a first sign-in that
+ * matches the bootstrap allowlist. Exported for callers that must answer with a
+ * status code instead of a redirect (API route handlers) — page code should use
+ * {@link assertSuperAdmin} or {@link requireSuperAdmin}.
+ */
+export async function isSuperAdminUser(userId: string): Promise<boolean> {
   const { roles } = await UserRolesNode.getRolesForUser(DEFAULT_TENANT_ID, userId);
   if (roles.includes(SUPERADMIN_ROLE)) {
     return true;
@@ -163,7 +169,7 @@ export async function getAuthenticatedSession(): Promise<{ userId: string; mfaCo
 
 export async function assertSuperAdmin(userId: string): Promise<void> {
   ensureSuperTokensInit();
-  if (!(await isSuperAdmin(userId))) {
+  if (!(await isSuperAdminUser(userId))) {
     redirect('/forbidden');
   }
 }
