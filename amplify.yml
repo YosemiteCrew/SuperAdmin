@@ -36,31 +36,33 @@ applications:
                 echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
               fi
             - (cd ../.. && pnpm run build --filter admin)
-            # Fail loudly if the Prisma query engine did not make it into the
-            # build output. Everything about this failure mode is silent: the
-            # build goes green, the deploy succeeds, and only a runtime query
-            # reveals PrismaClientInitializationError. Assert it here instead.
+            # Copy the Prisma query engine into the deployed artifact.
             #
-            # Also prints what WAS traced, so a mismatch is diagnosable from the
-            # build log rather than from production.
+            # .next IS the artifact (see baseDirectory below), so anything put
+            # here ships. The engine cannot get there on its own: Prisma writes
+            # it beside the generated client in packages/, outputFileTracingIncludes
+            # only records it in a manifest, and Amplify does not follow trace
+            # entries that escape the app directory. packages/database/src/client.ts
+            # resolves it back out of .next/prisma at runtime.
             - |
               ENGINE=libquery_engine-rhel-openssl-3.0.x.so.node
-              echo "--- engine present in the generated client? ---"
-              ls -la ../../packages/database/src/generated/client/ | grep -i "engine" || echo "NO ENGINE IN GENERATED CLIENT"
-              echo "--- engine anywhere under .next? ---"
-              find .next -name "*query_engine*" 2>/dev/null | head -20 || true
-              echo "--- what the health route traced (grep for prisma/engine) ---"
-              NFT=.next/server/app/api/health/route.js.nft.json
-              if [ -f "$NFT" ]; then
-                tr ',' '\n' < "$NFT" | grep -iE "prisma|engine" | head -20 || echo "(no prisma/engine entries in the trace)"
-              else
-                echo "NO NFT FILE AT $NFT - build tracing did not run (is --webpack still set?)"
+              SRC=../../packages/database/src/generated/client/$ENGINE
+              mkdir -p .next/prisma
+              if [ ! -f "$SRC" ]; then
+                echo "FAIL: $ENGINE was not generated at $SRC"
+                echo "      (is binaryTargets still set in schema.prisma?)"
+                ls -la ../../packages/database/src/generated/client/ || true
+                exit 1
               fi
-              echo "--- verdict ---"
-              if find .next -name "$ENGINE" 2>/dev/null | grep -q .; then
-                echo "OK: $ENGINE is in .next"
+              cp "$SRC" .next/prisma/
+              echo "copied $ENGINE -> .next/prisma/ ($(du -h .next/prisma/$ENGINE | cut -f1))"
+              # Assert rather than trust. Every layer of this failure is silent:
+              # the build goes green, the deploy succeeds, and only a query in
+              # production reveals PrismaClientInitializationError.
+              if [ -f ".next/prisma/$ENGINE" ]; then
+                echo "OK: engine is in the artifact"
               else
-                echo "FAIL: $ENGINE is NOT in .next - the deployed bundle would have no query engine"
+                echo "FAIL: engine missing from .next/prisma after copy"
                 exit 1
               fi
       artifacts:
