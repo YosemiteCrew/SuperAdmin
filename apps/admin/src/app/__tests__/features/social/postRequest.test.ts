@@ -1,4 +1,9 @@
-import { parsePostForm, type ParsedPost } from '@/app/features/social/postRequest';
+import {
+  parsePostForm,
+  parseReelForm,
+  type ParsedPost,
+  type ParsedReel,
+} from '@/app/features/social/postRequest';
 import { MAX_VIDEO_BYTES } from '@/app/features/social/limits';
 
 function fakeForm(entries: Record<string, unknown>): FormData {
@@ -97,6 +102,43 @@ describe('parsePostForm', () => {
   it('requires a valid privacy level for a direct post', () => {
     expect(parsePostForm(fakeForm({ ...VALID, privacy: 'EVERYONE' }))).toMatchObject({
       message: 'A valid privacy level is required',
+    });
+  });
+});
+
+describe('parseReelForm', () => {
+  it('parses a complete Reel', () => {
+    const parsed = parseReelForm(
+      fakeForm({ video: video(), caption: '  vet humour  ', shareToFeed: 'true' })
+    ) as ParsedReel;
+    expect(parsed.options).toEqual({ caption: 'vet humour', shareToFeed: true });
+  });
+
+  it('defaults share-to-feed ON, so the Reel is visible on the profile', () => {
+    const parsed = parseReelForm(fakeForm({ video: video() })) as ParsedReel;
+    expect(parsed.options.shareToFeed).toBe(true);
+  });
+
+  it('honours an explicit opt out', () => {
+    const parsed = parseReelForm(fakeForm({ video: video(), shareToFeed: 'false' })) as ParsedReel;
+    expect(parsed.options.shareToFeed).toBe(false);
+  });
+
+  it('allows an empty caption', () => {
+    expect(parseReelForm(fakeForm({ video: video() }))).not.toHaveProperty('message');
+  });
+
+  it('applies the same file checks as the TikTok path', () => {
+    expect(parseReelForm(fakeForm({}))).toMatchObject({ message: 'A video file is required' });
+    expect(parseReelForm(fakeForm({ video: video({ size: 0 }) }))).toMatchObject({ status: 400 });
+    expect(parseReelForm(fakeForm({ video: video({ type: 'video/quicktime' }) }))).toMatchObject({
+      message: 'Only MP4 video is accepted',
+    });
+  });
+
+  it('rejects a caption over the limit', () => {
+    expect(parseReelForm(fakeForm({ video: video(), caption: 'x'.repeat(2201) }))).toMatchObject({
+      status: 400,
     });
   });
 });

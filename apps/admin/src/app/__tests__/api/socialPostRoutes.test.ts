@@ -11,8 +11,8 @@ jest.mock('@/app/features/social/guard', () => ({
   isSameOrigin: jest.fn(() => true),
 }));
 jest.mock('@/app/features/social/config', () => ({
-  getSocialConfig: jest.fn(),
-  missingSocialEnv: jest.fn(() => ['TIKTOK_CLIENT_KEY']),
+  getTikTokConfig: jest.fn(),
+  missingTikTokEnv: jest.fn(() => ['TIKTOK_CLIENT_KEY']),
 }));
 jest.mock('@/app/features/social/publisher', () => ({ publishVideo: jest.fn() }));
 jest.mock('@/app/features/social/store', () => ({ getUsableConnection: jest.fn() }));
@@ -32,7 +32,7 @@ jest.mock('@/app/config/env.server', () => ({
   },
 }));
 
-import { getSocialConfig } from '@/app/features/social/config';
+import { getTikTokConfig } from '@/app/features/social/config';
 import { isSameOrigin } from '@/app/features/social/guard';
 import { publishVideo } from '@/app/features/social/publisher';
 import { getUsableConnection } from '@/app/features/social/store';
@@ -41,7 +41,7 @@ import { fetchPublishStatus } from '@/app/features/social/tiktok';
 import { GET as status, POST as post } from '@/app/api/social/tiktok/post/route';
 import { POST as scheduled } from '@/app/api/social/tiktok/scheduled/route';
 
-const getSocialConfigMock = getSocialConfig as jest.Mock;
+const getTikTokConfigMock = getTikTokConfig as jest.Mock;
 const isSameOriginMock = isSameOrigin as jest.Mock;
 const publishVideoMock = publishVideo as jest.Mock;
 const getUsableConnectionMock = getUsableConnection as jest.Mock;
@@ -80,7 +80,7 @@ function scheduledRequest(body: BodyInit, key?: string): NextRequest {
 beforeEach(() => {
   jest.clearAllMocks();
   env.socialSchedulerKey = null;
-  getSocialConfigMock.mockReturnValue(CONFIG);
+  getTikTokConfigMock.mockReturnValue(CONFIG);
   isSameOriginMock.mockReturnValue(true);
   publishVideoMock.mockResolvedValue({ ok: true, publishId: 'pid', mode: 'direct' });
 });
@@ -105,7 +105,7 @@ describe('POST /api/social/tiktok/post', () => {
   });
 
   it('returns 503 when the host is not configured', async () => {
-    getSocialConfigMock.mockReturnValue(null);
+    getTikTokConfigMock.mockReturnValue(null);
     expect((await post(postRequest(form()))).status).toBe(503);
   });
 
@@ -159,10 +159,10 @@ describe('GET /api/social/tiktok/post', () => {
   });
 
   it('returns 503 when unconfigured and 409 when disconnected', async () => {
-    getSocialConfigMock.mockReturnValue(null);
+    getTikTokConfigMock.mockReturnValue(null);
     expect((await status(statusRequest())).status).toBe(503);
 
-    getSocialConfigMock.mockReturnValue(CONFIG);
+    getTikTokConfigMock.mockReturnValue(CONFIG);
     getUsableConnectionMock.mockResolvedValue(null);
     expect((await status(statusRequest())).status).toBe(409);
   });
@@ -203,7 +203,7 @@ describe('POST /api/social/tiktok/scheduled', () => {
 
   it('returns 503 when the host is not configured', async () => {
     env.socialSchedulerKey = 'correct-horse';
-    getSocialConfigMock.mockReturnValue(null);
+    getTikTokConfigMock.mockReturnValue(null);
     expect((await scheduled(scheduledRequest(form(), 'correct-horse'))).status).toBe(503);
   });
 

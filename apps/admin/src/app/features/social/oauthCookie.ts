@@ -21,3 +21,22 @@ export function parseOAuthCookie(plaintext: string): OAuthCookiePayload | null {
     return null;
   }
 }
+
+/** Name of the cookie carrying the sealed Instagram OAuth state. */
+export const INSTAGRAM_OAUTH_COOKIE = 'sa-instagram-oauth';
+
+/**
+ * Instagram's flow has no PKCE, so the cookie carries only the state value.
+ * It is still sealed rather than plain, so a forged cookie cannot fabricate a
+ * state that matches an attacker-chosen callback.
+ */
+export function parseStateCookie(plaintext: string): string | null {
+  try {
+    const parsed: unknown = JSON.parse(plaintext);
+    if (typeof parsed !== 'object' || parsed === null) return null;
+    const { state } = parsed as Record<string, unknown>;
+    return typeof state === 'string' && state ? state : null;
+  } catch {
+    return null;
+  }
+}

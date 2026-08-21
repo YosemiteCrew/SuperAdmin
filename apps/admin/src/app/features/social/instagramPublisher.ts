@@ -1,0 +1,145 @@
+import 'server-only';
+
+import { recordAuditEvent } from '@/app/features/audit/store';
+import { logger } from '@/app/lib/logger';
+
+import type { InstagramConfig } from './config';
+import {
+  createResumableReel,
+  fetchContainerStatus,
+  publishContainer,
+  uploadReelBytes,
+} from './instagram';
+import { getUsableInstagramConnection } from './store';
+import type { InstagramConnection, InstagramPostOptions } from './types';
+
+/**
+ * How long to wait for Instagram to transcode before handing the caller a
+ * container id to finish later. Reels usually finish inside 30s; the cap keeps
+ * the request well short of a platform timeout rather than blocking on the tail.
+ */
+const MAX_WAIT_MS = 45_000;
+const POLL_INTERVAL_MS = 3_000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export interface InstagramPublishRequest {
+  bytes: Uint8Array;
+  options: InstagramPostOptions;
+}
+
+export type InstagramPublishOutcome =
+  | { ok: true; state: 'published'; mediaId: string }
+  // Transcoding outran the wait. Nothing is lost: the container is real and the
+  // status endpoint finishes it.
+  | { ok: true; state: 'processing'; containerId: string }
+  | { ok: false; reason: 'not_connected' }
+  | { ok: false; reason: 'container_failed'; detail: string };
+
+async function auditPost(actorId: string, connection: InstagramConnection): Promise<void> {
+  await recordAuditEvent({
+    action: 'social.post',
+    actorId,
+    targetType: 'social_account',
+    targetId: `instagram:${connection.userId}`,
+    targetLabel: connection.username ? `Instagram @${connection.username}` : 'Instagram',
+  });
+}
+
+/** Polls until the container is publishable, the deadline passes, or it errors. */
+async function waitForContainer(
+  accessToken: string,
+  containerId: string,
+  deadline: number
+): Promise<'FINISHED' | 'IN_PROGRESS' | 'ERROR'> {
+  let status = await fetchContainerStatus({ accessToken, containerId });
+  while (status.statusCode === 'IN_PROGRESS' && Date.now() < deadline) {
+    await delay(POLL_INTERVAL_MS);
+    status = await fetchContainerStatus({ accessToken, containerId });
+  }
+  if (status.statusCode === 'FINISHED') return 'FINISHED';
+  return status.statusCode === 'IN_PROGRESS' ? 'IN_PROGRESS' : 'ERROR';
+}
+
+/**
+ * The single Instagram publish path, shared by the admin composer and the
+ * scheduler so the two cannot drift on validation, audit or upstream handling.
+ */
+export async function publishReel(
+  config: InstagramConfig,
+  actor: { actorId: string },
+  request: InstagramPublishRequest,
+  now = Date.now()
+): Promise<InstagramPublishOutcome> {
+  const connection = await getUsableInstagramConnection(config);
+  if (!connection) return { ok: false, reason: 'not_connected' };
+
+  const target = await createResumableReel({
+    accessToken: connection.accessToken,
+    igUserId: connection.userId,
+    caption: request.options.caption,
+    shareToFeed: request.options.shareToFeed,
+  });
+  await uploadReelBytes({
+    uploadUri: target.uploadUri,
+    accessToken: connection.accessToken,
+    bytes: request.bytes,
+  });
+
+  const state = await waitForContainer(
+    connection.accessToken,
+    target.containerId,
+    now + MAX_WAIT_MS
+  );
+  if (state === 'ERROR') {
+    return { ok: false, reason: 'container_failed', detail: target.containerId };
+  }
+  if (state === 'IN_PROGRESS') {
+    logger.info('Instagram container still transcoding; handing back for follow-up', {
+      containerId: target.containerId,
+    });
+    return { ok: true, state: 'processing', containerId: target.containerId };
+  }
+
+  const mediaId = await publishContainer({
+    accessToken: connection.accessToken,
+    igUserId: connection.userId,
+    containerId: target.containerId,
+  });
+  await auditPost(actor.actorId, connection);
+  return { ok: true, state: 'published', mediaId };
+}
+
+/**
+ * Finishes a publish whose container was still transcoding when the request
+ * returned. Safe to call repeatedly: it publishes only once the container
+ * reports FINISHED.
+ */
+export async function finishReel(
+  config: InstagramConfig,
+  actor: { actorId: string },
+  containerId: string
+): Promise<InstagramPublishOutcome> {
+  const connection = await getUsableInstagramConnection(config);
+  if (!connection) return { ok: false, reason: 'not_connected' };
+
+  const status = await fetchContainerStatus({ accessToken: connection.accessToken, containerId });
+  if (status.statusCode === 'IN_PROGRESS') {
+    return { ok: true, state: 'processing', containerId };
+  }
+  if (status.statusCode !== 'FINISHED') {
+    return { ok: false, reason: 'container_failed', detail: status.error || status.statusCode };
+  }
+
+  const mediaId = await publishContainer({
+    accessToken: connection.accessToken,
+    igUserId: connection.userId,
+    containerId,
+  });
+  await auditPost(actor.actorId, connection);
+  return { ok: true, state: 'published', mediaId };
+}

@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 import { recordAuditEvent } from '@/app/features/audit/store';
-import { getSocialConfig } from '@/app/features/social/config';
+import { getTikTokConfig } from '@/app/features/social/config';
 import { withSuperAdmin } from '@/app/features/social/guard';
 import { OAUTH_COOKIE, parseOAuthCookie } from '@/app/features/social/oauthCookie';
 import { statesMatch } from '@/app/features/social/pkce';
@@ -25,7 +25,7 @@ function backToPanel(request: NextRequest, params: Record<string, string>): Next
 
 export function GET(request: NextRequest): Promise<Response> {
   return withSuperAdmin(request, async (actor) => {
-    const config = getSocialConfig();
+    const config = getTikTokConfig();
     if (!config) return backToPanel(request, { error: 'unconfigured' });
 
     const query = request.nextUrl.searchParams;

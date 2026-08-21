@@ -6,7 +6,7 @@ import {
   SecretKeyError,
 } from '@/app/features/social/secrets';
 import { createOAuthState, createPkcePair, statesMatch } from '@/app/features/social/pkce';
-import { parseOAuthCookie } from '@/app/features/social/oauthCookie';
+import { parseOAuthCookie, parseStateCookie } from '@/app/features/social/oauthCookie';
 import { createHash } from 'node:crypto';
 
 const HEX_KEY = 'a'.repeat(64);
@@ -98,5 +98,20 @@ describe('parseOAuthCookie', () => {
     expect(parseOAuthCookie('{"state":1,"verifier":"v"}')).toBeNull();
     expect(parseOAuthCookie('{"state":"s"}')).toBeNull();
     expect(parseOAuthCookie('{"state":"","verifier":"v"}')).toBeNull();
+  });
+});
+
+describe('parseStateCookie', () => {
+  it('reads the state from a well-formed payload', () => {
+    expect(parseStateCookie('{"state":"abc"}')).toBe('abc');
+  });
+
+  it('rejects malformed JSON, non-objects, wrong types and empty values', () => {
+    expect(parseStateCookie('nope')).toBeNull();
+    expect(parseStateCookie('null')).toBeNull();
+    expect(parseStateCookie('"a string"')).toBeNull();
+    expect(parseStateCookie('{"state":7}')).toBeNull();
+    expect(parseStateCookie('{"state":""}')).toBeNull();
+    expect(parseStateCookie('{}')).toBeNull();
   });
 });
