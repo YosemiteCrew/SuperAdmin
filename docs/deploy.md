@@ -52,12 +52,12 @@ is baked into the bundle, so changing it needs a redeploy.
 
 Required, the app refuses to boot without them:
 
-| Variable                     | Value                                                                                                                 |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                                      |
-| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                                              |
-| `SUPERTOKENS_API_KEY`        | the core API key                                                                                                      |
-| `DATABASE_URL`               | Postgres. **Session pooler**, not the transaction pooler and not the direct connection - see Supabase specifics below |
+| Variable                     | Value                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                  |
+| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                          |
+| `SUPERTOKENS_API_KEY`        | the core API key                                                                                  |
+| `DATABASE_URL`               | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
 
 #### Which ones actually block a build
 
@@ -169,6 +169,61 @@ If the password contains special characters, percent-encode it in the URI.
 
 Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
 pulls Prisma **7** off the registry against this Prisma **6** project.
+
+## The panel must own a Postgres schema
+
+**`DATABASE_URL` has to end `?schema=superadmin`.** Without it the panel targets
+`public`, which it shares with the main Yosemite-Crew API, and the first
+`migrate deploy` half-applies and then wedges. This is not a precaution; it was
+reproduced against a copy of production.
+
+`public` on `yosemitecrew-production` already contains a `ContactRequest` table
+that is **not ours**: 17 columns, `type` and `source` as enums, a `userId`. The
+panel's model has 9 fields and none of those. Same name, different table,
+different owner. `public._prisma_migrations` likewise holds 100+ rows belonging
+to the API, and none of the panel's five.
+
+Prisma applies in lexicographic order, so `..._add_consent_ledger` runs before
+`..._add_contact_leads`. Pointed at `public`, `migrate deploy` does this:
+
+```
+Applying migration `20260630_add_ap_license_token`      <- created on the shared DB
+Applying migration `20260703_add_consent_ledger`        <- created on the shared DB
+Applying migration `20260703_add_contact_leads`
+Error: P3018 ... Database error code: 42P07
+ERROR: relation "ContactRequest" already exists
+```
+
+Three tables are now on the shared database, and the failed migration is left
+with `finished_at = NULL`. Every later deploy then dies before doing anything:
+
+```
+Error: P3009
+migrate found failed migrations in the target database, new migrations will not
+be applied.
+```
+
+Recovering that needs a manual `migrate resolve` against production.
+
+With `?schema=superadmin` the same database takes all five migrations cleanly.
+Prisma **creates the schema itself** - it does not have to exist first - and puts
+its own `_prisma_migrations` inside it, so the two projects stop sharing a ledger
+and stop sharing a namespace. `public` is left byte-identical: the API's
+`ContactRequest` keeps its 17 columns and its rows, and its ledger keeps exactly
+its own rows. Prisma Client honours the same parameter, so reads and writes at
+runtime land in `superadmin` too.
+
+One caveat that is worth thirty seconds before the first build. Prisma implements
+`?schema=` by setting `search_path` on the connection, which survives a **session**
+pooler but not a transaction pooler - another reason `DATABASE_URL` must be the
+session pooler. Confirm it end to end against the real pooler with:
+
+```bash
+psql "$DATABASE_URL" -c 'show search_path;'
+```
+
+It should name `superadmin`. If it says `public`, stop: the parameter is being
+dropped and a deploy would land in the shared schema.
 
 ## Repairing a schema that drifted
 
