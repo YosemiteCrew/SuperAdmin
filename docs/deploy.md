@@ -33,21 +33,54 @@ of the 2026-08-11 outage.
 
 ### Environment variables
 
-Set these in Amplify under App settings > Environment variables. Everything is
+Set these in Amplify under **App settings > Environment variables**. Everything is
 read at build time as well as runtime, and `NEXT_PUBLIC_APP_ORIGIN` in particular
 is baked into the bundle, so changing it needs a redeploy.
 
+> **Do not move the credential-bearing ones into App settings > Secrets.** That
+> store looks like the obvious home for `DATABASE_URL` and `SUPERTOKENS_API_KEY`,
+> and AWS's own environment-variable page tells you not to keep secrets in
+> environment variables. It does not work here. Amplify Gen 1 secrets are
+> delivered as _"`process.env.secrets` as a JSON string"_ - a single blob, not
+> individual variables - so `process.env.DATABASE_URL` stays undefined and the
+> build fails exactly as if you had set nothing. It is also a build-phase
+> mechanism, so the SSR compute would not see them at runtime either. Nothing in
+> this app parses that blob.
+>
+> Amplify encrypts environment variables at rest, so the real exposure is console
+> read access. Control it there, and treat every value below as rotatable.
+
 Required, the app refuses to boot without them:
 
-| Variable                     | Value                                                                                                                 |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                                      |
-| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                                              |
-| `SUPERTOKENS_API_KEY`        | the core API key                                                                                                      |
-| `DATABASE_URL`               | Postgres. **Session pooler**, not the transaction pooler and not the direct connection - see Supabase specifics below |
+| Variable                     | Value                                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                  |
+| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                          |
+| `SUPERTOKENS_API_KEY`        | the core API key                                                                                  |
+| `DATABASE_URL`               | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
+
+#### Which ones actually block a build
+
+Only three stop a build, and they stop it at different points, so fix them in this
+order:
+
+1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
+   `next build`, so an absent value halts everything with `Validation Error
+Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
+   attempted to compile the app.
+2. **`SUPERTOKENS_CONNECTION_URI`** and **`SUPERTOKENS_API_KEY`** fail next, while
+   Next collects page data - `env.server.ts` throws on module load. The URI has to
+   point at a core that is genuinely _reachable_, not merely be set: collecting
+   `/api/auth/[[...path]]` opens a connection. Check with
+   `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with no
+   API key.
+
+`NEXT_PUBLIC_APP_ORIGIN` does not fail the build, but it is baked into the bundle,
+so a wrong value ships silently and breaks both OAuth callbacks.
 
 Optional; each one that is absent disables exactly one feature and leaves the
-rest of the panel working: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
+rest of the panel working, so a first deploy can go green with only the three
+above: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
 `PLUNK_API_ENDPOINT`, `AP_SIGNING_KEY`, `AP_SIGNING_KEY_ID`, `CONSENT_INTAKE_KEY`,
 `CONTACT_INTAKE_KEY`, and the social poster set (`TIKTOK_CLIENT_KEY`,
 `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `INSTAGRAM_APP_ID`,
@@ -116,6 +149,16 @@ Supabase labels the session pooler "only recommended as an alternative to direct
 connection when connecting via an IPv4 network", which is exactly what an Amplify
 build is. Find all three under **Database > Settings > Connect**.
 
+For `yosemitecrew-production` the session pooler parameters are host
+`aws-1-eu-central-1.pooler.supabase.com`, port `5432`, database `postgres`, user
+`postgres.<project-ref>`. Note the host prefix is `aws-1-`; older Supabase docs
+show `aws-0-`, and copying that gives a hostname that does not resolve.
+
+While you are on that page, confirm **Network restrictions** still reads "Your
+database can be accessed by all IP addresses". Amplify build containers have no
+stable egress IP, so any allowlist there fails the build with a connection
+timeout that looks nothing like a permissions problem.
+
 **The database password is not retrievable.** Supabase shows it once at creation.
 The connection dialog only ever renders `[YOUR-PASSWORD]` as a placeholder.
 Resetting it is not free: the same database backs other services, so a reset
@@ -126,6 +169,61 @@ If the password contains special characters, percent-encode it in the URI.
 
 Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
 pulls Prisma **7** off the registry against this Prisma **6** project.
+
+## The panel must own a Postgres schema
+
+**`DATABASE_URL` has to end `?schema=superadmin`.** Without it the panel targets
+`public`, which it shares with the main Yosemite-Crew API, and the first
+`migrate deploy` half-applies and then wedges. This is not a precaution; it was
+reproduced against a copy of production.
+
+`public` on `yosemitecrew-production` already contains a `ContactRequest` table
+that is **not ours**: 17 columns, `type` and `source` as enums, a `userId`. The
+panel's model has 9 fields and none of those. Same name, different table,
+different owner. `public._prisma_migrations` likewise holds 100+ rows belonging
+to the API, and none of the panel's five.
+
+Prisma applies in lexicographic order, so `..._add_consent_ledger` runs before
+`..._add_contact_leads`. Pointed at `public`, `migrate deploy` does this:
+
+```
+Applying migration `20260630_add_ap_license_token`      <- created on the shared DB
+Applying migration `20260703_add_consent_ledger`        <- created on the shared DB
+Applying migration `20260703_add_contact_leads`
+Error: P3018 ... Database error code: 42P07
+ERROR: relation "ContactRequest" already exists
+```
+
+Three tables are now on the shared database, and the failed migration is left
+with `finished_at = NULL`. Every later deploy then dies before doing anything:
+
+```
+Error: P3009
+migrate found failed migrations in the target database, new migrations will not
+be applied.
+```
+
+Recovering that needs a manual `migrate resolve` against production.
+
+With `?schema=superadmin` the same database takes all five migrations cleanly.
+Prisma **creates the schema itself** - it does not have to exist first - and puts
+its own `_prisma_migrations` inside it, so the two projects stop sharing a ledger
+and stop sharing a namespace. `public` is left byte-identical: the API's
+`ContactRequest` keeps its 17 columns and its rows, and its ledger keeps exactly
+its own rows. Prisma Client honours the same parameter, so reads and writes at
+runtime land in `superadmin` too.
+
+One caveat that is worth thirty seconds before the first build. Prisma implements
+`?schema=` by setting `search_path` on the connection, which survives a **session**
+pooler but not a transaction pooler - another reason `DATABASE_URL` must be the
+session pooler. Confirm it end to end against the real pooler with:
+
+```bash
+psql "$DATABASE_URL" -c 'show search_path;'
+```
+
+It should name `superadmin`. If it says `public`, stop: the parameter is being
+dropped and a deploy would land in the shared schema.
 
 ## Repairing a schema that drifted
 
