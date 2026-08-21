@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { instagramFailure, instagramOutcomeResponse } from '@/app/features/social/apiResult';
 import { getInstagramConfig, missingInstagramEnv } from '@/app/features/social/config';
 import { isSameOrigin, withSuperAdmin } from '@/app/features/social/guard';
-import { finishReel, publishReel } from '@/app/features/social/instagramPublisher';
+import { publishReel } from '@/app/features/social/instagramPublisher';
 import { parseReelForm } from '@/app/features/social/postRequest';
 
 function notConfigured(): NextResponse {
@@ -45,30 +45,6 @@ export function POST(request: NextRequest): Promise<Response> {
         { bytes: new Uint8Array(await parsed.video.arrayBuffer()), options: parsed.options }
       );
       return instagramOutcomeResponse(outcome);
-    } catch (error) {
-      return instagramFailure(error);
-    }
-  });
-}
-
-/**
- * Finishes a publish whose container was still transcoding when POST returned.
- * Safe to call repeatedly - it publishes only once the container is FINISHED.
- */
-export function GET(request: NextRequest): Promise<Response> {
-  return withSuperAdmin(request, async (actor) => {
-    const containerId = request.nextUrl.searchParams.get('containerId');
-    if (!containerId) {
-      return NextResponse.json({ error: 'containerId is required' }, { status: 400 });
-    }
-
-    const config = getInstagramConfig();
-    if (!config) return notConfigured();
-
-    try {
-      return instagramOutcomeResponse(
-        await finishReel(config, { actorId: actor.userId }, containerId)
-      );
     } catch (error) {
       return instagramFailure(error);
     }

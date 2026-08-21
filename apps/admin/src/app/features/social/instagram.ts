@@ -40,6 +40,19 @@ export function buildAuthorizeUrl(params: {
   return `${AUTH_URL}?${query.toString()}`;
 }
 
+/**
+ * Instagram account ids are numeric. They come from our own sealed store rather
+ * than from request input, but they are interpolated into a Graph URL path, so
+ * they are checked here too: a single place that guarantees no id can ever add a
+ * path segment or a host to a request we make.
+ */
+function safeId(value: string): string {
+  if (!/^[0-9]+$/.test(value)) {
+    throw new InstagramApiError('invalid_account_id', 'Instagram account id is not numeric');
+  }
+  return value;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
@@ -180,7 +193,7 @@ export async function createResumableReel(params: {
     access_token: params.accessToken,
   });
   const payload = await readJson(
-    await fetch(`${GRAPH}/${GRAPH_VERSION}/${params.igUserId}/media`, {
+    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/media`, {
       method: 'POST',
       headers: { 'Content-Type': FORM_CONTENT_TYPE },
       body,
@@ -244,7 +257,7 @@ export async function publishContainer(params: {
   containerId: string;
 }): Promise<string> {
   const payload = await readJson(
-    await fetch(`${GRAPH}/${GRAPH_VERSION}/${params.igUserId}/media_publish`, {
+    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/media_publish`, {
       method: 'POST',
       headers: { 'Content-Type': FORM_CONTENT_TYPE },
       body: new URLSearchParams({
@@ -267,7 +280,7 @@ export async function fetchPublishingLimit(params: {
   });
   const payload = await readJson(
     await fetch(
-      `${GRAPH}/${GRAPH_VERSION}/${params.igUserId}/content_publishing_limit?${query.toString()}`
+      `${GRAPH}/${GRAPH_VERSION}/${safeId(params.igUserId)}/content_publishing_limit?${query.toString()}`
     )
   );
   const first = asRecord(Array.isArray(payload.data) ? payload.data[0] : {});

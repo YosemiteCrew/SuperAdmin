@@ -1,4 +1,5 @@
 const ENDPOINT = '/api/social/instagram/post';
+const FINISH_ENDPOINT = '/api/social/instagram/finish';
 
 export interface SubmitReelInput {
   video: File;
@@ -41,8 +42,15 @@ export async function submitReel(input: SubmitReelInput): Promise<SubmitReelResu
   return toResult(await readJson(response), response.status);
 }
 
-/** Finishes a Reel whose container was still transcoding. */
+/**
+ * Finishes a Reel whose container was still transcoding. A POST rather than a
+ * GET because it publishes: see the route for why that matters.
+ */
 export async function finishReel(containerId: string): Promise<SubmitReelResult> {
-  const response = await fetch(`${ENDPOINT}?containerId=${encodeURIComponent(containerId)}`);
+  const response = await fetch(FINISH_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ containerId }),
+  });
   return toResult(await readJson(response), response.status);
 }

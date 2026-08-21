@@ -187,3 +187,26 @@ describe('fetchPublishingLimit', () => {
     });
   });
 });
+
+describe('account id validation', () => {
+  it('refuses a non-numeric account id rather than interpolating it into the URL', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: 'c', uri: 'u' }));
+    await expect(
+      createResumableReel({
+        accessToken: 't',
+        igUserId: '../../evil',
+        caption: '',
+        shareToFeed: true,
+      })
+    ).rejects.toMatchObject({ code: 'invalid_account_id' });
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await expect(
+      publishContainer({ accessToken: 't', igUserId: 'not-numeric', containerId: 'c' })
+    ).rejects.toMatchObject({ code: 'invalid_account_id' });
+
+    await expect(fetchPublishingLimit({ accessToken: 't', igUserId: 'x/y' })).rejects.toMatchObject(
+      { code: 'invalid_account_id' }
+    );
+  });
+});

@@ -73,10 +73,13 @@ describe('submitReel', () => {
 });
 
 describe('finishReel', () => {
-  it('encodes the container id into the query', async () => {
+  it('POSTs the container id, because finishing publishes the Reel', async () => {
     fetchMock.mockResolvedValue(response({ state: 'published' }));
-    expect(await finishReel('c 9/x')).toEqual({ ok: true, state: 'published' });
-    expect(fetchMock.mock.calls[0][0]).toBe('/api/social/instagram/post?containerId=c%209%2Fx');
+    expect(await finishReel('c9')).toEqual({ ok: true, state: 'published' });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('/api/social/instagram/finish');
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual({ containerId: 'c9' });
   });
 
   it('reports still-processing', async () => {

@@ -47,7 +47,8 @@ import { writeInstagramConnection } from '@/app/features/social/store';
 
 import { GET as callback } from '@/app/api/social/instagram/callback/route';
 import { GET as connect } from '@/app/api/social/instagram/connect/route';
-import { GET as finish, POST as post } from '@/app/api/social/instagram/post/route';
+import { POST as finish } from '@/app/api/social/instagram/finish/route';
+import { POST as post } from '@/app/api/social/instagram/post/route';
 import { POST as scheduled } from '@/app/api/social/instagram/scheduled/route';
 
 const getInstagramConfigMock = getInstagramConfig as jest.Mock;
@@ -265,25 +266,40 @@ describe('POST /api/social/instagram/post', () => {
   });
 });
 
-describe('GET /api/social/instagram/post', () => {
-  const req = (q: string) =>
-    new NextRequest(`https://admin.example.com/api/social/instagram/post${q}`);
+describe('POST /api/social/instagram/finish', () => {
+  const req = (body: unknown) =>
+    new NextRequest('https://admin.example.com/api/social/instagram/finish', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    });
 
   it('finishes a container that is ready', async () => {
-    const response = await finish(req('?containerId=c9'));
+    const response = await finish(req({ containerId: 'c9' }));
     expect(response.status).toBe(200);
     expect(finishReelMock).toHaveBeenCalledWith(CONFIG, { actorId: 'user-1' }, 'c9');
   });
 
-  it('requires a containerId and reports an unconfigured host', async () => {
-    expect((await finish(req(''))).status).toBe(400);
+  it('refuses a cross-origin request, because finishing PUBLISHES the Reel', async () => {
+    isSameOriginMock.mockReturnValue(false);
+    expect((await finish(req({ containerId: 'c9' }))).status).toBe(403);
+    expect(finishReelMock).not.toHaveBeenCalled();
+  });
+
+  it('requires a containerId and rejects a non-JSON body', async () => {
+    expect((await finish(req({}))).status).toBe(400);
+    expect((await finish(req({ containerId: '   ' }))).status).toBe(400);
+    expect((await finish(req('not json'))).status).toBe(400);
+  });
+
+  it('reports an unconfigured host', async () => {
     getInstagramConfigMock.mockReturnValue(null);
-    expect((await finish(req('?containerId=c9'))).status).toBe(503);
+    expect((await finish(req({ containerId: 'c9' }))).status).toBe(503);
   });
 
   it('maps a thrown error to 500', async () => {
     finishReelMock.mockRejectedValue(new Error('boom'));
-    expect((await finish(req('?containerId=c9'))).status).toBe(500);
+    expect((await finish(req({ containerId: 'c9' }))).status).toBe(500);
   });
 });
 
