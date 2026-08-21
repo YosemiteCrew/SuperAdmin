@@ -34,6 +34,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
       - name: Filter paths
         id: filter
@@ -49,8 +50,22 @@ jobs:
       - name: Gate
         id: gate
         shell: bash
+        env:
+          ACTOR: ${{ github.actor }}
+          EVENT: ${{ github.event_name }}
+          ADMIN_CHANGED: ${{ steps.filter.outputs.admin }}
         run: |
-          if [[ "${{ github.event_name }}" == "schedule" || "${{ steps.filter.outputs.admin }}" == "true" ]]; then
+          # Dependabot runs with its OWN secret store, which does not contain
+          # SONAR_TOKEN_ADMIN, so the scan can only ever fail on its PRs with
+          # "Not authorized or project not found" - a red check that says nothing
+          # about the change and blocks every dependency bump. Skip it there.
+          # A lockfile bump still gets Lint + Type-check + Test + Build, and the
+          # push analysis re-scans the merged result on dev/main.
+          # To restore scanning on these PRs instead, add SONAR_TOKEN_ADMIN under
+          # Settings > Secrets and variables > Dependabot and drop this branch.
+          if [[ "$ACTOR" == "dependabot[bot]" ]]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT" == "schedule" || "$ADMIN_CHANGED" == "true" ]]; then
             echo "should_run=true" >> "$GITHUB_OUTPUT"
           else
             echo "should_run=false" >> "$GITHUB_OUTPUT"
@@ -67,6 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: ${{ github.event_name == 'pull_request' && 0 || 1 }}
 
       - uses: actions/setup-node@v4

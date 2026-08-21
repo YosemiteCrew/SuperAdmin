@@ -50,4 +50,23 @@ export const serverEnv = {
   // submissions to /api/contact. Optional — the intake endpoint refuses all
   // requests when absent, so the form cannot silently start dropping leads.
   contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
+  // Social poster (TikTok) credentials. Optional on purpose: the panel must
+  // still boot on a host where the poster was never provisioned — the Social
+  // page reports exactly which of these are missing rather than the whole app
+  // failing to start. socialTokenKey seals the stored OAuth tokens at rest.
+  tiktokClientKey: process.env.TIKTOK_CLIENT_KEY ?? null,
+  tiktokClientSecret: process.env.TIKTOK_CLIENT_SECRET ?? null,
+  tiktokRedirectUri: process.env.TIKTOK_REDIRECT_URI ?? null,
+  socialTokenKey: process.env.SOCIAL_TOKEN_KEY ?? null,
+  // Shared secret the scheduled-posting cron presents to /api/social/tiktok/
+  // scheduled. Optional — the endpoint refuses every request when absent, so an
+  // unset key can never mean "unauthenticated posting to the company account".
+  socialSchedulerKey: process.env.SOCIAL_SCHEDULER_KEY ?? null,
+  // Instagram poster credentials. Optional for the same reason as TikTok's: the
+  // panel must boot on a host where the poster was never provisioned. Note these
+  // are the INSTAGRAM app id/secret from the use case's "API setup with Instagram
+  // login" panel, not the Meta app id.
+  instagramAppId: process.env.INSTAGRAM_APP_ID ?? null,
+  instagramAppSecret: process.env.INSTAGRAM_APP_SECRET ?? null,
+  instagramRedirectUri: process.env.INSTAGRAM_REDIRECT_URI ?? null,
 };

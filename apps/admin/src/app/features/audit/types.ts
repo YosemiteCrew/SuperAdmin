@@ -28,7 +28,10 @@ export type AuditAction =
   | 'invite.revoke'
   | 'org.flag_on'
   | 'org.flag_off'
-  | 'org.note_add';
+  | 'org.note_add'
+  | 'social.connect'
+  | 'social.disconnect'
+  | 'social.post';
 
 /**
  * Every kind of thing an audit event can point at, and the single source of
@@ -46,6 +49,7 @@ export const AUDIT_TARGET_TYPES = [
   'ap_token',
   'contact_request',
   'data_request',
+  'social_account',
 ] as const;
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];

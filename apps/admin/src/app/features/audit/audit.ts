@@ -40,6 +40,9 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'org.flag_on': { label: 'Enabled feature flag on', severity: 'info' },
   'org.flag_off': { label: 'Disabled feature flag on', severity: 'info' },
   'org.note_add': { label: 'Added internal note to', severity: 'info' },
+  'social.connect': { label: 'Connected social account', severity: 'warning' },
+  'social.disconnect': { label: 'Disconnected social account', severity: 'warning' },
+  'social.post': { label: 'Published a post to', severity: 'warning' },
 };
 
 // Both derived from the declarations above rather than hand-listed, so a new
