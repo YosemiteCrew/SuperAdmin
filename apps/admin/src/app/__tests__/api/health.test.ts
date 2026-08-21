@@ -15,12 +15,20 @@ const mockQueryRaw = prisma.$queryRaw as unknown as jest.Mock;
 type HealthBody = {
   status: string;
   database: string;
+  reason?: { name: string; code: string | null };
   uptime: number;
   timestamp: string;
   env: string;
 };
 
-beforeEach(() => jest.clearAllMocks());
+let errorSpy: jest.SpyInstance;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterEach(() => errorSpy.mockRestore());
 
 describe('GET /api/health', () => {
   describe('when the database is reachable', () => {
@@ -81,6 +89,54 @@ describe('GET /api/health', () => {
 
     it('does not let the query error escape the handler', async () => {
       await expect(GET()).resolves.toBeDefined();
+    });
+
+    it('logs the full error server-side so it is recoverable', async () => {
+      await GET();
+      expect(errorSpy).toHaveBeenCalledWith('[health] database probe failed', expect.any(Error));
+    });
+
+    it('omits reason entirely while healthy', async () => {
+      mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]);
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.reason).toBeUndefined();
+    });
+  });
+
+  describe('the published reason', () => {
+    it('names the error class so a missing engine is distinguishable', async () => {
+      class PrismaClientInitializationError extends Error {}
+      mockQueryRaw.mockRejectedValue(new PrismaClientInitializationError('engine not found'));
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.reason).toEqual({ name: 'PrismaClientInitializationError', code: null });
+    });
+
+    it("carries Prisma's error code when there is one", async () => {
+      const err = Object.assign(new Error('cannot reach database'), { code: 'P1001' });
+      mockQueryRaw.mockRejectedValue(err);
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.reason?.code).toBe('P1001');
+    });
+
+    // The endpoint is unauthenticated. Prisma embeds host, port and sometimes
+    // the user in its connection error messages, so the message must never
+    // reach the response body.
+    it('never leaks the error message', async () => {
+      mockQueryRaw.mockRejectedValue(
+        new Error("Can't reach database server at aws-1-eu-central-1.pooler.supabase.com:5432")
+      );
+      const body = await (await GET()).text();
+      expect(body).not.toContain('pooler.supabase.com');
+      expect(body).not.toContain('5432');
+      expect(body).not.toContain('reach database server');
+    });
+
+    it('survives a non-object being thrown', async () => {
+      mockQueryRaw.mockRejectedValue('a bare string');
+      const res = await GET();
+      expect(res.status).toBe(503);
+      const json = (await res.json()) as HealthBody;
+      expect(json.reason).toEqual({ name: 'UnknownError', code: null });
     });
   });
 });
