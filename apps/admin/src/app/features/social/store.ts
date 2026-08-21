@@ -7,7 +7,7 @@ import { ensureSuperTokensInit } from '@/app/config/backend';
 import { logger } from '@/app/lib/logger';
 
 import type { SocialConfig } from './config';
-import { open, seal } from './secrets';
+import { seal, unseal } from './secrets';
 import { refreshAccessToken } from './tiktok';
 import type { TikTokConnection, TikTokConnectionSummary } from './types';
 
@@ -54,7 +54,7 @@ export async function readConnection(config: SocialConfig): Promise<TikTokConnec
   try {
     const sealed = await readSealed();
     if (!sealed) return null;
-    const plaintext = open(sealed, config.tokenKey);
+    const plaintext = unseal(sealed, config.tokenKey);
     if (!plaintext) {
       // Almost always means SOCIAL_TOKEN_KEY was rotated or changed. There is no
       // recovery beyond reconnecting, so surface it rather than failing silently.

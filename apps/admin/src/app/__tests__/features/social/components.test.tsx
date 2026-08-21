@@ -97,6 +97,8 @@ describe('PostComposer', () => {
     await userEvent.upload(screen.getByLabelText('Video'), mp4());
     await userEvent.selectOptions(screen.getByLabelText('Audience'), 'PUBLIC_TO_EVERYONE');
     await userEvent.click(screen.getByLabelText('Turn off comments'));
+    await userEvent.click(screen.getByLabelText('Turn off Duet'));
+    await userEvent.click(screen.getByLabelText('Turn off Stitch'));
     await userEvent.click(screen.getByRole('button', { name: 'Post to TikTok' }));
 
     await waitFor(() => expect(submitPostMock).toHaveBeenCalled());
@@ -104,6 +106,8 @@ describe('PostComposer', () => {
       mode: 'direct',
       privacy: 'PUBLIC_TO_EVERYONE',
       disableComment: true,
+      disableDuet: true,
+      disableStitch: true,
     });
     expect(await screen.findByRole('status')).toHaveTextContent('Published to the profile.');
   });
@@ -114,6 +118,29 @@ describe('PostComposer', () => {
     const toggle = screen.getByLabelText('Turn off comments (locked by the account)');
     expect(toggle).toBeChecked();
     expect(toggle).toBeDisabled();
+  });
+
+  it('switches back to the draft destination, hiding the audience controls again', async () => {
+    renderComposer();
+    const destination = screen.getByLabelText('Destination');
+    await userEvent.selectOptions(destination, 'direct');
+    expect(screen.getByLabelText('Audience')).toBeInTheDocument();
+
+    await userEvent.selectOptions(destination, 'draft');
+    expect(screen.queryByLabelText('Audience')).not.toBeInTheDocument();
+    expect(destination).toHaveValue('draft');
+  });
+
+  it('clears the selection when the file input is emptied', async () => {
+    renderComposer();
+    const input = screen.getByLabelText('Video') as HTMLInputElement;
+    await userEvent.upload(input, mp4());
+    // Re-firing change with no files is what a browser does when the picker is
+    // cancelled; the composer must fall back to "no video chosen".
+    fireEvent.change(input, { target: { files: [] } });
+    await userEvent.click(screen.getByRole('button', { name: 'Post to TikTok' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Choose an MP4 to post.');
+    expect(submitPostMock).not.toHaveBeenCalled();
   });
 
   it('surfaces the server error', async () => {

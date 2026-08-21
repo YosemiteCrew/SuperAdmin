@@ -6,7 +6,7 @@ import { getSocialConfig } from '@/app/features/social/config';
 import { withSuperAdmin } from '@/app/features/social/guard';
 import { OAUTH_COOKIE, parseOAuthCookie } from '@/app/features/social/oauthCookie';
 import { statesMatch } from '@/app/features/social/pkce';
-import { open } from '@/app/features/social/secrets';
+import { unseal } from '@/app/features/social/secrets';
 import { writeConnection } from '@/app/features/social/store';
 import { exchangeCode, fetchDisplayName } from '@/app/features/social/tiktok';
 import type { TikTokConnection } from '@/app/features/social/types';
@@ -37,7 +37,7 @@ export function GET(request: NextRequest): Promise<Response> {
     if (!code || !state) return backToPanel(request, { error: 'missing_code' });
 
     const sealed = request.cookies.get(OAUTH_COOKIE)?.value;
-    const payload = sealed ? parseOAuthCookie(open(sealed, config.tokenKey) ?? '') : null;
+    const payload = sealed ? parseOAuthCookie(unseal(sealed, config.tokenKey) ?? '') : null;
     if (!payload || !statesMatch(payload.state, state)) {
       // A mismatch is either a stale tab or a forged callback; both are refused
       // without exchanging the code.

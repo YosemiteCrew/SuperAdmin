@@ -1,6 +1,6 @@
 import {
   constantTimeEquals,
-  open,
+  unseal,
   parseKey,
   seal,
   SecretKeyError,
@@ -26,11 +26,11 @@ describe('parseKey', () => {
   });
 });
 
-describe('seal/open', () => {
+describe('seal/unseal', () => {
   const key = parseKey(HEX_KEY);
 
   it('round-trips a value', () => {
-    expect(open(seal('hello world', key), key)).toBe('hello world');
+    expect(unseal(seal('hello world', key), key)).toBe('hello world');
   });
 
   it('produces a different ciphertext each time', () => {
@@ -38,18 +38,18 @@ describe('seal/open', () => {
   });
 
   it('returns null for a different key', () => {
-    expect(open(seal('secret', key), parseKey('b'.repeat(64)))).toBeNull();
+    expect(unseal(seal('secret', key), parseKey('b'.repeat(64)))).toBeNull();
   });
 
   it('returns null when the ciphertext is tampered with', () => {
     const parts = seal('secret', key).split('.');
     parts[3] = Buffer.from('tampered').toString('base64');
-    expect(open(parts.join('.'), key)).toBeNull();
+    expect(unseal(parts.join('.'), key)).toBeNull();
   });
 
   it('returns null for a malformed or unknown-version payload', () => {
-    expect(open('not-sealed', key)).toBeNull();
-    expect(open('v9.a.b.c', key)).toBeNull();
+    expect(unseal('not-sealed', key)).toBeNull();
+    expect(unseal('v9.a.b.c', key)).toBeNull();
   });
 });
 

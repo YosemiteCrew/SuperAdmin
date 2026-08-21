@@ -37,7 +37,7 @@ export function seal(plaintext: string, key: Buffer): string {
 }
 
 /** Returns null for anything that is not an intact, authentic ciphertext. */
-export function open(sealed: string, key: Buffer): string | null {
+export function unseal(sealed: string, key: Buffer): string | null {
   const parts = sealed.split('.');
   if (parts.length !== 4 || parts[0] !== PREFIX) return null;
   try {
