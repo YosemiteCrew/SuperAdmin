@@ -5,6 +5,8 @@
   "scripts": {
     "prepare": "husky",
     "build": "turbo run build",
+    "migrate:deploy": "pnpm --filter @superadmin/database run migrate:deploy",
+    "release": "pnpm run migrate:deploy && pnpm run build",
     "dev": "turbo run dev",
     "start": "turbo run start",
     "lint": "turbo run lint",
