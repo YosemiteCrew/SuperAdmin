@@ -33,9 +33,22 @@ of the 2026-08-11 outage.
 
 ### Environment variables
 
-Set these in Amplify under App settings > Environment variables. Everything is
+Set these in Amplify under **App settings > Environment variables**. Everything is
 read at build time as well as runtime, and `NEXT_PUBLIC_APP_ORIGIN` in particular
 is baked into the bundle, so changing it needs a redeploy.
+
+> **Do not move the credential-bearing ones into App settings > Secrets.** That
+> store looks like the obvious home for `DATABASE_URL` and `SUPERTOKENS_API_KEY`,
+> and AWS's own environment-variable page tells you not to keep secrets in
+> environment variables. It does not work here. Amplify Gen 1 secrets are
+> delivered as _"`process.env.secrets` as a JSON string"_ - a single blob, not
+> individual variables - so `process.env.DATABASE_URL` stays undefined and the
+> build fails exactly as if you had set nothing. It is also a build-phase
+> mechanism, so the SSR compute would not see them at runtime either. Nothing in
+> this app parses that blob.
+>
+> Amplify encrypts environment variables at rest, so the real exposure is console
+> read access. Control it there, and treat every value below as rotatable.
 
 Required, the app refuses to boot without them:
 
@@ -46,8 +59,28 @@ Required, the app refuses to boot without them:
 | `SUPERTOKENS_API_KEY`        | the core API key                                                                                                      |
 | `DATABASE_URL`               | Postgres. **Session pooler**, not the transaction pooler and not the direct connection - see Supabase specifics below |
 
+#### Which ones actually block a build
+
+Only three stop a build, and they stop it at different points, so fix them in this
+order:
+
+1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
+   `next build`, so an absent value halts everything with `Validation Error
+Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
+   attempted to compile the app.
+2. **`SUPERTOKENS_CONNECTION_URI`** and **`SUPERTOKENS_API_KEY`** fail next, while
+   Next collects page data - `env.server.ts` throws on module load. The URI has to
+   point at a core that is genuinely _reachable_, not merely be set: collecting
+   `/api/auth/[[...path]]` opens a connection. Check with
+   `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with no
+   API key.
+
+`NEXT_PUBLIC_APP_ORIGIN` does not fail the build, but it is baked into the bundle,
+so a wrong value ships silently and breaks both OAuth callbacks.
+
 Optional; each one that is absent disables exactly one feature and leaves the
-rest of the panel working: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
+rest of the panel working, so a first deploy can go green with only the three
+above: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
 `PLUNK_API_ENDPOINT`, `AP_SIGNING_KEY`, `AP_SIGNING_KEY_ID`, `CONSENT_INTAKE_KEY`,
 `CONTACT_INTAKE_KEY`, and the social poster set (`TIKTOK_CLIENT_KEY`,
 `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `INSTAGRAM_APP_ID`,
@@ -115,6 +148,16 @@ IPv4 add-on is enabled, so a build container generally cannot reach it at all.
 Supabase labels the session pooler "only recommended as an alternative to direct
 connection when connecting via an IPv4 network", which is exactly what an Amplify
 build is. Find all three under **Database > Settings > Connect**.
+
+For `yosemitecrew-production` the session pooler parameters are host
+`aws-1-eu-central-1.pooler.supabase.com`, port `5432`, database `postgres`, user
+`postgres.<project-ref>`. Note the host prefix is `aws-1-`; older Supabase docs
+show `aws-0-`, and copying that gives a hostname that does not resolve.
+
+While you are on that page, confirm **Network restrictions** still reads "Your
+database can be accessed by all IP addresses". Amplify build containers have no
+stable egress IP, so any allowlist there fails the build with a connection
+timeout that looks nothing like a permissions problem.
 
 **The database password is not retrievable.** Supabase shows it once at creation.
 The connection dialog only ever renders `[YOUR-PASSWORD]` as a placeholder.
