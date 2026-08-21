@@ -39,12 +39,12 @@ is baked into the bundle, so changing it needs a redeploy.
 
 Required, the app refuses to boot without them:
 
-| Variable                     | Value                                                     |
-| ---------------------------- | --------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                          |
-| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                  |
-| `SUPERTOKENS_API_KEY`        | the core API key                                          |
-| `DATABASE_URL`               | Postgres, **direct** connection (see Supabase note below) |
+| Variable                     | Value                                                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                                      |
+| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                                              |
+| `SUPERTOKENS_API_KEY`        | the core API key                                                                                                      |
+| `DATABASE_URL`               | Postgres. **Session pooler**, not the transaction pooler and not the direct connection - see Supabase specifics below |
 
 Optional; each one that is absent disables exactly one feature and leaves the
 rest of the panel working: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
@@ -94,12 +94,38 @@ FROM _prisma_migrations ORDER BY started_at;
 
 ## Supabase specifics
 
-Use the **direct** connection (`db.<ref>.supabase.co`, port **5432**) for
-migrations. The transaction pooler on **6543** breaks Prisma's session-level
-advisory lock and the migration hangs or fails.
+Two independent constraints decide which connection string to use, and picking
+for only one of them gets you a broken deploy.
 
-Run it from inside `packages/database`. Invoking `npx prisma` elsewhere pulls
-Prisma **7** off the registry against this Prisma **6** project.
+**Migrations need a session-level connection.** `prisma migrate deploy` takes a
+session-level advisory lock. The **transaction** pooler (port **6543**) does not
+hold session state, so the migration hangs or fails there. Never use it for
+`DATABASE_URL`.
+
+**Amplify builds run on IPv4.** Supabase's direct connection
+(`db.<ref>.supabase.co`, port 5432) is **IPv6-only** unless the paid dedicated
+IPv4 add-on is enabled, so a build container generally cannot reach it at all.
+
+| Connection               | Migration-safe               | Reachable from Amplify    | Use it?                             |
+| ------------------------ | ---------------------------- | ------------------------- | ----------------------------------- |
+| Transaction pooler, 6543 | No, breaks the advisory lock | Yes                       | **No**                              |
+| Direct, 5432             | Yes                          | Only with the IPv4 add-on | Only if that add-on is on           |
+| **Session pooler**       | Yes, session mode            | Yes                       | **Yes, this is the default choice** |
+
+Supabase labels the session pooler "only recommended as an alternative to direct
+connection when connecting via an IPv4 network", which is exactly what an Amplify
+build is. Find all three under **Database > Settings > Connect**.
+
+**The database password is not retrievable.** Supabase shows it once at creation.
+The connection dialog only ever renders `[YOUR-PASSWORD]` as a placeholder.
+Resetting it is not free: the same database backs other services, so a reset
+breaks every existing connection, not just the panel's. Recover the stored value
+rather than resetting unless you have accounted for the other consumers.
+
+If the password contains special characters, percent-encode it in the URI.
+
+Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
+pulls Prisma **7** off the registry against this Prisma **6** project.
 
 ## Repairing a schema that drifted
 
