@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { publicEnv } from '@/app/config/env.public';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInstagramConfig } from '@/app/features/social/config';
 import { withSuperAdmin } from '@/app/features/social/guard';
@@ -13,7 +14,11 @@ import type { InstagramConnection } from '@/app/features/social/types';
 import { logger } from '@/app/lib/logger';
 
 function backToPanel(request: NextRequest, params: Record<string, string>): NextResponse {
-  const url = new URL('/social', request.url);
+  // NOT request.url: on the Amplify SSR runtime that is the internal origin
+  // (http://localhost:3000), so redirecting against it sends the browser to a
+  // dead local address. appOrigin is the public origin and is already validated
+  // to be https in production.
+  const url = new URL('/social', publicEnv.appOrigin);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
   const response = NextResponse.redirect(url);
   response.cookies.delete({ name: INSTAGRAM_OAUTH_COOKIE, path: '/api/social/instagram' });

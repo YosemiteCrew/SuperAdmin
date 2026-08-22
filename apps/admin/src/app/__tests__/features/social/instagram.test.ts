@@ -210,3 +210,49 @@ describe('account id validation', () => {
     );
   });
 });
+
+describe('OAuth endpoint error bodies', () => {
+  const CREDS = {
+    appId: 'app-1',
+    appSecret: 'secret-1',
+    code: 'code-1',
+    redirectUri: 'https://admin.example.com/api/social/instagram/callback',
+  };
+
+  it('surfaces the real reason from the FLAT OAuth error shape', async () => {
+    // /oauth/access_token does not use the Graph API's nested `error` object.
+    // Before this was handled, a wrong app secret and a wrong redirect_uri both
+    // reported only "Instagram responded 400", which is indistinguishable.
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        { error_type: 'OAuthException', code: 400, error_message: 'Invalid client_secret' },
+        false,
+        400
+      )
+    );
+    await expect(exchangeCode(CREDS)).rejects.toThrow('Invalid client_secret');
+  });
+
+  it('keeps the error_type as the error code', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(
+        { error_type: 'OAuthException', error_message: 'Invalid client_secret' },
+        false,
+        400
+      )
+    );
+    await expect(exchangeCode(CREDS)).rejects.toMatchObject({ code: 'OAuthException' });
+  });
+
+  it('still handles the nested Graph API error shape', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ error: { type: 'OAuthException', message: 'Token expired' } }, false, 400)
+    );
+    await expect(exchangeCode(CREDS)).rejects.toThrow('Token expired');
+  });
+
+  it('falls back to the status when the body carries no reason at all', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, false, 400));
+    await expect(exchangeCode(CREDS)).rejects.toThrow('Instagram responded 400');
+  });
+});
