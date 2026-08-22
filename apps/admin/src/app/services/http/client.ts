@@ -3,6 +3,11 @@ import { config } from '@/app/config';
 type RequestConfig = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /**
+   * Overrides the default platform backend for this one call, so a caller can
+   * target a specific environment. Omit to use `config.api.baseUrl`.
+   */
+  baseUrl?: string;
 };
 
 async function request<T>(
@@ -15,7 +20,8 @@ async function request<T>(
   const timer = setTimeout(() => controller.abort(), config.api.timeout);
 
   try {
-    const response = await fetch(`${config.api.baseUrl}${url}`, {
+    const baseUrl = requestConfig?.baseUrl ?? config.api.baseUrl;
+    const response = await fetch(`${baseUrl}${url}`, {
       method,
       headers: {
         'Content-Type': 'application/json',

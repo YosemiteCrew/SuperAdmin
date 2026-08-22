@@ -2,7 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 
-import { config } from '@/app/config';
+import {
+  API_ENVIRONMENTS,
+  API_ENVIRONMENT_META,
+  DEFAULT_API_ENVIRONMENT,
+  type ApiEnvironment,
+  apiBaseUrl,
+  isApiEnvironmentConfigured,
+  parseApiEnvironment,
+} from '@/app/config/apiEnvironment';
 import { DEMO_ORGANIZATIONS } from '@/app/features/organizations/demo';
 import {
   type OrgFilter,
@@ -20,7 +28,7 @@ export const metadata: Metadata = {
   title: 'Organizations',
 };
 
-type SearchParams = { status?: string; search?: string; demo?: string };
+type SearchParams = { status?: string; search?: string; demo?: string; env?: string };
 
 const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -29,13 +37,70 @@ const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
   { key: 'suspended', label: 'Suspended' },
 ];
 
-function buildHref(filter: OrgFilter, search: string, demo: boolean): string {
+function buildHref(
+  filter: OrgFilter,
+  search: string,
+  demo: boolean,
+  environment: ApiEnvironment
+): string {
   const qs = new URLSearchParams();
   if (filter !== 'all') qs.set('status', filter);
   if (search) qs.set('search', search);
   if (demo) qs.set('demo', '1');
+  if (environment !== DEFAULT_API_ENVIRONMENT) qs.set('env', environment);
   const query = qs.toString();
   return query ? `/organizations?${query}` : '/organizations';
+}
+
+/**
+ * Lets a reviewer read the same screen against either platform backend. The
+ * selected environment is carried on every link and mutation on this page, so
+ * a business opened from the dev list cannot be verified against production.
+ */
+function EnvironmentTabs({
+  active,
+  filter,
+  search,
+  demo,
+}: Readonly<{ active: ApiEnvironment; filter: OrgFilter; search: string; demo: boolean }>) {
+  return (
+    <nav className="flex flex-wrap items-center gap-2" aria-label="Platform backend">
+      <span className="text-xs font-medium uppercase tracking-wide text-ink-3">Backend</span>
+      {API_ENVIRONMENTS.map((key) => {
+        const isActive = key === active;
+        const configured = isApiEnvironmentConfigured(key);
+        const meta = API_ENVIRONMENT_META[key];
+        if (!configured) {
+          return (
+            <span
+              key={key}
+              title={`Not configured on this host — set ${
+                key === 'production' ? 'NEXT_PUBLIC_API_URL' : 'NEXT_PUBLIC_DEV_API_URL'
+              }`}
+              className="inline-flex cursor-not-allowed items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-3 opacity-60"
+            >
+              {meta.label}
+            </span>
+          );
+        }
+        return (
+          <Link
+            key={key}
+            href={buildHref(filter, search, demo, key)}
+            aria-current={isActive ? 'page' : undefined}
+            title={meta.hint}
+            className={
+              isActive
+                ? 'inline-flex items-center gap-2 rounded-full border border-btn bg-btn px-3.5 py-1.5 text-sm font-medium text-btn-ink'
+                : 'inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-raised'
+            }
+          >
+            {meta.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 function FilterTabs({
@@ -43,11 +108,13 @@ function FilterTabs({
   search,
   counts,
   demo,
+  environment,
 }: Readonly<{
   active: OrgFilter;
   search: string;
   counts: Record<OrgFilter, number>;
   demo: boolean;
+  environment: ApiEnvironment;
 }>) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -56,7 +123,7 @@ function FilterTabs({
         return (
           <Link
             key={tab.key}
-            href={buildHref(tab.key, search, demo)}
+            href={buildHref(tab.key, search, demo, environment)}
             aria-current={isActive ? 'page' : undefined}
             className={
               isActive
@@ -105,8 +172,16 @@ function EmptyState({ message }: Readonly<{ message: string }>) {
 function OrganizationsTable({
   rows,
   demo,
-}: Readonly<{ rows: SuperAdminOrganization[]; demo: boolean }>) {
-  const suffix = demo ? '?demo=1' : '';
+  environment,
+}: Readonly<{
+  rows: SuperAdminOrganization[];
+  demo: boolean;
+  environment: ApiEnvironment;
+}>) {
+  const rowQuery = new URLSearchParams();
+  if (demo) rowQuery.set('demo', '1');
+  if (environment !== DEFAULT_API_ENVIRONMENT) rowQuery.set('env', environment);
+  const suffix = rowQuery.toString() ? `?${rowQuery.toString()}` : '';
   return (
     <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
       <table className="w-full border-collapse text-sm">
@@ -142,6 +217,7 @@ function OrganizationsTable({
                   organizationId={org.id}
                   name={org.name}
                   state={verificationState(org)}
+                  environment={environment}
                 />
               </td>
             </tr>
@@ -152,13 +228,21 @@ function OrganizationsTable({
   );
 }
 
-function buildLoadErrorMessage(baseUrl: string, detail?: string): string {
-  const resolvedBaseUrl = baseUrl || '(empty NEXT_PUBLIC_API_URL)';
+function buildLoadErrorMessage(
+  baseUrl: string,
+  environment: ApiEnvironment,
+  detail?: string
+): string {
+  const envVar = environment === 'production' ? 'NEXT_PUBLIC_API_URL' : 'NEXT_PUBLIC_DEV_API_URL';
+  const resolvedBaseUrl = baseUrl || `(empty ${envVar})`;
   const message = `Couldn't reach the platform backend at ${resolvedBaseUrl}/v1/super-admin/businesses.`;
   return detail ? `${message} Error: ${detail}` : message;
 }
 
-async function loadOrganizations(demo: boolean): Promise<{
+async function loadOrganizations(
+  demo: boolean,
+  environment: ApiEnvironment
+): Promise<{
   organizations: SuperAdminOrganization[];
   loadError: boolean;
   loadErrorDetail?: string;
@@ -166,7 +250,13 @@ async function loadOrganizations(demo: boolean): Promise<{
   if (demo) return { organizations: DEMO_ORGANIZATIONS, loadError: false };
   try {
     const cookie = (await headers()).get('cookie') ?? '';
-    return { organizations: await listOrganizations({ headers: { cookie } }), loadError: false };
+    return {
+      organizations: await listOrganizations({
+        headers: { cookie },
+        baseUrl: apiBaseUrl(environment),
+      }),
+      loadError: false,
+    };
   } catch (error) {
     return {
       organizations: [],
@@ -179,19 +269,20 @@ async function loadOrganizations(demo: boolean): Promise<{
 export default async function OrganizationsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
-  const { status, search, demo: demoRaw } = await searchParams;
+  const { status, search, demo: demoRaw, env } = await searchParams;
   const activeFilter = parseOrgFilter(status);
   const searchTerm = (search ?? '').trim();
   const demo = demoRaw === '1';
+  const environment = parseApiEnvironment(env);
 
-  const { organizations, loadError, loadErrorDetail } = await loadOrganizations(demo);
+  const { organizations, loadError, loadErrorDetail } = await loadOrganizations(demo, environment);
 
   const counts = organizationCounts(organizations);
   const filtered = filterOrganizations(organizations, { state: activeFilter, search: searchTerm });
   const allEmpty = loadError || organizations.length === 0;
   const showPendingBanner = !allEmpty && counts.pending > 0;
   const emptyMessage = loadError
-    ? buildLoadErrorMessage(config.api.baseUrl, loadErrorDetail)
+    ? buildLoadErrorMessage(apiBaseUrl(environment), environment, loadErrorDetail)
     : 'No organizations yet.';
 
   return (
@@ -202,6 +293,10 @@ export default async function OrganizationsPage({
           Review and verify pet businesses before they become visible to pet parents.
         </p>
       </header>
+
+      {/* Sits above the empty/error branch on purpose: when one backend fails to
+          load, switching to the other is exactly what the reviewer needs next. */}
+      <EnvironmentTabs active={environment} filter={activeFilter} search={searchTerm} demo={demo} />
 
       {showPendingBanner ? (
         <div className="flex items-center gap-2 rounded-xl border border-warning-600/30 bg-warning-100 px-4 py-3 text-sm text-warning-800">
@@ -218,12 +313,21 @@ export default async function OrganizationsPage({
       ) : (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <FilterTabs active={activeFilter} search={searchTerm} counts={counts} demo={demo} />
+            <FilterTabs
+              active={activeFilter}
+              search={searchTerm}
+              counts={counts}
+              demo={demo}
+              environment={environment}
+            />
             <form action="/organizations" method="get" className="flex items-center gap-2">
               {activeFilter === 'all' ? null : (
                 <input type="hidden" name="status" value={activeFilter} />
               )}
               {demo ? <input type="hidden" name="demo" value="1" /> : null}
+              {environment === DEFAULT_API_ENVIRONMENT ? null : (
+                <input type="hidden" name="env" value={environment} />
+              )}
               <input
                 type="search"
                 name="search"
@@ -236,7 +340,7 @@ export default async function OrganizationsPage({
           </div>
 
           {filtered.length > 0 ? (
-            <OrganizationsTable rows={filtered} demo={demo} />
+            <OrganizationsTable rows={filtered} demo={demo} environment={environment} />
           ) : (
             <EmptyState message="No organizations match these filters." />
           )}
