@@ -157,3 +157,26 @@ model APLicenseToken {
   @@index([instanceDomain])
   @@index([revokedAt])
 }
+
+// Federation clinic directory.
+// A verified instance opts itself in via PUT /api/directory/listing; the entry
+// is what GET /api/directory serves back to every other federated instance.
+//
+// `instanceHost` is bound from the license token's `instanceDomain` claim, never
+// from the request body — a clinic must not be able to publish a listing that
+// points at a host it does not hold a token for. `actorUri` is client-supplied
+// but validated to live on that same host for the same reason.
+model APDirectoryListing {
+  id           String   @id @default(cuid())
+  orgId        String   @unique
+  instanceHost String
+  actorUri     String   @unique
+  orgName      String
+  handle       String
+  listed       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([listed])
+  @@index([instanceHost])
+}
