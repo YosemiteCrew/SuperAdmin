@@ -25,6 +25,36 @@ applications:
             - (cd ../.. && pnpm install --frozen-lockfile)
         build:
           commands:
+            # Amplify does NOT pass environment variables to the Next SSR
+            # runtime. That is deliberate on AWS's part - "a Next.js server
+            # component doesn't have access to those environment variables by
+            # default ... intentional to protect any secrets stored in
+            # environment variables" - so a server var set in the console is
+            # present during the build and absent when a request arrives.
+            #
+            # The documented remedy is to write them into .env.production
+            # before `next build`. cwd is appRoot, so this lands in
+            # apps/admin/.env.production, which is what the monorepo form
+            # requires.
+            #
+            # ALLOWLIST, never a blanket `env`. The build environment also holds
+            # AWS credentials and Amplify internals, and this file ships inside
+            # the deployment artifact.
+            - |
+              # Exact-anchored allowlist. `env | grep` is the form AWS's own
+              # docs use and is POSIX, unlike ${!VAR} indirect expansion - the
+              # build shell is not guaranteed to be bash.
+              : > .env.production
+              env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
+              echo "--- .env.production written, NAMES ONLY ---"
+              cut -d= -f1 .env.production
+              if grep -qE '^AWS_|^AMPLIFY_' .env.production; then
+                echo "FAIL: build-environment variables leaked into the artifact"; exit 1
+              fi
+              for R in DATABASE_URL SUPERTOKENS_CONNECTION_URI SUPERTOKENS_API_KEY; do
+                grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
+              done
+              echo "OK: required runtime vars present"
             # Migrations run on the production branch only. Amplify builds every
             # branch, and a preview build must never migrate the live database.
             # This is what stops a repeat of the 2026-08-11 outage, where code
