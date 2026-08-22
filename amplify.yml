@@ -40,10 +40,17 @@ applications:
             # ALLOWLIST, never a blanket `env`. The build environment also holds
             # AWS credentials and Amplify internals, and this file ships inside
             # the deployment artifact.
+            #
+            # NOTE: the command below must NOT begin with a comment line.
+            # Amplify silently SKIPS any build command whose first line starts
+            # with '#' - no warning, no log entry, the step simply never runs.
+            # That cost a full deploy cycle. Keep prose in YAML comments here,
+            # outside the block scalar.
+            #
+            # Exact-anchored allowlist. `env | grep` is the form AWS's own docs
+            # use and is POSIX, unlike ${!VAR} indirect expansion - the build
+            # shell is not guaranteed to be bash.
             - |
-              # Exact-anchored allowlist. `env | grep` is the form AWS's own
-              # docs use and is POSIX, unlike ${!VAR} indirect expansion - the
-              # build shell is not guaranteed to be bash.
               : > .env.production
               env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
               echo "--- .env.production written, NAMES ONLY ---"
