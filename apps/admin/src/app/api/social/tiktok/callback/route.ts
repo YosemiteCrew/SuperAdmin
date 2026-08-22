@@ -14,7 +14,7 @@ import type { TikTokConnection } from '@/app/features/social/types';
 import { logger } from '@/app/lib/logger';
 
 /** Every exit from this route is a browser navigation back to the Social page. */
-function backToPanel(request: NextRequest, params: Record<string, string>): NextResponse {
+function backToPanel(params: Record<string, string>): NextResponse {
   // NOT request.url: on the Amplify SSR runtime that is the internal origin
   // (http://localhost:3000), so redirecting against it sends the browser to a
   // dead local address. appOrigin is the public origin and is already validated
@@ -31,22 +31,22 @@ function backToPanel(request: NextRequest, params: Record<string, string>): Next
 export function GET(request: NextRequest): Promise<Response> {
   return withSuperAdmin(request, async (actor) => {
     const config = getTikTokConfig();
-    if (!config) return backToPanel(request, { error: 'unconfigured' });
+    if (!config) return backToPanel({ error: 'unconfigured' });
 
     const query = request.nextUrl.searchParams;
     const denied = query.get('error');
-    if (denied) return backToPanel(request, { error: denied });
+    if (denied) return backToPanel({ error: denied });
 
     const code = query.get('code');
     const state = query.get('state');
-    if (!code || !state) return backToPanel(request, { error: 'missing_code' });
+    if (!code || !state) return backToPanel({ error: 'missing_code' });
 
     const sealed = request.cookies.get(OAUTH_COOKIE)?.value;
     const payload = sealed ? parseOAuthCookie(unseal(sealed, config.tokenKey) ?? '') : null;
     if (!payload || !statesMatch(payload.state, state)) {
       // A mismatch is either a stale tab or a forged callback; both are refused
       // without exchanging the code.
-      return backToPanel(request, { error: 'state_mismatch' });
+      return backToPanel({ error: 'state_mismatch' });
     }
 
     try {
@@ -79,12 +79,12 @@ export function GET(request: NextRequest): Promise<Response> {
         targetId: `tiktok:${tokens.openId}`,
         targetLabel: displayName ? `TikTok @${displayName}` : 'TikTok',
       });
-      return backToPanel(request, { connected: '1' });
+      return backToPanel({ connected: '1' });
     } catch (error) {
       logger.error('TikTok authorization failed', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return backToPanel(request, { error: 'exchange_failed' });
+      return backToPanel({ error: 'exchange_failed' });
     }
   });
 }
