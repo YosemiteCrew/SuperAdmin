@@ -26,6 +26,7 @@ overrides:
   postcss@<8.5.23: '>=8.5.23 <9'
   fast-uri@>=3.0.0 <3.1.5: '>=3.1.5 <4'
   deepmerge-ts@<8.0.0: '>=8.0.0 <9'
+  adm-zip@<0.6.0: '>=0.6.0 <0.7'
 
 importers:
 
@@ -2866,9 +2867,9 @@ packages:
     hasBin: true
     dev: true
 
-  /adm-zip@0.5.17:
-    resolution: {integrity: sha512-+Ut8d9LLqwEvHHJl1+PIHqoyDxFgVN847JTVM3Izi3xHDWPE4UtzzXysMZQs64DMcrJfBeS/uoEP4AD3HQHnQQ==}
-    engines: {node: '>=12.0'}
+  /adm-zip@0.6.0:
+    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
+    engines: {node: '>=14.0'}
     dev: true
 
   /agent-base@6.0.2:
@@ -7266,7 +7267,7 @@ packages:
     engines: {node: '>= 18'}
     hasBin: true
     dependencies:
-      adm-zip: 0.5.17
+      adm-zip: 0.6.0
       axios: 1.18.0(debug@4.4.3)
       commander: 14.0.3
       hpagent: 1.2.0
