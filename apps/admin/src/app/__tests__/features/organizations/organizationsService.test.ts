@@ -82,14 +82,36 @@ describe('updateOrganization', () => {
 
   it('PATCHes the verification flag to the per-business endpoint', async () => {
     await updateOrganization('o1', { isVerified: true });
-    expect(patchMock).toHaveBeenCalledWith('/v1/super-admin/businesses/o1', { isVerified: true });
+    expect(patchMock).toHaveBeenCalledWith(
+      '/v1/super-admin/businesses/o1',
+      { isVerified: true },
+      undefined
+    );
   });
 
   it('url-encodes the id and forwards the active flag', async () => {
     await updateOrganization('a/b 1', { isActive: false });
-    expect(patchMock).toHaveBeenCalledWith('/v1/super-admin/businesses/a%2Fb%201', {
-      isActive: false,
-    });
+    expect(patchMock).toHaveBeenCalledWith(
+      '/v1/super-admin/businesses/a%2Fb%201',
+      { isActive: false },
+      undefined
+    );
+  });
+
+  it('forwards the session cookie and the chosen backend', async () => {
+    // Without the cookie the platform backend rejects the mutation as
+    // unauthenticated; without the baseUrl it would hit the default environment
+    // even when the row was listed from the other one.
+    await updateOrganization(
+      'o1',
+      { isVerified: true },
+      { headers: { cookie: 'sAccessToken=abc' }, baseUrl: 'https://devapi.example.com' }
+    );
+    expect(patchMock).toHaveBeenCalledWith(
+      '/v1/super-admin/businesses/o1',
+      { isVerified: true },
+      { headers: { cookie: 'sAccessToken=abc' }, baseUrl: 'https://devapi.example.com' }
+    );
   });
 
   it('propagates transport errors', async () => {

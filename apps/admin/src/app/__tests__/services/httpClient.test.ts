@@ -71,4 +71,33 @@ describe('httpClient', () => {
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer x');
     expect(init.signal).toBe(ctrl.signal);
   });
+
+  it('PATCH targets an explicit baseUrl instead of the default backend', async () => {
+    // This is what keeps a business listed from one environment from being
+    // mutated on the other one.
+    fetchMock.mockResolvedValueOnce(jsonResponse({}));
+    const { httpClient } = await import('@/app/services/http/client');
+    await httpClient.patch(
+      '/v1/super-admin/businesses/o1',
+      { isVerified: true },
+      {
+        baseUrl: 'https://devapi.example.com',
+      }
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://devapi.example.com/v1/super-admin/businesses/o1',
+      expect.objectContaining({ method: 'PATCH' })
+    );
+  });
+
+  it('falls back to the configured base URL when no override is given', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({}));
+    const { httpClient } = await import('@/app/services/http/client');
+    const { config } = await import('@/app/config');
+    await httpClient.get('/health');
+    expect(fetchMock).toHaveBeenCalledWith(
+      `${config.api.baseUrl}/health`,
+      expect.objectContaining({ method: 'GET' })
+    );
+  });
 });

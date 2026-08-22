@@ -4,6 +4,14 @@ import supertokens from 'supertokens-node';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
+import {
+  DEFAULT_USER_TYPE_FILTER,
+  USER_TYPE_FILTERS,
+  USER_TYPE_META,
+  type UserTypeFilter,
+  parseUserTypeFilter,
+  recipeIdsForUserType,
+} from '@/app/features/users/filter';
 
 import { ExportUsersButton } from './ExportUsersButton';
 import { UsersTable, type UserRow } from './UsersTable';
@@ -18,6 +26,7 @@ const DEFAULT_TENANT = 'public';
 type SearchParams = {
   search?: string;
   cursor?: string;
+  type?: string;
 };
 
 function formatDateTime(ms: number): string {
@@ -34,12 +43,43 @@ function truncate(value: string, max = 14): string {
   return value.length > max ? `${value.slice(0, max)}…` : value;
 }
 
-function buildHref(params: { search?: string; cursor?: string }): string {
+function buildHref(params: { search?: string; cursor?: string; type?: UserTypeFilter }): string {
   const qs = new URLSearchParams();
   if (params.search) qs.set('search', params.search);
   if (params.cursor) qs.set('cursor', params.cursor);
+  if (params.type && params.type !== DEFAULT_USER_TYPE_FILTER) qs.set('type', params.type);
   const query = qs.toString();
   return query ? `/users?${query}` : '/users';
+}
+
+/**
+ * Switching the filter deliberately drops `cursor`: a pagination token is only
+ * meaningful within the result set it came from, so carrying it across a filter
+ * change would resume at an offset that no longer exists.
+ */
+function UserTypeTabs({ active, search }: Readonly<{ active: UserTypeFilter; search: string }>) {
+  return (
+    <nav className="flex flex-wrap gap-2" aria-label="Filter users by sign-in method">
+      {USER_TYPE_FILTERS.map((key) => {
+        const isActive = key === active;
+        return (
+          <Link
+            key={key}
+            href={buildHref({ search: search || undefined, type: key })}
+            aria-current={isActive ? 'page' : undefined}
+            title={USER_TYPE_META[key].hint}
+            className={
+              isActive
+                ? 'inline-flex items-center gap-2 rounded-full border border-btn bg-btn px-3.5 py-1.5 text-sm font-medium text-btn-ink'
+                : 'inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-raised'
+            }
+          >
+            {USER_TYPE_META[key].label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 export default async function UsersPage({
@@ -47,13 +87,15 @@ export default async function UsersPage({
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   ensureSuperTokensInit();
 
-  const { search, cursor } = await searchParams;
+  const { search, cursor, type } = await searchParams;
   const trimmedSearch = search?.trim() ?? '';
+  const typeFilter = parseUserTypeFilter(type);
 
   const { users, nextPaginationToken } = await supertokens.getUsersNewestFirst({
     tenantId: DEFAULT_TENANT,
     limit: PAGE_SIZE,
     paginationToken: cursor,
+    includeRecipeIds: recipeIdsForUserType(typeFilter),
     query: trimmedSearch ? { email: trimmedSearch } : undefined,
   });
 
@@ -98,7 +140,12 @@ export default async function UsersPage({
         <ExportUsersButton />
       </header>
 
+      <UserTypeTabs active={typeFilter} search={trimmedSearch} />
+
       <form action="/users" method="get" className="flex w-full max-w-xl items-center gap-2">
+        {typeFilter === DEFAULT_USER_TYPE_FILTER ? null : (
+          <input type="hidden" name="type" value={typeFilter} />
+        )}
         <input
           type="search"
           name="search"
@@ -115,7 +162,7 @@ export default async function UsersPage({
         </button>
         {trimmedSearch ? (
           <Link
-            href="/users"
+            href={buildHref({ type: typeFilter })}
             className="inline-flex h-11 min-w-[5.5rem] items-center justify-center rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-raised"
           >
             Clear
@@ -125,7 +172,9 @@ export default async function UsersPage({
 
       {users.length === 0 ? (
         <div className="rounded-2xl border border-line bg-surface p-10 text-center text-sm text-ink-3 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-          {trimmedSearch ? `No users matched “${trimmedSearch}”.` : 'No users yet.'}
+          {trimmedSearch
+            ? `No ${USER_TYPE_META[typeFilter].noun} matched “${trimmedSearch}”.`
+            : `No ${USER_TYPE_META[typeFilter].noun} yet.`}
         </div>
       ) : (
         <UsersTable rows={userRows} />
@@ -138,7 +187,7 @@ export default async function UsersPage({
         <div className="flex items-center gap-3">
           {cursor ? (
             <Link
-              href={buildHref({ search: trimmedSearch || undefined })}
+              href={buildHref({ search: trimmedSearch || undefined, type: typeFilter })}
               className="rounded-lg border border-line px-3 py-1.5 text-ink hover:bg-raised"
             >
               ← First page
@@ -149,6 +198,7 @@ export default async function UsersPage({
               href={buildHref({
                 search: trimmedSearch || undefined,
                 cursor: nextPaginationToken,
+                type: typeFilter,
               })}
               className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-ink hover:opacity-90"
             >

@@ -11,6 +11,8 @@ import type {
 type OrganizationRequestConfig = {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  /** Targets a specific platform backend; omit for the default one. */
+  baseUrl?: string;
 };
 
 /**
@@ -46,7 +48,12 @@ export async function getOrganization(
  */
 export async function updateOrganization(
   id: string,
-  patch: OrganizationStatusPatch
+  patch: OrganizationStatusPatch,
+  requestConfig?: OrganizationRequestConfig
 ): Promise<void> {
-  await httpClient.patch(`/v1/super-admin/businesses/${encodeURIComponent(id)}`, patch);
+  await httpClient.patch(
+    `/v1/super-admin/businesses/${encodeURIComponent(id)}`,
+    patch,
+    requestConfig
+  );
 }

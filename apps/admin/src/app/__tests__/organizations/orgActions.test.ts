@@ -1,5 +1,19 @@
 jest.mock('next/cache', () => ({ revalidatePath: jest.fn() }));
 
+const cookieHeader = { value: 'sAccessToken=abc' };
+jest.mock('next/headers', () => ({
+  headers: async () => ({ get: (name: string) => (name === 'cookie' ? cookieHeader.value : null) }),
+}));
+
+jest.mock('@/app/config/apiEnvironment', () => {
+  const actual = jest.requireActual('@/app/config/apiEnvironment');
+  return {
+    ...actual,
+    apiBaseUrl: (env: string) =>
+      env === 'development' ? 'https://devapi.example.com' : 'https://api.example.com',
+  };
+});
+
 const updateOrganizationMock = jest.fn();
 jest.mock('@/app/features/organizations/services/organizationsService', () => ({
   updateOrganization: (...args: unknown[]) => updateOrganizationMock(...args),
@@ -40,7 +54,14 @@ describe('verifyOrganizationAction', () => {
     await verifyOrganizationAction(
       makeForm({ organizationId: 'o1', organizationName: 'Acme Vet' })
     );
-    expect(updateOrganizationMock).toHaveBeenCalledWith('o1', { isVerified: true });
+    expect(updateOrganizationMock).toHaveBeenCalledWith(
+      'o1',
+      { isVerified: true },
+      {
+        headers: { cookie: 'sAccessToken=abc' },
+        baseUrl: 'https://api.example.com',
+      }
+    );
     expect(recordAuditEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'org.verify', targetId: 'o1', targetLabel: 'Acme Vet' })
     );
@@ -67,7 +88,14 @@ describe('suspendOrganizationAction', () => {
   it('sets the business inactive', async () => {
     const { suspendOrganizationAction } = await import(ACTIONS);
     await suspendOrganizationAction(makeForm({ organizationId: 'o2' }));
-    expect(updateOrganizationMock).toHaveBeenCalledWith('o2', { isActive: false });
+    expect(updateOrganizationMock).toHaveBeenCalledWith(
+      'o2',
+      { isActive: false },
+      {
+        headers: { cookie: 'sAccessToken=abc' },
+        baseUrl: 'https://api.example.com',
+      }
+    );
   });
 });
 
@@ -75,6 +103,69 @@ describe('reactivateOrganizationAction', () => {
   it('sets the business active', async () => {
     const { reactivateOrganizationAction } = await import(ACTIONS);
     await reactivateOrganizationAction(makeForm({ organizationId: 'o3' }));
-    expect(updateOrganizationMock).toHaveBeenCalledWith('o3', { isActive: true });
+    expect(updateOrganizationMock).toHaveBeenCalledWith(
+      'o3',
+      { isActive: true },
+      {
+        headers: { cookie: 'sAccessToken=abc' },
+        baseUrl: 'https://api.example.com',
+      }
+    );
+  });
+});
+
+describe('environment routing', () => {
+  it('sends the mutation to the development backend when the row came from dev', async () => {
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o9', organizationName: 'Dev Vet', env: 'development' })
+    );
+    expect(updateOrganizationMock).toHaveBeenCalledWith(
+      'o9',
+      { isVerified: true },
+      { headers: { cookie: 'sAccessToken=abc' }, baseUrl: 'https://devapi.example.com' }
+    );
+  });
+
+  it('marks a non-production action in the audit label', async () => {
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o9', organizationName: 'Dev Vet', env: 'development' })
+    );
+    // Otherwise the audit log would read as if a real business had been made
+    // visible to pet parents.
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLabel: 'Dev Vet [Development]' })
+    );
+  });
+
+  it('falls back to the id when a dev action has no name', async () => {
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(makeForm({ organizationId: 'o9', env: 'development' }));
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLabel: 'o9 [Development]' })
+    );
+  });
+
+  it('leaves the production label untouched', async () => {
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o1', organizationName: 'Acme Vet', env: 'production' })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetLabel: 'Acme Vet' })
+    );
+  });
+
+  it('treats an unrecognised env as production', async () => {
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o1', organizationName: 'Acme Vet', env: 'staging' })
+    );
+    expect(updateOrganizationMock).toHaveBeenCalledWith(
+      'o1',
+      { isVerified: true },
+      { headers: { cookie: 'sAccessToken=abc' }, baseUrl: 'https://api.example.com' }
+    );
   });
 });

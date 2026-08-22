@@ -15,20 +15,41 @@ describe('OrganizationRowActions', () => {
   });
 
   it('offers Verify and Suspend for a pending business', () => {
-    render(<OrganizationRowActions organizationId="o1" name="Acme Vet" state="pending" />);
+    render(
+      <OrganizationRowActions
+        organizationId="o1"
+        name="Acme Vet"
+        state="pending"
+        environment="production"
+      />
+    );
     expect(screen.getByRole('button', { name: 'Verify' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Suspend' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Reactivate' })).not.toBeInTheDocument();
   });
 
   it('offers only Suspend for a verified business', () => {
-    render(<OrganizationRowActions organizationId="o1" name="Acme Vet" state="verified" />);
+    render(
+      <OrganizationRowActions
+        organizationId="o1"
+        name="Acme Vet"
+        state="verified"
+        environment="production"
+      />
+    );
     expect(screen.queryByRole('button', { name: 'Verify' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Suspend' })).toBeInTheDocument();
   });
 
   it('offers only Reactivate for a suspended business', () => {
-    render(<OrganizationRowActions organizationId="o1" name="Acme Vet" state="suspended" />);
+    render(
+      <OrganizationRowActions
+        organizationId="o1"
+        name="Acme Vet"
+        state="suspended"
+        environment="production"
+      />
+    );
     expect(screen.getByRole('button', { name: 'Reactivate' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Suspend' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Verify' })).not.toBeInTheDocument();
@@ -36,7 +57,14 @@ describe('OrganizationRowActions', () => {
 
   it('blocks the action when the confirmation is dismissed', () => {
     globalThis.confirm = jest.fn(() => false);
-    render(<OrganizationRowActions organizationId="o1" name="Acme Vet" state="pending" />);
+    render(
+      <OrganizationRowActions
+        organizationId="o1"
+        name="Acme Vet"
+        state="pending"
+        environment="production"
+      />
+    );
     const form = screen.getByRole('button', { name: 'Verify' }).closest('form') as HTMLFormElement;
     fireEvent.submit(form);
     expect(globalThis.confirm).toHaveBeenCalled();
@@ -44,14 +72,28 @@ describe('OrganizationRowActions', () => {
 
   it('disables the buttons after a confirmed action', () => {
     globalThis.confirm = jest.fn(() => true);
-    render(<OrganizationRowActions organizationId="o1" name="Acme Vet" state="pending" />);
+    render(
+      <OrganizationRowActions
+        organizationId="o1"
+        name="Acme Vet"
+        state="pending"
+        environment="production"
+      />
+    );
     const verify = screen.getByRole('button', { name: 'Verify' });
     fireEvent.submit(verify.closest('form') as HTMLFormElement);
     expect(verify).toBeDisabled();
   });
 
   it('carries the organizationId on a hidden input', () => {
-    render(<OrganizationRowActions organizationId="org-42" name="Acme Vet" state="pending" />);
+    render(
+      <OrganizationRowActions
+        organizationId="org-42"
+        name="Acme Vet"
+        state="pending"
+        environment="production"
+      />
+    );
     const hidden = screen
       .getByRole('button', { name: 'Verify' })
       .closest('form')
