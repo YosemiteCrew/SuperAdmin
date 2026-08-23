@@ -5,6 +5,10 @@ import { NextRequest } from 'next/server';
 
 jest.mock('server-only', () => ({}));
 
+jest.mock('@/app/config/env.public', () => ({
+  publicEnv: { appOrigin: 'https://admin.example.com' },
+}));
+
 jest.mock('@/app/features/social/guard', () => ({
   withSuperAdmin: (_req: unknown, handler: (actor: unknown) => Promise<Response>) =>
     handler({ userId: 'user-1', email: 'admin@example.com' }),
@@ -352,5 +356,94 @@ describe('POST /api/social/instagram/scheduled', () => {
 
     publishReelMock.mockRejectedValue(new Error('boom'));
     expect((await scheduled(req(form(), 'correct-horse'))).status).toBe(500);
+  });
+});
+
+describe('instagram callback edge paths', () => {
+  const sealedState = (state: string) => seal(JSON.stringify({ state }), TOKEN_KEY);
+
+  beforeEach(() => {
+    getInstagramConfigMock.mockReturnValue(CONFIG);
+  });
+
+  it('rejects a callback that carries no state cookie at all', async () => {
+    // A missing cookie must land on state_mismatch, not crash - this is the
+    // path a stale or cross-browser callback takes.
+    const response = await callback(callbackRequest({ code: 'c', state: 'st' }));
+    expect(new URL(response.headers.get('location') ?? '').searchParams.get('error')).toBe(
+      'state_mismatch'
+    );
+  });
+
+  it('falls back to the token user id when the profile lookup fails', async () => {
+    (exchangeCode as jest.Mock).mockResolvedValue({
+      accessToken: 'short',
+      userId: 'from-token',
+      expiresIn: 3600,
+    });
+    (exchangeForLongLived as jest.Mock).mockResolvedValue({
+      accessToken: 'long',
+      userId: '',
+      expiresIn: 5_184_000,
+    });
+    (fetchProfile as jest.Mock).mockRejectedValue(new Error('profile unavailable'));
+
+    const response = await callback(callbackRequest({ code: 'c', state: 'st' }, sealedState('st')));
+
+    expect(writeInstagramConnection as jest.Mock).toHaveBeenCalledWith(
+      CONFIG,
+      expect.objectContaining({ userId: 'from-token' })
+    );
+    expect(new URL(response.headers.get('location') ?? '').searchParams.get('connected')).toBe(
+      'instagram'
+    );
+  });
+
+  it('handles a non-Error rejection without losing the redirect', async () => {
+    (exchangeCode as jest.Mock).mockRejectedValue('a bare string, not an Error');
+    const response = await callback(callbackRequest({ code: 'c', state: 'st' }, sealedState('st')));
+    expect(new URL(response.headers.get('location') ?? '').searchParams.get('error')).toBe(
+      'exchange_failed'
+    );
+  });
+});
+
+describe('instagram callback remaining guards', () => {
+  const sealedState = (state: string) => seal(JSON.stringify({ state }), TOKEN_KEY);
+
+  beforeEach(() => {
+    getInstagramConfigMock.mockReturnValue(CONFIG);
+  });
+
+  it('rejects a cookie that does not decrypt', async () => {
+    // unseal returns null for a tampered or foreign-key cookie; the `?? ''`
+    // must turn that into a state mismatch rather than throwing.
+    const response = await callback(
+      callbackRequest({ code: 'c', state: 'st' }, 'not-a-sealed-value')
+    );
+    expect(new URL(response.headers.get('location') ?? '').searchParams.get('error')).toBe(
+      'state_mismatch'
+    );
+  });
+
+  it('uses the token user id when the profile returns an empty one', async () => {
+    (exchangeCode as jest.Mock).mockResolvedValue({
+      accessToken: 'short',
+      userId: 'token-side-id',
+      expiresIn: 3600,
+    });
+    (exchangeForLongLived as jest.Mock).mockResolvedValue({
+      accessToken: 'long',
+      userId: '',
+      expiresIn: 5_184_000,
+    });
+    (fetchProfile as jest.Mock).mockResolvedValue({ userId: '', username: 'yosemite_crew' });
+
+    await callback(callbackRequest({ code: 'c', state: 'st' }, sealedState('st')));
+
+    expect(writeInstagramConnection as jest.Mock).toHaveBeenCalledWith(
+      CONFIG,
+      expect.objectContaining({ userId: 'token-side-id', username: 'yosemite_crew' })
+    );
   });
 });

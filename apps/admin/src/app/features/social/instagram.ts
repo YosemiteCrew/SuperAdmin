@@ -48,7 +48,7 @@ export function buildAuthorizeUrl(params: {
  * arrive as request input on the finish endpoint rather than from our own store.
  */
 function safeGraphId(value: string, kind: string): string {
-  if (!/^[0-9]+$/.test(value)) {
+  if (!/^\d+$/.test(value)) {
     throw new InstagramApiError('invalid_graph_id', `Instagram ${kind} is not numeric`);
   }
   return value;
@@ -73,9 +73,21 @@ function readNumber(source: Record<string, unknown>, key: string, fallback = 0):
 
 function throwIfError(payload: Record<string, unknown>): void {
   const error = asRecord(payload.error);
-  if (Object.keys(error).length === 0) return;
-  const code = readString(error, 'type', 'instagram_error');
-  throw new InstagramApiError(code, readString(error, 'message', code));
+  if (Object.keys(error).length > 0) {
+    const code = readString(error, 'type', 'instagram_error');
+    throw new InstagramApiError(code, readString(error, 'message', code));
+  }
+
+  // The OAuth endpoints (/oauth/access_token, ig_exchange_token) do NOT use the
+  // Graph API's nested `error` object - they return a FLAT body:
+  //   { error_type: 'OAuthException', code: 400, error_message: 'Invalid client_secret' }
+  // Without this branch that shape falls through to the bare "responded 400"
+  // below, which is what made a wrong app secret indistinguishable from a
+  // redirect-uri mismatch during setup.
+  const flatMessage = readString(payload, 'error_message');
+  if (flatMessage) {
+    throw new InstagramApiError(readString(payload, 'error_type', 'instagram_error'), flatMessage);
+  }
 }
 
 async function readJson(response: Response): Promise<Record<string, unknown>> {

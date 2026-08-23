@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import type { ApiEnvironment } from '@/app/config/apiEnvironment';
 import type { VerificationState } from '@/app/features/organizations/verification';
 
 import {
@@ -19,11 +20,35 @@ const BTN = {
     'rounded-lg border border-line px-3 py-1 text-xs font-medium text-ink transition-colors hover:bg-raised disabled:opacity-60',
 } as const;
 
+/**
+ * Every action carries the environment the row was listed from, so a business
+ * read from one backend can only ever be mutated on that same backend.
+ */
+function ActionFields({
+  organizationId,
+  name,
+  environment,
+}: Readonly<{ organizationId: string; name: string; environment: ApiEnvironment }>) {
+  return (
+    <>
+      <input type="hidden" name="organizationId" value={organizationId} />
+      <input type="hidden" name="organizationName" value={name} />
+      <input type="hidden" name="env" value={environment} />
+    </>
+  );
+}
+
 export function OrganizationRowActions({
   organizationId,
   name,
   state,
-}: Readonly<{ organizationId: string; name: string; state: VerificationState }>) {
+  environment,
+}: Readonly<{
+  organizationId: string;
+  name: string;
+  state: VerificationState;
+  environment: ApiEnvironment;
+}>) {
   const [pending, setPending] = useState(false);
 
   function gate(message: string) {
@@ -46,8 +71,7 @@ export function OrganizationRowActions({
           )}
           className="inline"
         >
-          <input type="hidden" name="organizationId" value={organizationId} />
-          <input type="hidden" name="organizationName" value={name} />
+          <ActionFields organizationId={organizationId} name={name} environment={environment} />
           <button type="submit" disabled={pending} className={BTN.primary}>
             Verify
           </button>
@@ -60,8 +84,7 @@ export function OrganizationRowActions({
           onSubmit={gate(`Reactivate ${name}?`)}
           className="inline"
         >
-          <input type="hidden" name="organizationId" value={organizationId} />
-          <input type="hidden" name="organizationName" value={name} />
+          <ActionFields organizationId={organizationId} name={name} environment={environment} />
           <button type="submit" disabled={pending} className={BTN.plain}>
             Reactivate
           </button>
@@ -74,8 +97,7 @@ export function OrganizationRowActions({
           )}
           className="inline"
         >
-          <input type="hidden" name="organizationId" value={organizationId} />
-          <input type="hidden" name="organizationName" value={name} />
+          <ActionFields organizationId={organizationId} name={name} environment={environment} />
           <button type="submit" disabled={pending} className={BTN.danger}>
             Suspend
           </button>

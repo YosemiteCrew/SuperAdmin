@@ -5,6 +5,10 @@ import { NextRequest } from 'next/server';
 
 jest.mock('server-only', () => ({}));
 
+jest.mock('@/app/config/env.public', () => ({
+  publicEnv: { appOrigin: 'https://admin.example.com' },
+}));
+
 jest.mock('@/app/features/social/guard', () => ({
   // The guard has its own test; here it stands in as "an authenticated super
   // admin", so these tests exercise the OAuth logic rather than re-testing auth.
@@ -196,5 +200,22 @@ describe('GET /api/social/tiktok/callback', () => {
       response as unknown as { cookies: { get: (n: string) => { value: string } | undefined } }
     ).cookies.get(OAUTH_COOKIE);
     expect(cookie?.value).toBe('');
+  });
+});
+
+describe('callback redirect origin', () => {
+  it('redirects to the public origin even when the request arrives on the internal one', async () => {
+    // On the Amplify SSR runtime the incoming request URL is http://localhost:3000,
+    // so a redirect built from request.url sends the browser to a dead local
+    // address. This is the regression guard for that.
+    const internal = new URL('http://localhost:3000/api/social/tiktok/callback');
+    internal.searchParams.set('error', 'access_denied');
+    const response = await callback(new NextRequest(internal));
+
+    const target = location(response);
+    expect(target.origin).toBe('https://admin.example.com');
+    expect(target.origin).not.toBe('http://localhost:3000');
+    expect(target.pathname).toBe('/social');
+    expect(target.searchParams.get('error')).toBe('access_denied');
   });
 });

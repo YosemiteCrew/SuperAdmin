@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { publicEnv } from '@/app/config/env.public';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInstagramConfig } from '@/app/features/social/config';
 import { withSuperAdmin } from '@/app/features/social/guard';
@@ -12,8 +13,12 @@ import { writeInstagramConnection } from '@/app/features/social/store';
 import type { InstagramConnection } from '@/app/features/social/types';
 import { logger } from '@/app/lib/logger';
 
-function backToPanel(request: NextRequest, params: Record<string, string>): NextResponse {
-  const url = new URL('/social', request.url);
+function backToPanel(params: Record<string, string>): NextResponse {
+  // NOT request.url: on the Amplify SSR runtime that is the internal origin
+  // (http://localhost:3000), so redirecting against it sends the browser to a
+  // dead local address. appOrigin is the public origin and is already validated
+  // to be https in production.
+  const url = new URL('/social', publicEnv.appOrigin);
   Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
   const response = NextResponse.redirect(url);
   response.cookies.delete({ name: INSTAGRAM_OAUTH_COOKIE, path: '/api/social/instagram' });
@@ -23,20 +28,20 @@ function backToPanel(request: NextRequest, params: Record<string, string>): Next
 export function GET(request: NextRequest): Promise<Response> {
   return withSuperAdmin(request, async (actor) => {
     const config = getInstagramConfig();
-    if (!config) return backToPanel(request, { error: 'unconfigured' });
+    if (!config) return backToPanel({ error: 'unconfigured' });
 
     const query = request.nextUrl.searchParams;
     const denied = query.get('error');
-    if (denied) return backToPanel(request, { error: denied });
+    if (denied) return backToPanel({ error: denied });
 
     const code = query.get('code');
     const state = query.get('state');
-    if (!code || !state) return backToPanel(request, { error: 'missing_code' });
+    if (!code || !state) return backToPanel({ error: 'missing_code' });
 
     const sealed = request.cookies.get(INSTAGRAM_OAUTH_COOKIE)?.value;
     const expected = sealed ? parseStateCookie(unseal(sealed, config.tokenKey) ?? '') : null;
     if (!expected || !statesMatch(expected, state)) {
-      return backToPanel(request, { error: 'state_mismatch' });
+      return backToPanel({ error: 'state_mismatch' });
     }
 
     try {
@@ -74,12 +79,12 @@ export function GET(request: NextRequest): Promise<Response> {
         targetId: `instagram:${connection.userId}`,
         targetLabel: connection.username ? `Instagram @${connection.username}` : 'Instagram',
       });
-      return backToPanel(request, { connected: 'instagram' });
+      return backToPanel({ connected: 'instagram' });
     } catch (error) {
       logger.error('Instagram authorization failed', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return backToPanel(request, { error: 'exchange_failed' });
+      return backToPanel({ error: 'exchange_failed' });
     }
   });
 }

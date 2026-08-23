@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 
+import {
+  DEFAULT_API_ENVIRONMENT,
+  apiBaseUrl,
+  parseApiEnvironment,
+} from '@/app/config/apiEnvironment';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { getOrgFlags } from '@/app/features/feature-flags/store';
 import { corroborateBusiness } from '@/app/features/organizations/corroboration';
@@ -90,13 +95,20 @@ export default async function OrganizationDetailPage({
   searchParams,
 }: Readonly<{
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ demo?: string; checks?: string }>;
+  searchParams: Promise<{ demo?: string; checks?: string; env?: string }>;
 }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   const { id } = await params;
-  const { demo, checks } = await searchParams;
+  const { demo, checks, env } = await searchParams;
+  const environment = parseApiEnvironment(env);
+  // Both the not-found and the loaded view link back to the list the row came
+  // from, so returning does not silently drop the reader onto production.
+  const backHref =
+    environment === DEFAULT_API_ENVIRONMENT
+      ? '/organizations'
+      : `/organizations?env=${environment}`;
   const cookie = (await headers()).get('cookie') ?? '';
 
   let org: SuperAdminOrganizationDetail | null = null;
@@ -104,7 +116,10 @@ export default async function OrganizationDetailPage({
     org = getDemoOrganization(id);
   } else {
     try {
-      org = await getOrganization(id, { headers: { cookie } });
+      org = await getOrganization(id, {
+        headers: { cookie },
+        baseUrl: apiBaseUrl(environment),
+      });
     } catch {
       /* backend not connected (or business missing) — render the unavailable state */
     }
@@ -113,7 +128,7 @@ export default async function OrganizationDetailPage({
   if (!org) {
     return (
       <div className="flex flex-col gap-6">
-        <Link href="/organizations" className="text-sm text-ink-2 hover:text-ink">
+        <Link href={backHref} className="text-sm text-ink-2 hover:text-ink">
           ← Back to organizations
         </Link>
         <UnavailableCard />
@@ -127,14 +142,15 @@ export default async function OrganizationDetailPage({
   const corroboration = checks === '1' ? await corroborateBusiness(org) : null;
 
   const [flags, notes] = await Promise.all([getOrgFlags(org.id), getOrgNotes(org.id)]);
+  const envParam = environment === DEFAULT_API_ENVIRONMENT ? '' : `&env=${environment}`;
   const checksHref = `/organizations/${encodeURIComponent(org.id)}?checks=1${
     demo === '1' ? '&demo=1' : ''
-  }`;
+  }${envParam}`;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <Link href="/organizations" className="text-sm text-ink-2 hover:text-ink">
+        <Link href={backHref} className="text-sm text-ink-2 hover:text-ink">
           ← Back to organizations
         </Link>
         <Link href={`/organizations/${id}/activity`} className="text-sm text-ink-2 hover:text-ink">
@@ -165,7 +181,12 @@ export default async function OrganizationDetailPage({
               Run pre-verification checks
             </Link>
           )}
-          <OrganizationRowActions organizationId={org.id} name={org.name} state={state} />
+          <OrganizationRowActions
+            organizationId={org.id}
+            name={org.name}
+            state={state}
+            environment={environment}
+          />
         </div>
       </header>
 

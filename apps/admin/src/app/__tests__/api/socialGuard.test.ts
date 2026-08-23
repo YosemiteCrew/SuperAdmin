@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 jest.mock('server-only', () => ({}));
 
+jest.mock('@/app/config/env.public', () => ({
+  publicEnv: { appOrigin: 'https://admin.example.com' },
+}));
+
 jest.mock('supertokens-node/nextjs', () => ({
   withSession: jest.fn(),
 }));
@@ -105,5 +109,36 @@ describe('isSameOrigin', () => {
 
   it('allows a request with no Origin header, which cannot be a browser CSRF', () => {
     expect(isSameOrigin(request())).toBe(true);
+  });
+});
+
+describe('isSameOrigin behind a reverse proxy', () => {
+  /**
+   * The Amplify SSR runtime hands the handler an INTERNAL url
+   * (http://localhost:3000/...) while the browser still sends its real Origin.
+   * Comparing the two rejected every genuine browser POST with 403 and let an
+   * Origin-less request through - the protection exactly inverted. Verified live
+   * against production before the fix: Origin admin.yosemitecrew.com -> 403
+   * "Cross-origin request refused"; no Origin -> 401 (past the guard).
+   */
+  function internalRequest(headers: Record<string, string> = {}): NextRequest {
+    return new NextRequest('http://localhost:3000/api/social/tiktok/post', {
+      method: 'POST',
+      headers,
+    });
+  }
+
+  it('accepts the real browser origin even though the request arrived internally', () => {
+    expect(isSameOrigin(internalRequest({ origin: 'https://admin.example.com' }))).toBe(true);
+  });
+
+  it('still rejects a genuinely foreign origin on an internal request', () => {
+    expect(isSameOrigin(internalRequest({ origin: 'https://evil.example.com' }))).toBe(false);
+  });
+
+  it('does not accept the internal origin itself as same-origin', () => {
+    // http://localhost:3000 is not the public origin; only a real proxy hop
+    // produces it, and nothing legitimate posts from it.
+    expect(isSameOrigin(internalRequest({ origin: 'http://localhost:3000' }))).toBe(false);
   });
 });
