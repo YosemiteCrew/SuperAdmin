@@ -6,6 +6,7 @@ import SuperTokens from 'supertokens-node';
 import { withSession } from 'supertokens-node/nextjs';
 
 import { ensureSuperTokensInit, isSuperAdminUser } from '@/app/config/backend';
+import { publicEnv } from '@/app/config/env.public';
 
 export interface AdminActor {
   userId: string;
@@ -56,7 +57,12 @@ export function isSameOrigin(request: NextRequest): boolean {
   // non-browser client, which cannot be riding a victim's ambient cookies.
   if (!origin) return true;
   try {
-    return new URL(origin).host === request.nextUrl.host;
+    // Compare against the PUBLIC origin, never request.nextUrl. On the Amplify
+    // SSR runtime nextUrl.host is the internal host (localhost:3000), so the
+    // browser's real Origin never matched it and every state-changing POST was
+    // refused 403 - while an Origin-less request sailed through. That is the
+    // protection inverted: it rejected exactly the requests it should allow.
+    return new URL(origin).host === new URL(publicEnv.appOrigin).host;
   } catch {
     return false;
   }
