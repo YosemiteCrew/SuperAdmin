@@ -65,18 +65,54 @@ function throwIfApiError(payload: Record<string, unknown>): void {
   }
 }
 
+/**
+ * Every TikTok call gets a deadline. Without one a stalled upload leaves the
+ * request hanging forever - the composer sits on "Uploading..." with nothing in
+ * the server log and no way to tell a slow upload from a dead one. Observed
+ * exactly that during setup, which is what sent the diagnosis down the wrong
+ * path. instagramPublisher already bounds its work this way; this brings TikTok
+ * into line.
+ */
+const API_TIMEOUT_MS = 20_000;
+/** Uploads carry the whole file, so they get a longer leash than the JSON calls. */
+const UPLOAD_TIMEOUT_MS = 60_000;
+
+/** Wraps fetch with an AbortSignal so a stalled peer surfaces as an error. */
+async function fetchWithDeadline(
+  url: string,
+  init: RequestInit,
+  timeoutMs: number,
+  what: string
+): Promise<Response> {
+  try {
+    return await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  } catch (error) {
+    // A timeout must not look like a transport blip - name it, so the operator
+    // and the log both say which call ran out of time.
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      throw new TikTokApiError('timeout', `TikTok ${what} timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
 async function call(
   path: string,
   init: { token: string; body?: unknown; method?: 'GET' | 'POST' }
 ): Promise<Record<string, unknown>> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: init.method ?? 'POST',
-    headers: {
-      Authorization: `Bearer ${init.token}`,
-      'Content-Type': 'application/json; charset=UTF-8',
+  const response = await fetchWithDeadline(
+    `${API_BASE}${path}`,
+    {
+      method: init.method ?? 'POST',
+      headers: {
+        Authorization: `Bearer ${init.token}`,
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
     },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  });
+    API_TIMEOUT_MS,
+    path
+  );
   const payload = asRecord(await response.json().catch(() => ({})));
   throwIfApiError(payload);
   if (!response.ok) {
@@ -111,11 +147,16 @@ function parseTokenResponse(payload: Record<string, unknown>): TikTokTokenRespon
 }
 
 async function postForm(body: URLSearchParams): Promise<TikTokTokenResponse> {
-  const response = await fetch(`${API_BASE}/oauth/token/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body,
-  });
+  const response = await fetchWithDeadline(
+    `${API_BASE}/oauth/token/`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body,
+    },
+    API_TIMEOUT_MS,
+    'token exchange'
+  );
   return parseTokenResponse(asRecord(await response.json().catch(() => ({}))));
 }
 
@@ -263,17 +304,22 @@ export async function initInboxDraft(
 /** Pushes the whole file to the presigned URL TikTok handed back. */
 export async function uploadVideoBytes(uploadUrl: string, bytes: Uint8Array): Promise<void> {
   const size = bytes.byteLength;
-  const response = await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'video/mp4',
-      'Content-Length': String(size),
-      'Content-Range': `bytes 0-${size - 1}/${size}`,
+  const response = await fetchWithDeadline(
+    uploadUrl,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'video/mp4',
+        'Content-Length': String(size),
+        'Content-Range': `bytes 0-${size - 1}/${size}`,
+      },
+      // Uint8Array is a valid BodyInit; the cast satisfies the DOM lib's narrower
+      // ArrayBufferView union under this TS target.
+      body: bytes as unknown as BodyInit,
     },
-    // Uint8Array is a valid BodyInit; the cast satisfies the DOM lib's narrower
-    // ArrayBufferView union under this TS target.
-    body: bytes as unknown as BodyInit,
-  });
+    UPLOAD_TIMEOUT_MS,
+    'upload'
+  );
   if (!response.ok) {
     throw new TikTokApiError('upload_failed', `Upload failed with status ${response.status}`);
   }
