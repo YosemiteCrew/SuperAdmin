@@ -181,6 +181,19 @@ describe('GET /api/social/tiktok/callback', () => {
     expect(location(response).searchParams.get('error')).toBe('missing_code');
   });
 
+  it.each([
+    ['the refresh window', { ...TOKENS, refreshExpiresIn: 0 }],
+    ['the access token', { ...TOKENS, expiresIn: 0 }],
+  ])('refuses a token whose %s has no lifetime', async (_label, tokens) => {
+    // TikTok answers a silently re-approved session this way. Storing it gives
+    // a connection the panel shows as live while every post 409s.
+    exchangeCodeMock.mockResolvedValue(tokens);
+    const response = await callback(callbackRequest({ code: 'c', state: 'st' }, sealedState('st')));
+    expect(location(response).searchParams.get('error')).toBe('token_without_lifetime');
+    expect(writeConnectionMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('reports a failed code exchange without storing anything', async () => {
     exchangeCodeMock.mockRejectedValue(new Error('invalid_grant'));
     const response = await callback(callbackRequest({ code: 'c', state: 'st' }, sealedState('st')));
