@@ -69,7 +69,22 @@ if (prKey) {
   process.stdout.write('  Analyzing as the main branch (set SONAR_PR_KEY for PR mode).\n\n');
 }
 
-scanner.default(
+// `scanner(...)`, not `scanner.default(...)`.
+//
+// The `.default` was an artefact of the version this script was written
+// against: sonarqube-scanner 4 was CommonJS, so a default import through
+// Node's interop handed back the module object rather than the function, and
+// the real callable hung off `.default` of that.
+//
+// Version 5 is `"type": "module"` with a genuine `export default`, so the
+// default import IS the function and `.default` is undefined. Left as it was,
+// this line throws `scanner.default is not a function` the first time anybody
+// runs `pnpm sonar`.
+//
+// CI never caught it and could not: the Sonar workflow runs
+// `SonarSource/sonarqube-scan-action`, not this package, so nothing in the
+// pipeline imports the module this script depends on.
+scanner(
   {
     serverUrl: 'https://sonarcloud.io',
     token,
