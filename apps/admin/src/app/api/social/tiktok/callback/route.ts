@@ -58,6 +58,18 @@ export function GET(request: NextRequest): Promise<Response> {
         codeVerifier: payload.verifier,
       });
 
+      // A silently re-approved session comes back with zero lifetimes. Storing
+      // that yields a connection the panel renders as live while every post
+      // fails with "TikTok is not connected", which is a miserable thing to
+      // debug - so refuse it here and make the operator authorize properly.
+      if (tokens.expiresIn <= 0 || tokens.refreshExpiresIn <= 0) {
+        logger.error('TikTok returned a token with no lifetime', {
+          expiresIn: tokens.expiresIn,
+          refreshExpiresIn: tokens.refreshExpiresIn,
+        });
+        return backToPanel({ error: 'token_without_lifetime' });
+      }
+
       const now = Date.now();
       const displayName = await fetchDisplayName(tokens.accessToken).catch(() => '');
       const connection: TikTokConnection = {

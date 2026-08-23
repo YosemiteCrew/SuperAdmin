@@ -38,6 +38,13 @@ export function buildAuthorizeUrl(params: {
     state: params.state,
     code_challenge: params.codeChallenge,
     code_challenge_method: 'S256',
+    // Always show the authorization page. Left to itself TikTok silently
+    // re-approves a returning session, and that shortcut hands back a token with
+    // refresh_expires_in: 0 and no profile scope - which the callback happily
+    // stores, so the panel reads "Connected" while every post fails with
+    // "TikTok is not connected". Forcing the page costs one click and is the
+    // only way to get a full grant back.
+    disable_auto_auth: '1',
   });
   return `${AUTH_URL}?${query.toString()}`;
 }
