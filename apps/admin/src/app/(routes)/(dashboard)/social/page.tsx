@@ -30,6 +30,8 @@ const CALLBACK_ERRORS: Record<string, string> = {
   state_mismatch: 'That sign-in link had expired. Start the connection again.',
   exchange_failed: 'The network rejected the authorization. Check the app credentials and retry.',
   access_denied: 'The connection was cancelled.',
+  token_without_lifetime:
+    'TikTok returned a token that had already expired. Authorize again and approve the permissions on the TikTok page.',
 };
 
 /** Reads the TikTok side of the page, tolerating an unconfigured host. */

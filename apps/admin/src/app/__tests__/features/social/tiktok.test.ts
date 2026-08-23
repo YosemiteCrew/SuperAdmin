@@ -54,6 +54,20 @@ describe('buildAuthorizeUrl', () => {
     expect(url.searchParams.get('redirect_uri')).toBe('https://admin.example.com/cb');
   });
 
+  it('forces the authorization page so a re-approved session cannot skip consent', () => {
+    // TikTok's silent re-approval returns a token with zero lifetimes and no
+    // profile scope, which the panel would store as a live-looking connection.
+    const url = new URL(
+      buildAuthorizeUrl({
+        clientKey: 'key',
+        redirectUri: 'https://admin.example.com/cb',
+        state: 'st',
+        codeChallenge: 'ch',
+      })
+    );
+    expect(url.searchParams.get('disable_auto_auth')).toBe('1');
+  });
+
   it('does not request scopes the app has not registered', () => {
     expect(TIKTOK_SCOPES).not.toContain('user.info.stats');
     expect(TIKTOK_SCOPES).not.toContain('video.list');
