@@ -269,3 +269,59 @@ describe('isPrivacyLevel', () => {
     expect(isPrivacyLevel(null)).toBe(false);
   });
 });
+
+describe('request deadlines', () => {
+  /**
+   * Without a deadline a stalled TikTok upload leaves the composer showing
+   * "Uploading..." indefinitely, with nothing in the server log to distinguish
+   * a slow upload from a dead one. That happened in production and misdirected
+   * the diagnosis, so each call now carries an AbortSignal.
+   */
+  function timeoutError() {
+    const e = new Error('The operation was aborted due to timeout');
+    e.name = 'TimeoutError';
+    return e;
+  }
+
+  it('passes an AbortSignal on the upload', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 } as unknown as Response);
+    await uploadVideoBytes('https://upload.tiktok.test/x', new Uint8Array(8));
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.signal).toBeDefined();
+  });
+
+  it('passes an AbortSignal on the JSON calls', async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: { publish_id: 'p1', upload_url: 'u' } }));
+    await initInboxDraft('tok', { size: 10 });
+    const init = fetchMock.mock.calls[0][1];
+    expect(init.signal).toBeDefined();
+  });
+
+  it('reports an upload timeout as a named TikTok error, not a raw abort', async () => {
+    fetchMock.mockRejectedValueOnce(timeoutError());
+    await expect(
+      uploadVideoBytes('https://upload.tiktok.test/x', new Uint8Array(8))
+    ).rejects.toThrow(/upload timed out/i);
+  });
+
+  it('reports a JSON-call timeout with the path that ran out of time', async () => {
+    fetchMock.mockRejectedValueOnce(timeoutError());
+    await expect(initInboxDraft('tok', { size: 10 })).rejects.toThrow(/timed out/i);
+  });
+
+  it('surfaces the timeout under a recognisable error code', async () => {
+    fetchMock.mockRejectedValueOnce(timeoutError());
+    await expect(
+      uploadVideoBytes('https://upload.tiktok.test/x', new Uint8Array(8))
+    ).rejects.toMatchObject({
+      code: 'timeout',
+    });
+  });
+
+  it('still propagates a non-timeout transport error unchanged', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('ECONNRESET'));
+    await expect(
+      uploadVideoBytes('https://upload.tiktok.test/x', new Uint8Array(8))
+    ).rejects.toThrow('ECONNRESET');
+  });
+});
