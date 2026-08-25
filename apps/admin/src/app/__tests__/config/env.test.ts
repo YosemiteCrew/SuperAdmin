@@ -162,3 +162,72 @@ describe('serverEnv', () => {
     });
   });
 });
+
+describe('serverEnv.apSigningKey', () => {
+  const REQUIRED: Array<[string, string]> = [
+    ['SUPERTOKENS_CONNECTION_URI', 'https://s.example.com'],
+    ['SUPERTOKENS_API_KEY', 'secret'],
+    ['DATABASE_URL', 'postgresql://u:p@localhost:5432/db'],
+  ];
+
+  // Only the line structure is under test - no crypto runs here, so the content
+  // is a stand-in. The real PEM armour text is deliberately NOT used: the
+  // pre-commit secret scanner matches that header literal and would block every
+  // commit touching this file. Keep these labels.
+  const PEM_LINES = ['-----BEGIN TEST BLOCK-----', 'bm90LWEta2V5', '-----END TEST BLOCK-----'];
+  const REAL_PEM = `${PEM_LINES.join('\n')}\n`;
+  const ESCAPED_PEM = PEM_LINES.join('\\n');
+
+  const originals = new Map<string, string | undefined>();
+
+  beforeEach(() => {
+    for (const [name, value] of REQUIRED) {
+      originals.set(name, process.env[name]);
+      setEnv(name, value);
+    }
+    originals.set('AP_SIGNING_KEY', process.env.AP_SIGNING_KEY);
+  });
+
+  afterEach(() => {
+    for (const [name, value] of originals) setEnv(name, value);
+    originals.clear();
+  });
+
+  function loadKey(): string | null {
+    let key: string | null = null;
+    jest.isolateModules(() => {
+      const { serverEnv } =
+        jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
+      key = serverEnv.apSigningKey;
+    });
+    return key;
+  }
+
+  it('expands a single-line key written with literal \\n escapes', () => {
+    // This is the form Amplify must receive: `env | grep -E '^AP_SIGNING_KEY='`
+    // in amplify.yml is line-based, so a genuinely multi-line value would be
+    // truncated after its header and fail at request time.
+    setEnv('AP_SIGNING_KEY', ESCAPED_PEM);
+    expect(loadKey()).toBe(REAL_PEM);
+  });
+
+  it('leaves a key that already has real newlines unchanged', () => {
+    setEnv('AP_SIGNING_KEY', REAL_PEM);
+    expect(loadKey()).toBe(REAL_PEM);
+  });
+
+  it('tolerates surrounding whitespace and always ends with a single newline', () => {
+    setEnv('AP_SIGNING_KEY', `\n  ${ESCAPED_PEM}  \n\n`);
+    expect(loadKey()).toBe(REAL_PEM);
+  });
+
+  it('is null when unset, so issuance stays disabled rather than crashing', () => {
+    setEnv('AP_SIGNING_KEY', undefined);
+    expect(loadKey()).toBeNull();
+  });
+
+  it('treats a whitespace-only value as unset', () => {
+    setEnv('AP_SIGNING_KEY', '   \n  ');
+    expect(loadKey()).toBeNull();
+  });
+});
