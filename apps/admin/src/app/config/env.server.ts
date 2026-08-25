@@ -10,6 +10,27 @@ function requiredServer(name: string, value: string | undefined): string {
   return value;
 }
 
+/**
+ * Restores a PEM that was supplied on a single line with literal `\n` escapes.
+ *
+ * Amplify does not expose console env vars to the Next SSR runtime, so
+ * `amplify.yml` materialises them with `env | grep -E '^(NAME|...)='`. That
+ * extraction is line-based: a genuinely multi-line PEM survives only as far as
+ * its `-----BEGIN PRIVATE KEY-----` header, and `createPrivateKey` then throws
+ * at request time rather than at build time. Supplying the key single-line and
+ * expanding it here keeps the value intact through that pipeline.
+ *
+ * A PEM pasted with real newlines is returned unchanged, so both forms work.
+ */
+function optionalPem(value: string | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const expanded = value.includes('\\n') ? value.replaceAll('\\n', '\n') : value;
+  const trimmed = expanded.trim();
+  return trimmed.length > 0 ? `${trimmed}\n` : null;
+}
+
 function optionalEmailList(value: string | undefined): string[] {
   if (!value) {
     return [];
@@ -40,7 +61,7 @@ export const serverEnv = {
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
   // ActivityPub federation: RSA private key PEM used to sign license JWTs.
   // Optional — AP token issuance is disabled when absent.
-  apSigningKey: process.env.AP_SIGNING_KEY ?? null,
+  apSigningKey: optionalPem(process.env.AP_SIGNING_KEY),
   apSigningKeyId: process.env.AP_SIGNING_KEY_ID ?? 'yc-ap-2026-01',
   // Shared secret the mobile/web apps present when reporting consent decisions
   // to /api/consent. Optional — the endpoint refuses all writes when absent so
