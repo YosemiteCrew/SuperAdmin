@@ -2,18 +2,15 @@ import 'server-only';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import type { JSONObject } from 'supertokens-node/types';
 
+import { MAX_NOTES, type OrgNote } from './notesShared';
+
+// Client components import these from ./notesShared directly; re-exported here so
+// existing server-side call sites (page, actions, tests) resolve them unchanged.
+export { MAX_NOTES, MAX_NOTE_CHARS } from './notesShared';
+export type { OrgNote } from './notesShared';
+
 const storeId = (orgId: string) => `superadmin:org-notes:${orgId}`;
 const NOTES_KEY = 'notes';
-export const MAX_NOTES = 50;
-export const MAX_NOTE_CHARS = 2000;
-
-export interface OrgNote {
-  id: string;
-  actorId: string;
-  actorEmail: string;
-  content: string;
-  at: number;
-}
 
 function generateId(): string {
   if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();

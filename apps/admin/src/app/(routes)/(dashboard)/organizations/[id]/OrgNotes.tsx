@@ -2,7 +2,7 @@
 
 import { useActionState, useRef } from 'react';
 
-import { MAX_NOTE_CHARS, type OrgNote } from '@/app/features/organizations/notes';
+import { MAX_NOTE_CHARS, type OrgNote } from '@/app/features/organizations/notesShared';
 
 import { type NoteActionResult, addNoteAction } from './noteActions';
 
