@@ -18,7 +18,7 @@ function formatNoteDate(at: number): string {
 
 const INITIAL: NoteActionResult = {};
 
-export function OrgNotes({ orgId, notes }: { orgId: string; notes: OrgNote[] }) {
+export function OrgNotes({ orgId, notes }: { readonly orgId: string; readonly notes: OrgNote[] }) {
   const formRef = useRef<HTMLFormElement>(null);
 
   const [state, formAction, pending] = useActionState(

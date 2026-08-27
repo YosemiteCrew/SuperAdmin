@@ -27,14 +27,11 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
 
   const status = inviteStatus(invite);
   if (status !== 'pending') {
-    return {
-      error:
-        status === 'expired'
-          ? 'This invite link has expired. Ask a super-admin to generate a new one.'
-          : status === 'revoked'
-            ? 'This invite has been revoked.'
-            : 'This invite has already been used.',
+    const messages: Record<string, string> = {
+      expired: 'This invite link has expired. Ask a super-admin to generate a new one.',
+      revoked: 'This invite has been revoked.',
     };
+    return { error: messages[status] ?? 'This invite has already been used.' };
   }
 
   // The invitee is not yet a super-admin; getAuthenticatedSession checks only that

@@ -28,7 +28,7 @@ function formatDateTime(ms: number): string {
   });
 }
 
-function Initials({ name, email }: { name: string; email: string }) {
+function Initials({ name, email }: { readonly name: string; readonly email: string }) {
   const source = name.trim() || email;
   const parts = source.split(/[\s@]/);
   const letters = parts
@@ -45,7 +45,7 @@ function Initials({ name, email }: { name: string; email: string }) {
   );
 }
 
-function RevokeButton({ row }: { row: AdminRow }) {
+function RevokeButton({ row }: { readonly row: AdminRow }) {
   const [pending, setPending] = useState(false);
 
   if (row.isSelf || row.isBootstrap || row.isLastAdmin) return null;
@@ -76,7 +76,7 @@ function RevokeButton({ row }: { row: AdminRow }) {
   );
 }
 
-export function AdminsTable({ rows }: { rows: AdminRow[] }) {
+export function AdminsTable({ rows }: { readonly rows: AdminRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-2xl border border-line bg-surface p-10 text-center text-sm text-ink-3 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">

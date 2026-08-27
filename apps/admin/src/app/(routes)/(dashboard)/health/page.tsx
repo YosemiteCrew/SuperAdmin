@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-function StatusDot({ ok }: { ok: boolean }) {
+function StatusDot({ ok }: { readonly ok: boolean }) {
   return (
     <span
       className={`inline-block h-2.5 w-2.5 rounded-full ${ok ? 'bg-emerald-500' : 'bg-red-500'}`}
@@ -18,7 +18,7 @@ function StatusDot({ ok }: { ok: boolean }) {
   );
 }
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
+function Card({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
       <h2 className="mb-4 text-xs font-medium uppercase tracking-wide text-ink-3">{title}</h2>
@@ -27,7 +27,7 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function Row({ label, value }: { label: string; value: React.ReactNode }) {
+function Row({ label, value }: { readonly label: string; readonly value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between border-b border-line py-2.5 last:border-b-0">
       <span className="text-sm text-ink-3">{label}</span>
@@ -36,7 +36,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function HealthReport({ h }: { h: SystemHealth }) {
+function HealthReport({ h }: { readonly h: SystemHealth }) {
   const stOk = h.supertokens.status === 'ok';
 
   return (

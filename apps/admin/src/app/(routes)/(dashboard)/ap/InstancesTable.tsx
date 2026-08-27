@@ -13,7 +13,7 @@ function getStatus(token: APLicenseToken): TokenStatus {
   return 'active';
 }
 
-function StatusBadge({ status }: { status: TokenStatus }) {
+function StatusBadge({ status }: { readonly status: TokenStatus }) {
   const classes = {
     active: 'bg-emerald-100 text-emerald-800',
     expired: 'bg-amber-100 text-amber-800',
@@ -29,7 +29,7 @@ function StatusBadge({ status }: { status: TokenStatus }) {
   );
 }
 
-function TierBadge({ tier }: { tier: string }) {
+function TierBadge({ tier }: { readonly tier: string }) {
   const classes: Record<string, string> = {
     enterprise: 'bg-violet-100 text-violet-800',
     pro: 'bg-blue-100 text-blue-800',
@@ -45,7 +45,7 @@ function TierBadge({ tier }: { tier: string }) {
   );
 }
 
-function RevokeButton({ tokenId }: { tokenId: string }) {
+function RevokeButton({ tokenId }: { readonly tokenId: string }) {
   const [, action, isPending] = useActionState<null, FormData>(async (_prev, formData) => {
     await revokeLicenseTokenAction(formData);
     return null;
@@ -149,7 +149,7 @@ function IssueForm() {
   );
 }
 
-export function InstancesTable({ tokens }: { tokens: APLicenseToken[] }) {
+export function InstancesTable({ tokens }: { readonly tokens: APLicenseToken[] }) {
   return (
     <div className="space-y-6">
       <IssueForm />

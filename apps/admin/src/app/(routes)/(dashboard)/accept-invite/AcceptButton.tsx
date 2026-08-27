@@ -6,7 +6,7 @@ import { type AcceptInviteResult, acceptInviteAction } from './actions';
 
 const INITIAL: AcceptInviteResult = {};
 
-export function AcceptButton({ token }: { token: string }) {
+export function AcceptButton({ token }: { readonly token: string }) {
   const [state, formAction, pending] = useActionState<AcceptInviteResult, FormData>(
     (_prev, fd) => acceptInviteAction(fd),
     INITIAL
