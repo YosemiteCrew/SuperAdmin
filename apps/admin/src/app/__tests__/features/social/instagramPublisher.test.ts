@@ -14,6 +14,7 @@ jest.mock('@/app/features/social/store', () => ({
 }));
 
 jest.mock('@/app/features/social/instagram', () => ({
+  createReelFromUrl: jest.fn(),
   createResumableReel: jest.fn(),
   fetchContainerStatus: jest.fn(),
   publishContainer: jest.fn(),
@@ -25,6 +26,7 @@ import * as igModule from '@/app/features/social/instagram';
 import { finishReel, publishReel } from '@/app/features/social/instagramPublisher';
 
 const ig = igModule as unknown as {
+  createReelFromUrl: jest.Mock;
   createResumableReel: jest.Mock;
   fetchContainerStatus: jest.Mock;
   publishContainer: jest.Mock;
@@ -44,6 +46,7 @@ const request = {
 beforeEach(() => {
   jest.clearAllMocks();
   getUsableInstagramConnectionMock.mockResolvedValue(CONNECTION);
+  ig.createReelFromUrl.mockResolvedValue('17999');
   ig.createResumableReel.mockResolvedValue({ containerId: '17901', uploadUri: 'https://rupload' });
   ig.uploadReelBytes.mockResolvedValue(undefined);
   ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'FINISHED', error: '' });
@@ -79,6 +82,42 @@ describe('publishReel', () => {
       targetId: 'instagram:178414',
       targetLabel: 'Instagram @yosemite_crew',
     });
+  });
+
+  it('publishes via video_url when given a videoUrl, never uploading bytes', async () => {
+    // Instagram Login only accepts the video_url path for Reels; the scheduler
+    // hosts the clip publicly and sends the URL.
+    const urlRequest = {
+      videoUrl: 'https://cdn.example.com/clip.mp4',
+      options: { caption: 'vet humour', shareToFeed: true },
+    };
+    const result = await publishReel(CONFIG, ACTOR, urlRequest, NOW);
+    expect(result).toEqual({ ok: true, state: 'published', mediaId: 'media-9' });
+    expect(ig.createReelFromUrl).toHaveBeenCalledWith({
+      accessToken: 'tok',
+      igUserId: '178414',
+      videoUrl: 'https://cdn.example.com/clip.mp4',
+      caption: 'vet humour',
+      shareToFeed: true,
+    });
+    // The resumable byte path must not run for a URL request.
+    expect(ig.createResumableReel).not.toHaveBeenCalled();
+    expect(ig.uploadReelBytes).not.toHaveBeenCalled();
+    // It still polls the container it created and publishes that one.
+    expect(ig.publishContainer).toHaveBeenCalledWith(
+      expect.objectContaining({ containerId: '17999' })
+    );
+  });
+
+  it('fails cleanly when neither a videoUrl nor bytes are supplied', async () => {
+    const result = await publishReel(CONFIG, ACTOR, { options: request.options }, NOW);
+    expect(result).toEqual({
+      ok: false,
+      reason: 'container_failed',
+      detail: 'no video source supplied',
+    });
+    expect(ig.createReelFromUrl).not.toHaveBeenCalled();
+    expect(ig.createResumableReel).not.toHaveBeenCalled();
   });
 
   it('hands back the container id when transcoding outruns the wait', async () => {

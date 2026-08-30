@@ -218,6 +218,38 @@ export async function createResumableReel(params: {
   };
 }
 
+/**
+ * Opens a Reels container from a public video_url. This is the ONLY container
+ * mode graph.instagram.com (Instagram Login) supports for Reels: resumable byte
+ * upload is Facebook-Login-for-Business only, so an Instagram-Login app answers
+ * `{"error":"The parameter video_url is required"}`. Instagram fetches ("cURLs")
+ * the URL server-side, so it must be public HTTPS and stay reachable until the
+ * container finishes transcoding. Returns the container id to publish.
+ */
+export async function createReelFromUrl(params: {
+  accessToken: string;
+  igUserId: string;
+  videoUrl: string;
+  caption: string;
+  shareToFeed: boolean;
+}): Promise<string> {
+  const body = new URLSearchParams({
+    media_type: 'REELS',
+    video_url: params.videoUrl,
+    caption: params.caption,
+    share_to_feed: String(params.shareToFeed),
+    access_token: params.accessToken,
+  });
+  const payload = await readJson(
+    await fetch(`${GRAPH}/${GRAPH_VERSION}/${safeGraphId(params.igUserId, ACCOUNT_ID)}/media`, {
+      method: 'POST',
+      headers: { 'Content-Type': FORM_CONTENT_TYPE },
+      body,
+    })
+  );
+  return readString(payload, 'id');
+}
+
 /** Pushes the whole file to the rupload endpoint the container handed back. */
 export async function uploadReelBytes(params: {
   uploadUri: string;

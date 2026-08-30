@@ -5,6 +5,7 @@ import { logger } from '@/app/lib/logger';
 
 import type { InstagramConfig } from './config';
 import {
+  createReelFromUrl,
   createResumableReel,
   fetchContainerStatus,
   publishContainer,
@@ -28,7 +29,11 @@ function delay(ms: number): Promise<void> {
 }
 
 export interface InstagramPublishRequest {
-  bytes: Uint8Array;
+  // Exactly one video source. graph.instagram.com (Instagram Login) requires
+  // video_url for Reels, so the scheduler sends `videoUrl` (a public HTTPS URL).
+  // `bytes` stays for the admin composer's resumable path.
+  videoUrl?: string;
+  bytes?: Uint8Array;
   options: InstagramPostOptions;
 }
 
@@ -78,37 +83,49 @@ export async function publishReel(
   const connection = await getUsableInstagramConnection(config);
   if (!connection) return { ok: false, reason: 'not_connected' };
 
-  const target = await createResumableReel({
-    accessToken: connection.accessToken,
-    igUserId: connection.userId,
-    caption: request.options.caption,
-    shareToFeed: request.options.shareToFeed,
-  });
-  await uploadReelBytes({
-    uploadUri: target.uploadUri,
-    accessToken: connection.accessToken,
-    bytes: request.bytes,
-  });
+  // Prefer the video_url path - the only one Instagram Login accepts for Reels.
+  // Fall back to resumable bytes for the admin composer.
+  let containerId: string;
+  if (request.videoUrl) {
+    containerId = await createReelFromUrl({
+      accessToken: connection.accessToken,
+      igUserId: connection.userId,
+      videoUrl: request.videoUrl,
+      caption: request.options.caption,
+      shareToFeed: request.options.shareToFeed,
+    });
+  } else if (request.bytes) {
+    const target = await createResumableReel({
+      accessToken: connection.accessToken,
+      igUserId: connection.userId,
+      caption: request.options.caption,
+      shareToFeed: request.options.shareToFeed,
+    });
+    await uploadReelBytes({
+      uploadUri: target.uploadUri,
+      accessToken: connection.accessToken,
+      bytes: request.bytes,
+    });
+    containerId = target.containerId;
+  } else {
+    return { ok: false, reason: 'container_failed', detail: 'no video source supplied' };
+  }
 
-  const state = await waitForContainer(
-    connection.accessToken,
-    target.containerId,
-    now + MAX_WAIT_MS
-  );
+  const state = await waitForContainer(connection.accessToken, containerId, now + MAX_WAIT_MS);
   if (state === 'ERROR') {
-    return { ok: false, reason: 'container_failed', detail: target.containerId };
+    return { ok: false, reason: 'container_failed', detail: containerId };
   }
   if (state === 'IN_PROGRESS') {
     logger.info('Instagram container still transcoding; handing back for follow-up', {
-      containerId: target.containerId,
+      containerId,
     });
-    return { ok: true, state: 'processing', containerId: target.containerId };
+    return { ok: true, state: 'processing', containerId };
   }
 
   const mediaId = await publishContainer({
     accessToken: connection.accessToken,
     igUserId: connection.userId,
-    containerId: target.containerId,
+    containerId,
   });
   await auditPost(actor.actorId, connection);
   return { ok: true, state: 'published', mediaId };

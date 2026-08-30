@@ -114,6 +114,37 @@ describe('parseReelForm', () => {
     expect(parsed.options).toEqual({ caption: 'vet humour', shareToFeed: true });
   });
 
+  it('accepts a public https videoUrl and carries no file', () => {
+    const parsed = parseReelForm(
+      fakeForm({ videoUrl: 'https://cdn.example.com/clip.mp4', caption: 'vet humour' })
+    ) as ParsedReel;
+    expect(parsed.videoUrl).toBe('https://cdn.example.com/clip.mp4');
+    expect(parsed.video).toBeUndefined();
+    expect(parsed.options.caption).toBe('vet humour');
+  });
+
+  it('prefers videoUrl over an uploaded file (Instagram Login needs the URL path)', () => {
+    const parsed = parseReelForm(
+      fakeForm({ videoUrl: 'https://cdn.example.com/clip.mp4', video: video() })
+    ) as ParsedReel;
+    expect(parsed.videoUrl).toBe('https://cdn.example.com/clip.mp4');
+    expect(parsed.video).toBeUndefined();
+  });
+
+  it('rejects a non-https videoUrl (Instagram fetches it publicly)', () => {
+    expect(parseReelForm(fakeForm({ videoUrl: 'http://cdn.example.com/clip.mp4' }))).toMatchObject({
+      message: 'videoUrl must be an https URL',
+      status: 400,
+    });
+  });
+
+  it('rejects a malformed videoUrl', () => {
+    expect(parseReelForm(fakeForm({ videoUrl: 'not a url' }))).toMatchObject({
+      message: 'videoUrl must be a valid URL',
+      status: 400,
+    });
+  });
+
   it('defaults share-to-feed ON, so the Reel is visible on the profile', () => {
     const parsed = parseReelForm(fakeForm({ video: video() })) as ParsedReel;
     expect(parsed.options.shareToFeed).toBe(true);
