@@ -42,7 +42,9 @@ export function POST(request: NextRequest): Promise<Response> {
       const outcome = await publishReel(
         config,
         { actorId: actor.userId },
-        { bytes: new Uint8Array(await parsed.video.arrayBuffer()), options: parsed.options }
+        parsed.videoUrl
+          ? { videoUrl: parsed.videoUrl, options: parsed.options }
+          : { bytes: new Uint8Array(await parsed.video!.arrayBuffer()), options: parsed.options }
       );
       return instagramOutcomeResponse(outcome);
     } catch (error) {
