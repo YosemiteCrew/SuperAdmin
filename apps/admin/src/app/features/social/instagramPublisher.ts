@@ -16,10 +16,13 @@ import type { InstagramConnection, InstagramPostOptions } from './types';
 
 /**
  * How long to wait for Instagram to transcode before handing the caller a
- * container id to finish later. Reels usually finish inside 30s; the cap keeps
- * the request well short of a platform timeout rather than blocking on the tail.
+ * container id to finish later. This MUST stay well under the hosting gateway's
+ * response timeout (~30s on Amplify): a longer wait returns a 504 to the caller
+ * even though the publish then completes server-side, which reads as a failure
+ * and risks a duplicate on retry. So we wait only briefly and hand back a 202 +
+ * containerId; the caller re-calls (finish mode) to publish the same container.
  */
-const MAX_WAIT_MS = 45_000;
+const MAX_WAIT_MS = 15_000;
 const POLL_INTERVAL_MS = 3_000;
 
 function delay(ms: number): Promise<void> {

@@ -357,6 +357,54 @@ describe('POST /api/social/instagram/scheduled', () => {
     publishReelMock.mockRejectedValue(new Error('boom'));
     expect((await scheduled(req(form(), 'correct-horse'))).status).toBe(500);
   });
+
+  it('publishes a video_url reel without any uploaded file', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    publishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17930' });
+    const body = form({ videoUrl: 'https://cdn.example.com/clip.mp4' }, false);
+    const response = await scheduled(req(body, 'correct-horse'));
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ state: 'processing', containerId: '17930' });
+    expect(publishReelMock).toHaveBeenCalledWith(
+      CONFIG,
+      { actorId: 'scheduler:social-poster' },
+      {
+        videoUrl: 'https://cdn.example.com/clip.mp4',
+        options: expect.objectContaining({ caption: 'vet humour' }),
+      }
+    );
+  });
+
+  it('finish mode: a containerId publishes that container instead of creating one', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    // No video and no videoUrl: finish mode must not fall through to parseReelForm.
+    const body = form({ containerId: '  17930  ' }, false);
+    body.delete('caption');
+    const response = await scheduled(req(body, 'correct-horse'));
+    expect(response.status).toBe(200);
+    expect(finishReelMock).toHaveBeenCalledWith(
+      CONFIG,
+      { actorId: 'scheduler:social-poster' },
+      '17930'
+    );
+    expect(publishReelMock).not.toHaveBeenCalled();
+  });
+
+  it('finish mode still processing returns 202 with the container id', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    finishReelMock.mockResolvedValue({ ok: true, state: 'processing', containerId: '17930' });
+    const response = await scheduled(req(form({ containerId: '17930' }, false), 'correct-horse'));
+    expect(response.status).toBe(202);
+    expect(await response.json()).toEqual({ state: 'processing', containerId: '17930' });
+  });
+
+  it('finish mode surfaces an upstream failure', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    finishReelMock.mockRejectedValue(new Error('boom'));
+    expect(
+      (await scheduled(req(form({ containerId: '17930' }, false), 'correct-horse'))).status
+    ).toBe(500);
+  });
 });
 
 describe('instagram callback edge paths', () => {

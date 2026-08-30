@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { serverEnv } from '@/app/config/env.server';
 import { instagramFailure, instagramOutcomeResponse } from '@/app/features/social/apiResult';
 import { getInstagramConfig, missingInstagramEnv } from '@/app/features/social/config';
-import { publishReel } from '@/app/features/social/instagramPublisher';
+import { finishReel, publishReel } from '@/app/features/social/instagramPublisher';
 import { parseReelForm } from '@/app/features/social/postRequest';
 import { constantTimeEquals } from '@/app/features/social/secrets';
 
@@ -35,6 +35,22 @@ export async function POST(request: NextRequest): Promise<Response> {
     form = await request.formData();
   } catch {
     return NextResponse.json({ error: 'Expected a multipart form body' }, { status: 400 });
+  }
+
+  // Finish mode: the poster re-calls with the containerId of a container it
+  // already created. Instagram transcodes a video_url Reel asynchronously, so the
+  // create call returns 202 while it is still processing; this publishes that same
+  // container instead of creating a new one. It is what keeps a slow transcode
+  // from turning a retry into a duplicate Reel.
+  const containerField = form.get('containerId');
+  if (typeof containerField === 'string' && containerField.trim()) {
+    try {
+      return instagramOutcomeResponse(
+        await finishReel(config, { actorId: SCHEDULER_ACTOR_ID }, containerField.trim())
+      );
+    } catch (error) {
+      return instagramFailure(error);
+    }
   }
 
   const parsed = parseReelForm(form);
