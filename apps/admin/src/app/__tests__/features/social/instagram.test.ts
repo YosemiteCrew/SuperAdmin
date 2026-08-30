@@ -3,6 +3,7 @@
  */
 import {
   buildAuthorizeUrl,
+  createReelFromUrl,
   createResumableReel,
   exchangeCode,
   exchangeForLongLived,
@@ -121,6 +122,43 @@ describe('createResumableReel', () => {
     expect(body.get('upload_type')).toBe('resumable');
     expect(body.get('caption')).toBe('vet humour');
     expect(body.get('share_to_feed')).toBe('true');
+  });
+});
+
+describe('createReelFromUrl', () => {
+  it('opens a REELS container from a public video_url and returns its id', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ id: 'container-9' }));
+    const id = await createReelFromUrl({
+      accessToken: 't',
+      igUserId: '178414',
+      videoUrl: 'https://cdn.example.com/clip.mp4',
+      caption: 'vet humour',
+      shareToFeed: true,
+    });
+    expect(id).toBe('container-9');
+
+    const body = fetchMock.mock.calls[0][1].body as URLSearchParams;
+    expect(body.get('media_type')).toBe('REELS');
+    // The whole point: video_url, and NO upload_type=resumable (Instagram Login only).
+    expect(body.get('video_url')).toBe('https://cdn.example.com/clip.mp4');
+    expect(body.get('upload_type')).toBeNull();
+    expect(body.get('caption')).toBe('vet humour');
+    expect(body.get('share_to_feed')).toBe('true');
+  });
+
+  it('surfaces the Instagram error when the container cannot be created', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse({ error_type: 'IGApiException', error_message: 'boom' }, false, 400)
+    );
+    await expect(
+      createReelFromUrl({
+        accessToken: 't',
+        igUserId: '178414',
+        videoUrl: 'https://cdn.example.com/clip.mp4',
+        caption: 'x',
+        shareToFeed: true,
+      })
+    ).rejects.toThrow();
   });
 });
 

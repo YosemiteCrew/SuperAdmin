@@ -86,27 +86,54 @@ export function parsePostForm(form: FormData): ParsedPost | ParseFailure {
 export const MAX_CAPTION_LENGTH = 2200;
 
 export interface ParsedReel {
-  video: UploadedVideo;
+  // Exactly one is set. `videoUrl` is a public HTTPS URL Instagram fetches
+  // server-side (the only Reels path Instagram Login supports); `video` is an
+  // uploaded file for the resumable composer path.
+  video?: UploadedVideo;
+  videoUrl?: string;
   options: InstagramPostOptions;
+}
+
+/** Validates a public HTTPS video URL. Instagram cURLs it, so it must be public. */
+function checkVideoUrl(value: unknown): ParseFailure | string {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return { message: 'A video file or videoUrl is required', status: 400 };
+  }
+  let url: URL;
+  try {
+    url = new URL(value.trim());
+  } catch {
+    return { message: 'videoUrl must be a valid URL', status: 400 };
+  }
+  if (url.protocol !== 'https:') {
+    return { message: 'videoUrl must be an https URL', status: 400 };
+  }
+  return url.toString();
 }
 
 /** Validates a multipart Instagram Reel body from the composer or the scheduler. */
 export function parseReelForm(form: FormData): ParsedReel | ParseFailure {
-  const video = checkVideo(form.get('video'));
-  if ('message' in video) return video;
-
   const caption = String(form.get('caption') ?? '').trim();
   if (caption.length > MAX_CAPTION_LENGTH) {
     return { message: `The caption exceeds ${MAX_CAPTION_LENGTH} characters`, status: 400 };
   }
-
-  return {
-    video,
-    options: {
-      caption,
-      // Default ON: a Reel that does not reach the profile grid is invisible to
-      // anyone browsing the account, which is not what "post to Instagram" means.
-      shareToFeed: form.get('shareToFeed') !== 'false',
-    },
+  const options: InstagramPostOptions = {
+    caption,
+    // Default ON: a Reel that does not reach the profile grid is invisible to
+    // anyone browsing the account, which is not what "post to Instagram" means.
+    shareToFeed: form.get('shareToFeed') !== 'false',
   };
+
+  // A videoUrl (from the scheduler, which hosts the clip publicly) wins over a
+  // file: Instagram Login only accepts the video_url path for Reels.
+  const rawUrl = form.get('videoUrl');
+  if (typeof rawUrl === 'string' && rawUrl.trim() !== '') {
+    const videoUrl = checkVideoUrl(rawUrl);
+    if (typeof videoUrl !== 'string') return videoUrl;
+    return { videoUrl, options };
+  }
+
+  const video = checkVideo(form.get('video'));
+  if ('message' in video) return video;
+  return { video, options };
 }
