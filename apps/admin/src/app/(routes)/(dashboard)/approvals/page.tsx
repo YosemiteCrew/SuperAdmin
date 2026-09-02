@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import { annotateApprovalStatuses, countPending } from '@/app/features/approvals/queue';
+import {
+  annotateApprovalStatuses,
+  countPending,
+  fetchApprovalCandidates,
+} from '@/app/features/approvals/queue';
 import type { ApprovalStatus } from '@/app/features/approvals/store';
 
 import { ApprovalsTable } from './ApprovalsTable';
@@ -11,7 +14,6 @@ import { ApprovalsTable } from './ApprovalsTable';
 export const metadata: Metadata = { title: 'Account approvals' };
 
 const SCAN_LIMIT = 100;
-const DEFAULT_TENANT = 'public';
 
 type StatusFilter = ApprovalStatus | 'all';
 
@@ -33,11 +35,7 @@ export default async function ApprovalsPage({
     ? (status as StatusFilter)
     : 'pending';
 
-  const { users } = await supertokens.getUsersNewestFirst({
-    tenantId: DEFAULT_TENANT,
-    limit: SCAN_LIMIT,
-  });
-
+  const users = await fetchApprovalCandidates(SCAN_LIMIT);
   const rows = await annotateApprovalStatuses(users);
 
   const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
@@ -48,8 +46,10 @@ export default async function ApprovalsPage({
       <header className="flex flex-col gap-1">
         <h1 className="text-2xl font-medium tracking-tight text-ink">Account approvals</h1>
         <p className="text-sm text-ink-3">
-          Review the newest {SCAN_LIMIT} accounts. Approving sends a welcome email; rejecting
-          disables the account and signs it out everywhere. Select rows to act in bulk.
+          Review the newest {SCAN_LIMIT} business accounts (email and password sign-in). Pet parents
+          on the mobile app never need approval and are not listed here. Approving sends a welcome
+          email; rejecting disables the account and signs it out everywhere. Select rows to act in
+          bulk.
         </p>
       </header>
 
