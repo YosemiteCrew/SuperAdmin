@@ -3,7 +3,11 @@ import Link from 'next/link';
 import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
-import { annotateApprovalStatuses, countPending } from '@/app/features/approvals/queue';
+import {
+  annotateApprovalStatuses,
+  countPending,
+  fetchApprovalCandidates,
+} from '@/app/features/approvals/queue';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getRecentAuditEvents } from '@/app/features/audit/store';
 
@@ -48,18 +52,21 @@ function Stat({ label, value, hint }: Readonly<{ label: string; value: string; h
 export default async function DashboardPage() {
   ensureSuperTokensInit();
 
-  const [totalUsers, newest, auditEvents] = await Promise.all([
+  const [totalUsers, newest, approvalCandidates, auditEvents] = await Promise.all([
     supertokens.getUserCount(),
     supertokens.getUsersNewestFirst({
       tenantId: 'public',
       limit: ROLLING_FETCH_CAP,
     }),
+    // A separate, business-only window - the same one /approvals scans - so a
+    // run of mobile-app signups can neither inflate this count nor push real
+    // business accounts out of it.
+    fetchApprovalCandidates(ROLLING_FETCH_CAP),
     getRecentAuditEvents(8),
   ]);
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
-  // Reuses the page of users fetched above — same window the /approvals queue scans.
-  const pendingApprovals = countPending(await annotateApprovalStatuses(newest.users));
+  const pendingApprovals = countPending(await annotateApprovalStatuses(approvalCandidates));
   const cutoff = Date.now() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
