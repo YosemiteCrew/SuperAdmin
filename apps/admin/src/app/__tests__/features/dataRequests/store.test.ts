@@ -89,6 +89,10 @@ describe('computeDueAt', () => {
           Date.UTC(received.getUTCFullYear(), received.getUTCMonth() + 2, 0)
         ).getUTCDate();
 
+        const expectedYear =
+          received.getUTCMonth() === 11 ? received.getUTCFullYear() + 1 : received.getUTCFullYear();
+
+        expect(due.getUTCFullYear()).toBe(expectedYear);
         expect(due.getUTCMonth()).toBe(expectedMonth);
         expect(due.getUTCDate()).toBe(Math.min(received.getUTCDate(), lastDayOfTargetMonth));
       }
@@ -142,8 +146,10 @@ describe('createDataRequest', () => {
 
     const { data } = mockCreate.mock.calls[0][0] as { data: { receivedAt: Date; dueAt: Date } };
     expect(data.receivedAt.getTime()).toBeGreaterThanOrEqual(before);
-    // dueAt is 30 days after receivedAt.
-    expect(data.dueAt.getTime() - data.receivedAt.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    // Against computeDueAt of the SAME receivedAt, not against a fixed number of
+    // milliseconds: a month is not a constant duration, so a fixed delta here
+    // passes or fails depending on which month the suite happens to run in.
+    expect(data.dueAt.toISOString()).toBe(computeDueAt(data.receivedAt).toISOString());
   });
 });
 

@@ -116,7 +116,7 @@ describe('RequestsTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
-    expect(await screen.findByText(/30-day response clock has started/)).toBeInTheDocument();
+    expect(await screen.findByText(/one-month response clock has started/)).toBeInTheDocument();
   });
 
   it('shows the error message when the action reports a failure', async () => {
