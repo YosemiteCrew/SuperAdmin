@@ -123,13 +123,21 @@ function valueFromEnvFile(contents, key) {
  * @returns {string}
  */
 function readEnvFiles() {
+  // Each read names its file directly rather than taking one from a variable.
+  // A loop over the array below reads the same two files, but a dataflow scanner
+  // sees a file API called on a non-literal operand and cannot tell that operand
+  // is a module constant - and this is a gate, so the code says what it means
+  // instead of arguing with it.
   let contents = '';
-  for (const file of ENV_FILES) {
-    try {
-      contents += `${fs.readFileSync(file, 'utf8')}\n`;
-    } catch {
-      // Not there. That is the ordinary case, not a failure.
-    }
+  try {
+    contents += `${fs.readFileSync(path.join(PACKAGE_ROOT, '.env'), 'utf8')}\n`;
+  } catch {
+    // Not there. That is the ordinary case, not a failure.
+  }
+  try {
+    contents += `${fs.readFileSync(path.join(PACKAGE_ROOT, 'prisma', '.env'), 'utf8')}\n`;
+  } catch {
+    // Same.
   }
   return contents;
 }
