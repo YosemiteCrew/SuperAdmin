@@ -12,6 +12,7 @@ import {
 } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
+import { logger } from '@/app/lib/logger';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
 import { inviteStatus, type InviteStatus } from '@/app/features/invites/types';
 
@@ -115,7 +116,13 @@ async function hasEnrolledSecondFactor(userId: string): Promise<boolean> {
   try {
     const { devices } = await TotpNode.listDevices(userId);
     return devices.some((device) => device.verified);
-  } catch {
+  } catch (error) {
+    // Reported rather than discarded: this returning true blocks an invitee who
+    // may have no device at all, so the failure has to be visible somewhere.
+    logger.error('Could not read TOTP devices; demanding the second factor', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return true;
   }
 }

@@ -6,6 +6,8 @@ import EmailPasswordNode from 'supertokens-node/recipe/emailpassword';
 import EmailVerificationNode from 'supertokens-node/recipe/emailverification';
 import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
+
+import { logger } from '@/app/lib/logger';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 import MultiFactorAuthNode from 'supertokens-node/recipe/multifactorauth';
 import TOTPNode from 'supertokens-node/recipe/totp';
@@ -207,7 +209,14 @@ export async function isDisabledOrUnknown(userId: string): Promise<boolean> {
   try {
     const { metadata } = await UserMetadataNode.getUserMetadata(userId);
     return typeof metadata.disabledAt === 'number';
-  } catch {
+  } catch (error) {
+    // Reported rather than discarded: this returning true denies a legitimate
+    // invitee, so an operator needs to be able to tell "account is disabled"
+    // apart from "the metadata store was unreachable".
+    logger.error('Could not read the disabled flag; treating the account as disabled', {
+      userId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     return true;
   }
 }
