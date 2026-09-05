@@ -34,7 +34,7 @@ describe('buildSystemInfo', () => {
     expect(map.Build).toBe('abcdef1'); // shortened to 7 chars
     expect(map['Organizations backend']).toBe('Connected');
     expect(map['SuperTokens core']).toBe('core.example.com');
-    expect(map['Audit retention']).toBe('250 most-recent events');
+    expect(map['Audit view']).toBe('250 most-recent events');
   });
 
   it('falls back for missing env, no build sha, and unconfigured backend', () => {
