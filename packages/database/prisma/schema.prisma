@@ -189,3 +189,23 @@ model APDirectoryListing {
   @@index([listed])
   @@index([instanceHost])
 }
+
+// Durable, append-only record of privileged actions in the panel. `seq` is the
+// authoritative order for the hash chain; timestamps alone can collide.
+model AuditEvent {
+  seq         BigInt   @unique @default(autoincrement())
+  id          String   @id
+  action      String
+  actorId     String
+  actorEmail  String
+  targetType  String
+  targetId    String
+  targetLabel String?
+  at          DateTime
+  prevHash    String
+  hash        String
+
+  @@index([actorId, seq])
+  @@index([targetId, seq])
+  @@index([at])
+}

@@ -1,7 +1,7 @@
 import { AUDIT_TARGET_TYPES } from './types';
 import type { AuditAction, AuditEvent, AuditEventInput } from './types';
 
-/** How many events the central log retains (most-recent-first). */
+/** How many events the audit screen renders at once (most-recent-first). */
 export const AUDIT_LOG_LIMIT = 250;
 
 export type AuditSeverity = 'info' | 'warning' | 'danger';
