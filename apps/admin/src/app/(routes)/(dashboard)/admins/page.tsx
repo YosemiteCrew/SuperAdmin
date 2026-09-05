@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { IoPersonAddOutline } from 'react-icons/io5';
 import supertokens from 'supertokens-node';
 import TotpNode from 'supertokens-node/recipe/totp';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
@@ -75,19 +77,29 @@ export default async function AdminsPage() {
   });
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Admins</h1>
-        <p className="text-sm text-ink-3">
-          All accounts with super-admin access to this panel. Bootstrap accounts (
-          <span className="font-medium">shield icon</span>) are protected from revocation.
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+          Admins
+        </h1>
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
+          All accounts with super-admin access to this panel. Bootstrap accounts carry a shield and
+          are protected from revocation.
         </p>
       </header>
 
-      <div className="flex items-center gap-3 rounded-xl border border-line bg-raised px-4 py-3 text-sm text-ink-2">
-        <span className="font-medium text-ink">{rows.length}</span>
-        {rows.length === 1 ? 'super-admin' : 'super-admins'} — new admins must be provisioned via
-        the SuperTokens dashboard or the bootstrap email list.
+      <div className="flex flex-wrap items-center gap-x-[6px] gap-y-2 rounded-[14px] border border-[var(--hairline)] bg-[var(--inset)] px-4 py-[11px] text-[13px] text-[color:var(--ink-muted)]">
+        <span className="font-bold text-[color:var(--ink)]">
+          {rows.length} super admin{rows.length === 1 ? '' : 's'}.
+        </span>
+        New admins join via an invite link or the bootstrap email list.
+        <Link
+          href="/invites"
+          className="yc-primary-button ml-auto inline-flex h-[31px] items-center gap-1.5 rounded-full bg-[var(--btn)] px-[14px] text-[12px] font-semibold text-[color:var(--btn-ink)]"
+        >
+          <IoPersonAddOutline aria-hidden className="text-[13px]" />
+          <span>Invite admin</span>
+        </Link>
       </div>
 
       <AdminsTable rows={rows} />

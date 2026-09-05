@@ -78,6 +78,17 @@ describe('InstancesTable', () => {
     expect(screen.getByText('enterprise')).toBeInTheDocument();
   });
 
+  // `tier` is an unconstrained string column, so a tier with no styling entry is
+  // reachable. Without the fallback the class list picks up a literal
+  // "undefined"; this pins the guard down as live rather than dead code.
+  it('falls back to the free-tier styling for a tier it does not know', () => {
+    render(<InstancesTable tokens={[makeToken({ tier: 'trial' })]} />);
+    const badge = screen.getByText('trial');
+    expect(badge).toBeInTheDocument();
+    expect(badge.className).not.toContain('undefined');
+    expect(badge.className).toContain('var(--inset)');
+  });
+
   it('renders multiple tokens', () => {
     const tokens = [
       makeToken({ id: 'tok_1', instanceDomain: 'a.example.com' }),

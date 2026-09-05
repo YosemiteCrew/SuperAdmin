@@ -1,0 +1,649 @@
+/* ============================================================
+   Warm-bone app shell — sidebar + header + content.
+
+   Scoped to the shell components (Sidebar, Header, UserMenu and the
+   dashboard layout). Every colour here resolves through the token layer
+   in globals.css, so light and dark both work with no hardcoded hexes.
+   ============================================================ */
+
+/* ---------- Frame ---------- */
+
+.shellRoot {
+  display: flex;
+  height: 100vh;
+  background: var(--page);
+}
+
+.shellMain {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.shellContent {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+  background: var(--page);
+  padding: 26px 30px;
+}
+
+/* ---------- Sidebar ---------- */
+
+.sidebar {
+  --sidebar-expanded-width: 224px;
+  --sidebar-collapsed-width: 76px;
+  position: relative;
+  z-index: 50;
+  display: flex;
+  height: 100%;
+  width: var(--sidebar-expanded-width);
+  min-width: var(--sidebar-expanded-width);
+  max-width: var(--sidebar-expanded-width);
+  flex: 0 0 var(--sidebar-expanded-width);
+  flex-direction: column;
+  gap: 18px;
+  overflow: visible;
+  border-right: 1px solid var(--hairline);
+  background: var(--screen-2);
+  padding: 18px 14px 14px;
+  transition:
+    width 0.22s ease,
+    min-width 0.22s ease,
+    max-width 0.22s ease,
+    flex-basis 0.22s ease,
+    padding 0.22s ease;
+}
+
+.sidebarCollapsed {
+  width: var(--sidebar-collapsed-width);
+  min-width: var(--sidebar-collapsed-width);
+  max-width: var(--sidebar-collapsed-width);
+  flex: 0 0 var(--sidebar-collapsed-width);
+  padding: 18px 10px 14px;
+}
+
+/* ---------- Brand ---------- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 12px;
+  color: inherit;
+  padding: 2px;
+  text-decoration: none;
+}
+
+.brandCollapsed {
+  justify-content: center;
+}
+
+.brandMark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  object-fit: contain;
+}
+
+.brandText {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.brandName {
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 18px;
+}
+
+.brandKicker {
+  color: var(--blue-text);
+  font-family: var(--font-satoshi);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 11px;
+  text-transform: uppercase;
+}
+
+/* ---------- Routes ---------- */
+
+.routes {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  /* No gap: each group label carries the 9px of lead-in the design gives it. */
+  gap: 0;
+  overflow-x: visible;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+.routeGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.routeGroupLabel {
+  color: var(--ink-faint2);
+  font-family: var(--font-satoshi);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 14px;
+  padding: 9px 12px 3px;
+  text-transform: uppercase;
+}
+
+.routeGroupItems {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.route {
+  display: flex;
+  height: 33px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+  line-height: 18px;
+  padding: 0 12px;
+  text-decoration: none;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.route:hover {
+  background: var(--hairline-soft);
+  color: var(--ink);
+}
+
+.routeActive,
+.routeActive:hover {
+  background: var(--nav-active-bg);
+  color: var(--nav-active);
+  font-weight: 600;
+}
+
+.sidebarCollapsed .route {
+  justify-content: center;
+  padding: 0;
+}
+
+.routeIcon {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  /* The design tints the icon a step fainter than its label, and lifts both to
+     the active colour together. */
+  color: var(--ink-faint);
+}
+
+.route:hover .routeIcon {
+  color: var(--ink);
+}
+
+.routeActive .routeIcon,
+.routeActive:hover .routeIcon {
+  color: var(--nav-active);
+}
+
+.routeLabel {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routeCollapsedIconWrap {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Sidebar footer ---------- */
+
+.sidebarFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  border-top: 1px solid var(--hairline-soft);
+  padding-top: 12px;
+}
+
+.sidebarFooterCollapsed {
+  justify-content: center;
+}
+
+.status {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 9999px;
+  background: var(--success);
+  animation: pulseDot 3.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes pulseDot {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 35%, transparent);
+  }
+  60% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--success) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 0%, transparent);
+  }
+}
+
+.statusLabel {
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapseBtn {
+  display: flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: 9px;
+  background: var(--pill-raised);
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.collapseBtn:hover {
+  border-color: var(--hairline-hover);
+  color: var(--ink);
+}
+
+/* ---------- Tooltip (collapsed sidebar) ---------- */
+
+.tooltipHost {
+  position: relative;
+  display: flex;
+}
+
+.tooltip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 10px);
+  z-index: 100;
+  display: none;
+  transform: translateY(-50%);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--screen);
+  box-shadow: 0 8px 22px var(--sh12);
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.tooltipHost:hover > .tooltip {
+  display: block;
+}
+
+/* ---------- Header ---------- */
+
+.headerShell {
+  border-bottom: 1px solid var(--hairline);
+  background: var(--screen);
+}
+
+.header {
+  display: flex;
+  height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 0 30px;
+}
+
+.headerLeft {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.headerKicker {
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 12px;
+  text-transform: uppercase;
+}
+
+.headerTitle {
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 18px;
+}
+
+.headerActions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* ---------- Search pill ---------- */
+
+.searchPill {
+  display: flex;
+  width: 250px;
+  height: 36px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--field-bg);
+  cursor: pointer;
+  padding: 0 6px 0 12px;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.searchPill:hover {
+  border-color: var(--hairline-hover);
+}
+
+.searchIcon {
+  display: inline-flex;
+  flex: 0 0 15px;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-faint);
+}
+
+.searchPlaceholder {
+  flex: 1;
+  overflow: hidden;
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keycap {
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border: 1px solid var(--hairline);
+  border-radius: 7px;
+  background: var(--pill-raised);
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0 6px;
+}
+
+/* ---------- Icon button + bell ---------- */
+
+.iconButton {
+  position: relative;
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--screen);
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.iconButton:hover {
+  border-color: var(--hairline-hover);
+  background: var(--inset);
+  color: var(--ink);
+}
+
+.bellDot {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  width: 6px;
+  height: 6px;
+  border: 1.5px solid var(--screen);
+  border-radius: 9999px;
+  background: var(--pink);
+}
+
+/* ---------- Profile chip ---------- */
+
+.profileWrap {
+  position: relative;
+  display: flex;
+  margin-left: 2px;
+}
+
+.profileTrigger {
+  display: flex;
+  min-width: 0;
+  max-width: 220px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 9999px;
+  background: var(--screen);
+  color: var(--ink);
+  cursor: pointer;
+  padding: 3px 10px 3px 3px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.profileTrigger:hover,
+.profileTriggerOpen {
+  border-color: var(--hairline-hover);
+  background: var(--inset);
+}
+
+.avatar {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--avatar-green-bg);
+  color: var(--avatar-green-ink);
+  font-family: var(--font-satoshi);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.profileName {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--font-satoshi);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: 0 0 auto;
+  color: var(--ink-faint);
+  transition: transform 0.18s ease;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+/* ---------- Profile dropdown ---------- */
+
+.dropdownPanel {
+  position: absolute;
+  top: calc(100% + 9px);
+  right: 0;
+  z-index: 1000;
+  display: flex;
+  width: 220px;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--screen);
+  box-shadow:
+    0 2px 6px var(--sh05),
+    0 18px 44px var(--sh12);
+  padding: 8px;
+}
+
+.dropdownTitle {
+  color: var(--ink-faint);
+  font-family: var(--font-satoshi);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 14px;
+  padding: 5px 8px;
+  text-transform: uppercase;
+}
+
+.dropdownMeta {
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-family: var(--font-satoshi);
+  font-size: 12px;
+  letter-spacing: -0.01em;
+  line-height: 16px;
+  padding: 0 8px 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuRow {
+  display: flex;
+  width: 100%;
+  min-height: 36px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+  font-family: var(--font-satoshi);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+  padding: 9px 10px;
+  text-align: left;
+  text-decoration: none;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.menuRow:hover {
+  background: var(--hairline-soft);
+  color: var(--ink);
+}
+
+.menuRowIcon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  color: currentColor;
+  opacity: 0.72;
+}
+
+.menuRowDanger {
+  color: var(--danger-text);
+}
+
+.menuRowDanger:hover {
+  background: var(--danger-bg-faint);
+  color: var(--danger-text);
+}
+
+.menuRow:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

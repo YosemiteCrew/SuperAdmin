@@ -2,6 +2,10 @@ import type { SessionInformation } from 'supertokens-node/recipe/session/types';
 
 import { revokeAllSessionsAction, revokeSessionAction } from './actions';
 
+const SESSION_TH =
+  'px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]';
+const SESSION_TD = 'px-[18px] py-3 text-[13px] text-[color:var(--ink-muted)]';
+
 function formatDateTime(ms: number): string {
   return new Date(ms).toLocaleString('en-US', {
     year: 'numeric',
@@ -29,9 +33,9 @@ export function SessionsSection({
   showRevokeAll = true,
 }: Readonly<{ sessions: SessionInformation[]; userId: string; showRevokeAll?: boolean }>) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-      <div className="flex items-center justify-between border-b border-line bg-raised px-5 py-3">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-2">
+    <section className="overflow-hidden rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <div className="flex items-center justify-between border-b border-[color:var(--hairline)] bg-[var(--screen-2)] px-[18px] py-[11px]">
+        <h2 className="text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
           Active sessions ({sessions.length})
         </h2>
         {sessions.length > 0 && showRevokeAll ? (
@@ -39,7 +43,7 @@ export function SessionsSection({
             <input type="hidden" name="userId" value={userId} />
             <button
               type="submit"
-              className="rounded-lg border border-danger-600 px-3 py-1 text-xs font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white"
+              className="rounded-full border border-[color:var(--danger-border)] px-3 py-1 text-[11.5px] font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)]"
             >
               Revoke all
             </button>
@@ -47,37 +51,42 @@ export function SessionsSection({
         ) : null}
       </div>
       {sessions.length === 0 ? (
-        <div className="p-5 text-sm text-ink-3">No active sessions.</div>
+        <div className="p-[18px] text-[13px] text-[color:var(--ink-muted)]">
+          No active sessions.
+        </div>
       ) : (
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-2">
-              <th className="px-5 py-3">Session handle</th>
-              <th className="px-5 py-3">Tenant</th>
-              <th className="px-5 py-3">Created</th>
-              <th className="px-5 py-3">Expires in</th>
-              <th className="px-5 py-3 text-right">Actions</th>
+            <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
+              <th className={SESSION_TH}>Session handle</th>
+              <th className={SESSION_TH}>Tenant</th>
+              <th className={SESSION_TH}>Created</th>
+              <th className={SESSION_TH}>Expires in</th>
+              <th className={`${SESSION_TH} text-right`}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {sessions.map((session) => (
-              <tr key={session.sessionHandle} className="border-b border-line last:border-b-0">
+              <tr
+                key={session.sessionHandle}
+                className="border-b border-[color:var(--hairline)] last:border-b-0"
+              >
                 <td
-                  className="px-5 py-3 font-mono text-xs text-ink-2"
+                  className="px-[18px] py-3 font-mono text-[11.5px] text-[color:var(--ink-muted)]"
                   title={session.sessionHandle}
                 >
                   {session.sessionHandle.slice(0, 16)}…
                 </td>
-                <td className="px-5 py-3 text-ink-2">{session.tenantId}</td>
-                <td className="px-5 py-3 text-ink-2">{formatDateTime(session.timeCreated)}</td>
-                <td className="px-5 py-3 text-ink-2">{timeUntil(session.expiry)}</td>
-                <td className="px-5 py-3 text-right">
+                <td className={SESSION_TD}>{session.tenantId}</td>
+                <td className={SESSION_TD}>{formatDateTime(session.timeCreated)}</td>
+                <td className={SESSION_TD}>{timeUntil(session.expiry)}</td>
+                <td className="px-[18px] py-3 text-right">
                   <form action={revokeSessionAction}>
                     <input type="hidden" name="sessionHandle" value={session.sessionHandle} />
                     <input type="hidden" name="userId" value={userId} />
                     <button
                       type="submit"
-                      className="rounded-lg border border-line px-3 py-1 text-xs font-medium text-ink transition-colors hover:bg-raised"
+                      className="rounded-full border border-[color:var(--divider)] px-3 py-1 text-[12px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
                     >
                       Revoke
                     </button>

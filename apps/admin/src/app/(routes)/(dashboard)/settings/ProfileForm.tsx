@@ -41,28 +41,36 @@ export function ProfileForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input
-        label="First name"
-        id="firstName"
-        name="firstName"
-        value={first}
-        onChange={(e) => setFirst(e.target.value)}
-        required
-      />
-      <Input
-        label="Last name"
-        id="lastName"
-        name="lastName"
-        value={last}
-        onChange={(e) => setLast(e.target.value)}
-      />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Input
+          label="First name"
+          id="firstName"
+          name="firstName"
+          value={first}
+          onChange={(e) => setFirst(e.target.value)}
+          required
+        />
+        <Input
+          label="Last name"
+          id="lastName"
+          name="lastName"
+          value={last}
+          onChange={(e) => setLast(e.target.value)}
+        />
+      </div>
       <div className="flex items-center gap-3">
-        <Button type="submit" disabled={status === 'saving'}>
+        <Button type="submit" size="sm" disabled={status === 'saving'}>
           {status === 'saving' ? 'Saving…' : 'Save changes'}
         </Button>
         {message ? (
-          <output className={status === 'error' ? 'text-sm text-danger-600' : 'text-sm text-ink-3'}>
+          <output
+            className={
+              status === 'error'
+                ? 'text-[12px] text-[color:var(--danger-text)]'
+                : 'text-[12px] text-[color:var(--ink-faint)]'
+            }
+          >
             {message}
           </output>
         ) : null}

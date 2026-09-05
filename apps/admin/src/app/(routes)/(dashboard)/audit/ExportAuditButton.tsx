@@ -1,5 +1,7 @@
 'use client';
 
+import { IoDownloadOutline } from 'react-icons/io5';
+
 import { eventsToCsv } from '@/app/features/audit/csv';
 import type { AuditEvent } from '@/app/features/audit/types';
 
@@ -22,8 +24,9 @@ export function ExportAuditButton({ events }: Readonly<{ events: AuditEvent[] }>
       type="button"
       onClick={handleExport}
       disabled={events.length === 0}
-      className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-raised disabled:opacity-60"
+      className="inline-flex h-[38px] items-center justify-center gap-[7px] rounded-full border border-[color:var(--divider)] bg-transparent px-4 text-[13px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--pill-raised)] disabled:opacity-60"
     >
+      <IoDownloadOutline aria-hidden className="text-[15px]" />
       Export CSV
     </button>
   );

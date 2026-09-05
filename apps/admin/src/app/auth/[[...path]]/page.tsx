@@ -14,7 +14,30 @@ import {
 
 import { Button } from '@/app/ui/components/Button';
 
+import styles from '../auth.module.css';
+
 const GENERIC_ERROR = 'Something went wrong. Please try again.';
+
+function AuthCard({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <div className={`yc-auth-card ${styles.card}`}>
+      <div className={`yc-auth-card-inner ${styles.cardInner}`}>{children}</div>
+    </div>
+  );
+}
+
+function AuthHeading({
+  title,
+  subtitle,
+  compact = false,
+}: Readonly<{ title: string; subtitle: string; compact?: boolean }>) {
+  return (
+    <div className={styles.heading}>
+      <h1 className={`yc-auth-title ${styles.title} ${compact ? styles.titleSm : ''}`}>{title}</h1>
+      <p className={styles.subtitle}>{subtitle}</p>
+    </div>
+  );
+}
 
 function EyeIcon() {
   return (
@@ -77,10 +100,10 @@ function FloatingField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="yc-auth-field"
+        className={`yc-auth-field ${styles.field}`}
         autoComplete={autoComplete}
       />
-      <label htmlFor={id} className="yc-auth-field-label">
+      <label htmlFor={id} className={`yc-auth-field-label ${styles.fieldLabel}`}>
         {label}
       </label>
     </div>
@@ -133,16 +156,16 @@ function PasswordField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required
-        className="yc-auth-field yc-auth-password-field"
+        className={`yc-auth-field yc-auth-password-field ${styles.field} ${styles.passwordField}`}
         autoComplete={autoComplete}
       />
-      <label htmlFor={id} className="yc-auth-field-label">
+      <label htmlFor={id} className={`yc-auth-field-label ${styles.fieldLabel}`}>
         {label}
       </label>
       <button
         type="button"
         onClick={() => setShow((v) => !v)}
-        className="yc-auth-password-toggle"
+        className={`yc-auth-password-toggle ${styles.passwordToggle}`}
         aria-label={show ? 'Hide password' : 'Show password'}
       >
         {show ? <EyeOffIcon /> : <EyeIcon />}
@@ -184,35 +207,37 @@ function SignInForm() {
   }
 
   return (
-    <div className="yc-auth-card">
-      <div className="yc-auth-card-inner">
-        <h1 className="yc-auth-title">Sign in</h1>
+    <AuthCard>
+      <AuthHeading title="Sign in" subtitle="The panel that runs the platform." />
 
-        {error ? <p className="yc-auth-error">{error}</p> : null}
+      {error ? <p className={`yc-auth-error ${styles.error}`}>{error}</p> : null}
 
-        <form onSubmit={handleSubmit} className="yc-auth-form">
-          <div className="yc-auth-fields">
-            <EmailField value={email} onChange={setEmail} id="auth-signin-email" />
-            <PasswordField
-              value={password}
-              onChange={setPassword}
-              label="Password"
-              autoComplete="current-password"
-              id="auth-signin-password"
-            />
-            <div className="yc-auth-links">
-              <Link href="/auth/reset-password" className="yc-auth-link">
-                Forgot password?
-              </Link>
-            </div>
+      <form onSubmit={handleSubmit} className="yc-auth-form">
+        <div className={`yc-auth-fields ${styles.fields}`}>
+          <EmailField value={email} onChange={setEmail} id="auth-signin-email" />
+          <PasswordField
+            value={password}
+            onChange={setPassword}
+            label="Password"
+            autoComplete="current-password"
+            id="auth-signin-password"
+          />
+          <div className="yc-auth-links">
+            <Link href="/auth/reset-password" className={`yc-auth-link ${styles.link}`}>
+              Forgot password?
+            </Link>
           </div>
+        </div>
 
-          <Button type="submit" disabled={loading} className="yc-auth-submit">
-            {loading ? 'Signing in...' : 'Sign in'}
-          </Button>
-        </form>
-      </div>
-    </div>
+        <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
+          {loading ? 'Signing in...' : 'Sign in'}
+        </Button>
+      </form>
+
+      <p className={styles.foot}>
+        Public sign-up is disabled. Access is granted by an existing super admin.
+      </p>
+    </AuthCard>
   );
 }
 
@@ -243,35 +268,37 @@ function ForgotPasswordForm() {
   }
 
   return (
-    <div className="yc-auth-card">
-      <div className="yc-auth-card-inner">
-        <h1 className="yc-auth-title">Reset password</h1>
+    <AuthCard>
+      <AuthHeading
+        title="Reset password"
+        subtitle="We will email you a link to choose a new one."
+        compact
+      />
 
-        {sent ? (
-          <p className="yc-auth-success">
-            If an account exists for {email}, a reset link is on its way.
-          </p>
-        ) : (
-          <>
-            {error ? <p className="yc-auth-error">{error}</p> : null}
-            <form onSubmit={handleSubmit} className="yc-auth-form">
-              <div className="yc-auth-fields">
-                <EmailField value={email} onChange={setEmail} id="auth-forgot-email" />
-              </div>
-              <Button type="submit" disabled={loading} className="yc-auth-submit">
-                {loading ? 'Sending...' : 'Email me a reset link'}
-              </Button>
-            </form>
-          </>
-        )}
+      {sent ? (
+        <p className={`yc-auth-success ${styles.success}`}>
+          If an account exists for {email}, a reset link is on its way.
+        </p>
+      ) : (
+        <>
+          {error ? <p className={`yc-auth-error ${styles.error}`}>{error}</p> : null}
+          <form onSubmit={handleSubmit} className="yc-auth-form">
+            <div className={`yc-auth-fields ${styles.fields}`}>
+              <EmailField value={email} onChange={setEmail} id="auth-forgot-email" />
+            </div>
+            <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
+              {loading ? 'Sending...' : 'Email me a reset link'}
+            </Button>
+          </form>
+        </>
+      )}
 
-        <div className="yc-auth-links yc-auth-links-center">
-          <Link href="/auth" className="yc-auth-link">
-            Back to sign in
-          </Link>
-        </div>
+      <div className="yc-auth-links yc-auth-links-center">
+        <Link href="/auth" className={`yc-auth-link ${styles.link}`}>
+          Back to sign in
+        </Link>
       </div>
-    </div>
+    </AuthCard>
   );
 }
 
@@ -343,45 +370,51 @@ function ResetPasswordForm() {
   }
 
   return (
-    <div className="yc-auth-card">
-      <div className="yc-auth-card-inner">
-        <h1 className="yc-auth-title">New password</h1>
+    <AuthCard>
+      <AuthHeading
+        title="New password"
+        subtitle="Choose a new password for your account."
+        compact
+      />
 
-        {done ? (
-          <>
-            <p className="yc-auth-success">Your password has been updated.</p>
-            <Button type="button" onClick={() => router.push('/auth')} className="yc-auth-submit">
-              Continue to sign in
+      {done ? (
+        <>
+          <p className={`yc-auth-success ${styles.success}`}>Your password has been updated.</p>
+          <Button
+            type="button"
+            onClick={() => router.push('/auth')}
+            className={`yc-auth-submit ${styles.submit}`}
+          >
+            Continue to sign in
+          </Button>
+        </>
+      ) : (
+        <>
+          {error ? <p className={`yc-auth-error ${styles.error}`}>{error}</p> : null}
+          <form onSubmit={handleSubmit} className="yc-auth-form">
+            <div className={`yc-auth-fields ${styles.fields}`}>
+              <PasswordField
+                value={password}
+                onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
+                label="New password"
+                autoComplete="new-password"
+                id="auth-reset-new"
+              />
+              <PasswordField
+                value={confirm}
+                onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
+                label="Confirm new password"
+                autoComplete="new-password"
+                id="auth-reset-confirm"
+              />
+            </div>
+            <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
+              {loading ? 'Updating...' : 'Update password'}
             </Button>
-          </>
-        ) : (
-          <>
-            {error ? <p className="yc-auth-error">{error}</p> : null}
-            <form onSubmit={handleSubmit} className="yc-auth-form">
-              <div className="yc-auth-fields">
-                <PasswordField
-                  value={password}
-                  onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
-                  label="New password"
-                  autoComplete="new-password"
-                  id="auth-reset-new"
-                />
-                <PasswordField
-                  value={confirm}
-                  onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
-                  label="Confirm new password"
-                  autoComplete="new-password"
-                  id="auth-reset-confirm"
-                />
-              </div>
-              <Button type="submit" disabled={loading} className="yc-auth-submit">
-                {loading ? 'Updating...' : 'Update password'}
-              </Button>
-            </form>
-          </>
-        )}
-      </div>
-    </div>
+          </form>
+        </>
+      )}
+    </AuthCard>
   );
 }
 

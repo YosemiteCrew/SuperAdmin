@@ -1,0 +1,177 @@
+/* ============================================================
+   Warm-bone auth screens — sign in, reset password, new password.
+
+   Scoped to the auth catch-all page. These rules layer on top of the
+   .yc-auth-* base classes in globals.css, so class names are doubled
+   (.card.card) to win on specificity regardless of stylesheet order.
+   Every colour resolves through the token layer, so light and dark
+   both work with no hardcoded hexes.
+   ============================================================ */
+
+/* ---------- Card ---------- */
+
+.card.card {
+  width: min(470px, 92vw);
+  border: 1px solid var(--hairline);
+  border-radius: 24px;
+  background: var(--screen);
+  box-shadow:
+    0 1px 2px var(--sh05),
+    0 8px 24px var(--sh06),
+    0 32px 80px var(--sh12);
+  padding: 40px 40px 34px;
+}
+
+.cardInner.cardInner {
+  gap: 26px;
+}
+
+/* ---------- Heading ---------- */
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.title.title {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--font-serif-display);
+  font-size: 33px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.titleSm.titleSm {
+  font-size: 27px;
+  letter-spacing: -0.015em;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+/* ---------- Fields ---------- */
+
+.fields.fields {
+  gap: 13px;
+}
+
+.field.field {
+  min-height: 54px;
+  border: 1.5px solid var(--hairline);
+  border-radius: 16px;
+  padding: 0 22px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.field.field:hover {
+  border-color: var(--hairline-hover);
+}
+
+.field.field:focus,
+.field.field:focus-visible {
+  border-color: var(--blue);
+  outline: none;
+}
+
+.fieldLabel.fieldLabel {
+  left: 22px;
+  color: var(--ink-faint);
+  font-size: 15px;
+  background: var(--screen);
+}
+
+.field:focus + .fieldLabel.fieldLabel,
+.field:not(:placeholder-shown) + .fieldLabel.fieldLabel {
+  top: -8px;
+  left: 16px;
+  transform: none;
+  padding: 0 6px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.field:focus + .fieldLabel.fieldLabel {
+  color: var(--blue-text);
+}
+
+.passwordField.passwordField {
+  padding-right: 52px;
+}
+
+.passwordToggle.passwordToggle {
+  right: 18px;
+  color: var(--ink-faint);
+}
+
+.passwordToggle.passwordToggle:hover {
+  color: var(--ink-body);
+}
+
+/* ---------- Links, actions, footnote ---------- */
+
+.link.link {
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.link.link:hover {
+  color: var(--blue-text);
+}
+
+.submit.submit {
+  min-height: 52px;
+  border-radius: 16px;
+  font-size: 15.5px;
+  font-weight: 600;
+}
+
+.foot {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 12px;
+  line-height: 1.55;
+  text-align: center;
+  text-wrap: pretty;
+}
+
+/* ---------- Feedback ---------- */
+
+.error.error {
+  border: 1px solid var(--danger-border);
+  border-radius: 14px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: 13px;
+}
+
+.success.success {
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  background: var(--inset);
+  color: var(--ink-body);
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .card.card {
+    padding: 26px 22px 22px;
+  }
+
+  .title.title {
+    font-size: 27px;
+  }
+}
