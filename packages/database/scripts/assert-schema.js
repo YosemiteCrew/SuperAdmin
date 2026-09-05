@@ -130,12 +130,12 @@ function readEnvFiles() {
   // instead of arguing with it.
   let contents = '';
   try {
-    contents += `${fs.readFileSync(path.join(PACKAGE_ROOT, '.env'), 'utf8')}\n`;
+    contents += `${fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8')}\n`;
   } catch {
     // Not there. That is the ordinary case, not a failure.
   }
   try {
-    contents += `${fs.readFileSync(path.join(PACKAGE_ROOT, 'prisma', '.env'), 'utf8')}\n`;
+    contents += `${fs.readFileSync(path.join(__dirname, '..', 'prisma', '.env'), 'utf8')}\n`;
   } catch {
     // Same.
   }
