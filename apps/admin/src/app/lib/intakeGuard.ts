@@ -2,6 +2,7 @@ import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { logger } from '@/app/lib/logger';
 import { checkRateLimit } from '@/app/lib/rateLimit';
 
 /**
@@ -42,6 +43,8 @@ export async function guardIntake(
     header: string;
     /** The configured secret; null/empty means the endpoint is unconfigured. */
     expectedKey: string | null;
+    /** Name of the env var supplying the secret, e.g. 'CONSENT_INTAKE_KEY'. */
+    envVar: string;
     /** 503 message when unconfigured, e.g. 'Consent intake is not configured'. */
     unconfiguredMessage: string;
   }
@@ -62,7 +65,20 @@ export async function guardIntake(
 
   // Fail closed: with no key configured the endpoint refuses everything rather
   // than silently accepting unauthenticated writes.
+  //
+  // Failing closed is only half of the intent. An unconfigured intake refuses
+  // real submissions indefinitely, and until this log line existed it did so
+  // with no trace anywhere: nothing in the platform log, nothing in the panel,
+  // and /api/health still reporting ok because its only probe is the database.
+  // One line per refusal is what makes the loss countable and alertable, which
+  // a permanently degraded health check would not be. The env var is named
+  // because "which value is missing" is the whole of the fix; neither the
+  // expected nor the presented secret is ever logged.
   if (!opts.expectedKey) {
+    logger.error('Intake refused: not configured', {
+      intake: opts.bucket,
+      envVar: opts.envVar,
+    });
     return {
       ok: false,
       response: NextResponse.json({ message: opts.unconfiguredMessage }, { status: 503 }),

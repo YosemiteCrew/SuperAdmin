@@ -1,10 +1,16 @@
 /**
  * @jest-environment node
  */
+jest.mock('server-only', () => ({}));
+
 jest.mock('@superadmin/database', () => ({
   prisma: {
     $queryRaw: jest.fn(),
   },
+}));
+
+jest.mock('@/app/config/env.server', () => ({
+  serverEnv: { contactIntakeKey: 'a-key', consentIntakeKey: 'a-key' },
 }));
 
 import { prisma } from '@superadmin/database';
@@ -16,6 +22,7 @@ type HealthBody = {
   status: string;
   database: string;
   reason?: { name: string; code: string | null };
+  intake: { contact: string; consent: string };
   uptime: number;
   timestamp: string;
   env: string;
@@ -137,6 +144,50 @@ describe('GET /api/health', () => {
       expect(res.status).toBe(503);
       const json = (await res.json()) as HealthBody;
       expect(json.reason).toEqual({ name: 'UnknownError', code: null });
+    });
+  });
+
+  /**
+   * A reachable database was the whole of "healthy" until now, so the panel
+   * reported ok while both public write paths refused every submission. These
+   * assert the body distinguishes the two states; they deliberately do NOT
+   * assert a non-200, because the keys are optional by design and a permanent
+   * 503 is an alarm an operator learns to mute.
+   */
+  describe('intake configuration', () => {
+    beforeEach(() => mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]));
+
+    it('reports both intakes as configured when both keys are present', async () => {
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'configured', consent: 'configured' });
+    });
+
+    it('reports an absent key as unconfigured, per intake', async () => {
+      jest.resetModules();
+      jest.doMock('@/app/config/env.server', () => ({
+        serverEnv: { contactIntakeKey: null, consentIntakeKey: 'a-key' },
+      }));
+      const { GET: GetNoContact } = await import('@/app/api/health/route');
+      const json = (await (await GetNoContact()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'unconfigured', consent: 'configured' });
+    });
+
+    it('treats an empty-string key as unconfigured, not as a usable secret', async () => {
+      jest.resetModules();
+      jest.doMock('@/app/config/env.server', () => ({
+        serverEnv: { contactIntakeKey: '', consentIntakeKey: '' },
+      }));
+      const { GET: GetEmpty } = await import('@/app/api/health/route');
+      const json = (await (await GetEmpty()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'unconfigured', consent: 'unconfigured' });
+    });
+
+    it('still reports intake state when the database is down', async () => {
+      mockQueryRaw.mockRejectedValue(new Error('connection refused'));
+      const res = await GET();
+      expect(res.status).toBe(503);
+      const json = (await res.json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'configured', consent: 'configured' });
     });
   });
 });

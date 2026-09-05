@@ -22,6 +22,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     bucket: 'contact',
     header: 'x-contact-key',
     expectedKey: serverEnv.contactIntakeKey,
+    envVar: 'CONTACT_INTAKE_KEY',
     unconfiguredMessage: 'Contact intake is not configured',
   });
   if (!guard.ok) return guard.response;
