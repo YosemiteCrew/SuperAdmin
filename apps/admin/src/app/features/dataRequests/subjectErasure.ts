@@ -60,17 +60,22 @@ export async function eraseSubjectData(rawEmail: string): Promise<SubjectErasure
     // Counted before the delete and before the nulling, because both make the
     // rows unreachable by the address that identified them.
     const contactRequests = await tx.contactRequest.count({
-      where: { lead: { email: subjectEmail } },
+      where: { lead: { email: { equals: subjectEmail } } },
     });
     const consentSubjectIds = (
-      await tx.consentSubject.findMany({ where: { email: subjectEmail }, select: { id: true } })
+      await tx.consentSubject.findMany({
+        where: { email: { equals: subjectEmail } },
+        select: { id: true },
+      })
     ).map((s) => s.id);
     const consentEvents = await tx.consentEvent.count({
       where: { subjectId: { in: consentSubjectIds } },
     });
-    const dataRequests = await tx.dataRequest.count({ where: { subjectEmail } });
+    const dataRequests = await tx.dataRequest.count({
+      where: { subjectEmail: { equals: subjectEmail } },
+    });
 
-    const lead = await tx.contactLead.deleteMany({ where: { email: subjectEmail } });
+    const lead = await tx.contactLead.deleteMany({ where: { email: { equals: subjectEmail } } });
     const consentSubjects = await tx.consentSubject.updateMany({
       where: { id: { in: consentSubjectIds } },
       data: { email: null, userId: null },

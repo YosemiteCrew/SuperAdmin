@@ -75,11 +75,14 @@ describe('eraseSubjectData', () => {
   it('deletes the lead and nulls the consent identifiers, keyed by the normalized address', async () => {
     await eraseSubjectData('  Person@Example.COM ');
 
+    // `{ equals: … }` rather than a bare value: a second layer under the
+    // normalizer's type check, so a non-string is rejected as a value instead
+    // of being read as query operators.
     expect(tx.contactLead.deleteMany).toHaveBeenCalledWith({
-      where: { email: 'person@example.com' },
+      where: { email: { equals: 'person@example.com' } },
     });
     expect(tx.consentSubject.findMany).toHaveBeenCalledWith({
-      where: { email: 'person@example.com' },
+      where: { email: { equals: 'person@example.com' } },
       select: { id: true },
     });
     expect(tx.consentSubject.updateMany).toHaveBeenCalledWith({
@@ -140,6 +143,15 @@ describe('eraseSubjectData', () => {
 
     expect(report.deleted).toEqual({ contactLeads: 0, contactRequests: 0 });
     expect(report.retained).toEqual({ consentSubjects: 0, consentEvents: 0, dataRequests: 1 });
+  });
+
+  // The sharp end of the same property: the guard has to fire before anything
+  // is deleted, not after.
+  it('refuses a non-string key before opening a transaction, so nothing is deleted', async () => {
+    await expect(eraseSubjectData({ not: '' } as never)).rejects.toThrow(TypeError);
+
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(tx.contactLead.deleteMany).not.toHaveBeenCalled();
   });
 
   it('lets a failed write reject rather than reporting an erasure that did not happen', async () => {
