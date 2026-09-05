@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@superadmin/database';
 
+import { serverEnv } from '@/app/config/env.server';
+
 const startedAt = Date.now();
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +30,23 @@ function describe(error: unknown): { name: string; code: string | null } {
   const name = error.constructor?.name ?? 'UnknownError';
   const code = 'code' in error && typeof error.code === 'string' ? error.code : null;
   return { name, code };
+}
+
+/**
+ * Which public intakes hold a shared secret, and so can accept a write at all.
+ *
+ * Reported rather than folded into `status`, on purpose. Both keys are optional
+ * by design - a deployment may legitimately never provision one - so an absent
+ * key must not put the endpoint into a permanent 503 that an uptime monitor
+ * learns to ignore. Naming the state here is what lets an operator, or a check
+ * that reads the body, tell "no submissions have arrived" apart from "the path
+ * has been refusing every submission since the day it was deployed".
+ */
+function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigured'> {
+  return {
+    contact: serverEnv.contactIntakeKey ? 'configured' : 'unconfigured',
+    consent: serverEnv.consentIntakeKey ? 'configured' : 'unconfigured',
+  };
 }
 
 /**
@@ -61,6 +80,7 @@ export async function GET() {
       status: healthy ? 'ok' : 'degraded',
       database,
       ...(reason ? { reason } : {}),
+      intake: intakeStatus(),
       uptime: Math.floor((Date.now() - startedAt) / 1000),
       timestamp: new Date().toISOString(),
       env: process.env.NODE_ENV ?? 'development',
