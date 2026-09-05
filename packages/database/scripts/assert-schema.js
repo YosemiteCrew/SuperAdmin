@@ -59,26 +59,67 @@ const ENV_FILES = ['.env', path.join('prisma', '.env')];
  * @param {string} key
  * @returns {string | undefined}
  */
+function stripTrailingComment(value) {
+  const at = value.indexOf(' #');
+  return at === -1 ? value : value.slice(0, at).trim();
+}
+
+function unquote(value) {
+  const quote = value[0];
+  if (quote !== '"' && quote !== "'") return stripTrailingComment(value);
+  const end = value.indexOf(quote, 1);
+  return end === -1 ? value.slice(1) : value.slice(1, end);
+}
+
+/**
+ * The value this line assigns to `key`, or null when it assigns something else,
+ * assigns nothing, or is a comment.
+ *
+ * @param {string} rawLine
+ * @param {string} key
+ * @returns {string | null}
+ */
+function assignedValue(rawLine, key) {
+  const line = rawLine.trim().replace(/^export\s+/, '');
+  if (line.startsWith('#')) return null;
+
+  const eq = line.indexOf('=');
+  if (eq === -1) return null;
+  if (line.slice(0, eq).trim() !== key) return null;
+
+  return unquote(line.slice(eq + 1).trim());
+}
+
+/**
+ * The value of one key from `.env` text.
+ *
+ * @param {string} contents
+ * @param {string} key
+ * @returns {string | undefined}
+ */
 function valueFromEnvFile(contents, key) {
-  for (const rawLine of contents.split('\n')) {
-    const line = rawLine.trim().replace(/^export\s+/, '');
-    if (line.startsWith('#')) continue;
-
-    const eq = line.indexOf('=');
-    if (eq === -1 || line.slice(0, eq).trim() !== key) continue;
-
-    let value = line.slice(eq + 1).trim();
-    const quote = value[0];
-    if (quote === '"' || quote === "'") {
-      const end = value.indexOf(quote, 1);
-      if (end !== -1) return value.slice(1, end);
-      return value.slice(1);
-    }
-    const comment = value.indexOf(' #');
-    if (comment !== -1) value = value.slice(0, comment).trim();
-    return value;
+  for (const line of contents.split('\n')) {
+    const value = assignedValue(line, key);
+    if (value !== null) return value;
   }
   return undefined;
+}
+
+/**
+ * File contents, or null when the file is not there. Absence is the normal case
+ * - most environments set the variable rather than keeping a file - so it is a
+ * return value rather than an exception to step around inside a loop.
+ *
+ * @param {string} file
+ * @param {(p: string) => string} readFile
+ * @returns {string | null}
+ */
+function readIfPresent(file, readFile) {
+  try {
+    return readFile(file);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -96,13 +137,8 @@ function resolveDatabaseUrl(deps = {}) {
   const readFile = deps.readFile ?? ((file) => fs.readFileSync(file, 'utf8'));
 
   for (const candidate of ENV_FILES) {
-    let contents;
-    try {
-      contents = readFile(path.join(cwd, candidate));
-    } catch {
-      continue;
-    }
-    const value = valueFromEnvFile(contents, 'DATABASE_URL');
+    const contents = readIfPresent(path.join(cwd, candidate), readFile);
+    const value = contents === null ? undefined : valueFromEnvFile(contents, 'DATABASE_URL');
     if (value) return value;
   }
 
