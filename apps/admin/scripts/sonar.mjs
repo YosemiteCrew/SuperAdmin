@@ -48,12 +48,18 @@ if (!existsSync(lcovPath)) {
 // instead of the main branch, so a local scan updates the PR's quality gate
 // exactly like CI — without overwriting the main branch analysis. The source
 // branch (mandatory for PR analysis) defaults to the current git branch and the
-// base to `dev`; override either with SONAR_PR_BRANCH / SONAR_PR_BASE.
+// base to `main`; override either with SONAR_PR_BRANCH / SONAR_PR_BASE.
+//
+// The base must name the LONG-lived branch the PR merges into, because that is
+// the baseline Sonar computes the new-code set against. It defaulted to `dev`
+// while `dev` was the integration branch; `dev` is now a strict ancestor of
+// `main` and is a SHORT branch in Sonar with no analysis on it, so a run in PR
+// mode was writing a gate result computed against no baseline onto a real PR.
 const options = { 'sonar.projectBaseDir': adminRoot };
 const prKey = process.env.SONAR_PR_KEY;
 if (prKey) {
   const prBranch = process.env.SONAR_PR_BRANCH || currentGitBranch(adminRoot);
-  const prBase = process.env.SONAR_PR_BASE || 'dev';
+  const prBase = process.env.SONAR_PR_BASE || 'main';
   if (!prBranch) {
     process.stderr.write(
       '\n  PR mode needs a source branch but none could be determined.\n' +
