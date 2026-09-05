@@ -76,7 +76,7 @@ async function readLog(where?: { actorId?: string; targetId?: string }, limit?: 
       (!where?.actorId || event.actorId === where.actorId) &&
       (!where?.targetId || event.targetId === where.targetId)
   );
-  return limit === undefined ? filtered : filtered.slice(0, limit);
+  return filtered.slice(0, limit);
 }
 
 async function readLegacyLog(): Promise<StoredAuditEvent[]> {
