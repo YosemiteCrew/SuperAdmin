@@ -37,6 +37,15 @@ export function proxy(request: NextRequest) {
   const isAuthenticated = !!token && isTokenValid(token);
   const nonce = generateNonce();
 
+  // Preserve the full invitation URL through sign-in. The route lives outside
+  // the super-admin layout because its recipient does not have that role yet,
+  // but invite details still require an authenticated account.
+  if (!isAuthenticated && pathname === '/accept-invite') {
+    const authUrl = new URL('/auth', request.url);
+    authUrl.searchParams.set('returnTo', `${pathname}${request.nextUrl.search}`);
+    return withCsp(NextResponse.redirect(authUrl), nonce);
+  }
+
   // `/api/*` is exempt from the HTML redirect on purpose: API routes authenticate
   // themselves (e.g. /api/profile uses withSession and returns a 401) or are
   // intentionally public (/api/auth, /api/signout, /api/health). Redirecting a

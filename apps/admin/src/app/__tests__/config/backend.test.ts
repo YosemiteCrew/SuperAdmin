@@ -95,7 +95,13 @@ jest.mock('@/app/config/appInfo', () => ({
   appInfo: { appName: 'Test Admin' },
 }));
 
-import { assertSuperAdmin, backendConfig, requireSuperAdmin } from '@/app/config/backend';
+import {
+  assertSuperAdmin,
+  backendConfig,
+  getAuthenticatedSession,
+  requireSuperAdmin,
+  isDisabledOrUnknown,
+} from '@/app/config/backend';
 
 const redirectMock = redirect as unknown as jest.Mock;
 
@@ -236,6 +242,19 @@ describe('requireSuperAdmin', () => {
   });
 });
 
+describe('getAuthenticatedSession', () => {
+  it('preserves a caller-provided local destination when authentication is required', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
+    await expect(getAuthenticatedSession('/accept-invite?token=tok-1')).rejects.toThrow(
+      'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1'
+    );
+  });
+});
+
 describe('assertSuperAdmin', () => {
   it('resolves for a super admin', async () => {
     await expect(assertSuperAdmin('admin-1')).resolves.toBeUndefined();
@@ -356,5 +375,33 @@ describe('EmailPassword signIn override (disabled accounts)', () => {
     const signIn = jest.fn(async () => ({ status: 'OK', user: { id: 'u-4' } }));
     const fns = getFunctions({ signIn });
     await expect(fns.signIn({})).resolves.toEqual({ status: 'WRONG_CREDENTIALS_ERROR' });
+  });
+});
+
+describe('isDisabledOrUnknown', () => {
+  // The fail-CLOSED counterpart to the page gate's isConfirmedDisabled. The page
+  // gate fails open on purpose so a metadata blip cannot lock every admin out of
+  // every page; that trade is wrong for the invite path, which HANDS OUT
+  // super-admin. Here "I could not find out" must read as "do not grant".
+  it('reports a disabled account', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1700000000000 } });
+    await expect(isDisabledOrUnknown('u-1')).resolves.toBe(true);
+  });
+
+  it('reports an enabled account', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: {} });
+    await expect(isDisabledOrUnknown('u-1')).resolves.toBe(false);
+  });
+
+  it('fails closed when the metadata read throws', async () => {
+    // The separating case, and the whole reason this exists alongside
+    // isConfirmedDisabled: that one returns false here.
+    getUserMetadataMock.mockRejectedValueOnce(new Error('core unreachable'));
+    await expect(isDisabledOrUnknown('u-1')).resolves.toBe(true);
+  });
+
+  it('ignores a non-numeric disabledAt', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 'yes' } });
+    await expect(isDisabledOrUnknown('u-1')).resolves.toBe(false);
   });
 });
