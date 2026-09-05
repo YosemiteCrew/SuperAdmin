@@ -1,9 +1,13 @@
 /**
  * @jest-environment node
  */
+import { sep } from 'node:path';
+
 import {
   REQUIRED_SCHEMA,
+  resolveDatabaseUrl,
   schemaProblem,
+  valueFromEnvFile,
 } from '../../../../../../packages/database/scripts/assert-schema.js';
 
 /**
@@ -70,5 +74,86 @@ describe('schemaProblem', () => {
     expect(problem).not.toContain(SECRET_PART);
     expect(problem).not.toContain(NAME_PART);
     expect(problem).not.toContain('db.example.invalid');
+  });
+});
+
+describe('resolveDatabaseUrl', () => {
+  // Prisma loads a .env itself, and dotenv does not overwrite a variable that
+  // is already set. Reading only process.env made the guard pass silently
+  // whenever the value came from a file - and that is the local, hand-driven
+  // case, which is where someone is most likely to point a connection at
+  // another database "just to check something" and run migrate:deploy.
+  const missing = (): never => {
+    throw new Error('ENOENT');
+  };
+
+  // This repo's ProcessEnv type requires NODE_ENV. The helper only reads
+  // DATABASE_URL, so the cast keeps the fixtures to the one variable under test
+  // rather than carrying an unrelated field through every case.
+  const env = (values: Record<string, string>) => values as NodeJS.ProcessEnv;
+
+  it('prefers the environment, the way dotenv does', () => {
+    const resolved = resolveDatabaseUrl({
+      env: env({ DATABASE_URL: url('?schema=superadmin') }),
+      cwd: '/anywhere',
+      readFile: () => `DATABASE_URL=${url('?schema=public')}`,
+    });
+    expect(resolved).toContain('schema=superadmin');
+  });
+
+  it('falls back to .env when the environment has nothing', () => {
+    const resolved = resolveDatabaseUrl({
+      env: env({}),
+      cwd: '/anywhere',
+      readFile: (file: string) =>
+        file.endsWith('/.env') ? `DATABASE_URL=${url('?schema=public')}` : missing(),
+    });
+    expect(resolved).toContain('schema=public');
+  });
+
+  it('also reads the .env beside the schema, which Prisma loads too', () => {
+    const resolved = resolveDatabaseUrl({
+      env: env({}),
+      cwd: '/anywhere',
+      readFile: (file: string) =>
+        file.endsWith(`prisma${sep}.env`) ? `DATABASE_URL=${url('?schema=public')}` : missing(),
+    });
+    expect(resolved).toContain('schema=public');
+  });
+
+  it('returns nothing when no file exists', () => {
+    expect(
+      resolveDatabaseUrl({ env: env({}), cwd: '/anywhere', readFile: missing })
+    ).toBeUndefined();
+  });
+});
+
+describe('valueFromEnvFile', () => {
+  it('reads a bare assignment', () => {
+    expect(valueFromEnvFile('DATABASE_URL=one\nOTHER=two\n', 'DATABASE_URL')).toBe('one');
+  });
+
+  it('reads through export and surrounding quotes', () => {
+    expect(valueFromEnvFile('export DATABASE_URL="one"\n', 'DATABASE_URL')).toBe('one');
+    expect(valueFromEnvFile("DATABASE_URL='one'\n", 'DATABASE_URL')).toBe('one');
+  });
+
+  it('ignores a commented-out line rather than reading it', () => {
+    expect(valueFromEnvFile('# DATABASE_URL=one\nDATABASE_URL=two\n', 'DATABASE_URL')).toBe('two');
+  });
+
+  it('strips a trailing comment but keeps a # inside quotes', () => {
+    // A # is a legal password character, so a quoted value must survive intact
+    // or the guard would read a truncated URL and mis-report the schema.
+    expect(valueFromEnvFile('DATABASE_URL=one # a note\n', 'DATABASE_URL')).toBe('one');
+    expect(valueFromEnvFile('DATABASE_URL="one#two"\n', 'DATABASE_URL')).toBe('one#two');
+  });
+
+  it('does not match a key that merely ends with the one asked for', () => {
+    expect(valueFromEnvFile('SHADOW_DATABASE_URL=one\n', 'DATABASE_URL')).toBeUndefined();
+  });
+
+  it('returns nothing for a key that is absent', () => {
+    expect(valueFromEnvFile('OTHER=two\n', 'DATABASE_URL')).toBeUndefined();
   });
 });

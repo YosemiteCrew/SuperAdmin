@@ -19,9 +19,90 @@
  *
  * Never print DATABASE_URL or any part of it but the schema name - it carries
  * the password, and this output goes to a build log.
+ *
+ * DATABASE_URL is resolved the way Prisma resolves it, environment first and
+ * then the .env files Prisma reads. Checking only process.env would leave the
+ * guard silently passing whenever the value came from a file.
  */
 
+const fs = require('node:fs');
+const path = require('node:path');
+
 const REQUIRED_SCHEMA = 'superadmin';
+
+// Prisma loads a .env file itself, from the working directory and from beside
+// the schema, and dotenv does not overwrite a variable already in the
+// environment. So "unset in process.env" is not "unset as far as Prisma is
+// concerned": reading only process.env here would let the same wrong value pass
+// unnoticed when it came from a file, and pass in exactly the hand-driven local
+// case where someone points a .env at another database to check something. The
+// automated path on Amplify uses real environment variables, so a guard that
+// only read those would hold where it is least needed and no-op where it is
+// most.
+const ENV_FILES = ['.env', path.join('prisma', '.env')];
+
+/**
+ * The value of one key from `.env` text.
+ *
+ * Deliberately small rather than a dotenv dependency: this needs to agree with
+ * dotenv on the shapes a person actually writes - `export`, surrounding quotes,
+ * a trailing comment outside quotes - and nothing else. A connection string
+ * containing a `#` inside quotes must survive, since that is a legal password
+ * character.
+ *
+ * @param {string} contents
+ * @param {string} key
+ * @returns {string | undefined}
+ */
+function valueFromEnvFile(contents, key) {
+  for (const rawLine of contents.split('\n')) {
+    const line = rawLine.trim().replace(/^export\s+/, '');
+    if (line.startsWith('#')) continue;
+
+    const eq = line.indexOf('=');
+    if (eq === -1 || line.slice(0, eq).trim() !== key) continue;
+
+    let value = line.slice(eq + 1).trim();
+    const quote = value[0];
+    if (quote === '"' || quote === "'") {
+      const end = value.indexOf(quote, 1);
+      if (end !== -1) return value.slice(1, end);
+      return value.slice(1);
+    }
+    const comment = value.indexOf(' #');
+    if (comment !== -1) value = value.slice(0, comment).trim();
+    return value;
+  }
+  return undefined;
+}
+
+/**
+ * DATABASE_URL as Prisma will see it: the environment first, then the same
+ * files Prisma reads, in the same order.
+ *
+ * @param {{ env?: NodeJS.ProcessEnv, cwd?: string, readFile?: (p: string) => string }} [deps]
+ * @returns {string | undefined}
+ */
+function resolveDatabaseUrl(deps = {}) {
+  const env = deps.env ?? process.env;
+  if (env.DATABASE_URL) return env.DATABASE_URL;
+
+  const cwd = deps.cwd ?? process.cwd();
+  const readFile = deps.readFile ?? ((file) => fs.readFileSync(file, 'utf8'));
+
+  for (const candidate of ENV_FILES) {
+    let contents;
+    try {
+      contents = readFile(path.join(cwd, candidate));
+    } catch {
+      continue;
+    }
+    const value = valueFromEnvFile(contents, 'DATABASE_URL');
+    if (value) return value;
+  }
+
+  return undefined;
+}
 
 /**
  * @param {string | undefined} databaseUrl
@@ -53,10 +134,10 @@ function schemaProblem(databaseUrl) {
   );
 }
 
-module.exports = { REQUIRED_SCHEMA, schemaProblem };
+module.exports = { REQUIRED_SCHEMA, resolveDatabaseUrl, schemaProblem, valueFromEnvFile };
 
 if (require.main === module) {
-  const problem = schemaProblem(process.env.DATABASE_URL);
+  const problem = schemaProblem(resolveDatabaseUrl());
   if (problem) {
     console.error(problem);
     process.exit(1);
