@@ -33,6 +33,11 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
     return { error: 'Invalid invite token.' };
   }
 
+  // Authenticate before looking up the token so direct server-action requests
+  // cannot use response differences to probe invitation state.
+  const returnTo = `/accept-invite?token=${encodeURIComponent(token)}`;
+  const { userId } = await getAuthenticatedSession(returnTo);
+
   const invite = await getInviteByToken(token);
   if (!invite) return { error: 'Invite not found or already used.' };
 
@@ -43,9 +48,12 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
 
   // The invitee is not yet a super-admin; getAuthenticatedSession checks only that
   // they have a valid session (no role check), redirecting to /auth if absent.
-  const { userId } = await getAuthenticatedSession();
   const user = await SuperTokens.getUser(userId);
-  const userEmail = user?.emails[0] ?? userId;
+  const userEmail = user?.emails[0];
+
+  if (!userEmail || userEmail.trim().toLowerCase() !== invite.email.trim().toLowerCase()) {
+    return { error: 'Sign in with the email address this invitation was sent to.' };
+  }
 
   await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });

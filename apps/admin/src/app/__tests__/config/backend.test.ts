@@ -95,7 +95,12 @@ jest.mock('@/app/config/appInfo', () => ({
   appInfo: { appName: 'Test Admin' },
 }));
 
-import { assertSuperAdmin, backendConfig, requireSuperAdmin } from '@/app/config/backend';
+import {
+  assertSuperAdmin,
+  backendConfig,
+  getAuthenticatedSession,
+  requireSuperAdmin,
+} from '@/app/config/backend';
 
 const redirectMock = redirect as unknown as jest.Mock;
 
@@ -233,6 +238,19 @@ describe('requireSuperAdmin', () => {
     getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1 } });
     revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('revoke down'));
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+  });
+});
+
+describe('getAuthenticatedSession', () => {
+  it('preserves a caller-provided local destination when authentication is required', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
+    await expect(getAuthenticatedSession('/accept-invite?token=tok-1')).rejects.toThrow(
+      'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1'
+    );
   });
 });
 

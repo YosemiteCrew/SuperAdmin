@@ -157,13 +157,15 @@ function isMfaComplete(payload: Record<string, unknown>): boolean {
   return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
 }
 
-export async function getAuthenticatedSession(): Promise<{ userId: string; mfaComplete: boolean }> {
+export async function getAuthenticatedSession(
+  returnTo?: string
+): Promise<{ userId: string; mfaComplete: boolean }> {
   ensureSuperTokensInit();
   const cookieStore = await cookies();
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
   const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
   if (error || !hasToken || !accessTokenPayload || typeof accessTokenPayload.sub !== 'string') {
-    redirect('/auth');
+    redirect(returnTo ? `/auth?returnTo=${encodeURIComponent(returnTo)}` : '/auth');
   }
   return { userId: accessTokenPayload.sub, mfaComplete: isMfaComplete(accessTokenPayload) };
 }

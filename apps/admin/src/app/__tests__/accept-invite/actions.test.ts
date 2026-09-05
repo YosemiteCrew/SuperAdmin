@@ -32,7 +32,7 @@ jest.mock('@/app/features/invites/store', () => ({
 import SuperTokens from 'supertokens-node';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 
-import { acceptInviteAction } from '@/app/(routes)/(dashboard)/accept-invite/actions';
+import { acceptInviteAction } from '@/app/(routes)/accept-invite/actions';
 import { getAuthenticatedSession } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
@@ -98,6 +98,7 @@ describe('acceptInviteAction', () => {
   it('grants the role, marks the invite used, audits it, and redirects', async () => {
     await acceptInviteAction(formData({ token: 'tok-1' }));
 
+    expect(mockGetSession).toHaveBeenCalledWith('/accept-invite?token=tok-1');
     expect(mockAddRole).toHaveBeenCalledWith(DEFAULT_TENANT_ID, 'u-9', SUPERADMIN_ROLE);
     expect(mockMarkUsed).toHaveBeenCalledWith({
       token: 'tok-1',
@@ -159,15 +160,28 @@ describe('acceptInviteAction', () => {
     expectNoGrant();
   });
 
-  it('falls back to the user id when the account has no email', async () => {
+  it('rejects an account with no email', async () => {
     mockGetUser.mockResolvedValue(undefined);
-    await acceptInviteAction(formData({ token: 'tok-1' }));
-    expect(mockMarkUsed).toHaveBeenCalledWith({
-      token: 'tok-1',
-      usedBy: 'u-9',
-      usedByEmail: 'u-9',
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'Sign in with the email address this invitation was sent to.',
     });
-    expect(mockRecordAudit).toHaveBeenCalledWith(expect.objectContaining({ targetLabel: 'u-9' }));
+    expectNoGrant();
+  });
+
+  it('rejects an authenticated account with a different email', async () => {
+    mockGetUser.mockResolvedValue({ emails: ['other@x.com'] } as Awaited<
+      ReturnType<typeof SuperTokens.getUser>
+    >);
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'Sign in with the email address this invitation was sent to.',
+    });
+    expectNoGrant();
+  });
+
+  it('matches the invited email case-insensitively', async () => {
+    mockGetInvite.mockResolvedValue(invite({ email: 'New@X.COM' }));
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(mockAddRole).toHaveBeenCalledWith(DEFAULT_TENANT_ID, 'u-9', SUPERADMIN_ROLE);
   });
 
   it('audits the accepting user as the actor, not the inviter', async () => {
