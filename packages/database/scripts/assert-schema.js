@@ -46,9 +46,14 @@ const ENV_FILES = ['.env', path.join('prisma', '.env')];
  *
  * Deliberately small rather than a dotenv dependency: this needs to agree with
  * dotenv on the shapes a person actually writes - `export`, surrounding quotes,
- * a trailing comment outside quotes - and nothing else. A connection string
- * containing a `#` inside quotes must survive, since that is a legal password
- * character.
+ * a trailing comment outside quotes - and nothing else.
+ *
+ * A `#` inside quotes is preserved rather than treated as a comment, since it is
+ * a legal password character. Preserved is as far as it goes: `new URL()` then
+ * rejects an unencoded `#` in the authority, so schemaProblem returns null and
+ * says nothing. That is safe rather than a hole - Prisma cannot parse the same
+ * string either, so no migration runs on it - but the cost is a worse error
+ * message, not a bypass. Percent-encode it and both this and Prisma read it.
  *
  * @param {string} contents
  * @param {string} key
