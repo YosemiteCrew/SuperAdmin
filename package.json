@@ -50,14 +50,14 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
-    "@secretlint/secretlint-rule-no-dotenv": "^13.0.4",
-    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
+    "@secretlint/secretlint-rule-no-dotenv": "^13.0.5",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.3.0",
+    "lint-staged": "^17.4.1",
     "prettier": "^3.9.6",
-    "secretlint": "^13.0.4",
+    "secretlint": "^13.0.5",
     "sonarqube-scanner": "^5.0.0",
-    "turbo": "^2.10.11"
+    "turbo": "^2.10.12"
   }
 }
