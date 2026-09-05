@@ -86,7 +86,12 @@ function unquote(value) {
  * @returns {string | null}
  */
 function assignedValue(rawLine, key) {
-  const line = rawLine.trim().replace(/^export\s+/, '');
+  // `startsWith` + `trimStart` rather than a regex: the shape is fixed, and a
+  // pattern over file contents is a needless thing to have to reason about.
+  const trimmed = rawLine.trim();
+  const line = trimmed.startsWith('export ')
+    ? trimmed.slice('export '.length).trimStart()
+    : trimmed;
   if (line.startsWith('#')) return null;
 
   const eq = line.indexOf('=');
