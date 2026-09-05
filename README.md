@@ -37,3 +37,5 @@ pnpm test           # Run tests (use --filter for scoped runs)
 pnpm format         # Prettier format
 pnpm verify         # Full pre-merge gate: lint + type-check + test + build
 ```
+
+<!-- gate-probe: temporary, deleted after measurement -->
