@@ -23,6 +23,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Adding a model here is two steps, not one. Every table the panel owns must
+// also get `ALTER TABLE "<name>" ENABLE ROW LEVEL SECURITY` in a migration:
+// these tables hold marketing leads, the consent ledger and GDPR data-subject
+// requests, and the database-side trigger that would normally do it is scoped to
+// the `public` schema, so it never fires for ours. Miss it and
+// apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
+// the table. See docs/deploy.md, "Row level security".
+
 // A GDPR data-subject rights request (access / erasure / rectification /
 // objection). The controller must respond within one month, so dueAt is the
 // statutory deadline; the row is the record that the request was handled.

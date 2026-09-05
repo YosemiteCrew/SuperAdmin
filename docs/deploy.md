@@ -191,14 +191,64 @@ reset, reseed and restore from snapshots.
 
 Two things follow once the panel has its own project:
 
-- `?schema=superadmin` stops being load bearing. There is no foreign `public` to
-  collide with. Harmless to keep, no longer required.
+- `?schema=superadmin` **stays required, for a different reason than it was added
+  for.** The collision it was introduced to prevent is gone - there is no foreign
+  `public` to land in any more - but the migrations have since been applied
+  through that parameter, so the panel's tables and every row in them physically
+  live in the `superadmin` schema and `public` holds nothing. Dropping the
+  parameter now does not restore a default, it re-points Prisma at an empty
+  schema: `migrate deploy` re-applies all of them into `public`, comes up
+  reporting success, and the panel then looks freshly installed with every lead,
+  consent record and data-subject request invisible. Verify it before assuming a
+  clean database is a fresh one - the query is under "Which schema holds the
+  data" below.
 - The **session pooler** requirement does NOT go away. `prisma migrate deploy`
   takes a session-level advisory lock, so the transaction pooler still breaks it
   regardless of which project you are pointed at.
 
 The API to panel contact mirror is HTTP (`/api/contact` with `x-contact-key`),
 not a shared database, so separating the projects costs no coupling.
+
+### Which schema holds the data
+
+An empty panel and a mis-pointed one look identical from the UI. This tells them
+apart, and it is the first thing to run when the panel comes up looking new:
+
+```sql
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_name IN ('ContactLead', 'ConsentEvent', 'DataRequest')
+ORDER BY table_schema;
+```
+
+Every row should say `superadmin`. A `public` row means a deploy ran without
+`?schema=superadmin` and created a second, empty set of tables - the original
+rows are intact in `superadmin`, so fix the connection string rather than
+migrating or seeding anything.
+
+### Row level security
+
+Every table the panel owns has RLS enabled, by
+`20260905_enable_row_level_security`, and **no policies**. That combination is
+deny-by-default for everyone except the table owner and roles with `BYPASSRLS`.
+
+It changes nothing about how the panel runs today, and that is the point. The
+REST roles were already unable to reach this schema - they have no `USAGE` on it
+and no grant on any table in it - so RLS is not what keeps leads, the consent
+ledger and data-subject requests private. It is the control that still holds if
+someone grants access by accident or adds this schema to the exposed API list.
+
+Two consequences worth knowing before changing anything here:
+
+- The migration and application connection is the table owner, so it is
+  unaffected. **Moving the app to a least-privilege role is not a drop-in
+  change**: that role would read zero rows until explicit policies exist. Write
+  the policies in the same migration that changes the role, not after.
+- A new Prisma model does **not** inherit this. The Postgres event trigger that
+  normally auto-enables RLS is scoped to the `public` schema and has never fired
+  for the panel's tables. `apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts`
+  is what catches it: add a model without an `ALTER TABLE ... ENABLE ROW LEVEL
+SECURITY` in a migration and it fails, naming the table.
 
 ### Until then: the schema requirement, and why
 
