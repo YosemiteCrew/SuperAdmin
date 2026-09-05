@@ -10,7 +10,7 @@ jobs:
   dependency-review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
       # Reviews only the dependencies a PR *changes* and fails when one of them
@@ -27,6 +27,6 @@ jobs:
       # `low` to tighten. `comment-summary-in-pr` is deliberately not set: it needs
       # `pull-requests: write`, which Dependabot PRs never receive, so it would only
       # add a failure mode to the PRs this job exists to check.
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: high
