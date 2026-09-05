@@ -1,3 +1,4 @@
+import 'server-only';
 import SuperTokens from 'supertokens-node';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import type { JSONObject } from 'supertokens-node/types';

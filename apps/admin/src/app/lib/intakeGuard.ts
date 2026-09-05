@@ -1,3 +1,4 @@
+import 'server-only';
 import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
