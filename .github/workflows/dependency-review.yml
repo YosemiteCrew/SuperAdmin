@@ -9,13 +9,24 @@ permissions:
 jobs:
   dependency-review:
     runs-on: ubuntu-latest
-    # Skipped until GitHub Advanced Security is enabled on the repo
-    # (Settings → Security → Code security and analysis → Dependency graph + GHAS).
-    # To re-enable: delete this `if: false` line. The job will then actively
-    # block PRs that introduce vulnerable dependencies.
-    if: false
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      # Reviews only the dependencies a PR *changes* and fails when one of them
+      # carries an advisory at or above `fail-on-severity`. It reads the dependency
+      # graph, which is on by default for public repositories and cannot be turned
+      # off for them, so this job does NOT need Advanced Security - which is what
+      # an earlier `if: false` here assumed. The graph is populated and annotated:
+      # comparing the scaffold commit against `main` returns 935 rows, 31 of them
+      # carrying GHSA advisories.
+      #
+      # `high` matches the threshold the `main` and `dev` rulesets already enforce
+      # for code scanning (`security_alerts_threshold: high_or_higher`), so the two
+      # security gates agree on what counts as blocking. Lower it to `moderate` or
+      # `low` to tighten. `comment-summary-in-pr` is deliberately not set: it needs
+      # `pull-requests: write`, which Dependabot PRs never receive, so it would only
+      # add a failure mode to the PRs this job exists to check.
       - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high

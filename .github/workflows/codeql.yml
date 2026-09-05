@@ -17,10 +17,16 @@ jobs:
   analyze:
     name: Analyze (javascript-typescript)
     runs-on: ubuntu-latest
-    # Skipped until GitHub Advanced Security is enabled on the repo
-    # (Settings → Security → Code security and analysis → Code scanning + GHAS).
-    # To re-enable: delete this `if: false` line. The job will then run CodeQL
-    # and upload results to the Security tab.
+    # Disabled on purpose, and it should stay that way while default setup owns
+    # code scanning. This repo has CodeQL *default setup* configured, which runs
+    # its own analysis and uploads it under the `dynamic/github-code-scanning`
+    # analysis key. Advanced setup - this file - cannot upload alongside it;
+    # GitHub rejects the SARIF while default setup is enabled. It is NOT disabled
+    # for want of Advanced Security, which an earlier comment here claimed:
+    # code scanning is free on public repositories.
+    #
+    # Change the languages default setup analyses in the repository settings, not
+    # here. Re-enable this file only after turning default setup off.
     if: false
     steps:
       - uses: actions/checkout@v4
