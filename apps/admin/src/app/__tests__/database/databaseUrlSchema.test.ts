@@ -1,9 +1,8 @@
 /**
  * @jest-environment node
  */
-import { sep } from 'node:path';
-
 import {
+  ENV_FILES,
   REQUIRED_SCHEMA,
   resolveDatabaseUrl,
   schemaProblem,
@@ -86,53 +85,38 @@ describe('schemaProblem', () => {
 });
 
 describe('resolveDatabaseUrl', () => {
-  // Prisma loads a .env itself, and dotenv does not overwrite a variable that
-  // is already set. Reading only process.env made the guard pass silently
-  // whenever the value came from a file - and that is the local, hand-driven
-  // case, which is where someone is most likely to point a connection at
-  // another database "just to check something" and run migrate:deploy.
-  const missing = (): never => {
-    throw new Error('ENOENT');
-  };
-
-  // This repo's ProcessEnv type requires NODE_ENV. The helper only reads
-  // DATABASE_URL, so the cast keeps the fixtures to the one variable under test
-  // rather than carrying an unrelated field through every case.
+  // Prisma loads a .env itself, and dotenv does not overwrite a variable that is
+  // already set. Reading only process.env made the guard pass silently whenever
+  // the value came from a file - and that is the local, hand-driven case, which
+  // is where someone points a connection at another database "just to check
+  // something" and runs migrate:deploy.
   const env = (values: Record<string, string>) => values as NodeJS.ProcessEnv;
 
   it('prefers the environment, the way dotenv does', () => {
-    const resolved = resolveDatabaseUrl({
-      env: env({ DATABASE_URL: url('?schema=superadmin') }),
-      cwd: '/anywhere',
-      readFile: () => `DATABASE_URL=${url('?schema=public')}`,
-    });
+    const resolved = resolveDatabaseUrl(
+      env({ DATABASE_URL: url('?schema=superadmin') }),
+      `DATABASE_URL=${url('?schema=public')}`
+    );
     expect(resolved).toContain('schema=superadmin');
   });
 
-  it('falls back to .env when the environment has nothing', () => {
-    const resolved = resolveDatabaseUrl({
-      env: env({}),
-      cwd: '/anywhere',
-      readFile: (file: string) =>
-        file.endsWith('/.env') ? `DATABASE_URL=${url('?schema=public')}` : missing(),
-    });
+  it('falls back to the file contents when the environment has nothing', () => {
+    const resolved = resolveDatabaseUrl(env({}), `DATABASE_URL=${url('?schema=public')}`);
     expect(resolved).toContain('schema=public');
   });
 
-  it('also reads the .env beside the schema, which Prisma loads too', () => {
-    const resolved = resolveDatabaseUrl({
-      env: env({}),
-      cwd: '/anywhere',
-      readFile: (file: string) =>
-        file.endsWith(`prisma${sep}.env`) ? `DATABASE_URL=${url('?schema=public')}` : missing(),
-    });
-    expect(resolved).toContain('schema=public');
+  it('returns nothing when neither has it', () => {
+    expect(resolveDatabaseUrl(env({}), '')).toBeUndefined();
   });
 
-  it('returns nothing when no file exists', () => {
-    expect(
-      resolveDatabaseUrl({ env: env({}), cwd: '/anywhere', readFile: missing })
-    ).toBeUndefined();
+  it('looks in both files Prisma reads, addressed from the package rather than the cwd', () => {
+    // Absolute and derived from the module's own location: a path a caller could
+    // supply is both a weaker guarantee about which file is read and the shape a
+    // dataflow scanner flags on a file API.
+    expect(ENV_FILES).toHaveLength(2);
+    expect(ENV_FILES.every((file: string) => file.startsWith('/'))).toBe(true);
+    expect(ENV_FILES[0].endsWith('/packages/database/.env')).toBe(true);
+    expect(ENV_FILES[1].endsWith('/packages/database/prisma/.env')).toBe(true);
   });
 });
 

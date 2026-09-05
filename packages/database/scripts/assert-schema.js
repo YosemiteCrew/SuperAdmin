@@ -39,7 +39,13 @@ const REQUIRED_SCHEMA = 'superadmin';
 // automated path on Amplify uses real environment variables, so a guard that
 // only read those would hold where it is least needed and no-op where it is
 // most.
-const ENV_FILES = ['.env', path.join('prisma', '.env')];
+// Absolute, derived from this module's own location rather than from anything a
+// caller can supply. `pnpm --filter @superadmin/database run migrate:deploy` runs
+// with the package root as its working directory, so these are the same two files
+// Prisma reads - and deriving them from __dirname means the guard reads the same
+// files however it is invoked, instead of following whatever cwd it inherits.
+const PACKAGE_ROOT = path.join(__dirname, '..');
+const ENV_FILES = [path.join(PACKAGE_ROOT, '.env'), path.join(PACKAGE_ROOT, 'prisma', '.env')];
 
 /**
  * The value of one key from `.env` text.
@@ -106,43 +112,42 @@ function valueFromEnvFile(contents, key) {
 }
 
 /**
- * File contents, or null when the file is not there. Absence is the normal case
- * - most environments set the variable rather than keeping a file - so it is a
- * return value rather than an exception to step around inside a loop.
+ * The contents of both .env files Prisma reads, concatenated in the order it
+ * reads them, with a missing file contributing nothing.
  *
- * @param {string} file
- * @param {(p: string) => string} readFile
- * @returns {string | null}
+ * Absence is the normal case - most environments set the variable rather than
+ * keeping a file - so it is an empty string rather than an exception to step
+ * around. Concatenating rather than returning per-file contents keeps the
+ * first-match-wins rule that dotenv already applies within one file.
+ *
+ * @returns {string}
  */
-function readIfPresent(file, readFile) {
-  try {
-    return readFile(file);
-  } catch {
-    return null;
+function readEnvFiles() {
+  let contents = '';
+  for (const file of ENV_FILES) {
+    try {
+      contents += `${fs.readFileSync(file, 'utf8')}\n`;
+    } catch {
+      // Not there. That is the ordinary case, not a failure.
+    }
   }
+  return contents;
 }
 
 /**
- * DATABASE_URL as Prisma will see it: the environment first, then the same
- * files Prisma reads, in the same order.
+ * DATABASE_URL as Prisma will see it: the environment first, then the .env files
+ * Prisma reads, matching dotenv's rule that an already-set variable wins.
  *
- * @param {{ env?: NodeJS.ProcessEnv, cwd?: string, readFile?: (p: string) => string }} [deps]
+ * The file contents are a parameter only so tests can supply them; nothing a
+ * caller passes ever reaches a file API.
+ *
+ * @param {NodeJS.ProcessEnv} [env]
+ * @param {string} [envFileContents]
  * @returns {string | undefined}
  */
-function resolveDatabaseUrl(deps = {}) {
-  const env = deps.env ?? process.env;
+function resolveDatabaseUrl(env = process.env, envFileContents) {
   if (env.DATABASE_URL) return env.DATABASE_URL;
-
-  const cwd = deps.cwd ?? process.cwd();
-  const readFile = deps.readFile ?? ((file) => fs.readFileSync(file, 'utf8'));
-
-  for (const candidate of ENV_FILES) {
-    const contents = readIfPresent(path.join(cwd, candidate), readFile);
-    const value = contents === null ? undefined : valueFromEnvFile(contents, 'DATABASE_URL');
-    if (value) return value;
-  }
-
-  return undefined;
+  return valueFromEnvFile(envFileContents ?? readEnvFiles(), 'DATABASE_URL');
 }
 
 /**
@@ -175,7 +180,13 @@ function schemaProblem(databaseUrl) {
   );
 }
 
-module.exports = { REQUIRED_SCHEMA, resolveDatabaseUrl, schemaProblem, valueFromEnvFile };
+module.exports = {
+  ENV_FILES,
+  REQUIRED_SCHEMA,
+  resolveDatabaseUrl,
+  schemaProblem,
+  valueFromEnvFile,
+};
 
 if (require.main === module) {
   const problem = schemaProblem(resolveDatabaseUrl());
