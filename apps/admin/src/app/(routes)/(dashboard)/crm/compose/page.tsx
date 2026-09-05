@@ -7,17 +7,22 @@ import { ComposeForm } from './ComposeForm';
 
 export const metadata: Metadata = { title: 'New campaign' };
 
+const BACK_LINK =
+  'inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--ink-muted)] transition-colors hover:text-[color:var(--ink)]';
+
 export default async function ComposePage() {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <Link href="/crm" className="text-sm text-ink-2 hover:text-ink">
+    <div className="flex flex-col gap-[22px]">
+      <header className="flex flex-col gap-2">
+        <Link href="/crm" className={BACK_LINK}>
           ← Back to CRM
         </Link>
-        <h1 className="text-2xl font-medium tracking-tight text-ink">New campaign</h1>
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+          New campaign
+        </h1>
       </header>
       <ComposeForm />
     </div>

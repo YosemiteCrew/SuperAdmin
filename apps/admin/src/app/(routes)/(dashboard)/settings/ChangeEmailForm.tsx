@@ -31,27 +31,38 @@ export function ChangeEmailForm({ currentEmail }: Readonly<{ currentEmail: strin
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Input
-        label="New email"
-        id="newEmail"
-        name="newEmail"
-        type="email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        placeholder={currentEmail}
-        required
-      />
-      <div className="flex items-center gap-3">
-        <Button type="submit" disabled={pending}>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-2.5">
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <Input
+            label="New email"
+            id="newEmail"
+            name="newEmail"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder={currentEmail}
+            required
+          />
+        </div>
+        <Button type="submit" variant="secondary" size="sm" disabled={pending}>
           {pending ? 'Updating…' : 'Change email'}
         </Button>
-        {result ? (
-          <output className={result.ok ? 'text-sm text-ink-3' : 'text-sm text-danger-600'}>
-            {result.message}
-          </output>
-        ) : null}
       </div>
+      <span className="text-[11.5px] text-[color:var(--ink-faint)]">
+        The new address must be verified before it becomes the sign-in email.
+      </span>
+      {result ? (
+        <output
+          className={
+            result.ok
+              ? 'text-[12px] text-[color:var(--ink-faint)]'
+              : 'text-[12px] text-[color:var(--danger-text)]'
+          }
+        >
+          {result.message}
+        </output>
+      ) : null}
     </form>
   );
 }

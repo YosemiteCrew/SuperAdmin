@@ -15,13 +15,15 @@ export function AcceptButton({ token }: { readonly token: string }) {
   return (
     <form action={formAction} className="mt-6">
       <input type="hidden" name="token" value={token} />
-      {state.error ? <p className="mb-3 text-sm text-red-500">{state.error}</p> : null}
+      {state.error ? (
+        <p className="mb-3 text-[12.5px] text-[color:var(--danger-text)]">{state.error}</p>
+      ) : null}
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-xl bg-btn py-3 text-sm font-medium text-btn-ink transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="yc-primary-button inline-flex h-[42px] w-full items-center justify-center rounded-full bg-[var(--btn)] text-[13.5px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-50"
       >
-        {pending ? 'Accepting…' : 'Accept invitation'}
+        <span>{pending ? 'Accepting…' : 'Accept invitation'}</span>
       </button>
     </form>
   );
