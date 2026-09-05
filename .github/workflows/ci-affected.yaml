@@ -11,7 +11,12 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on a pull request, never on a branch build. On `push`
+  # the ref is the branch, so an unconditional `true` makes each merge to `main`
+  # cancel the previous merge's verification - 7 of the last 20 push runs here
+  # were `cancelled`, and a cancelled run verifies nothing. PR iteration still
+  # cancels, which is where the saved minutes actually are.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '20'

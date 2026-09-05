@@ -10,7 +10,10 @@ on:
 
 concurrency:
   group: sonar-${{ github.ref }}
-  cancel-in-progress: true
+  # Pull requests only - see ci-affected.yaml. This one also runs on a schedule,
+  # and the push analysis of the merged result on `main` is what the quality gate
+  # is measured from, so neither should be cancellable by the next merge.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
