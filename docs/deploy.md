@@ -226,6 +226,19 @@ Every row should say `superadmin`. A `public` row means a deploy ran without
 rows are intact in `superadmin`, so fix the connection string rather than
 migrating or seeding anything.
 
+`migrate:deploy` now refuses to run at all unless `DATABASE_URL` carries
+`schema=superadmin`, so this is a build that fails with an explanation rather
+than a deploy that succeeds into the wrong schema. The check runs before Prisma,
+because on Amplify the migration happens first in the build - a check inside the
+app would fire after the damage:
+
+```
+DATABASE_URL sets schema=public; this project's tables live in "superadmin".
+Migrating without it would create a second, empty set of tables and the panel
+would come up with no leads, no consent records and no privacy requests, without
+reporting an error.
+```
+
 ### Row level security
 
 Every table the panel owns has RLS enabled, by
