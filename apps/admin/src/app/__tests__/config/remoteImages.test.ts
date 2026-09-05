@@ -41,7 +41,12 @@ export function configuredRemoteImageHosts(configSource: string): string[] {
 
 /** Hosts the CSP will let the browser load an image from, ignoring 'self'/data:/blob:. */
 export function cspImageHosts(headersSource: string): string[] {
-  const directive = /["'`]img-src([^"'`]*)["'`]/.exec(headersSource);
+  // The class must NOT exclude the apostrophe: img-src's first token is 'self',
+  // and a class that stopped at any quote would capture only up to it and return
+  // [] for every possible CSP - including one that DOES allow a host. The
+  // directive is a double-quoted string literal in securityHeaders.ts, so match
+  // to the closing double quote and let the group cross 'self'/data:/blob:.
+  const directive = /"img-src([^"]*)"/.exec(headersSource);
   if (!directive) return [];
   return directive[1]
     .split(/\s+/)
@@ -82,9 +87,21 @@ describe('remote image hosts agree with the CSP', () => {
     expect(configuredRemoteImageHosts(commented)).toEqual([]);
   });
 
-  it('reads the real img-src rather than returning an empty allowlist', () => {
-    // Guards the parser itself: if this returned [] because the regex stopped
-    // matching, the headline assertion would pass for the wrong reason.
+  it('parses a host out of the CSP when one is present', () => {
+    // The separating input the empty-allowlist assertion lacked: a working
+    // parser returns the host, a parser that stops at the first quote returns
+    // []. Without this, cspImageHosts could always return [] and every test
+    // above would still pass - the headline vacuously, this one by agreeing
+    // with a broken parser on the current host-free CSP.
+    expect(cspImageHosts(`"img-src 'self' data: blob: https://cdn.example.com"`)).toEqual([
+      'https://cdn.example.com',
+    ]);
+  });
+
+  it('reads the real files rather than matching nothing', () => {
+    // The real CSP has no remote host, so [] is the correct answer here - but it
+    // is only meaningful alongside the host-present case above, which proves the
+    // [] is a parse result and not a dead regex.
     expect(headersSource).toContain('img-src');
     expect(cspImageHosts(headersSource)).toEqual([]);
     expect(configuredRemoteImageHosts(configSource)).toEqual([]);
