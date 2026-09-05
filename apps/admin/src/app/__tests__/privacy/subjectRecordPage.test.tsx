@@ -20,6 +20,7 @@ jest.mock('@/app/features/dataRequests/subjectData', () => ({
 
 jest.mock('@/app/(routes)/(dashboard)/privacy/requests/[id]/actions', () => ({
   exportSubjectDataAction: jest.fn(),
+  eraseSubjectDataAction: jest.fn(),
 }));
 
 jest.mock('next/navigation', () => ({
@@ -169,6 +170,24 @@ describe('SubjectRecordPage', () => {
       'href',
       '/privacy/requests'
     );
+  });
+
+  // The erasure control is destructive and irreversible, so it appears only on
+  // a request that asked for one. The action refuses on any other type anyway;
+  // this stops the button being there to mis-click in the first place.
+  it('does not offer erasure on a request that did not ask for it', async () => {
+    await renderPage();
+
+    expect(screen.getByRole('button', { name: /Export subject data/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Erase subject data' })).not.toBeInTheDocument();
+  });
+
+  it('offers erasure on an erasure request', async () => {
+    getDataRequestMock.mockResolvedValue({ ...REQUEST, type: 'erasure' });
+
+    await renderPage();
+
+    expect(screen.getByRole('button', { name: 'Erase subject data' })).toBeInTheDocument();
   });
 
   it('says plainly when the panel holds nothing, rather than showing a blank panel', async () => {
