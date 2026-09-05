@@ -174,7 +174,7 @@ function LogForm() {
       {result && !result.ok && <p className="mt-2 text-sm text-red-600">{result.error}</p>}
       {result?.ok && (
         <p className="mt-2 text-sm text-emerald-700">
-          Request logged. The 30-day response clock has started.
+          Request logged. The one-month response clock has started.
         </p>
       )}
     </div>

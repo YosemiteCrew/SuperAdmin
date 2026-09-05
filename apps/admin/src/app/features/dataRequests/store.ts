@@ -2,16 +2,46 @@ import { prisma } from '@superadmin/database';
 
 import {
   isOpenStatus,
-  RESPONSE_WINDOW_DAYS,
+  RESPONSE_WINDOW_MONTHS,
   type DataRequestStatus,
   type RequestType,
 } from './types';
 
-const DAY_MS = 1000 * 60 * 60 * 24;
-
-/** The statutory deadline: receivedAt + the one-month response window. */
+/**
+ * The statutory deadline: receivedAt plus the one-month response window,
+ * counted as a calendar month rather than as thirty days.
+ *
+ * The difference is not cosmetic and it is not symmetric. A month is 28, 29, 30
+ * or 31 days depending on where it starts, so thirty days lands EARLY for most
+ * of the year - harmless - and LATE for a request received in February, or on
+ * 29-31 January where the deadline clamps to the end of February. Late is the
+ * one direction this must never round: the table above this store exists to
+ * stop a statutory breach, and a deadline computed two days after the real one
+ * shows "Due in 2 days" while the month has already expired.
+ *
+ * Month-end clamping follows Regulation (EEC, Euratom) No 1182/71 Article
+ * 3(2)(c): 31 January plus one month is 28 February (29 in a leap year), not 2
+ * March. JavaScript's own date arithmetic rolls that overflow forward instead,
+ * so the clamp has to be explicit.
+ *
+ * Computed in UTC throughout, matching how these timestamps are stored and how
+ * the deployed panel runs, so the deadline does not shift with the server's
+ * local zone.
+ */
 export function computeDueAt(receivedAt: Date): Date {
-  return new Date(receivedAt.getTime() + RESPONSE_WINDOW_DAYS * DAY_MS);
+  const due = new Date(receivedAt.getTime());
+  const dayOfMonth = due.getUTCDate();
+
+  due.setUTCMonth(due.getUTCMonth() + RESPONSE_WINDOW_MONTHS);
+
+  // The target month was shorter than the starting one, so setUTCMonth rolled
+  // the surplus into the month after. Day 0 is the last day of the month before
+  // the one we landed in, which is the clamped date the Regulation asks for.
+  if (due.getUTCDate() !== dayOfMonth) {
+    due.setUTCDate(0);
+  }
+
+  return due;
 }
 
 export interface CreateDataRequestInput {

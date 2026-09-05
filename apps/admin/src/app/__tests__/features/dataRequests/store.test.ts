@@ -34,9 +34,69 @@ beforeEach(() => {
 });
 
 describe('computeDueAt', () => {
-  it('adds exactly 30 days to receivedAt', () => {
-    const received = new Date('2026-07-04T00:00:00.000Z');
-    expect(computeDueAt(received).toISOString()).toBe('2026-08-03T00:00:00.000Z');
+  // The statutory period is one calendar month (GDPR Article 12(3), counted
+  // under Regulation (EEC, Euratom) No 1182/71), which is 28, 29, 30 or 31 days
+  // depending on where it starts. Each case below is a different length, and the
+  // February and month-end ones are where a flat 30 days lands AFTER the real
+  // deadline - the direction that makes the panel report a breached request as
+  // still in time.
+  it.each([
+    // received                     due                          days  note
+    ['2026-07-04T00:00:00.000Z', '2026-08-04T00:00:00.000Z', '31-day month'],
+    ['2026-04-10T09:30:00.000Z', '2026-05-10T09:30:00.000Z', '30-day month, time of day preserved'],
+    [
+      '2027-02-10T00:00:00.000Z',
+      '2027-03-10T00:00:00.000Z',
+      '28-day month, where 30 days is 2 late',
+    ],
+    [
+      '2028-02-10T00:00:00.000Z',
+      '2028-03-10T00:00:00.000Z',
+      '29-day month, where 30 days is 1 late',
+    ],
+    ['2026-12-15T12:00:00.000Z', '2027-01-15T12:00:00.000Z', 'year rollover'],
+  ])('%s -> %s (%s)', (received, due) => {
+    expect(computeDueAt(new Date(received)).toISOString()).toBe(due);
+  });
+
+  // Regulation (EEC, Euratom) No 1182/71 Article 3(2)(c): where the following
+  // month has no day of that number, the period ends on its last day. JavaScript
+  // rolls the overflow forward instead, so this is the case an unclamped
+  // implementation gets wrong.
+  it.each([
+    ['2027-01-31T00:00:00.000Z', '2027-02-28T00:00:00.000Z', 'non-leap February'],
+    ['2028-01-31T00:00:00.000Z', '2028-02-29T00:00:00.000Z', 'leap February'],
+    ['2027-01-29T00:00:00.000Z', '2027-02-28T00:00:00.000Z', 'clamped from the 29th'],
+    ['2026-03-31T00:00:00.000Z', '2026-04-30T00:00:00.000Z', '31st into a 30-day month'],
+  ])('clamps %s -> %s (%s)', (received, due) => {
+    expect(computeDueAt(new Date(received)).toISOString()).toBe(due);
+  });
+
+  it('never lands after one calendar month, across a full year of receipts', () => {
+    // The property, not a table of examples: a deadline that is even one day
+    // late is a missed statutory month. Walks every day of a leap year and a
+    // non-leap year and checks the result against the month and day arithmetic
+    // directly, so a future rewrite of computeDueAt cannot quietly regain the
+    // 30-day behaviour on the days no example happens to cover.
+    for (const year of [2027, 2028]) {
+      for (let dayOffset = 0; dayOffset < 366; dayOffset += 1) {
+        const received = new Date(Date.UTC(year, 0, 1 + dayOffset));
+        if (received.getUTCFullYear() !== year) break;
+
+        const due = computeDueAt(received);
+        const expectedMonth = (received.getUTCMonth() + 1) % 12;
+        const lastDayOfTargetMonth = new Date(
+          Date.UTC(received.getUTCFullYear(), received.getUTCMonth() + 2, 0)
+        ).getUTCDate();
+
+        const expectedYear =
+          received.getUTCMonth() === 11 ? received.getUTCFullYear() + 1 : received.getUTCFullYear();
+
+        expect(due.getUTCFullYear()).toBe(expectedYear);
+        expect(due.getUTCMonth()).toBe(expectedMonth);
+        expect(due.getUTCDate()).toBe(Math.min(received.getUTCDate(), lastDayOfTargetMonth));
+      }
+    }
   });
 });
 
@@ -58,7 +118,7 @@ describe('createDataRequest', () => {
         type: 'access',
         notes: 'see ticket 42',
         receivedAt,
-        dueAt: new Date('2026-08-03T00:00:00.000Z'),
+        dueAt: new Date('2026-08-04T00:00:00.000Z'),
       },
     });
   });
@@ -86,8 +146,10 @@ describe('createDataRequest', () => {
 
     const { data } = mockCreate.mock.calls[0][0] as { data: { receivedAt: Date; dueAt: Date } };
     expect(data.receivedAt.getTime()).toBeGreaterThanOrEqual(before);
-    // dueAt is 30 days after receivedAt.
-    expect(data.dueAt.getTime() - data.receivedAt.getTime()).toBe(30 * 24 * 60 * 60 * 1000);
+    // Against computeDueAt of the SAME receivedAt, not against a fixed number of
+    // milliseconds: a month is not a constant duration, so a fixed delta here
+    // passes or fails depending on which month the suite happens to run in.
+    expect(data.dueAt.toISOString()).toBe(computeDueAt(data.receivedAt).toISOString());
   });
 });
 

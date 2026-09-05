@@ -43,7 +43,8 @@ model DataRequest {
   status       String    @default("received")
   notes        String?   @db.Text
   receivedAt   DateTime  @default(now())
-  // receivedAt + 30 days (the GDPR one-month response deadline).
+  // receivedAt + one calendar month (the GDPR Article 12(3) response
+  // deadline), clamped to the month end. Not 30 days - see computeDueAt.
   dueAt        DateTime
   fulfilledAt  DateTime?
   // super-admin userId who last actioned the request.
