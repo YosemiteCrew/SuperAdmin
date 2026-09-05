@@ -15,7 +15,12 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (javascript-typescript)
+    # Must NOT be `Analyze (javascript-typescript)`: default setup now produces a
+    # check run with exactly that name, and two check runs sharing one name is how a
+    # required status check gets satisfied by the wrong one. A `skipped` conclusion
+    # satisfies a required check, so this permanently-disabled job could stand in for
+    # the live scanner.
+    name: Analyze (advanced setup, disabled)
     runs-on: ubuntu-latest
     # Disabled on purpose, and it should stay that way while default setup owns
     # code scanning. This repo has CodeQL *default setup* configured, which runs
