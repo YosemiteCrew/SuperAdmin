@@ -4,8 +4,18 @@ export type RequestType = (typeof REQUEST_TYPES)[number];
 export const REQUEST_STATUSES = ['received', 'in_progress', 'fulfilled', 'rejected'] as const;
 export type DataRequestStatus = (typeof REQUEST_STATUSES)[number];
 
-/** The GDPR one-month response window, in days. */
-export const RESPONSE_WINDOW_DAYS = 30;
+/**
+ * The GDPR response window, in calendar months.
+ *
+ * Article 12(3) gives one MONTH, not thirty days, and the two are not the same
+ * deadline. Periods expressed in months are computed under Regulation (EEC,
+ * Euratom) No 1182/71: the period ends on the day of the following month
+ * bearing the same number as the day it started, and where no such day exists
+ * it ends on that month's last day. Thirty days runs past that for anything
+ * received in February or on 29-31 January - the direction that turns the
+ * panel's own deadline into a missed statutory one. See computeDueAt.
+ */
+export const RESPONSE_WINDOW_MONTHS = 1;
 
 export function isRequestType(v: unknown): v is RequestType {
   return typeof v === 'string' && (REQUEST_TYPES as readonly string[]).includes(v);
