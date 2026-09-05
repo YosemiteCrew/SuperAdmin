@@ -6,6 +6,7 @@ import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 
 import { DEFAULT_TENANT_ID } from '@/app/constants';
+import { section } from '@/app/lib/exportSection';
 import { readAuditEventsInvolving } from '@/app/features/audit/store';
 import type { AuditEvent } from '@/app/features/audit/types';
 
@@ -52,14 +53,6 @@ export interface AccountDataExport {
 }
 
 const AUDIT_EXPORT_LIMIT = 250;
-
-async function section<T>(read: () => Promise<T>): Promise<T | { error: string }> {
-  try {
-    return await read();
-  } catch {
-    return { error: 'This section could not be read at export time.' };
-  }
-}
 
 function redactAsTarget(event: AuditEvent): SubjectAuditEntry {
   return {

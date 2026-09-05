@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
 import {
@@ -214,7 +215,14 @@ export function RequestsTable({
                 const status = request.status as DataRequestStatus;
                 return (
                   <tr key={request.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-medium text-gray-900">{request.subjectEmail}</td>
+                    <td className="px-4 py-3 font-medium">
+                      <Link
+                        href={`/privacy/requests/${request.id}`}
+                        className="text-blue-700 hover:underline"
+                      >
+                        {request.subjectEmail}
+                      </Link>
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       {TYPE_LABELS[request.type] ?? request.type}
                     </td>

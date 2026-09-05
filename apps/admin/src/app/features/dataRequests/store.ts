@@ -84,6 +84,11 @@ export async function listDataRequests() {
   return [...open, ...closed];
 }
 
+/** One request by id, for the dossier view. Null when the id does not resolve. */
+export async function getDataRequest(id: string) {
+  return prisma.dataRequest.findUnique({ where: { id } });
+}
+
 export interface UpdateStatusInput {
   id: string;
   status: DataRequestStatus;

@@ -34,6 +34,10 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   // the log has no erasure workflow. See the call sites in privacy/requests.
   'privacy.request_create': { label: 'Logged a data-subject request for', severity: 'info' },
   'privacy.request_update': { label: 'Updated a data-subject request to', severity: 'info' },
+  'privacy.subject_export': {
+    label: 'Exported the panel record for a data-subject request',
+    severity: 'warning',
+  },
   'invite.create': { label: 'Created invite for', severity: 'info' },
   'invite.use': { label: 'Accepted super-admin invite', severity: 'warning' },
   'invite.revoke': { label: 'Revoked invite for', severity: 'info' },
