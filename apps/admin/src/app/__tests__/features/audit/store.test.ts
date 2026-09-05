@@ -146,6 +146,40 @@ describe('recordAuditEvent', () => {
     });
   });
 
+  it('refuses to import a broken legacy chain', async () => {
+    const olderEvent = event({ id: 'old-legacy' });
+    const older = {
+      ...olderEvent,
+      prevHash: GENESIS_HASH,
+      hash: hashAuditEvent(GENESIS_HASH, olderEvent),
+    };
+    const newerEvent = event({ id: 'new-legacy', at: 2 });
+    const newer = {
+      ...newerEvent,
+      prevHash: older.hash,
+      hash: hashAuditEvent(older.hash, newerEvent),
+    };
+    getUserMetadataMock.mockResolvedValue({
+      metadata: { events: [{ ...newer, actorEmail: 'tampered@x.com' }, older] },
+    });
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+
+    await recordAuditEvent({
+      action: 'org.verify',
+      actorId: 'admin-1',
+      targetType: 'organization',
+      targetId: 'o-1',
+    });
+
+    expect(createManyMock).not.toHaveBeenCalled();
+    expect(createMock).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Audit write failed; privileged action was not recorded',
+      expect.objectContaining({ error: 'Legacy audit chain failed verification: content-altered' })
+    );
+    errorSpy.mockRestore();
+  });
+
   it('falls back to ids when user lookup fails or has no email', async () => {
     getUserMock.mockRejectedValueOnce(new Error('down')).mockResolvedValueOnce(null);
     await recordAuditEvent({
@@ -247,6 +281,19 @@ describe('verifyAuditChain', () => {
 
   it('detects an invalid stored action', async () => {
     findManyMock.mockResolvedValue([row({ action: 'invalid' as AuditEvent['action'] })]);
+    await expect(verifyAuditChain()).resolves.toEqual({
+      ok: false,
+      length: 0,
+      total: 1,
+      brokenAtId: 'e1',
+      reason: 'invalid-record',
+    });
+  });
+
+  it('detects an invalid legacy action without filtering it out', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: { events: [event({ action: 'invalid' as AuditEvent['action'] })] },
+    });
     await expect(verifyAuditChain()).resolves.toEqual({
       ok: false,
       length: 0,

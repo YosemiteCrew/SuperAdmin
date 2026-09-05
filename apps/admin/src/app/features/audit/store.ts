@@ -80,10 +80,31 @@ async function readLog(where?: { actorId?: string; targetId?: string }, limit?: 
 }
 
 async function readLegacyLog(): Promise<StoredAuditEvent[]> {
+  return (await readLegacyEvents()).filter(isValidAuditEvent);
+}
+
+async function readLegacyEvents(): Promise<unknown[]> {
   ensureSuperTokensInit();
   const { metadata } = await UserMetadataNode.getUserMetadata(LEGACY_STORE_ID);
   const events = metadata.events;
-  return Array.isArray(events) ? events.filter(isValidAuditEvent) : [];
+  return Array.isArray(events) ? events : [];
+}
+
+function verifyStoredEvents(events: unknown[]): AuditChainStatus {
+  const invalidAt = events.findIndex((event) => !isValidAuditEvent(event));
+  if (invalidAt !== -1) {
+    const invalid = events[invalidAt];
+    return {
+      ok: false,
+      length: 0,
+      total: events.length,
+      ...(typeof invalid === 'object' && invalid !== null && 'id' in invalid
+        ? { brokenAtId: String(invalid.id) }
+        : {}),
+      reason: 'invalid-record',
+    };
+  }
+  return verifyChain(events as StoredAuditEvent[]);
 }
 
 function rechainLegacy(events: StoredAuditEvent[]) {
@@ -93,6 +114,13 @@ function rechainLegacy(events: StoredAuditEvent[]) {
     prevHash = stored.hash;
     return { ...stored, at: new Date(stored.at) };
   });
+}
+
+async function readVerifiedLegacy() {
+  const events = await readLegacyEvents();
+  const status = verifyStoredEvents(events);
+  if (!status.ok) throw new Error(`Legacy audit chain failed verification: ${status.reason}`);
+  return rechainLegacy(events as StoredAuditEvent[]);
 }
 
 async function resolveEmail(userId: string): Promise<string> {
@@ -124,9 +152,8 @@ export async function recordAuditEvent(params: {
       const previous = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' } });
       let prevHash = previous?.hash;
       if (!prevHash) {
-        const legacy = await readLegacyLog();
-        if (legacy.length > 0) {
-          const imported = rechainLegacy(legacy);
+        const imported = await readVerifiedLegacy();
+        if (imported.length > 0) {
           await tx.auditEvent.createMany({ data: imported });
           prevHash = imported.at(-1)?.hash;
         }
@@ -153,18 +180,8 @@ export async function recordAuditEvent(params: {
 
 export async function verifyAuditChain(): Promise<AuditChainStatus> {
   try {
-    const raw = await readLog();
-    const invalidAt = raw.findIndex((event) => !isValidAuditEvent(event));
-    if (invalidAt !== -1) {
-      return {
-        ok: false,
-        length: 0,
-        total: raw.length,
-        brokenAtId: raw[invalidAt].id,
-        reason: 'invalid-record',
-      };
-    }
-    return verifyChain(raw);
+    const rows = await prisma.auditEvent.findMany({ orderBy: { seq: 'desc' } });
+    return verifyStoredEvents(rows.length > 0 ? rows.map(fromRow) : await readLegacyEvents());
   } catch {
     return { ok: false, length: 0, total: 0, reason: 'read-failed' };
   }

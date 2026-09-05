@@ -180,6 +180,12 @@ describe('row level security coverage', () => {
   it('enables row level security on every table the schema declares', () => {
     expect(tablesMissingRls(schemaSource, migrationSql)).toEqual([]);
   });
+
+  it('prevents row mutation and truncation of the audit log', () => {
+    const sql = migrationSql.join('\n');
+    expect(sql).toMatch(/BEFORE UPDATE OR DELETE ON "AuditEvent"/);
+    expect(sql).toMatch(/BEFORE TRUNCATE ON "AuditEvent"/);
+  });
 });
 
 describe('the coverage check itself', () => {
