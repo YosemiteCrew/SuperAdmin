@@ -10,8 +10,8 @@
   "scripts": {
     "postinstall": "prisma generate",
     "generate": "prisma generate",
-    "migrate:dev": "prisma migrate dev",
-    "migrate:deploy": "prisma migrate deploy",
+    "migrate:dev": "node scripts/assert-schema.js && prisma migrate dev",
+    "migrate:deploy": "node scripts/assert-schema.js && prisma migrate deploy",
     "studio": "prisma studio",
     "type-check": "tsc --noEmit"
   },
@@ -19,6 +19,7 @@
     "@prisma/client": "^6.0.0"
   },
   "devDependencies": {
+    "dotenv": "^16.6.1",
     "prisma": "^6.0.0",
     "typescript": "^5"
   }
