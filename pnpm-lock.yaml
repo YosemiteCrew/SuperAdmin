@@ -27,6 +27,7 @@ overrides:
   fast-uri@>=3.0.0 <3.1.5: '>=3.1.5 <4'
   deepmerge-ts@<8.0.0: '>=8.0.0 <9'
   adm-zip@<0.6.0: '>=0.6.0 <0.7'
+  qs@<6.16.0: '>=6.16.0 <7'
 
 importers:
 
@@ -6898,8 +6899,8 @@ packages:
     resolution: {integrity: sha512-mZSiP6RnbHl4xL2Ap5HfkjLnmxfKcPWpWe/c+5XxCuetEenqmNFf1FH/ftXPCtFG5/TDobjsjz6sSNL0Sr8Z9g==}
     dev: false
 
-  /qs@6.15.3:
-    resolution: {integrity: sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==}
+  /qs@6.16.0:
+    resolution: {integrity: sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA==}
     engines: {node: '>=0.6'}
     dependencies:
       es-define-property: 1.0.1
@@ -7959,7 +7960,7 @@ packages:
       dayjs: 1.11.21
       https-proxy-agent: 5.0.1
       jsonwebtoken: 9.0.3
-      qs: 6.15.3
+      qs: 6.16.0
       scmp: 2.1.0
       url-parse: 1.5.10
       xmlbuilder: 13.0.2
