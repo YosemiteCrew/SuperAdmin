@@ -127,22 +127,38 @@ function valueFromEnvFile(contents, key) {
  *
  * @returns {string}
  */
+/**
+ * Swallow "the file is not there" and nothing else.
+ *
+ * @param {unknown} error
+ */
+function rethrowUnlessMissing(error) {
+  const code = typeof error === 'object' && error !== null ? error.code : undefined;
+  if (code !== 'ENOENT') throw error;
+}
+
 function readEnvFiles() {
   // Each read names its file directly rather than taking one from a variable.
   // A loop over the array below reads the same two files, but a dataflow scanner
   // sees a file API called on a non-literal operand and cannot tell that operand
   // is a module constant - and this is a gate, so the code says what it means
   // instead of arguing with it.
+  //
+  // Only a missing file is treated as "nothing to read". Anything else - a
+  // permission error, a directory where a file should be - is rethrown, because
+  // "cannot read it" and "it is not there" lead to opposite conclusions here: the
+  // second means the value came from the environment, and the first would let a
+  // wrong schema through unnoticed while the guard reported nothing to say.
   let contents = '';
   try {
     contents += `${fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8')}\n`;
-  } catch {
-    // Not there. That is the ordinary case, not a failure.
+  } catch (error) {
+    rethrowUnlessMissing(error);
   }
   try {
     contents += `${fs.readFileSync(path.join(__dirname, '..', 'prisma', '.env'), 'utf8')}\n`;
-  } catch {
-    // Same.
+  } catch (error) {
+    rethrowUnlessMissing(error);
   }
   return contents;
 }
@@ -202,7 +218,19 @@ module.exports = {
 };
 
 if (require.main === module) {
-  const problem = schemaProblem(resolveDatabaseUrl());
+  let problem;
+  try {
+    problem = schemaProblem(resolveDatabaseUrl());
+  } catch (error) {
+    // Fail closed and say only the error code. The message from a failed read
+    // carries the path, and this goes to a build log.
+    const code = typeof error === 'object' && error !== null ? error.code : undefined;
+    console.error(
+      `Could not read the .env files to check DATABASE_URL (${code ?? 'unknown error'}).\n` +
+        'Refusing to migrate rather than assume the value is correct.'
+    );
+    process.exit(1);
+  }
   if (problem) {
     console.error(problem);
     process.exit(1);
