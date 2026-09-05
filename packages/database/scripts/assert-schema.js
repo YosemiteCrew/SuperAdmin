@@ -20,163 +20,60 @@
  * Never print DATABASE_URL or any part of it but the schema name - it carries
  * the password, and this output goes to a build log.
  *
- * DATABASE_URL is resolved the way Prisma resolves it, environment first and
- * then the .env files Prisma reads. Checking only process.env would leave the
- * guard silently passing whenever the value came from a file.
+ * DATABASE_URL has to be resolved the way Prisma resolves it. Prisma loads a
+ * .env itself, from the working directory and from beside the schema, and
+ * dotenv does not overwrite a variable already in the environment - so reading
+ * only process.env would let the same wrong value pass unnoticed when it came
+ * from a file, in exactly the hand-driven local case where someone points a
+ * .env at another database to check something. The automated path on Amplify
+ * uses real environment variables, so a guard that only read those would hold
+ * where it is least needed and no-op where it is most.
+ *
+ * The loading is dotenv's rather than a hand-written parser: it is the library
+ * Prisma itself uses, so the semantics agree by construction instead of by my
+ * reimplementation of quoting, `export` and comment rules.
  */
 
-const fs = require('node:fs');
 const path = require('node:path');
+
+const dotenv = require('dotenv');
 
 const REQUIRED_SCHEMA = 'superadmin';
 
-// Prisma loads a .env file itself, from the working directory and from beside
-// the schema, and dotenv does not overwrite a variable already in the
-// environment. So "unset in process.env" is not "unset as far as Prisma is
-// concerned": reading only process.env here would let the same wrong value pass
-// unnoticed when it came from a file, and pass in exactly the hand-driven local
-// case where someone points a .env at another database to check something. The
-// automated path on Amplify uses real environment variables, so a guard that
-// only read those would hold where it is least needed and no-op where it is
-// most.
-// Absolute, derived from this module's own location rather than from anything a
-// caller can supply. `pnpm --filter @superadmin/database run migrate:deploy` runs
-// with the package root as its working directory, so these are the same two files
-// Prisma reads - and deriving them from __dirname means the guard reads the same
-// files however it is invoked, instead of following whatever cwd it inherits.
-const PACKAGE_ROOT = path.join(__dirname, '..');
-const ENV_FILES = [path.join(PACKAGE_ROOT, '.env'), path.join(PACKAGE_ROOT, 'prisma', '.env')];
+// Absolute and derived from this module's own location rather than from the
+// working directory, so the guard reads the panel's own .env however it is
+// invoked. `pnpm --filter @superadmin/database run migrate:deploy` runs with the
+// package root as its working directory, so these are the same two files Prisma
+// reads there.
+const ENV_FILES = [
+  path.join(__dirname, '..', '.env'),
+  path.join(__dirname, '..', 'prisma', '.env'),
+];
 
 /**
- * The value of one key from `.env` text.
+ * Load both .env files into process.env, without overwriting anything already
+ * set - dotenv's own rule, and Prisma's.
  *
- * Deliberately small rather than a dotenv dependency: this needs to agree with
- * dotenv on the shapes a person actually writes - `export`, surrounding quotes,
- * a trailing comment outside quotes - and nothing else.
- *
- * A `#` inside quotes is preserved rather than treated as a comment, since it is
- * a legal password character. Preserved is as far as it goes: `new URL()` then
- * rejects an unencoded `#` in the authority, so schemaProblem returns null and
- * says nothing. That is safe rather than a hole - Prisma cannot parse the same
- * string either, so no migration runs on it - but the cost is a worse error
- * message, not a bypass. Percent-encode it and both this and Prisma read it.
- *
- * @param {string} contents
- * @param {string} key
- * @returns {string | undefined}
+ * A missing file is the ordinary case and contributes nothing. Any other read
+ * failure is fatal: "cannot read it" and "it is not there" lead to opposite
+ * conclusions here, and treating an unreadable file as absent would let a wrong
+ * schema through while the guard reported nothing to say.
  */
-function stripTrailingComment(value) {
-  const at = value.indexOf(' #');
-  return at === -1 ? value : value.slice(0, at).trim();
-}
-
-function unquote(value) {
-  const quote = value[0];
-  if (quote !== '"' && quote !== "'") return stripTrailingComment(value);
-  const end = value.indexOf(quote, 1);
-  return end === -1 ? value.slice(1) : value.slice(1, end);
-}
-
-/**
- * The value this line assigns to `key`, or null when it assigns something else,
- * assigns nothing, or is a comment.
- *
- * @param {string} rawLine
- * @param {string} key
- * @returns {string | null}
- */
-function assignedValue(rawLine, key) {
-  // `startsWith` + `trimStart` rather than a regex: the shape is fixed, and a
-  // pattern over file contents is a needless thing to have to reason about.
-  const trimmed = rawLine.trim();
-  const line = trimmed.startsWith('export ')
-    ? trimmed.slice('export '.length).trimStart()
-    : trimmed;
-  if (line.startsWith('#')) return null;
-
-  const eq = line.indexOf('=');
-  if (eq === -1) return null;
-  if (line.slice(0, eq).trim() !== key) return null;
-
-  return unquote(line.slice(eq + 1).trim());
-}
-
-/**
- * The value of one key from `.env` text.
- *
- * @param {string} contents
- * @param {string} key
- * @returns {string | undefined}
- */
-function valueFromEnvFile(contents, key) {
-  for (const line of contents.split('\n')) {
-    const value = assignedValue(line, key);
-    if (value !== null) return value;
+function loadEnvFiles() {
+  for (const file of ENV_FILES) {
+    const { error } = dotenv.config({ path: file });
+    if (error && error.code !== 'ENOENT') throw error;
   }
-  return undefined;
 }
 
 /**
- * The contents of both .env files Prisma reads, concatenated in the order it
- * reads them, with a missing file contributing nothing.
- *
- * Absence is the normal case - most environments set the variable rather than
- * keeping a file - so it is an empty string rather than an exception to step
- * around. Concatenating rather than returning per-file contents keeps the
- * first-match-wins rule that dotenv already applies within one file.
- *
- * @returns {string}
- */
-/**
- * Swallow "the file is not there" and nothing else.
- *
- * @param {unknown} error
- */
-function rethrowUnlessMissing(error) {
-  const code = typeof error === 'object' && error !== null ? error.code : undefined;
-  if (code !== 'ENOENT') throw error;
-}
-
-function readEnvFiles() {
-  // Each read names its file directly rather than taking one from a variable.
-  // A loop over the array below reads the same two files, but a dataflow scanner
-  // sees a file API called on a non-literal operand and cannot tell that operand
-  // is a module constant - and this is a gate, so the code says what it means
-  // instead of arguing with it.
-  //
-  // Only a missing file is treated as "nothing to read". Anything else - a
-  // permission error, a directory where a file should be - is rethrown, because
-  // "cannot read it" and "it is not there" lead to opposite conclusions here: the
-  // second means the value came from the environment, and the first would let a
-  // wrong schema through unnoticed while the guard reported nothing to say.
-  let contents = '';
-  try {
-    contents += `${fs.readFileSync(path.join(__dirname, '..', '.env'), 'utf8')}\n`;
-  } catch (error) {
-    rethrowUnlessMissing(error);
-  }
-  try {
-    contents += `${fs.readFileSync(path.join(__dirname, '..', 'prisma', '.env'), 'utf8')}\n`;
-  } catch (error) {
-    rethrowUnlessMissing(error);
-  }
-  return contents;
-}
-
-/**
- * DATABASE_URL as Prisma will see it: the environment first, then the .env files
- * Prisma reads, matching dotenv's rule that an already-set variable wins.
- *
- * The file contents are a parameter only so tests can supply them; nothing a
- * caller passes ever reaches a file API.
+ * DATABASE_URL as Prisma will see it.
  *
  * @param {NodeJS.ProcessEnv} [env]
- * @param {string} [envFileContents]
  * @returns {string | undefined}
  */
-function resolveDatabaseUrl(env = process.env, envFileContents) {
-  if (env.DATABASE_URL) return env.DATABASE_URL;
-  return valueFromEnvFile(envFileContents ?? readEnvFiles(), 'DATABASE_URL');
+function resolveDatabaseUrl(env = process.env) {
+  return env.DATABASE_URL;
 }
 
 /**
@@ -209,17 +106,12 @@ function schemaProblem(databaseUrl) {
   );
 }
 
-module.exports = {
-  ENV_FILES,
-  REQUIRED_SCHEMA,
-  resolveDatabaseUrl,
-  schemaProblem,
-  valueFromEnvFile,
-};
+module.exports = { ENV_FILES, REQUIRED_SCHEMA, resolveDatabaseUrl, schemaProblem };
 
 if (require.main === module) {
   let problem;
   try {
+    loadEnvFiles();
     problem = schemaProblem(resolveDatabaseUrl());
   } catch (error) {
     // Fail closed and say only the error code. The message from a failed read
