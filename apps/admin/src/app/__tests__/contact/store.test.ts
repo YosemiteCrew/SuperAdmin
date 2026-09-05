@@ -85,6 +85,16 @@ describe('listContactRequests', () => {
     expect(arg.skip).toBe(1);
   });
 
+  // The cursor resolves to a `createdAt` value, not to the row, so the sort has
+  // to be a total order or the page boundary between rows sharing a timestamp
+  // is decided by whichever plan Postgres picks - and a request then falls
+  // between two pages without a trace. Contact requests arrive in bursts, so
+  // tied timestamps are ordinary.
+  it('orders by createdAt with id as a tiebreaker, so pagination is total', async () => {
+    await listContactRequests({});
+    expect(mockFind.mock.calls[0][0].orderBy).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+  });
+
   it('coerces an unknown stored status to new', async () => {
     mockFind.mockResolvedValue([row('r1', { status: 'weird' })]);
     const { requests } = await listContactRequests({});

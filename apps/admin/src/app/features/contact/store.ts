@@ -49,7 +49,20 @@ export async function listContactRequests(params: {
   const query = {
     where,
     include: { lead: true },
-    orderBy: { createdAt: 'desc' as const },
+    // `id` is the tiebreaker, and it is load bearing rather than cosmetic.
+    // Cursor pagination here resolves the cursor to its `createdAt` value -
+    // Prisma emits `WHERE "createdAt" <= (SELECT "createdAt" ... WHERE id = $1)`
+    // and the id itself never enters the comparison. Ordering by a non-unique
+    // column alone leaves the order among tied rows undefined, and undefined
+    // means plan-dependent: with every row sharing one `createdAt`, a sequential
+    // scan and an index scan return disjoint sets of "the five newest". Page one
+    // has no WHERE clause and page two does, so the two are separate queries
+    // that can be planned differently, and a request can then be skipped or
+    // repeated. Contact requests arrive in bursts - a mirror replaying a backlog
+    // writes many rows in one millisecond - so ties are the normal case, not an
+    // exotic one, and a dropped lead is invisible: the page simply does not
+    // contain it.
+    orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
     take: PAGE_SIZE + 1,
   };
 
