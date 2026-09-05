@@ -193,6 +193,25 @@ async function isConfirmedDisabled(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Whether an account is disabled, for a caller that must FAIL CLOSED.
+ *
+ * `isConfirmedDisabled` above deliberately fails open: a metadata blip must not
+ * lock every admin out of every page. That trade is right for rendering a page
+ * and wrong for handing out a role, so this reports "treat as disabled" when the
+ * read fails rather than when it succeeds and says no.
+ *
+ * Returns true when the account is disabled OR when we could not find out.
+ */
+export async function isDisabledOrUnknown(userId: string): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.disabledAt === 'number';
+  } catch {
+    return true;
+  }
+}
+
 export async function requireSuperAdmin(): Promise<{ userId: string }> {
   const { userId, mfaComplete } = await getAuthenticatedSession();
   await assertSuperAdmin(userId);

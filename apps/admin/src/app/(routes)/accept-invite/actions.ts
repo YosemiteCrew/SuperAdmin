@@ -2,9 +2,14 @@
 
 import { redirect } from 'next/navigation';
 import SuperTokens from 'supertokens-node';
+import TotpNode from 'supertokens-node/recipe/totp';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 
-import { ensureSuperTokensInit, getAuthenticatedSession } from '@/app/config/backend';
+import {
+  ensureSuperTokensInit,
+  getAuthenticatedSession,
+  isDisabledOrUnknown,
+} from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
@@ -36,7 +41,7 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
   // Authenticate before looking up the token so direct server-action requests
   // cannot use response differences to probe invitation state.
   const returnTo = `/accept-invite?token=${encodeURIComponent(token)}`;
-  const { userId } = await getAuthenticatedSession(returnTo);
+  const { userId, mfaComplete } = await getAuthenticatedSession(returnTo);
 
   const invite = await getInviteByToken(token);
   if (!invite) return { error: 'Invite not found or already used.' };
@@ -55,6 +60,31 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
     return { error: 'Sign in with the email address this invitation was sent to.' };
   }
 
+  // This is the only path in the panel that GRANTS super-admin, so it applies at
+  // least the checks the paths that merely consume the role already apply.
+  // requireSuperAdmin() checks the disabled flag and the second factor; before
+  // this, accepting an invite checked neither.
+  //
+  // Fail closed, unlike the page gate. Disabling an account rests on the sign-in
+  // block plus session revocation, and revocation for a session that outlived
+  // the disable is triggered lazily by requireSuperAdmin - which this path never
+  // reaches. Without this, a disabled account holding a live session could
+  // accept a pending invite and be granted the role, defeating the disable
+  // through the one action it most needs to stop.
+  if (await isDisabledOrUnknown(userId)) {
+    return { error: 'This account cannot accept invitations. Contact a super-admin.' };
+  }
+
+  // The second factor is required only when the account HAS one. Requiring it
+  // unconditionally would deadlock a genuinely new admin with nothing enrolled;
+  // not requiring it at all would let a first-factor-only session take the role
+  // and then enrol its own TOTP device afterwards, finishing as a full
+  // super-admin having never passed a factor that already existed. Keying on
+  // whether a verified device exists is what separates those two cases.
+  if (!mfaComplete && (await hasEnrolledSecondFactor(userId))) {
+    return { error: 'Complete your second factor before accepting this invitation.' };
+  }
+
   await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });
   // The actor is whoever accepted and thereby gained super-admin, not the
@@ -71,4 +101,21 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
   });
 
   redirect('/dashboard');
+}
+
+/**
+ * Whether the account already has a verified TOTP device.
+ *
+ * Fails CLOSED - an unreadable device list is treated as "has one", so the
+ * second factor is demanded rather than skipped. Being wrong that way costs an
+ * invitee another sign-in; being wrong the other way grants the highest
+ * privilege in the estate on one factor.
+ */
+async function hasEnrolledSecondFactor(userId: string): Promise<boolean> {
+  try {
+    const { devices } = await TotpNode.listDevices(userId);
+    return devices.some((device) => device.verified);
+  } catch {
+    return true;
+  }
 }
