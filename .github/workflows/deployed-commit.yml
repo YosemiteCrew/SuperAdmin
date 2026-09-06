@@ -11,9 +11,17 @@ name: Deployed commit
 # could have said so.
 #
 # `/api/health` publishes the commit the running artifact was built from, which
-# is enough to close that on one unauthenticated request. No AWS call: the IAM
-# principal available to this fleet cannot read Amplify jobs, and a check that
-# needs an access nobody has is not a check.
+# is enough to close that on one request. No AWS call: the IAM principal
+# available to this fleet is under an explicit deny for Amplify configuration,
+# and a check that needs an access nobody has is not a check.
+#
+# `main` is behind Amplify branch access control (HTTP basic auth). That gate is
+# a single boolean per branch with no per-path exemption - the complete branch
+# and app field lists carry no path-scoped access-control field, and `customRules`
+# cannot help because the gate is enforced at the edge before routing. So it sits
+# in front of `/api/health` like everything else, and this check has to
+# authenticate. The credential comes from a repository secret and is never
+# written to the log.
 #
 # NOT a required status check, and it should not become one. It runs after the
 # merge, so it cannot gate a pull request, and making deployability a merge
@@ -61,8 +69,27 @@ jobs:
           INTERVAL_SECONDS: '15'
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          # The branch's `basicAuthCredentials`: base64 of `user:password`, the
+          # same encoding Amplify stores. Read by scripts/assert-deployed.js.
+          HEALTH_BASIC_AUTH: ${{ secrets.PANEL_HEALTH_BASIC_AUTH }}
         run: |
           set -uo pipefail
+
+          # Fail rather than skip. A missing credential means the deployed sha
+          # cannot be read at all, and a check that quietly stops checking when
+          # its input disappears is worse than no check - it reports success by
+          # not running. This is the one condition that must be loud on day one.
+          if [ -z "${HEALTH_BASIC_AUTH:-}" ]; then
+            echo "PANEL_HEALTH_BASIC_AUTH is not set."
+            echo
+            echo "The 'main' branch is behind Amplify access control, so /api/health"
+            echo "answers 401 to an unauthenticated request and the deployed commit"
+            echo "cannot be read. Set the repository secret to the branch's"
+            echo "basicAuthCredentials value (base64 of user:password)."
+            echo
+            echo "This is a configuration failure, not a deploy failure."
+            exit 1
+          fi
 
           if node scripts/assert-deployed.js \
                --url "$HEALTH_URL" \

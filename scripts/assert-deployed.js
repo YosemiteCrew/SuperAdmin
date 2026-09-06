@@ -16,11 +16,19 @@
  * the commit it was built from, and its own comment says why: so an assertion
  * can be tied to the artifact it was made against. This is that assertion.
  *
- * Deliberately credential-free. It needs one unauthenticated GET and the sha
- * the runner already has - no AWS API call, because the IAM principal available
- * here cannot read Amplify jobs, and a check nobody can run is not a check.
+ * No AWS API call: the IAM principal available to this fleet is under an
+ * explicit deny for Amplify configuration, and a check nobody can run is not a
+ * check. One HTTP request is the whole dependency.
  *
- *   node scripts/assert-deployed.js --url <health-url> --sha <commit> [--timeout 720] [--interval 15]
+ * `main` is behind Amplify branch access control, which is a single boolean per
+ * branch with no per-path exemption - it sits in front of `/api/health` exactly
+ * as it sits in front of everything else. So the request carries HTTP basic
+ * auth, supplied through `HEALTH_BASIC_AUTH` as the base64 `user:password`
+ * Amplify itself stores. The value is never printed, and no default is baked
+ * in: if the gate is on and the variable is absent, this fails rather than
+ * quietly reporting an unreachable app.
+ *
+ *   HEALTH_BASIC_AUTH=<base64> node scripts/assert-deployed.js --url <health-url> --sha <commit>
  *
  * Exit 0 only when the deployed sha equals the expected one. Every other
  * outcome - unreachable, non-200, unparseable, absent sha, still the previous
@@ -53,10 +61,12 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/;
  * a swap, and a partially deployed app can answer with an older body. The
  * caller retries on a reason and only the deadline is fatal.
  */
-async function readDeployedSha(url) {
+async function readDeployedSha(url, authorization) {
   let response;
   try {
-    response = await fetch(url, { headers: { 'cache-control': 'no-cache' } });
+    const headers = { 'cache-control': 'no-cache' };
+    if (authorization) headers.authorization = authorization;
+    response = await fetch(url, { headers });
   } catch (error) {
     // `fetch` rejects with a bare `TypeError: fetch failed` and puts the useful
     // code on `cause`. Reporting the wrapper would print "TypeError" for a
@@ -64,7 +74,22 @@ async function readDeployedSha(url) {
     const code = error.cause?.code ?? error.code ?? error.name;
     return { sha: null, reason: `unreachable (${code})` };
   }
-  if (!response.ok) return { sha: null, reason: `HTTP ${response.status}` };
+  if (!response.ok) {
+    // A 401 has two meanings here and they need different fixes. The branch
+    // gate answers with `WWW-Authenticate: Basic`; the application's own routes
+    // do not. Reading the code alone is what let a gate rejection be mistaken
+    // for an application rejection on 2026-09-06 - same status, opposite cause.
+    const challenge = response.headers.get('www-authenticate');
+    if (response.status === 401 && challenge?.toLowerCase().startsWith('basic')) {
+      return {
+        sha: null,
+        reason: authorization
+          ? 'HTTP 401 from the branch access-control gate - the supplied credential was rejected'
+          : 'HTTP 401 from the branch access-control gate - no credential was supplied',
+      };
+    }
+    return { sha: null, reason: `HTTP ${response.status}` };
+  }
 
   let body;
   try {
@@ -97,9 +122,14 @@ async function main() {
     throw new Error('--timeout and --interval must be numbers, and --interval must be positive');
   }
 
+  // Never interpolated into output. Only its presence is ever reported.
+  const credential = (process.env.HEALTH_BASIC_AUTH ?? '').trim();
+  const authorization = credential ? `Basic ${credential}` : null;
+
   const deadline = Date.now() + timeout * 1000;
   console.log(`expecting ${expected}`);
   console.log(`polling   ${url} every ${interval}s for up to ${timeout}s`);
+  console.log(`basic auth ${authorization ? 'supplied' : 'NOT supplied'}`);
 
   let attempts = 0;
   let last = { sha: null, reason: 'never read' };
@@ -108,7 +138,7 @@ async function main() {
   // request rather than a full interval.
   for (;;) {
     attempts += 1;
-    last = await readDeployedSha(url);
+    last = await readDeployedSha(url, authorization);
     const seen = last.sha ?? `- (${last.reason})`;
     const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
     console.log(`  attempt ${attempts}  deployed ${seen}  ${remaining}s left`);
@@ -132,6 +162,10 @@ async function main() {
       'This does not mean the site is down - it usually means the build never',
       'produced an artifact. Check the Amplify job list for this branch; the',
       'previous artifact keeps serving, which is why nothing else goes red.',
+      '',
+      'If the reason above names the access-control gate, this is not a deploy',
+      'failure at all: the credential is missing or wrong, and the deployed sha',
+      'was never read. Fix that before reading anything into the result.',
     ].join('\n')
   );
   return 1;
