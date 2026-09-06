@@ -92,14 +92,35 @@ function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigu
  * may never carry a credential, address infrastructure a caller could not
  * otherwise reach, or identify a person.
  *
- * That list is three cases, not a closed set, and it should not be read as
- * one. The third is here only because review ran the rule against a case it
- * was NOT written around - a future field publishing the bootstrap admin
- * addresses is neither a credential nor infrastructure, so the first two
- * clauses admitted it. That is the test to apply to a new field: checking a
- * rule against the fields already in this object proves it CONSISTENT with
- * them and never COMPLETE, because every one of them was in view when the
- * sentence was written.
+ * Those three are SHORTCUTS, and they are not converging. Each was added
+ * because someone constructed a case outside the previous set, and four more
+ * arrived within one round of the third landing. The question underneath them,
+ * which `intake`'s own comment already argues from rather than from category:
+ *
+ *   does knowing this help someone attack the system, is the operational value
+ *   larger, and what does it narrow TOGETHER WITH what is already here?
+ *
+ * A field can pass all three clauses and fail that. Two worked examples, both
+ * from review:
+ *
+ * - A fingerprint of an intake key, published so an operator can confirm both
+ *   sides hold the same secret, is not a credential, not infrastructure and
+ *   identifies nobody. It is a confirmation oracle: candidates are tested
+ *   against it offline, with no rate limit and no log line. Safety there is a
+ *   property of the INPUT's entropy, not of the output's category - and note
+ *   that `.env.example` says "AP_SIGNING_KEY_ID is a key identifier, not a
+ *   secret", which is true of that value and is exactly the sentence a later
+ *   reader would generalise into this mistake.
+ * - `buildSha` and `intake` are each fine. Together they say "this exact
+ *   commit is live AND its public write path is refusing everything", which is
+ *   narrower than either. That is not a property of any field, so no per-field
+ *   list can reach it.
+ *
+ * So the clauses are not a closed set and must not be read as one. The test to
+ * apply to a new field is the one that found all of the above: run the rule
+ * against a case it was NOT written around. Checking it against the fields
+ * already in this object proves it CONSISTENT with them and never COMPLETE,
+ * because every one of them was in view when the sentence was written.
  *
  * It is deliberately not "discloses nothing new". `intake` publishes whether
  * this deployment's keys are configured and `uptime` when it started, neither
