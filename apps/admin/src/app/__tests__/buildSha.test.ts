@@ -105,6 +105,7 @@ describe('the amplify.yml stanza this test runs', () => {
     expect(stanza).toContain('NEXT_PUBLIC_BUILD_SHA=');
     expect(stanza).toContain('AWS_COMMIT_ID');
     expect(stanza).toContain('git rev-parse HEAD');
+    expect(stanza).toContain('is_commit_sha');
     expect(stanza.split('\n').length).toBeGreaterThanOrEqual(15);
   });
 });
@@ -133,6 +134,11 @@ describe('buildSha is written only for something shaped like a commit', () => {
     ['a sha with trailing whitespace', `${SHA} `],
     ['something too short to be a sha', 'f048b9'],
     ['something too long to be a sha', `${SHA}0`],
+    // `grep -qE '^…$'` anchors PER LINE and `printf '%s'` preserves newlines, so
+    // a value with one matching line satisfied it. `case` is whole-string.
+    ['a sha hiding on the second line of a multi-line value', `HEAD\n${SHA}`],
+    ['a sha followed by another line', `${SHA}\nNEXT_PUBLIC_OTHER=1`],
+    ['a leading newline before a sha', `\n${SHA}`],
   ])('rejects %s and, with no checkout to fall back to, writes nothing', (_label, commitId) => {
     const { stdout, written } = runWith(commitId);
     expect(written).toBeNull();
