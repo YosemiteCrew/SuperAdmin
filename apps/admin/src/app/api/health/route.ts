@@ -66,18 +66,39 @@ function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigu
  * empty key as unconfigured.
  *
  * DISCLOSURE, weighed rather than assumed - this endpoint is unauthenticated
- * and this is the panel's highest-privilege surface, so a new field here is a
- * decision and not a convenience. A commit sha tells any caller precisely
- * which build is live, and therefore whether a given fix has shipped yet.
- * Published anyway because the repository is public: the sha resolves to
- * source that is already readable by anyone, so it discloses no fact that is
- * not already disclosed, and it is the only thing that lets an external check
- * tie an assertion about deployed configuration to the artifact it was made
- * against. That is the standard for anything added here - a field earns its
- * place by disclosing nothing a reader of the public repository could not
- * already establish. It is why `reason` above is narrowed to an error's class
- * and code: a Prisma connection message embeds the database host and user,
- * which the repository does not.
+ * (proxy.ts:42 lists it as intentionally public) and this is the panel's
+ * highest-privilege surface, so a new field here is a decision and not a
+ * convenience.
+ *
+ * Be exact about what it adds. A commit sha tells any caller which build is
+ * live, and that is NOT derivable from the public repository - source says
+ * which commits exist, never which one is deployed. `uptime` already discloses
+ * roughly when this instance started, so the increment is timing -> identity:
+ * from "something shipped recently" to "this commit is running". In the window
+ * between a fix landing in a public repo and reaching production, this field
+ * says which side of that window a deployment is on.
+ *
+ * Published because the cost is bounded and the benefit is not available any
+ * other way: a sha is not a secret and resolves to source anyone can already
+ * read, and it is the only thing that lets an external check tie an assertion
+ * about deployed configuration to the artifact it was made against - without
+ * it the only available cadence is a timer, which is the permanent alarm
+ * `intakeStatus` above exists to avoid.
+ *
+ * The standard for anything added here, which `intake` and `uptime` already
+ * follow: a field may name WHAT THIS DEPLOYMENT IS or HOW IT IS BEHAVING; it
+ * may never carry a credential, or address infrastructure a caller could not
+ * otherwise reach.
+ *
+ * It is deliberately not "discloses nothing new". `intake` publishes whether
+ * this deployment's keys are configured and `uptime` when it started, neither
+ * of which a reader of the repository could establish - and a novelty rule
+ * would forbid all three fields while permitting anything already leaked
+ * elsewhere. Nor is it "no identifiers": a commit sha is an identifier and is
+ * fine. What actually separates the allowed set from `reason.message` is that
+ * a Prisma connection message embeds the database host, port and sometimes the
+ * user - infrastructure a caller could then reach - which is why `reason` is
+ * narrowed above to an error's class and code.
  */
 function buildSha(): string | null {
   return process.env.NEXT_PUBLIC_BUILD_SHA?.trim() || null;
