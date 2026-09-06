@@ -44,16 +44,27 @@ name: Forbidden Terms
 # Counted here, 2026-09-06, over all 237 pull requests this repository has
 # ever had:
 #
-#   28 came from a fork and 26 of those merged - a seventh of the merged work,
-#      all from a single external source
-#   the monthly curve is 1, 6, 7, 12 for 2025-04..08 and 1, 1 for 2026-02 and
-#      2026-06, and the most recent fork pull request is #64, 2026-06-09,
-#      three months ago
+#   28 came from a fork and 26 of those merged - a seventh of the merged work
+#   the monthly curve, zeros included, is 1, 6, 0, 7, 12 for 2025-04..08, then
+#      nothing until 1 in 2026-02 and 1 in 2026-06. The most recent fork pull
+#      request is #64, 2026-06-09, three months ago
+#
+#   HOW MANY PEOPLE that was is NOT KNOWABLE from here and is deliberately not
+#      claimed. 27 of the 28 have a null `head.repo` and an author of `ghost`,
+#      which is GitHub's placeholder for a deleted account - it is the absence
+#      of an identity, not one, and every deleted account collapses into the
+#      same label. A first version of this paragraph said "all from a single
+#      external source", which came from listing the head repositories and
+#      dropping the nulls: 27 unknowns silently became the one survivor. The
+#      sibling can say "22 named external authors" because those accounts still
+#      exist; the identical query here returns a placeholder 27 times. That is a
+#      difference in what is knowable, not in concentration, and the argument
+#      below needs only the recency half, which is measured
 #
 # So the cost is real historically and near zero now, and the two halves point
-# opposite ways - the same shape as the sibling, at a seventh the scale and a
-# longer quiet period. What settles it is a third fact rather than a bigger
-# number: `No named external product` IS NOT A REQUIRED STATUS CHECK on either
+# opposite ways - a seventh the scale of the sibling, and quiet for longer. What
+# settles it is a third fact rather than a bigger number:
+# `No named external product` IS NOT A REQUIRED STATUS CHECK on either
 # branch. Which contexts each ruleset does require is deliberately not listed
 # here: it drifts, this file cannot notice when it does, and the argument only
 # needs the negative. A fork therefore gets a visible red that reports honestly
