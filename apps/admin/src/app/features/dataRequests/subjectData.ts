@@ -101,6 +101,12 @@ const SECTION_LIMIT = 500;
  * case-insensitive comparison would read the same rows via a sequential scan.
  */
 export function normalizeSubjectEmail(email: string): string {
+  // A runtime type check, not a redundant one. `string` is erased at runtime,
+  // and everything downstream of this puts the result straight into a Prisma
+  // `where`. An object arriving here would be read as query operators rather
+  // than as a value — `{ not: '' }` turns a lookup for one person into a
+  // lookup for everyone, and on the erasure path into a mass delete.
+  if (typeof email !== 'string') throw new TypeError('Subject email must be a string.');
   return email.trim().toLowerCase();
 }
 

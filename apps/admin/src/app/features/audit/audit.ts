@@ -38,6 +38,10 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
     label: 'Exported the panel record for a data-subject request',
     severity: 'warning',
   },
+  'privacy.subject_erase': {
+    label: 'Erased the panel record for a data-subject request',
+    severity: 'danger',
+  },
   'invite.create': { label: 'Created invite for', severity: 'info' },
   'invite.use': { label: 'Accepted super-admin invite', severity: 'warning' },
   'invite.revoke': { label: 'Revoked invite for', severity: 'info' },

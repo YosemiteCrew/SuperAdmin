@@ -1,3 +1,4 @@
+import { ERASED_SUBJECT } from '@/app/constants';
 import { parseConsentSubmission } from '@/app/features/consent/intake';
 
 const VALID = {
@@ -44,6 +45,48 @@ describe('parseConsentSubmission query-operator payloads', () => {
     expect(
       parseConsentSubmission({ ...VALID, decisions: [{ category: { not: 'x' }, granted: true }] })
     ).toBeNull();
+  });
+});
+
+// An erasure cannot delete `ConsentSubject.consentId` — it is `@unique` and
+// non-nullable — so it writes a tombstone and nulls the identifiers. That leaves
+// a row whose consentId is known-shaped and whose email/userId are null, and
+// `recordConsent` upserts on consentId and BACKFILLS a null identifier. Without
+// this guard a caller who learned a tombstone hands it back and re-attaches an
+// address to a subject that was erased, appending to a ledger meant to be
+// unlinkable.
+describe('parseConsentSubmission refuses the erasure namespace', () => {
+  const TOMBSTONE = `${ERASED_SUBJECT}:cm0abc123`;
+
+  it.each([
+    ['the bare marker', ERASED_SUBJECT],
+    ['a per-row tombstone', TOMBSTONE],
+  ])('rejects the whole submission when consentId is %s', (_label, consentId) => {
+    expect(parseConsentSubmission({ ...VALID, consentId })).toBeNull();
+  });
+
+  // Not only the field that is upserted on: an erased DataRequest row carries
+  // `subjectEmail = '[erased]'`, so a consent subject planted under that address
+  // would be shown on the subject record page for somebody else's erased request.
+  it.each([
+    ['email', ERASED_SUBJECT],
+    ['email', TOMBSTONE],
+    ['userId', ERASED_SUBJECT],
+    ['userId', TOMBSTONE],
+  ])('rejects the whole submission when %s is a reserved key', (field, value) => {
+    expect(parseConsentSubmission({ ...VALID, [field]: value })).toBeNull();
+  });
+
+  // The separating cases: the guard must refuse the namespace, not everything
+  // that mentions it. A rejection that swallowed these would be a public intake
+  // that drops real submissions.
+  it.each([
+    ['a device id merely containing the marker', `device-${ERASED_SUBJECT}-9`],
+    ['a device id ending with the marker', `device-${ERASED_SUBJECT}`],
+    ['a bracketed value that is not the marker', '[erasedish]'],
+    ['an ordinary device id', 'ph_distinct_123'],
+  ])('accepts %s', (_label, consentId) => {
+    expect(parseConsentSubmission({ ...VALID, consentId })).not.toBeNull();
   });
 });
 

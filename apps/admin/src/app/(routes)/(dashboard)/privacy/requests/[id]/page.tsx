@@ -13,6 +13,7 @@ import {
 } from '@/app/features/dataRequests/subjectData';
 import { isSectionError } from '@/app/lib/exportSection';
 
+import { EraseSubjectDataButton } from './EraseSubjectDataButton';
 import { ExportSubjectDataButton } from './ExportSubjectDataButton';
 
 export const metadata: Metadata = {
@@ -208,7 +209,12 @@ export default async function SubjectRecordPage({
             not covered here.
           </p>
         </div>
-        <ExportSubjectDataButton requestId={request.id} />
+        <div className="flex flex-col items-end gap-2">
+          <ExportSubjectDataButton requestId={request.id} />
+          {/* Only on a request that asked for one: the action refuses on any
+              other type anyway, and offering it would invite a mis-click. */}
+          {request.type === 'erasure' && <EraseSubjectDataButton requestId={request.id} />}
+        </div>
       </header>
 
       <Section title="Marketing lead and contact submissions">

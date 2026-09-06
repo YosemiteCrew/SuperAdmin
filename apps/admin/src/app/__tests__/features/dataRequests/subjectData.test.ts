@@ -107,6 +107,35 @@ describe('normalizeSubjectEmail', () => {
   });
 });
 
+// `string` is erased at runtime, and the normalized value goes straight into a
+// Prisma `where`. An object arriving here would be read as query operators
+// rather than as a value, which turns a lookup for one person into a lookup for
+// everyone — and on the erasure path into a mass delete.
+describe('normalizeSubjectEmail rejects a non-string', () => {
+  // Asserting the message, not just `TypeError`. Most of these also make
+  // `.trim()` throw a TypeError of its own, so a test that accepts any
+  // TypeError passes with the guard deleted and reads as though it checked it.
+  it.each([
+    ['an operator object', { not: '' }],
+    ['an array', ['a@example.com']],
+    ['null', null],
+    ['a number', 42],
+  ])('throws on %s rather than passing it to a query', (_label, value) => {
+    expect(() => normalizeSubjectEmail(value as never)).toThrow('Subject email must be a string.');
+  });
+
+  // The separating input: an object that survives `.trim().toLowerCase()` and
+  // would reach Prisma as query operators. Nothing but an explicit type check
+  // stops this one, which is what the guard is for.
+  it('throws on an object that imitates a string and would reach the query as operators', () => {
+    const imposter = { trim: () => ({ toLowerCase: () => ({ not: '' }) }) };
+
+    expect(() => normalizeSubjectEmail(imposter as never)).toThrow(
+      'Subject email must be a string.'
+    );
+  });
+});
+
 describe('collectSubjectData', () => {
   it('queries every table with the normalized address, not the raw input', async () => {
     resolveAll();
