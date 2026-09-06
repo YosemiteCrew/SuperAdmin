@@ -69,8 +69,14 @@ jobs:
           INTERVAL_SECONDS: '15'
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          # The branch's `basicAuthCredentials`: base64 of `user:password`, the
-          # same encoding Amplify stores. Read by scripts/assert-deployed.js.
+          # Sent verbatim as `Authorization: Basic <value>`, so it must be the
+          # base64 of `user:password` rather than the raw pair.
+          #
+          # It must be a credential DEMONSTRATED to authenticate - an
+          # authenticated 200 from this endpoint - not one copied from a
+          # plausible source. The branch's stored `basicAuthCredentials` is the
+          # obvious candidate and was measured on 2026-09-06 not to work, so it
+          # is named here as the thing NOT to paste blindly.
           HEALTH_BASIC_AUTH: ${{ secrets.PANEL_HEALTH_BASIC_AUTH }}
         run: |
           set -uo pipefail
@@ -84,8 +90,12 @@ jobs:
             echo
             echo "The 'main' branch is behind Amplify access control, so /api/health"
             echo "answers 401 to an unauthenticated request and the deployed commit"
-            echo "cannot be read. Set the repository secret to the branch's"
-            echo "basicAuthCredentials value (base64 of user:password)."
+            echo "cannot be read at all."
+            echo
+            echo "Set the repository secret to the base64 of 'user:password' for a"
+            echo "credential that has been SHOWN to return 200 from that endpoint."
+            echo "The branch's stored basicAuthCredentials was measured not to"
+            echo "authenticate, so it is not a safe default to paste."
             echo
             echo "This is a configuration failure, not a deploy failure."
             exit 1

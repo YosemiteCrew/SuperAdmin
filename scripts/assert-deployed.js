@@ -81,8 +81,14 @@ async function readDeployedSha(url, authorization) {
     // for an application rejection on 2026-09-06 - same status, opposite cause.
     const challenge = response.headers.get('www-authenticate');
     if (response.status === 401 && challenge?.toLowerCase().startsWith('basic')) {
+      // Terminal. Every other reason here is a state a deployment in flight can
+      // leave and does: a 502 during a swap, an older artifact still answering,
+      // a body that is not JSON yet. A credential the gate refuses is not one of
+      // those - it cannot become correct inside this run, so polling it for the
+      // full timeout only delays the answer the workflow exists to give.
       return {
         sha: null,
+        terminal: true,
         reason: authorization
           ? 'HTTP 401 from the branch access-control gate - the supplied credential was rejected'
           : 'HTTP 401 from the branch access-control gate - no credential was supplied',
@@ -147,25 +153,47 @@ async function main() {
       console.log(`\nDEPLOYED: ${url} is serving ${expected} after ${attempts} attempt(s).`);
       return 0;
     }
+    if (last.terminal) {
+      console.log('  (terminal condition - not retrying)');
+      break;
+    }
     if (Date.now() + interval * 1000 >= deadline) break;
     await sleep(interval);
   }
 
+  const gated = last.terminal === true;
   console.error(
     [
       '',
-      'NOT DEPLOYED: the expected commit is not the one being served.',
+      gated
+        ? 'COULD NOT READ THE DEPLOYED COMMIT: the access-control gate refused the request.'
+        : 'NOT DEPLOYED: the expected commit is not the one being served.',
       `  expected  ${expected}`,
-      `  deployed  ${last.sha ?? `none (${last.reason})`}`,
-      `  waited    ${timeout}s over ${attempts} attempt(s)`,
+      `  deployed  ${last.sha ?? `not read (${last.reason})`}`,
+      `  after     ${attempts} attempt(s)`,
       '',
-      'This does not mean the site is down - it usually means the build never',
-      'produced an artifact. Check the Amplify job list for this branch; the',
-      'previous artifact keeps serving, which is why nothing else goes red.',
-      '',
-      'If the reason above names the access-control gate, this is not a deploy',
-      'failure at all: the credential is missing or wrong, and the deployed sha',
-      'was never read. Fix that before reading anything into the result.',
+      ...(gated
+        ? [
+            'This says NOTHING about whether the deploy succeeded - the sha was',
+            'never read. It is a credential problem, and it is worth being precise',
+            'about which one before assuming a mis-pasted secret:',
+            '',
+            '  - the value must be what the gate accepts, demonstrated by an',
+            '    authenticated 200, not merely copied from a plausible source;',
+            '  - the branch\'s stored `basicAuthCredentials` was measured on',
+            '    2026-09-06 NOT to authenticate, so it is not a safe default;',
+            '  - `Authorization: Basic <v>` is sent verbatim, so the secret must',
+            '    be the base64 of `user:password`, not the raw pair.',
+            '',
+            'Do not switch this workflow off to make the red go away. It is',
+            'reporting that it cannot see production, which is the state it exists',
+            'to make visible.',
+          ]
+        : [
+            'This does not mean the site is down - it usually means the build never',
+            'produced an artifact. Check the Amplify job list for this branch; the',
+            'previous artifact keeps serving, which is why nothing else goes red.',
+          ]),
     ].join('\n')
   );
   return 1;
