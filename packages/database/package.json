@@ -12,6 +12,7 @@
     "generate": "prisma generate",
     "migrate:dev": "node scripts/assert-schema.js && prisma migrate dev",
     "migrate:deploy": "node scripts/assert-schema.js && prisma migrate deploy",
+    "assert-rls": "prisma db execute --file scripts/assert-rls.sql --schema prisma/schema.prisma",
     "studio": "prisma studio",
     "type-check": "tsc --noEmit"
   },
