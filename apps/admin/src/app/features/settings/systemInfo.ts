@@ -37,6 +37,6 @@ export function buildSystemInfo({
       value: apiConfigured ? 'Connected' : 'Not configured (set NEXT_PUBLIC_API_URL)',
     },
     { label: 'SuperTokens core', value: coreHost },
-    { label: 'Audit retention', value: `${auditRetention} most-recent events` },
+    { label: 'Audit view', value: `${auditRetention} most-recent events` },
   ];
 }

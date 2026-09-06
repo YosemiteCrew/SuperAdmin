@@ -1,3 +1,4 @@
+import 'server-only';
 import supertokens from 'supertokens-node';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 

@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
-import { AcceptButton } from '@/app/(routes)/(dashboard)/accept-invite/AcceptButton';
+import { AcceptButton } from '@/app/(routes)/accept-invite/AcceptButton';
 
 const acceptInviteActionMock = jest.fn();
-jest.mock('@/app/(routes)/(dashboard)/accept-invite/actions', () => ({
+jest.mock('@/app/(routes)/accept-invite/actions', () => ({
   acceptInviteAction: (...a: unknown[]) => acceptInviteActionMock(...a),
 }));
 

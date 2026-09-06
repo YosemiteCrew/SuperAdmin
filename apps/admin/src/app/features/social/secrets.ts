@@ -1,3 +1,4 @@
+import 'server-only';
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**

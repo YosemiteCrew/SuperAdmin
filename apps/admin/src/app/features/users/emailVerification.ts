@@ -1,3 +1,4 @@
+import 'server-only';
 import SuperTokens from 'supertokens-node';
 import EmailVerificationNode from 'supertokens-node/recipe/emailverification';
 

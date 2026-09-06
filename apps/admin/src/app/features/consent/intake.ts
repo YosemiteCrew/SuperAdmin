@@ -1,3 +1,5 @@
+import { isErasedSubjectKey } from '@/app/constants';
+
 import {
   isConsentCategory,
   isConsentSource,
@@ -39,6 +41,15 @@ function parseDecisions(raw: unknown): ConsentDecision[] | null {
  * Parses an untrusted consent payload from the public endpoint. Returns null
  * on anything invalid; the caller responds 400 without echoing detail to an
  * anonymous client.
+ *
+ * Every key a caller can assert is refused if it falls in the erasure's
+ * reserved namespace. `recordConsent` upserts on `consentId` and backfills a
+ * null `userId`/`email`, and an erased `ConsentSubject` is exactly a row whose
+ * `consentId` is a tombstone and whose identifiers are null — so a caller who
+ * learned a tombstone could otherwise hand it back, re-attach an address to an
+ * erased subject and append to a ledger that is meant to be unlinkable. The
+ * check is here rather than in the store because this is the trust boundary,
+ * and it covers all three fields rather than only the one that is upserted on.
  */
 export function parseConsentSubmission(
   body: Record<string, unknown>,
@@ -52,12 +63,19 @@ export function parseConsentSubmission(
   const decisions = parseDecisions(body.decisions);
   if (!decisions) return null;
 
+  const email = optionalString(body.email, LIMITS.email)?.toLowerCase();
+  const userId = optionalString(body.userId, LIMITS.userId);
+
+  if ([consentId, email, userId].some((v) => v !== undefined && isErasedSubjectKey(v))) {
+    return null;
+  }
+
   return {
     consentId,
     source: body.source,
     decisions,
-    email: optionalString(body.email, LIMITS.email)?.toLowerCase(),
-    userId: optionalString(body.userId, LIMITS.userId),
+    email,
+    userId,
     policyVersion: optionalString(body.policyVersion, LIMITS.policyVersion),
     userAgent: optionalString(userAgent, LIMITS.userAgent),
   };

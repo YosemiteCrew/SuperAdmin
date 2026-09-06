@@ -38,26 +38,27 @@
       "picomatch@>=4.0.0 <4.0.4": ">=4.0.4 <5",
       "@babel/core@<7.29.6": ">=7.29.6",
       "sharp@<=0.35.0": "0.35.0",
-      "nodemailer@<=9.0.5": "9.0.5",
+      "nodemailer@<9.1.1": ">=9.1.1 <10",
       "jose@<=6.2.5": "6.2.5",
       "js-yaml@<4.3.1": ">=4.3.1 <5",
       "postcss@<8.5.23": ">=8.5.23 <9",
       "fast-uri@>=3.0.0 <3.1.5": ">=3.1.5 <4",
       "deepmerge-ts@<8.0.0": ">=8.0.0 <9",
-      "adm-zip@<0.6.0": ">=0.6.0 <0.7"
+      "adm-zip@<0.6.0": ">=0.6.0 <0.7",
+      "qs@<6.16.0": ">=6.16.0 <7"
     }
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
-    "@secretlint/secretlint-rule-no-dotenv": "^13.0.4",
-    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
+    "@secretlint/secretlint-rule-no-dotenv": "^13.0.5",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.3.0",
+    "lint-staged": "^17.4.1",
     "prettier": "^3.9.6",
-    "secretlint": "^13.0.4",
+    "secretlint": "^13.0.5",
     "sonarqube-scanner": "^5.0.0",
-    "turbo": "^2.10.11"
+    "turbo": "^2.10.12"
   }
 }

@@ -1,10 +1,16 @@
 /**
  * @jest-environment node
  */
+jest.mock('server-only', () => ({}));
+
 jest.mock('@superadmin/database', () => ({
   prisma: {
     $queryRaw: jest.fn(),
   },
+}));
+
+jest.mock('@/app/config/env.server', () => ({
+  serverEnv: { contactIntakeKey: 'a-key', consentIntakeKey: 'a-key' },
 }));
 
 import { prisma } from '@superadmin/database';
@@ -16,9 +22,11 @@ type HealthBody = {
   status: string;
   database: string;
   reason?: { name: string; code: string | null };
+  intake: { contact: string; consent: string };
   uptime: number;
   timestamp: string;
   env: string;
+  buildSha: string | null;
 };
 
 let errorSpy: jest.SpyInstance;
@@ -137,6 +145,95 @@ describe('GET /api/health', () => {
       expect(res.status).toBe(503);
       const json = (await res.json()) as HealthBody;
       expect(json.reason).toEqual({ name: 'UnknownError', code: null });
+    });
+  });
+
+  /**
+   * A reachable database was the whole of "healthy" until now, so the panel
+   * reported ok while both public write paths refused every submission. These
+   * assert the body distinguishes the two states; they deliberately do NOT
+   * assert a non-200, because the keys are optional by design and a permanent
+   * 503 is an alarm an operator learns to mute.
+   */
+  describe('intake configuration', () => {
+    beforeEach(() => mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]));
+
+    it('reports both intakes as configured when both keys are present', async () => {
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'configured', consent: 'configured' });
+    });
+
+    it('reports an absent key as unconfigured, per intake', async () => {
+      jest.resetModules();
+      jest.doMock('@/app/config/env.server', () => ({
+        serverEnv: { contactIntakeKey: null, consentIntakeKey: 'a-key' },
+      }));
+      const { GET: GetNoContact } = await import('@/app/api/health/route');
+      const json = (await (await GetNoContact()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'unconfigured', consent: 'configured' });
+    });
+
+    it('treats an empty-string key as unconfigured, not as a usable secret', async () => {
+      jest.resetModules();
+      jest.doMock('@/app/config/env.server', () => ({
+        serverEnv: { contactIntakeKey: '', consentIntakeKey: '' },
+      }));
+      const { GET: GetEmpty } = await import('@/app/api/health/route');
+      const json = (await (await GetEmpty()).json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'unconfigured', consent: 'unconfigured' });
+    });
+
+    it('still reports intake state when the database is down', async () => {
+      mockQueryRaw.mockRejectedValue(new Error('connection refused'));
+      const res = await GET();
+      expect(res.status).toBe(503);
+      const json = (await res.json()) as HealthBody;
+      expect(json.intake).toEqual({ contact: 'configured', consent: 'configured' });
+    });
+  });
+  describe('the published build sha', () => {
+    const ORIGINAL = process.env.NEXT_PUBLIC_BUILD_SHA;
+
+    beforeEach(() => mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]));
+    afterEach(() => {
+      if (ORIGINAL === undefined) delete process.env.NEXT_PUBLIC_BUILD_SHA;
+      else process.env.NEXT_PUBLIC_BUILD_SHA = ORIGINAL;
+    });
+
+    it('publishes the sha the build supplied', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = 'abc1234';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBe('abc1234');
+    });
+
+    it('publishes null when the build supplied no sha at all', async () => {
+      delete process.env.NEXT_PUBLIC_BUILD_SHA;
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    // The separating case. A build environment without a commit id writes the
+    // variable with an empty value rather than omitting it, so `?? null` would
+    // publish '' here and a reader comparing shas would match nothing while the
+    // field looked present.
+    it('treats an empty value as no sha rather than publishing an empty one', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = '';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    it('treats a whitespace-only value as no sha', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = '   ';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    it('reports the sha even while the database is down, so a failed deploy is identifiable', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = 'deadbee';
+      mockQueryRaw.mockRejectedValue(new Error('connection refused'));
+      const res = await GET();
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as HealthBody).buildSha).toBe('deadbee');
     });
   });
 });

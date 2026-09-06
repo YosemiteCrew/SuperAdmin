@@ -1,6 +1,6 @@
 # 0001. Audit log persisted in SuperTokens UserMetadata (no dedicated DB, no CAS)
 
-**Status:** Accepted
+**Status:** Superseded by the durable Postgres audit store on 2026-09-05
 **Date:** 2026-07-01
 
 ## Context

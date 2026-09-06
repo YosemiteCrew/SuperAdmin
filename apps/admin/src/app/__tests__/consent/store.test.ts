@@ -251,3 +251,14 @@ describe('getSubjectDetail', () => {
     expect(historyCall.orderBy).toEqual({ seq: 'desc' });
   });
 });
+
+describe('listConsentSubjects ordering', () => {
+  // `updatedAt` is not unique, and the cursor resolves to its value rather than
+  // to the row, so without `id` the boundary between two subjects touched in the
+  // same millisecond is plan-dependent and one can be skipped between pages.
+  it('orders by updatedAt with id as a tiebreaker', async () => {
+    mockSubjFind.mockResolvedValue([]);
+    await listConsentSubjects({});
+    expect(mockSubjFind.mock.calls[0][0].orderBy).toEqual([{ updatedAt: 'desc' }, { id: 'desc' }]);
+  });
+});

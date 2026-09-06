@@ -2,10 +2,12 @@ import { httpClient } from '@/app/services/http/client';
 
 import type {
   GetOrganizationResponse,
+  ListOrganizationMembersResponse,
   ListOrganizationsResponse,
   OrganizationStatusPatch,
   SuperAdminOrganization,
   SuperAdminOrganizationDetail,
+  SuperAdminOrganizationMember,
 } from '../types';
 
 type OrganizationRequestConfig = {
@@ -56,4 +58,22 @@ export async function updateOrganization(
     patch,
     requestConfig
   );
+}
+
+/**
+ * Reads an organisation's active members from
+ * `GET /v1/super-admin/businesses/:id/members`.
+ *
+ * The detail page has only ever shown `memberCount`, which cannot answer "who
+ * is in this clinic" - the question every account-level diagnosis starts from.
+ */
+export async function listOrganizationMembers(
+  id: string,
+  requestConfig?: OrganizationRequestConfig
+): Promise<SuperAdminOrganizationMember[]> {
+  const { data } = await httpClient.get<ListOrganizationMembersResponse>(
+    `/v1/super-admin/businesses/${encodeURIComponent(id)}/members`,
+    requestConfig
+  );
+  return data.members ?? [];
 }

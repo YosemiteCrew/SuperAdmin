@@ -16,6 +16,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     bucket: 'consent',
     header: 'x-consent-key',
     expectedKey: serverEnv.consentIntakeKey,
+    envVar: 'CONSENT_INTAKE_KEY',
     unconfiguredMessage: 'Consent intake is not configured',
   });
   if (!guard.ok) return guard.response;

@@ -23,6 +23,8 @@ export type AuditAction =
   | 'contact.status_change'
   | 'privacy.request_create'
   | 'privacy.request_update'
+  | 'privacy.subject_export'
+  | 'privacy.subject_erase'
   | 'invite.create'
   | 'invite.use'
   | 'invite.revoke'
