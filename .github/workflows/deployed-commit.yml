@@ -1,0 +1,98 @@
+name: Deployed commit
+
+# Did this merge actually ship?
+#
+# The panel deploys through the Amplify GitHub app, so there is no CD workflow
+# to fail and no webhook response to inspect. A merge to `main` either becomes
+# an artifact or does not, and until now the only place that showed was the
+# Amplify console. On 2026-09-06 a `DATABASE_URL` edit broke `migrate:deploy`;
+# every check here stayed green, the site stayed up serving the previous
+# artifact, and `main` silently stopped deploying. Nothing in the repository
+# could have said so.
+#
+# `/api/health` publishes the commit the running artifact was built from, which
+# is enough to close that on one unauthenticated request. No AWS call: the IAM
+# principal available to this fleet cannot read Amplify jobs, and a check that
+# needs an access nobody has is not a check.
+#
+# NOT a required status check, and it should not become one. It runs after the
+# merge, so it cannot gate a pull request, and making deployability a merge
+# condition would block the repository during an unrelated production outage.
+
+on:
+  push:
+    branches: [main]
+  # So an operator can ask "is main deployed right now?" without pushing -
+  # which is exactly the question that went unanswered on 2026-09-06.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployed-commit-${{ github.ref }}
+  # Never cancel. This runs only on a branch, and a cancelled run verifies
+  # nothing - the same reasoning that made `ci-affected` stop cancelling its
+  # `push` builds. Two merges close together are handled below instead.
+  cancel-in-progress: false
+
+jobs:
+  assert:
+    name: main is serving this commit
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'YosemiteCrew'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+
+      - name: Wait for the deployed commit to match
+        shell: bash
+        env:
+          HEALTH_URL: https://admin.yosemitecrew.com/api/health
+          EXPECTED_SHA: ${{ github.sha }}
+          # Observed builds on this app run 3m11s-3m29s from start to VERIFY.
+          # 12 minutes is roughly 3.5x that, plus room for queueing.
+          TIMEOUT_SECONDS: '720'
+          INTERVAL_SECONDS: '15'
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -uo pipefail
+
+          if node scripts/assert-deployed.js \
+               --url "$HEALTH_URL" \
+               --sha "$EXPECTED_SHA" \
+               --timeout "$TIMEOUT_SECONDS" \
+               --interval "$INTERVAL_SECONDS"; then
+            exit 0
+          fi
+
+          # A newer merge landed while this one was building. Amplify deploys the
+          # branch, not the commit, so the newer build legitimately replaces this
+          # one and this commit will never be served. Its own run makes the
+          # assertion - the last commit in a burst is the one that has to pass.
+          # Fail closed. Without `-e` a failed `gh` leaves TIP empty, and an empty
+          # TIP is "not equal to the expected sha" - which would report SUPERSEDED
+          # and exit 0 on a deploy that really is broken. An unreadable tip means
+          # supersession could not be established, not that it happened.
+          TIP="$(gh api "repos/$REPO/commits/main" --jq .sha || true)"
+          if ! printf '%s' "$TIP" | grep -Eq '^[0-9a-f]{40}$'; then
+            echo "Could not read the current tip of main (got: '${TIP}')."
+            echo "Supersession is unestablished, so this stays a failure."
+            exit 1
+          fi
+
+          if [ "$TIP" != "$EXPECTED_SHA" ]; then
+            echo "SUPERSEDED: main has moved to $TIP since this run started."
+            echo "The deploy for that commit is what should be serving, and its own"
+            echo "run asserts it. Not failing on a commit that was replaced."
+            exit 0
+          fi
+
+          echo "main is still $EXPECTED_SHA, so nothing superseded this deploy."
+          exit 1
