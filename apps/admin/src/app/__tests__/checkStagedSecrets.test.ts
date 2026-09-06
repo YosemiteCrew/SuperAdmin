@@ -50,6 +50,11 @@ describe('check-staged-secrets: local secrets file rule', () => {
     ['apps/admin/.env.local'],
     ['packages/database/.env.local'],
     ['packages/database/.env.production'],
+    // Git tracks these as distinct paths on a case-sensitive filesystem.
+    ['.ENV.production'],
+    ['apps/admin/.ENV.local'],
+    // A backup of the template is not the template.
+    ['.env.example.bak'],
   ])('blocks %s', (path) => {
     it('reports it as a local secrets file', () => {
       expect(isBlocked(path)).toBe(true);
@@ -67,6 +72,9 @@ describe('check-staged-secrets: local secrets file rule', () => {
     ['apps/admin/src/config.env.local'],
     // No dot after `.env`, so the rule does not reach it.
     ['apps/admin/.environment'],
+    // The exemption is case-insensitive too, or an uppercase template is refused.
+    ['.env.EXAMPLE'],
+    ['apps/admin/.Env.Example'],
     ['README.md'],
   ])('allows %s', (path) => {
     it('reports no local secrets finding', () => {
@@ -87,6 +95,15 @@ describe('check-staged-secrets: local secrets file rule', () => {
     mockedExecFileSync.mockClear();
     collectFindings(['apps/admin/.env']);
     expect(mockedExecFileSync).not.toHaveBeenCalled();
+  });
+
+  it('content-scans a protected text file that is not blocked', () => {
+    // Firing control for the assertion above: on its own,
+    // `not.toHaveBeenCalled()` is also satisfied by a build in which nothing is
+    // ever content-scanned, so it would pass with the whole content scan deleted.
+    mockedExecFileSync.mockClear();
+    collectFindings(['apps/admin/src/config.ts']);
+    expect(mockedExecFileSync).toHaveBeenCalled();
   });
 
   it('reports every blocked path in a mixed staged set', () => {

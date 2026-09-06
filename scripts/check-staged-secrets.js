@@ -11,7 +11,11 @@ const PROTECTED_ROOTS = ['apps/admin/', 'packages/'];
 // anchored to `apps/admin/` and to the repo root, and the repo-root one could
 // never fire: the block test ran only over paths that had already survived the
 // PROTECTED_ROOTS narrowing, and a repo-root path is under neither root.
-const BLOCKED_LOCAL_FILE = /(?:^|\/)\.env(?:$|\.local$|\.(?!example$).+)/;
+// Case-insensitive: git tracks `.ENV.production` as a distinct path on a
+// case-sensitive filesystem, and this filename rule is the only thing that can
+// refuse an env file that is empty. The flag also fixes the exemption, which
+// was refusing an uppercase `.env.EXAMPLE` template.
+const BLOCKED_LOCAL_FILE = /(?:^|\/)\.env(?:$|\.local$|\.(?!example$).+)/i;
 
 const TEXT_FILE_EXTENSIONS = new Set([
   '.c',
