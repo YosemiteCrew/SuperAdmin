@@ -19,7 +19,7 @@ DECLARE
   examined      int;
   unguarded     text[];
   with_policies text[];
-  forced_off    int;
+  rls_on        int;
 BEGIN
   -- Coverage first. Every check below is a "find the bad ones" query, and each
   -- one returns nothing at all when the schema is empty or misnamed - so
@@ -80,7 +80,13 @@ BEGIN
 
   -- 3. Report what was actually checked, so a passing run is auditable rather
   -- than a bare exit 0.
-  SELECT count(*) INTO forced_off
+  --
+  -- FORCE row level security (`relforcerowsecurity`) is deliberately NOT
+  -- asserted. The panel connects as the table owner, and an owner is meant to
+  -- bypass RLS here - forcing it would deny the application itself. The
+  -- condition that changes this is the panel moving to a least-privilege role:
+  -- at that point FORCE becomes meaningful and belongs in this file.
+  SELECT count(*) INTO rls_on
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
   WHERE n.nspname = 'superadmin' AND c.relkind = 'r' AND c.relrowsecurity;
@@ -88,5 +94,5 @@ BEGIN
   RAISE NOTICE
     'RLS guard passed: % of % tables in "superadmin" have RLS enabled, 0 policies. '
     'Excluded by name: _prisma_migrations.',
-    forced_off, examined;
+    rls_on, examined;
 END $$;
