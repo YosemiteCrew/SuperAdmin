@@ -20,7 +20,7 @@ overrides:
   picomatch@>=4.0.0 <4.0.4: '>=4.0.4 <5'
   '@babel/core@<7.29.6': '>=7.29.6'
   sharp@<=0.35.0: 0.35.0
-  nodemailer@<=9.0.5: 9.0.5
+  nodemailer@<9.1.1: '>=9.1.1 <10'
   jose@<=6.2.5: 6.2.5
   js-yaml@<4.3.1: '>=4.3.1 <5'
   postcss@<8.5.23: '>=8.5.23 <9'
@@ -6482,8 +6482,8 @@ packages:
     resolution: {integrity: sha512-YHs7BmmcsdAI5Ozuf8JZo6PT0mv2GIWC9vMfvUC3dp65M8hn7Ux8CPL+2oBI7juNuj9d0ndhTcznq2ODBps9cQ==}
     engines: {node: '>=18'}
 
-  /nodemailer@9.0.5:
-    resolution: {integrity: sha512-wvjiKvjczmsN7U/8006JOdXubgBk2XFAbioDMbT+sM7cPs0QrhJTa6KBRX7P5REGGkDcLUz/EarWidb8G8C1jQ==}
+  /nodemailer@9.1.1:
+    resolution: {integrity: sha512-izw9mVKFix6YSnC9eLgV6g1opl9DUlRio9ZNcq+Wu9Ujn2UwF+8Nl0B8nz22kEC+CTZCvinkxwJ0DeFbb6NwcQ==}
     engines: {node: '>=6.0.0'}
     dev: false
 
@@ -7642,7 +7642,7 @@ packages:
       debug: 4.4.3
       jose: 6.2.5
       libphonenumber-js: 1.13.10
-      nodemailer: 9.0.5
+      nodemailer: 9.1.1
       pako: 2.2.0
       pkce-challenge: 3.1.0
       process: 0.11.10
