@@ -1,11 +1,17 @@
-# Global owner
-*  @your-org/superadmin-team
+# Default ownership. Code owners must be users with write access or org teams;
+# the bare org account is not resolvable, and the org has no teams yet - revisit
+# when a maintainers team exists.
+#
+# The previous contents named three org teams that do not exist, so every rule
+# in this file resolved to no owner and no reviewer was ever auto-requested.
+# Check any change here with the repository codeowners/errors API endpoint,
+# which reports unresolvable owners directly instead of failing silently.
+* @ankit-yc @aupyay
 
-# Admin app
-apps/admin/  @your-org/frontend-team
-
-# Shared packages
-packages/    @your-org/platform-team
-
-# CI/workflows
-.github/     @your-org/platform-team
+# Governance-sensitive paths (explicit, so ownership survives future narrowing
+# of the default rule).
+/.github/ @ankit-yc @aupyay
+/AGENTS.md @ankit-yc @aupyay
+/CLAUDE.md @ankit-yc @aupyay
+/CONTRIBUTING.md @ankit-yc @aupyay
+/SECURITY.md @ankit-yc @aupyay
