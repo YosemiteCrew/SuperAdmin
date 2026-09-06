@@ -11,6 +11,8 @@ const findManyMock = jest.fn();
 const createManyMock = jest.fn();
 const createMock = jest.fn();
 const deleteManyMock = jest.fn();
+const findImportMock = jest.fn();
+const upsertImportMock = jest.fn();
 jest.mock('@superadmin/database', () => ({
   prisma: {
     orgNote: {
@@ -20,6 +22,10 @@ jest.mock('@superadmin/database', () => ({
       create: (...args: unknown[]) => createMock(...args),
       deleteMany: (...args: unknown[]) => deleteManyMock(...args),
     },
+    orgNoteImport: {
+      findUnique: (...args: unknown[]) => findImportMock(...args),
+      upsert: (...args: unknown[]) => upsertImportMock(...args),
+    },
   },
 }));
 
@@ -27,6 +33,7 @@ import { MAX_NOTES, addOrgNote, getOrgNotes } from '@/app/features/organizations
 
 beforeEach(() => {
   jest.clearAllMocks();
+  findImportMock.mockResolvedValue({ orgId: 'org-1' });
   findFirstMock.mockResolvedValue({ id: 'existing' });
   findManyMock.mockResolvedValue([]);
   getUserMetadataMock.mockResolvedValue({ metadata: {}, status: 'OK' });
@@ -53,12 +60,19 @@ it('reads the newest notes for one organization', async () => {
   ]);
   expect(findManyMock).toHaveBeenCalledWith({
     where: { orgId: 'org-1' },
-    orderBy: { at: 'desc' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
     take: MAX_NOTES,
   });
 });
 
+it('does not inspect legacy storage after an import is complete', async () => {
+  await getOrgNotes('org-1');
+  expect(findFirstMock).not.toHaveBeenCalled();
+  expect(getUserMetadataMock).not.toHaveBeenCalled();
+});
+
 it('imports valid legacy notes once with their organization id', async () => {
+  findImportMock.mockResolvedValue(null);
   findFirstMock.mockResolvedValue(null);
   getUserMetadataMock.mockResolvedValue({
     metadata: {
@@ -83,6 +97,36 @@ it('imports valid legacy notes once with their organization id', async () => {
       },
     ],
     skipDuplicates: true,
+  });
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-legacy' },
+    create: { orgId: 'org-legacy' },
+    update: {},
+  });
+});
+
+it('does not touch SuperTokens or import when rows already exist', async () => {
+  findImportMock.mockResolvedValue(null);
+  await getOrgNotes('org-1');
+  expect(getUserMetadataMock).not.toHaveBeenCalled();
+  expect(createManyMock).not.toHaveBeenCalled();
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-1' },
+    create: { orgId: 'org-1' },
+    update: {},
+  });
+});
+
+it('marks an empty legacy import complete', async () => {
+  findImportMock.mockResolvedValue(null);
+  findFirstMock.mockResolvedValue(null);
+  await getOrgNotes('org-empty');
+  expect(getUserMetadataMock).toHaveBeenCalledTimes(1);
+  expect(createManyMock).not.toHaveBeenCalled();
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-empty' },
+    create: { orgId: 'org-empty' },
+    update: {},
   });
 });
 
@@ -110,7 +154,7 @@ it(`deletes notes beyond the newest ${MAX_NOTES}`, async () => {
   await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'new' });
   expect(findManyMock).toHaveBeenCalledWith({
     where: { orgId: 'org-1' },
-    orderBy: { at: 'desc' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
     skip: MAX_NOTES,
     select: { id: true },
   });

@@ -12,3 +12,12 @@ CREATE TABLE "OrgNote" (
 CREATE INDEX "OrgNote_orgId_at_idx" ON "OrgNote"("orgId", "at");
 
 ALTER TABLE "OrgNote" ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE "OrgNoteImport" (
+    "orgId" TEXT NOT NULL,
+    "importedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OrgNoteImport_pkey" PRIMARY KEY ("orgId")
+);
+
+ALTER TABLE "OrgNoteImport" ENABLE ROW LEVEL SECURITY;

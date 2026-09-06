@@ -35,7 +35,7 @@ export async function getOrgNotes(orgId: string): Promise<OrgNote[]> {
   await importLegacyNotes(orgId);
   const rows = await prisma.orgNote.findMany({
     where: { orgId },
-    orderBy: { at: 'desc' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
     take: MAX_NOTES,
   });
   return rows.map(({ id, actorId, actorEmail, content, at }) => ({
@@ -48,15 +48,21 @@ export async function getOrgNotes(orgId: string): Promise<OrgNote[]> {
 }
 
 async function importLegacyNotes(orgId: string): Promise<void> {
-  if (await prisma.orgNote.findFirst({ where: { orgId }, select: { id: true } })) return;
+  if (await prisma.orgNoteImport.findUnique({ where: { orgId }, select: { orgId: true } })) return;
+  if (await prisma.orgNote.findFirst({ where: { orgId }, select: { id: true } })) {
+    await prisma.orgNoteImport.upsert({ where: { orgId }, create: { orgId }, update: {} });
+    return;
+  }
   const { metadata } = await UserMetadataNode.getUserMetadata(storeId(orgId));
   const raw = metadata[NOTES_KEY];
   const notes = Array.isArray(raw) ? raw.filter(isNote) : [];
-  if (notes.length === 0) return;
-  await prisma.orgNote.createMany({
-    data: notes.map((note) => ({ ...note, orgId, at: new Date(note.at) })),
-    skipDuplicates: true,
-  });
+  if (notes.length > 0) {
+    await prisma.orgNote.createMany({
+      data: notes.map((note) => ({ ...note, orgId, at: new Date(note.at) })),
+      skipDuplicates: true,
+    });
+  }
+  await prisma.orgNoteImport.upsert({ where: { orgId }, create: { orgId }, update: {} });
 }
 
 export async function addOrgNote(params: {
@@ -78,7 +84,7 @@ export async function addOrgNote(params: {
   });
   const stale = await prisma.orgNote.findMany({
     where: { orgId: params.orgId },
-    orderBy: { at: 'desc' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
     skip: MAX_NOTES,
     select: { id: true },
   });
