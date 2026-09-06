@@ -39,6 +39,49 @@ describe('OrgMembers', () => {
     expect(screen.getByText('nurse')).toBeInTheDocument();
   });
 
+  it('renders both rows when one person holds two roles, without a duplicate key', () => {
+    // Uniqueness on the membership table is (practitioner, organisation, role),
+    // so this is two legitimate rows. Keying by userId alone makes React drop
+    // one of them on a re-render and warns rather than failing.
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    render(
+      <OrgMembers
+        members={[
+          {
+            userId: 'user-1',
+            roleCode: 'doctor',
+            roleDisplay: 'Veterinarian',
+            since: '2026-07-01T09:00:00.000Z',
+          },
+          {
+            userId: 'user-1',
+            roleCode: 'admin',
+            roleDisplay: 'Practice admin',
+            since: '2026-07-03T09:00:00.000Z',
+          },
+        ]}
+        memberCount={2}
+      />
+    );
+
+    expect(screen.getAllByRole('link', { name: 'user-1' })).toHaveLength(2);
+    expect(consoleError).not.toHaveBeenCalled();
+
+    consoleError.mockRestore();
+  });
+
+  it('names no cause for a failed read', () => {
+    // The page catches every failure, so copy that explains one of them is a
+    // diagnosis for the rest - and naming the missing endpoint would go stale
+    // the day it ships.
+    render(<OrgMembers members={null} memberCount={4} />);
+
+    expect(screen.getByText(/Couldn't load the member list/i)).toBeInTheDocument();
+    expect(screen.queryByText(/endpoint/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/connected/i)).not.toBeInTheDocument();
+  });
+
   it('distinguishes a failed read from an organisation with no members', () => {
     const { rerender } = render(<OrgMembers members={null} memberCount={4} />);
     expect(screen.getByText(/Couldn't load the member list/i)).toBeInTheDocument();
