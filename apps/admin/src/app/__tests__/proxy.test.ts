@@ -30,6 +30,19 @@ describe('proxy', () => {
     expect(res.headers.get('x-middleware-rewrite')).toBeNull();
   });
 
+  it('preserves the invitation URL while sending an unauthenticated recipient to sign in', () => {
+    const res = proxy(makeRequest('/accept-invite?token=tok-1'));
+    const location = new URL(res.headers.get('Location')!);
+    expect(location.pathname).toBe('/auth');
+    expect(location.searchParams.get('returnTo')).toBe('/accept-invite?token=tok-1');
+  });
+
+  it('lets an authenticated non-admin account reach the invitation page', () => {
+    const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
+    const res = proxy(makeRequest('/accept-invite?token=tok-1', validToken));
+    expect(res.headers.get('Location')).toBeNull();
+  });
+
   it('lets /api/* requests through (public)', () => {
     const res = proxy(makeRequest('/api/health'));
     expect(res.headers.get('Location')).toBeNull();

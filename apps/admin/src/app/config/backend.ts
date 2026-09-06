@@ -157,13 +157,15 @@ function isMfaComplete(payload: Record<string, unknown>): boolean {
   return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
 }
 
-export async function getAuthenticatedSession(): Promise<{ userId: string; mfaComplete: boolean }> {
+export async function getAuthenticatedSession(
+  returnTo?: string
+): Promise<{ userId: string; mfaComplete: boolean }> {
   ensureSuperTokensInit();
   const cookieStore = await cookies();
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
   const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
   if (error || !hasToken || !accessTokenPayload || typeof accessTokenPayload.sub !== 'string') {
-    redirect('/auth');
+    redirect(returnTo ? `/auth?returnTo=${encodeURIComponent(returnTo)}` : '/auth');
   }
   return { userId: accessTokenPayload.sub, mfaComplete: isMfaComplete(accessTokenPayload) };
 }
@@ -188,6 +190,25 @@ async function isConfirmedDisabled(userId: string): Promise<boolean> {
     return typeof metadata.disabledAt === 'number';
   } catch {
     return false;
+  }
+}
+
+/**
+ * Whether an account is disabled, for a caller that must FAIL CLOSED.
+ *
+ * `isConfirmedDisabled` above deliberately fails open: a metadata blip must not
+ * lock every admin out of every page. That trade is right for rendering a page
+ * and wrong for handing out a role, so this reports "treat as disabled" when the
+ * read fails rather than when it succeeds and says no.
+ *
+ * Returns true when the account is disabled OR when we could not find out.
+ */
+export async function isDisabledOrUnknown(userId: string): Promise<boolean> {
+  try {
+    const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+    return typeof metadata.disabledAt === 'number';
+  } catch {
+    return true;
   }
 }
 
