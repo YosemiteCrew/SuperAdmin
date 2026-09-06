@@ -1,19 +1,17 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
-
 import {
   analyseClientBoundary,
+  analyseSources,
+  isScannableModule,
   isTypeOnlyClause,
   leadingDirectives,
+  normalisePath,
   readEdges,
   stripComments,
+  type SourceFile,
 } from '../../../scripts/clientBoundary';
 
-const REAL_SRC = resolve(__dirname, '..', '..');
-
 describe('the client/server module boundary in this app', () => {
-  const report = analyseClientBoundary(REAL_SRC);
+  const report = analyseClientBoundary();
 
   it('has no client module that reaches a server-only module at runtime', () => {
     // Each entry is the full import path, so a failure names every hop rather
@@ -39,73 +37,74 @@ describe('the client/server module boundary in this app', () => {
   });
 });
 
-describe('analyseClientBoundary', () => {
-  let root: string;
-
-  const write = (relPath: string, source: string): void => {
-    const full = join(root, relPath);
-    mkdirSync(dirname(full), { recursive: true });
-    writeFileSync(full, source);
+describe('analyseSources', () => {
+  const serverOnly: SourceFile = {
+    path: 'features/store.ts',
+    source: "import 'server-only';\n\nexport const readSecret = (): string => 'x';\n",
   };
 
-  const serverOnlyModule =
-    "import 'server-only';\n\nexport const readSecret = (): string => 'x';\n";
-
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'client-boundary-'));
-    write('features/store.ts', serverOnlyModule);
-  });
-
-  afterEach(() => {
-    rmSync(root, { recursive: true, force: true });
-  });
-
-  const leakPaths = (): string[] =>
-    analyseClientBoundary(root).leaks.map((leak) => leak.path.join(' -> '));
+  const leakPaths = (...files: SourceFile[]): string[] =>
+    analyseSources([serverOnly, ...files]).leaks.map((leak) => leak.path.join(' -> '));
 
   it('reports a client module importing a server-only module directly', () => {
-    write(
-      'Panel.tsx',
-      "'use client';\nimport { readSecret } from '@/features/store';\nexport const P = readSecret;\n"
-    );
-    expect(leakPaths()).toEqual(['Panel.tsx -> features/store.ts']);
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source:
+          "'use client';\nimport { readSecret } from '@/features/store';\nexport const P = readSecret;\n",
+      })
+    ).toEqual(['Panel.tsx -> features/store.ts']);
   });
 
   it('reports the leak through an intermediate module that carries no directive', () => {
-    write(
-      'lib/util.ts',
-      "import { readSecret } from '@/features/store';\nexport const u = readSecret;\n"
-    );
-    write('Panel.tsx', "'use client';\nimport { u } from '@/lib/util';\nexport const P = u;\n");
-    expect(leakPaths()).toEqual(['Panel.tsx -> lib/util.ts -> features/store.ts']);
+    expect(
+      leakPaths(
+        {
+          path: 'lib/util.ts',
+          source: "import { readSecret } from '@/features/store';\nexport const u = readSecret;\n",
+        },
+        {
+          path: 'Panel.tsx',
+          source: "'use client';\nimport { u } from '@/lib/util';\nexport const P = u;\n",
+        }
+      )
+    ).toEqual(['Panel.tsx -> lib/util.ts -> features/store.ts']);
   });
 
   it('does not report a type-only import, which the compiler erases', () => {
-    write(
-      'Panel.tsx',
-      "'use client';\nimport type { readSecret } from '@/features/store';\nexport type P = typeof readSecret;\n"
-    );
-    expect(leakPaths()).toEqual([]);
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source:
+          "'use client';\nimport type { readSecret } from '@/features/store';\nexport type P = typeof readSecret;\n",
+      })
+    ).toEqual([]);
   });
 
   it('does not report a path through a server action, whose imports stay on the server', () => {
-    write(
-      'search.ts',
-      "'use server';\nimport { readSecret } from '@/features/store';\nexport const search = async () => readSecret();\n"
-    );
-    write(
-      'Panel.tsx',
-      "'use client';\nimport { search } from '@/search';\nexport const P = search;\n"
-    );
-    expect(leakPaths()).toEqual([]);
+    expect(
+      leakPaths(
+        {
+          path: 'search.ts',
+          source:
+            "'use server';\nimport { readSecret } from '@/features/store';\nexport const search = async () => readSecret();\n",
+        },
+        {
+          path: 'Panel.tsx',
+          source: "'use client';\nimport { search } from '@/search';\nexport const P = search;\n",
+        }
+      )
+    ).toEqual([]);
   });
 
   it('reports a dynamic import, which is still bundled for the client', () => {
-    write(
-      'Panel.tsx',
-      "'use client';\nexport const P = async () => (await import('@/features/store')).readSecret();\n"
-    );
-    expect(leakPaths()).toEqual(['Panel.tsx -> features/store.ts']);
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source:
+          "'use client';\nexport const P = async () => (await import('@/features/store')).readSecret();\n",
+      })
+    ).toEqual(['Panel.tsx -> features/store.ts']);
   });
 
   it('does not read an import that only appears inside a comment', () => {
@@ -113,65 +112,113 @@ describe('analyseClientBoundary', () => {
     // keyword and the edge regex already refuses that line, so a line comment is
     // green whether or not comments are stripped at all. Inside a block comment
     // the import starts its own line, so this is the input that separates the two.
-    write(
-      'Panel.tsx',
-      "'use client';\n/*\nimport { readSecret } from '@/features/store';\n*/\nexport const P = 1;\n"
-    );
-    expect(leakPaths()).toEqual([]);
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source:
+          "'use client';\n/*\nimport { readSecret } from '@/features/store';\n*/\nexport const P = 1;\n",
+      })
+    ).toEqual([]);
   });
 
   it('starts only from client entries, so a server component may import freely', () => {
-    write(
-      'Page.tsx',
-      "import { readSecret } from '@/features/store';\nexport default function Page() { return readSecret(); }\n"
-    );
-    expect(leakPaths()).toEqual([]);
+    expect(
+      leakPaths({
+        path: 'Page.tsx',
+        source:
+          "import { readSecret } from '@/features/store';\nexport default function Page() { return readSecret(); }\n",
+      })
+    ).toEqual([]);
   });
 
   it('follows a relative specifier and a directory index as well as the alias', () => {
-    write('features/index.ts', "export { readSecret } from './store';\n");
-    write(
-      'Panel.tsx',
-      "'use client';\nimport { readSecret } from './features';\nexport const P = readSecret;\n"
-    );
-    expect(leakPaths()).toEqual(['Panel.tsx -> features/index.ts -> features/store.ts']);
+    expect(
+      leakPaths(
+        { path: 'features/index.ts', source: "export { readSecret } from './store';\n" },
+        {
+          path: 'Panel.tsx',
+          source:
+            "'use client';\nimport { readSecret } from './features';\nexport const P = readSecret;\n",
+        }
+      )
+    ).toEqual(['Panel.tsx -> features/index.ts -> features/store.ts']);
   });
 
-  it('does not call a stylesheet import an unresolved module', () => {
-    write('Panel.module.css', '.a { color: red; }\n');
-    write('Panel.tsx', "'use client';\nimport './Panel.module.css';\nexport const P = 1;\n");
-    expect(analyseClientBoundary(root).unresolvedLocalSpecifiers).toEqual([]);
+  it('resolves a relative specifier that climbs out of its own directory', () => {
+    expect(
+      leakPaths({
+        path: 'ui/panels/Panel.tsx',
+        source:
+          "'use client';\nimport { readSecret } from '../../features/store';\nexport const P = readSecret;\n",
+      })
+    ).toEqual(['ui/panels/Panel.tsx -> features/store.ts']);
   });
 
   it('resolves a source file whose own name contains a dot', () => {
-    write('features/store.legacy.ts', serverOnlyModule);
-    write(
-      'Panel.tsx',
-      "'use client';\nimport { readSecret } from './features/store.legacy';\nexport const P = readSecret;\n"
-    );
-    expect(leakPaths()).toEqual(['Panel.tsx -> features/store.legacy.ts']);
+    expect(
+      leakPaths(
+        { path: 'features/store.legacy.ts', source: serverOnly.source },
+        {
+          path: 'Panel.tsx',
+          source:
+            "'use client';\nimport { readSecret } from './features/store.legacy';\nexport const P = readSecret;\n",
+        }
+      )
+    ).toEqual(['Panel.tsx -> features/store.legacy.ts']);
+  });
+
+  it('does not call a stylesheet import an unresolved module', () => {
+    const report = analyseSources([
+      serverOnly,
+      {
+        path: 'Panel.tsx',
+        source: "'use client';\nimport './Panel.module.css';\nexport const P = 1;\n",
+      },
+    ]);
+    expect(report.unresolvedLocalSpecifiers).toEqual([]);
   });
 
   it('names a local specifier it could not resolve instead of dropping it', () => {
-    write(
-      'Panel.tsx',
-      "'use client';\nimport { gone } from '@/features/notThere';\nexport const P = gone;\n"
-    );
-    expect(analyseClientBoundary(root).unresolvedLocalSpecifiers).toEqual([
-      'Panel.tsx :: @/features/notThere',
+    const report = analyseSources([
+      serverOnly,
+      {
+        path: 'Panel.tsx',
+        source:
+          "'use client';\nimport { gone } from '@/features/notThere';\nexport const P = gone;\n",
+      },
     ]);
+    expect(report.unresolvedLocalSpecifiers).toEqual(['Panel.tsx :: @/features/notThere']);
+  });
+});
+
+describe('isScannableModule', () => {
+  it.each([
+    ['app/ui/Panel.tsx', true],
+    ['app/lib/util.ts', true],
+    ['app/legacy/thing.js', true],
+  ])('scans %s', (path, expected) => {
+    expect(isScannableModule(path)).toBe(expected);
   });
 
-  it('ignores tests and stories, which are not part of any shipped bundle', () => {
-    write(
-      'Panel.test.tsx',
-      "'use client';\nimport { readSecret } from '@/features/store';\nexport const P = readSecret;\n"
-    );
-    write(
-      '__tests__/other.ts',
-      "'use client';\nimport { readSecret } from '@/features/store';\nexport const P = readSecret;\n"
-    );
-    expect(leakPaths()).toEqual([]);
+  it.each([
+    // Not part of any bundle Next ships.
+    ['app/__tests__/panel.test.ts', false],
+    ['app/ui/Panel.test.tsx', false],
+    ['app/ui/Panel.stories.tsx', false],
+    ['app/jest.mocks/nextNavigation.ts', false],
+    ['app/globals.css', false],
+  ])('skips %s', (path, expected) => {
+    expect(isScannableModule(path)).toBe(expected);
+  });
+});
+
+describe('normalisePath', () => {
+  it.each([
+    ['app/ui/../lib/util', 'app/lib/util'],
+    ['./app/./ui/Panel', 'app/ui/Panel'],
+    ['app/ui/panels/../../features/store', 'app/features/store'],
+  ])('folds %s', (path, expected) => {
+    expect(normalisePath(path)).toBe(expected);
   });
 });
 

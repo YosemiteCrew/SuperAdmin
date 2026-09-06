@@ -14,18 +14,29 @@
  *   - anything reached through a `'use server'` module, whose exports become RPC
  *     references and whose own imports never enter the client bundle.
  *
+ * `analyseSources` is pure: it takes file contents and touches nothing. Reading the
+ * app off the disk is `readAppSources`, which takes no arguments and walks one fixed
+ * root. Keeping the two apart is what lets the guard be tested on planted sources
+ * rather than on temporary directories.
+ *
  * This lives under `scripts/` rather than `src/` on purpose: it reads the filesystem,
  * and a filesystem reader sitting in `src/app/lib` is one careless import away from
  * being the very defect this file exists to detect.
  */
 import { readFileSync, readdirSync } from 'node:fs';
-import { join, dirname, resolve, relative, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
 
 /** Not part of any bundle Next ships, so not part of the boundary. */
 const EXCLUDED_PATH_SEGMENTS = ['node_modules', '__tests__', 'jest.mocks'];
 const EXCLUDED_FILE_PATTERN = /\.(test|spec|stories)\.[jt]sx?$/;
+
+/** A module's path, relative to the app source root and always `/`-separated. */
+export interface SourceFile {
+  path: string;
+  source: string;
+}
 
 export interface BoundaryEdge {
   specifier: string;
@@ -50,30 +61,6 @@ export interface BoundaryReport {
   leaks: BoundaryLeak[];
 }
 
-/**
- * One recursive `readdirSync` rather than a hand-rolled walk: the directory tree
- * is read in a single call, so no derived path is handed to a second filesystem
- * call to ask what it is.
- */
-function listSourceFiles(root: string): string[] {
-  return readdirSync(root, { recursive: true, encoding: 'utf8' })
-    .map((entry) => entry.split(sep))
-    .filter((segments) => {
-      const name = segments[segments.length - 1];
-      return (
-        !segments.some((segment) => EXCLUDED_PATH_SEGMENTS.includes(segment)) &&
-        SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
-        !EXCLUDED_FILE_PATTERN.test(name)
-      );
-    })
-    .map((segments) => join(root, ...segments));
-}
-
-/**
- * Blanks out comments while leaving string literals intact, so that a specifier
- * inside a comment is not read as an edge and a `//` inside a URL is not read as
- * the start of one.
- */
 interface Consumed {
   text: string;
   next: number;
@@ -187,29 +174,40 @@ export function readEdges(sourceWithoutComments: string): BoundaryEdge[] {
   return edges;
 }
 
+/** Root-relative, `/`-separated, with `.` and `..` folded away. */
+export function normalisePath(path: string): string {
+  const out: string[] = [];
+  for (const segment of path.split('/')) {
+    if (segment === '' || segment === '.') continue;
+    if (segment === '..') out.pop();
+    else out.push(segment);
+  }
+  return out.join('/');
+}
+
 const PACKAGE_SPECIFIER = Symbol('package');
 
 /**
- * Resolves against the set of files already listed rather than against the disk.
- * That keeps resolution and scanning in step — a specifier that resolves to a file
+ * Resolves against the set of files already read rather than against the disk.
+ * That keeps resolution and scanning in step — a specifier that resolved to a file
  * the walk never read would otherwise count as resolved and then be silently
- * dropped — and it means no derived path is ever handed to the filesystem.
+ * dropped — and it needs no filesystem access at all.
  */
 function resolveSpecifier(
   specifier: string,
   fromFile: string,
-  srcRoot: string,
   known: Set<string>
 ): string | null | typeof PACKAGE_SPECIFIER {
   let base: string;
-  if (specifier.startsWith('@/')) base = join(srcRoot, specifier.slice(2));
-  else if (specifier.startsWith('.')) base = resolve(dirname(fromFile), specifier);
+  if (specifier.startsWith('@/')) base = normalisePath(specifier.slice(2));
+  else if (specifier.startsWith('.'))
+    base = normalisePath(`${fromFile.split('/').slice(0, -1).join('/')}/${specifier}`);
   else return PACKAGE_SPECIFIER;
 
   const candidates = [
-    ...SOURCE_EXTENSIONS.map((ext) => resolve(base + ext)),
-    ...SOURCE_EXTENSIONS.map((ext) => resolve(join(base, `index${ext}`))),
-    resolve(base),
+    ...SOURCE_EXTENSIONS.map((ext) => base + ext),
+    ...SOURCE_EXTENSIONS.map((ext) => `${base}/index${ext}`),
+    base,
   ];
   const hit = candidates.find((candidate) => known.has(candidate));
   if (hit) return hit;
@@ -217,7 +215,7 @@ function resolveSpecifier(
   // A specifier that names an extension of its own and still matched nothing is a
   // stylesheet or an asset, not a module this walk can follow. Checked after the
   // candidates so that a source file whose name merely contains a dot still wins.
-  const named = /\.[^./\\]+$/.exec(specifier)?.[0];
+  const named = /\.[^./]+$/.exec(specifier)?.[0];
   if (named && !SOURCE_EXTENSIONS.includes(named)) return PACKAGE_SPECIFIER;
   return null;
 }
@@ -240,13 +238,13 @@ interface ResolvedGraph {
   unresolvedLocalSpecifiers: string[];
 }
 
-function readModules(root: string): Map<string, ModuleFacts> {
+function readModules(files: SourceFile[]): Map<string, ModuleFacts> {
   const modules = new Map<string, ModuleFacts>();
-  for (const file of listSourceFiles(root)) {
-    const source = stripComments(readFileSync(file, 'utf8'));
+  for (const file of files) {
+    const source = stripComments(file.source);
     const directives = leadingDirectives(source);
     const edges = readEdges(source);
-    modules.set(resolve(file), {
+    modules.set(file.path, {
       isClientEntry: directives.has('use client'),
       isServerAction: directives.has('use server'),
       importsServerOnly: edges.some((e) => e.specifier === 'server-only' && !e.typeOnly),
@@ -256,12 +254,7 @@ function readModules(root: string): Map<string, ModuleFacts> {
   return modules;
 }
 
-/** Resolves every specifier once, so the walk never touches the disk again. */
-function resolveGraph(
-  modules: Map<string, ModuleFacts>,
-  root: string,
-  asRelative: (file: string) => string
-): ResolvedGraph {
+function resolveGraph(modules: Map<string, ModuleFacts>): ResolvedGraph {
   const known = new Set(modules.keys());
   const edges = new Map<string, ResolvedEdge[]>();
   const unresolvedLocalSpecifiers: string[] = [];
@@ -270,10 +263,10 @@ function resolveGraph(
   for (const [file, facts] of modules) {
     const resolvedEdges: ResolvedEdge[] = [];
     for (const edge of facts.edges) {
-      const target = resolveSpecifier(edge.specifier, file, root, known);
+      const target = resolveSpecifier(edge.specifier, file, known);
       if (target === PACKAGE_SPECIFIER) continue;
       if (target === null) {
-        unresolvedLocalSpecifiers.push(`${asRelative(file)} :: ${edge.specifier}`);
+        unresolvedLocalSpecifiers.push(`${file} :: ${edge.specifier}`);
         continue;
       }
       localEdgesResolved += 1;
@@ -288,8 +281,7 @@ function resolveGraph(
 function leaksFromEntry(
   entry: string,
   modules: Map<string, ModuleFacts>,
-  graph: ResolvedGraph,
-  asRelative: (file: string) => string
+  graph: ResolvedGraph
 ): BoundaryLeak[] {
   const found: BoundaryLeak[] = [];
   const seen = new Set<string>([entry]);
@@ -303,22 +295,21 @@ function leaksFromEntry(
       if (edge.typeOnly || seen.has(edge.target) || !target || target.isServerAction) continue;
       seen.add(edge.target);
       const path = [...current.path, edge.target];
-      if (target.importsServerOnly) found.push({ path: path.map(asRelative) });
+      if (target.importsServerOnly) found.push({ path });
       else queue.push({ file: edge.target, path });
     }
   }
   return found;
 }
 
-export function analyseClientBoundary(srcRoot: string): BoundaryReport {
-  const root = resolve(srcRoot);
-  const asRelative = (file: string): string => relative(root, file).split(sep).join('/');
-  const modules = readModules(root);
-  const graph = resolveGraph(modules, root, asRelative);
+/** Pure: every input is in `files`, and nothing here touches the filesystem. */
+export function analyseSources(files: SourceFile[]): BoundaryReport {
+  const modules = readModules(files);
+  const graph = resolveGraph(modules);
 
   const leaks: BoundaryLeak[] = [];
   for (const [entry, facts] of modules) {
-    if (facts.isClientEntry) leaks.push(...leaksFromEntry(entry, modules, graph, asRelative));
+    if (facts.isClientEntry) leaks.push(...leaksFromEntry(entry, modules, graph));
   }
 
   const count = (predicate: (f: ModuleFacts) => boolean): number =>
@@ -333,4 +324,31 @@ export function analyseClientBoundary(srcRoot: string): BoundaryReport {
     unresolvedLocalSpecifiers: graph.unresolvedLocalSpecifiers,
     leaks,
   };
+}
+
+export function isScannableModule(relativePath: string): boolean {
+  const segments = relativePath.split('/');
+  const name = segments[segments.length - 1];
+  return (
+    !segments.some((segment) => EXCLUDED_PATH_SEGMENTS.includes(segment)) &&
+    SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
+    !EXCLUDED_FILE_PATTERN.test(name)
+  );
+}
+
+/**
+ * Reads this app's own source tree. Takes no arguments on purpose: the root is a
+ * constant derived from this file's location, so no caller-supplied path ever
+ * reaches a filesystem call.
+ */
+export function readAppSources(): SourceFile[] {
+  const root = resolve(__dirname, '..', 'src');
+  return readdirSync(root, { recursive: true, encoding: 'utf8' })
+    .map((entry) => entry.split(sep).join('/'))
+    .filter(isScannableModule)
+    .map((path) => ({ path, source: readFileSync(join(root, path), 'utf8') }));
+}
+
+export function analyseClientBoundary(): BoundaryReport {
+  return analyseSources(readAppSources());
 }
