@@ -168,7 +168,12 @@ export async function listConsentSubjects(params: {
 
   const rows = await prisma.consentSubject.findMany({
     where,
-    orderBy: { updatedAt: 'desc' },
+    // Ordered by a non-unique column plus `id` as a tiebreaker: the cursor
+    // resolves to the `updatedAt` value only, so without a total order the page
+    // boundary between rows sharing a timestamp is plan-dependent and a subject
+    // can be skipped or repeated between pages. See the same note in
+    // features/contact/store.ts.
+    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
     take: PAGE_SIZE + 1,
     ...(params.cursor ? { skip: 1, cursor: { id: params.cursor } } : {}),
   });

@@ -49,6 +49,36 @@ describe('parseSubmission query-operator payloads', () => {
     expect(parseSubmission({ ...VALID, email })).toBeNull();
   });
 
+  // The erasure's reserved keys, refused here by the email shape check rather
+  // than by a dedicated guard. Pinned so a future loosening of `looksLikeEmail`
+  // cannot quietly let a lead be planted under an erased request's address.
+  it.each([
+    ['the bare marker', '[erased]'],
+    ['a tombstone', '[erased]:cm0abc123'],
+  ])('rejects %s as an email, since neither is address-shaped', (_label, email) => {
+    expect(parseSubmission({ ...VALID, email })).toBeNull();
+  });
+
+  // Found by a surviving mutation while pinning the two above: neither half of
+  // the `@` position check was covered, so `looksLikeEmail` could lose the `@`
+  // requirement altogether and every test stayed green.
+  it.each([
+    ['no @ at all', 'ownerclinic.com'],
+    ['an empty local part', '@clinic.com'],
+    ['a trailing @', 'owner@'],
+  ])('rejects an address with %s', (_label, email) => {
+    expect(parseSubmission({ ...VALID, email })).toBeNull();
+  });
+
+  // Current behaviour, asserted rather than wished for. `logDataRequestAction`
+  // rejects a second `@` (`at !== value.lastIndexOf('@')`) and this intake does
+  // not, so the two doors into the same register disagree about what an address
+  // is. Filed rather than changed here: this is a live public intake and
+  // tightening it is not this PR's call.
+  it('accepts a second @, unlike the privacy request form — see #313', () => {
+    expect(parseSubmission({ ...VALID, email: 'owner@a@clinic.com' })).not.toBeNull();
+  });
+
   it('rejects the whole submission when message is a query operator', () => {
     expect(parseSubmission({ ...VALID, message: { not: 'x' } })).toBeNull();
   });

@@ -1,3 +1,4 @@
+import 'server-only';
 import { lookup as dnsLookupCb, type LookupAddress, type LookupOptions } from 'node:dns';
 import { lookup as dnsLookupAsync } from 'node:dns/promises';
 import { request as httpRequest, type ClientRequest, type IncomingMessage } from 'node:http';

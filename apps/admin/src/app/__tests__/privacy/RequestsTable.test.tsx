@@ -62,6 +62,12 @@ describe('RequestsTable', () => {
     expect(typeCells).toHaveLength(1);
   });
 
+  it('links the subject to that request\u2019s record, so the panel record is one click away', () => {
+    render(<RequestsTable requests={[makeRequest({ id: 'dr_42' })]} nowMs={NOW_MS} />);
+    const link = screen.getByRole('link', { name: 'person@example.com' });
+    expect(link).toHaveAttribute('href', '/privacy/requests/dr_42');
+  });
+
   it('shows a "Due in N days" badge for an open request before its deadline', () => {
     // dueAt is 2026-07-31, now is 2026-07-04 -> 27 days.
     render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);
@@ -116,7 +122,7 @@ describe('RequestsTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
-    expect(await screen.findByText(/30-day response clock has started/)).toBeInTheDocument();
+    expect(await screen.findByText(/one-month response clock has started/)).toBeInTheDocument();
   });
 
   it('shows the error message when the action reports a failure', async () => {

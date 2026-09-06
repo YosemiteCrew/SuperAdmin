@@ -9,6 +9,7 @@ jest.mock('@/app/services/http/client', () => ({
 
 import {
   getOrganization,
+  listOrganizationMembers,
   listOrganizations,
   updateOrganization,
 } from '@/app/features/organizations/services/organizationsService';
@@ -117,5 +118,42 @@ describe('updateOrganization', () => {
   it('propagates transport errors', async () => {
     patchMock.mockRejectedValue(new Error('HTTP 500'));
     await expect(updateOrganization('o1', { isVerified: true })).rejects.toThrow('HTTP 500');
+  });
+});
+
+describe('listOrganizationMembers', () => {
+  beforeEach(() => {
+    getMock.mockReset();
+  });
+
+  it('requests the members sub-resource for the business', async () => {
+    const members = [
+      { userId: 'u1', roleCode: 'doctor', roleDisplay: 'Veterinarian', since: '2026-01-01' },
+    ];
+    getMock.mockResolvedValue({ data: { members }, status: 200 });
+
+    await expect(listOrganizationMembers('o1')).resolves.toEqual(members);
+    expect(getMock).toHaveBeenCalledWith('/v1/super-admin/businesses/o1/members', undefined);
+  });
+
+  it('encodes the id so a slash in it cannot reach another path', async () => {
+    getMock.mockResolvedValue({ data: { members: [] }, status: 200 });
+
+    await listOrganizationMembers('Organization/o1');
+
+    expect(getMock).toHaveBeenCalledWith(
+      '/v1/super-admin/businesses/Organization%2Fo1/members',
+      undefined
+    );
+  });
+
+  it('returns an empty array when the payload has no members', async () => {
+    getMock.mockResolvedValue({ data: {}, status: 200 });
+    await expect(listOrganizationMembers('o1')).resolves.toEqual([]);
+  });
+
+  it('propagates transport errors so the page can tell them from an empty roster', async () => {
+    getMock.mockRejectedValue(new Error('network down'));
+    await expect(listOrganizationMembers('o1')).rejects.toThrow('network down');
   });
 });

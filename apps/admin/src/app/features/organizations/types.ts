@@ -57,3 +57,22 @@ export interface OrganizationStatusPatch {
   isVerified?: boolean;
   isActive?: boolean;
 }
+
+/**
+ * One active membership of an organisation, as `GET
+ * /v1/super-admin/businesses/:id/members` returns it.
+ *
+ * `userId` is the auth identifier the panel's own user pages are keyed on
+ * (`/users/<userId>`), which is what makes this the route from "this clinic
+ * has a problem" to the individual account that carries the answer.
+ */
+export interface SuperAdminOrganizationMember {
+  userId: string;
+  roleCode: string;
+  roleDisplay?: string;
+  since: string;
+}
+
+export interface ListOrganizationMembersResponse {
+  members: SuperAdminOrganizationMember[];
+}

@@ -1,3 +1,4 @@
+import 'server-only';
 import { unstable_cache } from 'next/cache';
 import supertokens from 'supertokens-node';
 import TotpNode from 'supertokens-node/recipe/totp';

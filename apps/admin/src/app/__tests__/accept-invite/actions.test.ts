@@ -8,6 +8,12 @@ jest.mock('next/navigation', () => ({
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
   getAuthenticatedSession: jest.fn(),
+  isDisabledOrUnknown: jest.fn(),
+}));
+
+jest.mock('supertokens-node/recipe/totp', () => ({
+  __esModule: true,
+  default: { listDevices: jest.fn() },
 }));
 
 jest.mock('supertokens-node', () => ({
@@ -17,7 +23,7 @@ jest.mock('supertokens-node', () => ({
 
 jest.mock('supertokens-node/recipe/userroles', () => ({
   __esModule: true,
-  default: { addRoleToUser: jest.fn() },
+  default: { addRoleToUser: jest.fn(), removeUserRole: jest.fn() },
 }));
 
 jest.mock('@/app/features/audit/store', () => ({
@@ -30,10 +36,11 @@ jest.mock('@/app/features/invites/store', () => ({
 }));
 
 import SuperTokens from 'supertokens-node';
+import TotpNode from 'supertokens-node/recipe/totp';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 
-import { acceptInviteAction } from '@/app/(routes)/(dashboard)/accept-invite/actions';
-import { getAuthenticatedSession } from '@/app/config/backend';
+import { acceptInviteAction } from '@/app/(routes)/accept-invite/actions';
+import { getAuthenticatedSession, isDisabledOrUnknown } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
@@ -43,8 +50,13 @@ const mockGetSession = getAuthenticatedSession as jest.MockedFunction<
   typeof getAuthenticatedSession
 >;
 const mockGetUser = SuperTokens.getUser as jest.MockedFunction<typeof SuperTokens.getUser>;
+const mockDisabled = isDisabledOrUnknown as jest.MockedFunction<typeof isDisabledOrUnknown>;
+const mockListDevices = TotpNode.listDevices as jest.MockedFunction<typeof TotpNode.listDevices>;
 const mockAddRole = UserRolesNode.addRoleToUser as jest.MockedFunction<
   typeof UserRolesNode.addRoleToUser
+>;
+const mockRemoveRole = UserRolesNode.removeUserRole as jest.MockedFunction<
+  typeof UserRolesNode.removeUserRole
 >;
 const mockGetInvite = getInviteByToken as jest.MockedFunction<typeof getInviteByToken>;
 const mockMarkUsed = markInviteUsed as jest.MockedFunction<typeof markInviteUsed>;
@@ -75,12 +87,19 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Date, 'now').mockReturnValue(NOW);
   mockGetInvite.mockResolvedValue(invite());
-  mockGetSession.mockResolvedValue({ userId: 'u-9' } as Awaited<
+  mockGetSession.mockResolvedValue({ userId: 'u-9', mfaComplete: true } as Awaited<
     ReturnType<typeof getAuthenticatedSession>
+  >);
+  mockDisabled.mockResolvedValue(false);
+  mockListDevices.mockResolvedValue({ status: 'OK', devices: [] } as Awaited<
+    ReturnType<typeof TotpNode.listDevices>
   >);
   mockGetUser.mockResolvedValue({ emails: ['new@x.com'] } as Awaited<
     ReturnType<typeof SuperTokens.getUser>
   >);
+  mockMarkUsed.mockResolvedValue();
+  mockAddRole.mockResolvedValue({ status: 'OK', didUserAlreadyHaveRole: false });
+  mockRemoveRole.mockResolvedValue({ status: 'OK', didUserHaveRole: true });
 });
 
 afterEach(() => {
@@ -98,6 +117,7 @@ describe('acceptInviteAction', () => {
   it('grants the role, marks the invite used, audits it, and redirects', async () => {
     await acceptInviteAction(formData({ token: 'tok-1' }));
 
+    expect(mockGetSession).toHaveBeenCalledWith('/accept-invite?token=tok-1');
     expect(mockAddRole).toHaveBeenCalledWith(DEFAULT_TENANT_ID, 'u-9', SUPERADMIN_ROLE);
     expect(mockMarkUsed).toHaveBeenCalledWith({
       token: 'tok-1',
@@ -111,6 +131,48 @@ describe('acceptInviteAction', () => {
       targetId: 'inv-1',
       targetLabel: 'new@x.com',
     });
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('stops when the role grant is unavailable', async () => {
+    mockAddRole.mockResolvedValue({ status: 'UNKNOWN_ROLE_ERROR' });
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).rejects.toThrow(
+      'The super-admin role is unavailable.'
+    );
+
+    expect(mockMarkUsed).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the grant retryable when marking the invite used fails', async () => {
+    const failure = new Error('invite store unavailable');
+    let hasRole = false;
+    mockMarkUsed.mockRejectedValueOnce(failure).mockResolvedValueOnce();
+    mockAddRole.mockImplementation(async () => {
+      const didUserAlreadyHaveRole = hasRole;
+      hasRole = true;
+      return { status: 'OK', didUserAlreadyHaveRole };
+    });
+    mockRemoveRole.mockImplementation(async () => {
+      const didUserHaveRole = hasRole;
+      hasRole = false;
+      return { status: 'OK', didUserHaveRole };
+    });
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).rejects.toBe(failure);
+
+    expect(hasRole).toBe(true);
+    expect(mockRemoveRole).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+
+    expect(mockAddRole).toHaveBeenCalledTimes(2);
+    expect(mockMarkUsed).toHaveBeenCalledTimes(2);
+    expect(mockRecordAudit).toHaveBeenCalledTimes(1);
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 
@@ -159,15 +221,28 @@ describe('acceptInviteAction', () => {
     expectNoGrant();
   });
 
-  it('falls back to the user id when the account has no email', async () => {
+  it('rejects an account with no email', async () => {
     mockGetUser.mockResolvedValue(undefined);
-    await acceptInviteAction(formData({ token: 'tok-1' }));
-    expect(mockMarkUsed).toHaveBeenCalledWith({
-      token: 'tok-1',
-      usedBy: 'u-9',
-      usedByEmail: 'u-9',
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'Sign in with the email address this invitation was sent to.',
     });
-    expect(mockRecordAudit).toHaveBeenCalledWith(expect.objectContaining({ targetLabel: 'u-9' }));
+    expectNoGrant();
+  });
+
+  it('rejects an authenticated account with a different email', async () => {
+    mockGetUser.mockResolvedValue({ emails: ['other@x.com'] } as Awaited<
+      ReturnType<typeof SuperTokens.getUser>
+    >);
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'Sign in with the email address this invitation was sent to.',
+    });
+    expectNoGrant();
+  });
+
+  it('matches the invited email case-insensitively', async () => {
+    mockGetInvite.mockResolvedValue(invite({ email: 'New@X.COM' }));
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(mockAddRole).toHaveBeenCalledWith(DEFAULT_TENANT_ID, 'u-9', SUPERADMIN_ROLE);
   });
 
   it('audits the accepting user as the actor, not the inviter', async () => {
@@ -181,5 +256,65 @@ describe('acceptInviteAction', () => {
     expect(mockRecordAudit).toHaveBeenCalledWith(
       expect.objectContaining({ actorId: 'u-9', targetType: 'invite', targetId: 'inv-1' })
     );
+  });
+});
+
+describe('acceptInviteAction authorization', () => {
+  // The grant path is the only place in the panel that HANDS OUT super-admin.
+  // requireSuperAdmin() - which merely consumes the role - checks the disabled
+  // flag and the second factor; before this the grant checked neither.
+  it('refuses a disabled account even with a valid session and a matching email', async () => {
+    mockDisabled.mockResolvedValue(true);
+    const res = await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(res.error).toMatch(/cannot accept invitations/i);
+    expectNoGrant();
+  });
+
+  it('refuses a first-factor-only session when the account already has TOTP enrolled', async () => {
+    mockGetSession.mockResolvedValue({ userId: 'u-9', mfaComplete: false } as Awaited<
+      ReturnType<typeof getAuthenticatedSession>
+    >);
+    mockListDevices.mockResolvedValue({
+      status: 'OK',
+      devices: [{ name: 'd1', period: 30, skew: 1, verified: true }],
+    } as Awaited<ReturnType<typeof TotpNode.listDevices>>);
+    const res = await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(res.error).toMatch(/second factor/i);
+    expectNoGrant();
+  });
+
+  it('allows a new admin with no second factor enrolled to accept', async () => {
+    // The separating case: requiring MFA unconditionally would deadlock exactly
+    // this person, so the check must key on whether a device exists.
+    mockGetSession.mockResolvedValue({ userId: 'u-9', mfaComplete: false } as Awaited<
+      ReturnType<typeof getAuthenticatedSession>
+    >);
+    mockListDevices.mockResolvedValue({ status: 'OK', devices: [] } as Awaited<
+      ReturnType<typeof TotpNode.listDevices>
+    >);
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(mockAddRole).toHaveBeenCalledWith(DEFAULT_TENANT_ID, 'u-9', SUPERADMIN_ROLE);
+  });
+
+  it('does not count an unverified TOTP device as an enrolled second factor', async () => {
+    mockGetSession.mockResolvedValue({ userId: 'u-9', mfaComplete: false } as Awaited<
+      ReturnType<typeof getAuthenticatedSession>
+    >);
+    mockListDevices.mockResolvedValue({
+      status: 'OK',
+      devices: [{ name: 'd1', period: 30, skew: 1, verified: false }],
+    } as Awaited<ReturnType<typeof TotpNode.listDevices>>);
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(mockAddRole).toHaveBeenCalled();
+  });
+
+  it('demands the second factor when the device list cannot be read', async () => {
+    mockGetSession.mockResolvedValue({ userId: 'u-9', mfaComplete: false } as Awaited<
+      ReturnType<typeof getAuthenticatedSession>
+    >);
+    mockListDevices.mockRejectedValue(new Error('core unreachable'));
+    const res = await acceptInviteAction(formData({ token: 'tok-1' }));
+    expect(res.error).toMatch(/second factor/i);
+    expectNoGrant();
   });
 });

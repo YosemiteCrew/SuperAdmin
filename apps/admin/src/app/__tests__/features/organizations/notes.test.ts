@@ -1,128 +1,164 @@
 jest.mock('server-only', () => ({}));
 
+const getUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
   __esModule: true,
-  default: {
-    getUserMetadata: jest.fn(),
-    updateUserMetadata: jest.fn(),
+  default: { getUserMetadata: (...args: unknown[]) => getUserMetadataMock(...args) },
+}));
+
+const findFirstMock = jest.fn();
+const findManyMock = jest.fn();
+const createManyMock = jest.fn();
+const createMock = jest.fn();
+const deleteManyMock = jest.fn();
+const findImportMock = jest.fn();
+const upsertImportMock = jest.fn();
+jest.mock('@superadmin/database', () => ({
+  prisma: {
+    orgNote: {
+      findFirst: (...args: unknown[]) => findFirstMock(...args),
+      findMany: (...args: unknown[]) => findManyMock(...args),
+      createMany: (...args: unknown[]) => createManyMock(...args),
+      create: (...args: unknown[]) => createMock(...args),
+      deleteMany: (...args: unknown[]) => deleteManyMock(...args),
+    },
+    orgNoteImport: {
+      findUnique: (...args: unknown[]) => findImportMock(...args),
+      upsert: (...args: unknown[]) => upsertImportMock(...args),
+    },
   },
 }));
 
-import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import { MAX_NOTES, addOrgNote, getOrgNotes } from '@/app/features/organizations/notes';
 
-const mockGet = UserMetadataNode.getUserMetadata as jest.MockedFunction<
-  typeof UserMetadataNode.getUserMetadata
->;
-const mockUpdate = UserMetadataNode.updateUserMetadata as jest.MockedFunction<
-  typeof UserMetadataNode.updateUserMetadata
->;
+beforeEach(() => {
+  jest.clearAllMocks();
+  findImportMock.mockResolvedValue({ orgId: 'org-1' });
+  findFirstMock.mockResolvedValue({ id: 'existing' });
+  findManyMock.mockResolvedValue([]);
+  getUserMetadataMock.mockResolvedValue({ metadata: {}, status: 'OK' });
+});
 
-beforeEach(() => jest.clearAllMocks());
-
-describe('getOrgNotes', () => {
-  it('returns empty array when no metadata exists', async () => {
-    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
-    expect(await getOrgNotes('org-1')).toEqual([]);
-  });
-
-  it('returns notes when stored', async () => {
-    const stored = [{ id: 'n1', actorId: 'u1', actorEmail: 'a@b.com', content: 'hello', at: 1000 }];
-    mockGet.mockResolvedValue({ metadata: { notes: stored }, status: 'OK' });
-    const notes = await getOrgNotes('org-1');
-    expect(notes).toHaveLength(1);
-    expect(notes[0].content).toBe('hello');
-  });
-
-  it('filters out malformed note entries', async () => {
-    mockGet.mockResolvedValue({
-      metadata: {
-        notes: [
-          { id: 'n1', actorId: 'u1', actorEmail: 'a@b.com', content: 'ok', at: 1000 },
-          { broken: true },
-          null,
-          42,
-        ],
-      },
-      status: 'OK',
-    });
-    const notes = await getOrgNotes('org-1');
-    expect(notes).toHaveLength(1);
-  });
-
-  it('uses a per-org storage key', async () => {
-    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
-    await getOrgNotes('org-xyz');
-    expect(mockGet).toHaveBeenCalledWith('superadmin:org-notes:org-xyz');
+it('reads the newest notes for one organization', async () => {
+  findManyMock.mockResolvedValue([
+    {
+      id: 'n1',
+      actorId: 'u1',
+      actorEmail: 'a@b.com',
+      content: 'hello',
+      at: new Date(1000),
+    },
+  ]);
+  await expect(getOrgNotes('org-1')).resolves.toEqual([
+    {
+      id: 'n1',
+      actorId: 'u1',
+      actorEmail: 'a@b.com',
+      content: 'hello',
+      at: 1000,
+    },
+  ]);
+  expect(findManyMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-1' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
+    take: MAX_NOTES,
   });
 });
 
-describe('addOrgNote', () => {
-  it('prepends a new note and saves', async () => {
-    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
-    mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
+it('does not inspect legacy storage after an import is complete', async () => {
+  await getOrgNotes('org-1');
+  expect(findFirstMock).not.toHaveBeenCalled();
+  expect(getUserMetadataMock).not.toHaveBeenCalled();
+});
 
-    await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'my note' });
-
-    const [, payload] = mockUpdate.mock.calls[0];
-    const notes = (payload as Record<string, unknown>).notes as unknown[];
-    expect(notes).toHaveLength(1);
-    expect((notes[0] as Record<string, unknown>).content).toBe('my note');
+it('imports valid legacy notes once with their organization id', async () => {
+  findImportMock.mockResolvedValue(null);
+  findFirstMock.mockResolvedValue(null);
+  getUserMetadataMock.mockResolvedValue({
+    metadata: {
+      notes: [
+        { id: 'n1', actorId: 'u1', actorEmail: 'a@b.com', content: 'old', at: 1000 },
+        { broken: true },
+      ],
+    },
+    status: 'OK',
   });
-
-  it('trims whitespace from content', async () => {
-    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
-    mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
-
-    await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: '  hi  ' });
-
-    const [, payload] = mockUpdate.mock.calls[0];
-    const notes = (payload as Record<string, unknown>).notes as unknown[];
-    expect((notes[0] as Record<string, unknown>).content).toBe('hi');
+  await getOrgNotes('org-legacy');
+  expect(getUserMetadataMock).toHaveBeenCalledWith('superadmin:org-notes:org-legacy');
+  expect(createManyMock).toHaveBeenCalledWith({
+    data: [
+      {
+        id: 'n1',
+        orgId: 'org-legacy',
+        actorId: 'u1',
+        actorEmail: 'a@b.com',
+        content: 'old',
+        at: new Date(1000),
+      },
+    ],
+    skipDuplicates: true,
   });
-
-  it('generates an id via the CSPRNG fallback when randomUUID is unavailable', async () => {
-    mockGet.mockResolvedValue({ metadata: {}, status: 'OK' });
-    mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
-
-    const original = globalThis.crypto.randomUUID;
-    // Force the getRandomValues fallback path in generateId.
-    Object.defineProperty(globalThis.crypto, 'randomUUID', {
-      value: undefined,
-      configurable: true,
-    });
-    try {
-      await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'x' });
-    } finally {
-      Object.defineProperty(globalThis.crypto, 'randomUUID', {
-        value: original,
-        configurable: true,
-      });
-    }
-
-    const [, payload] = mockUpdate.mock.calls[0];
-    const notes = (payload as Record<string, unknown>).notes as unknown[];
-    const id = (notes[0] as Record<string, unknown>).id as string;
-    // 8 bytes -> 16 lowercase hex chars.
-    expect(id).toMatch(/^[0-9a-f]{16}$/);
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-legacy' },
+    create: { orgId: 'org-legacy' },
+    update: {},
   });
+});
 
-  it(`caps the list at MAX_NOTES (${MAX_NOTES})`, async () => {
-    const existing = Array.from({ length: MAX_NOTES }, (_, i) => ({
-      id: `n${i}`,
-      actorId: 'u1',
-      actorEmail: 'a@b.com',
-      content: `note ${i}`,
-      at: i,
-    }));
-    mockGet.mockResolvedValue({ metadata: { notes: existing }, status: 'OK' });
-    mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
+it('does not touch SuperTokens or import when rows already exist', async () => {
+  findImportMock.mockResolvedValue(null);
+  await getOrgNotes('org-1');
+  expect(getUserMetadataMock).not.toHaveBeenCalled();
+  expect(createManyMock).not.toHaveBeenCalled();
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-1' },
+    create: { orgId: 'org-1' },
+    update: {},
+  });
+});
 
-    await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'new' });
+it('marks an empty legacy import complete', async () => {
+  findImportMock.mockResolvedValue(null);
+  findFirstMock.mockResolvedValue(null);
+  await getOrgNotes('org-empty');
+  expect(getUserMetadataMock).toHaveBeenCalledTimes(1);
+  expect(createManyMock).not.toHaveBeenCalled();
+  expect(upsertImportMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-empty' },
+    create: { orgId: 'org-empty' },
+    update: {},
+  });
+});
 
-    const [, payload] = mockUpdate.mock.calls[0];
-    const saved = (payload as Record<string, unknown>).notes as unknown[];
-    expect(saved).toHaveLength(MAX_NOTES);
-    expect((saved[0] as Record<string, unknown>).content).toBe('new');
+it('inserts a trimmed note without rewriting existing notes', async () => {
+  await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: '  hi  ' });
+  expect(createMock).toHaveBeenCalledWith({
+    data: expect.objectContaining({ orgId: 'org-1', content: 'hi' }),
+  });
+  expect(deleteManyMock).not.toHaveBeenCalled();
+});
+
+it('uses random bytes when randomUUID is unavailable', async () => {
+  const original = globalThis.crypto.randomUUID;
+  Object.defineProperty(globalThis.crypto, 'randomUUID', { value: undefined, configurable: true });
+  try {
+    await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'note' });
+  } finally {
+    Object.defineProperty(globalThis.crypto, 'randomUUID', { value: original, configurable: true });
+  }
+  expect(createMock.mock.calls[0][0].data.id).toMatch(/^[0-9a-f]{16}$/);
+});
+
+it(`deletes notes beyond the newest ${MAX_NOTES}`, async () => {
+  findManyMock.mockResolvedValue([{ id: 'old-1' }, { id: 'old-2' }]);
+  await addOrgNote({ orgId: 'org-1', actorId: 'u1', actorEmail: 'a@b.com', content: 'new' });
+  expect(findManyMock).toHaveBeenCalledWith({
+    where: { orgId: 'org-1' },
+    orderBy: [{ at: 'desc' }, { id: 'desc' }],
+    skip: MAX_NOTES,
+    select: { id: true },
+  });
+  expect(deleteManyMock).toHaveBeenCalledWith({
+    where: { id: { in: ['old-1', 'old-2'] } },
   });
 });

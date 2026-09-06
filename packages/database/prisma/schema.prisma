@@ -23,6 +23,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// Adding a model here is two steps, not one. Every table the panel owns must
+// also get `ALTER TABLE "<name>" ENABLE ROW LEVEL SECURITY` in a migration:
+// these tables hold marketing leads, the consent ledger and GDPR data-subject
+// requests, and the database-side trigger that would normally do it is scoped to
+// the `public` schema, so it never fires for ours. Miss it and
+// apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
+// the table. See docs/deploy.md, "Row level security".
+
 // A GDPR data-subject rights request (access / erasure / rectification /
 // objection). The controller must respond within one month, so dueAt is the
 // statutory deadline; the row is the record that the request was handled.
@@ -35,7 +43,8 @@ model DataRequest {
   status       String    @default("received")
   notes        String?   @db.Text
   receivedAt   DateTime  @default(now())
-  // receivedAt + 30 days (the GDPR one-month response deadline).
+  // receivedAt + one calendar month (the GDPR Article 12(3) response
+  // deadline), clamped to the month end. Not 30 days - see computeDueAt.
   dueAt        DateTime
   fulfilledAt  DateTime?
   // super-admin userId who last actioned the request.
@@ -179,4 +188,40 @@ model APDirectoryListing {
 
   @@index([listed])
   @@index([instanceHost])
+}
+
+// Durable, append-only record of privileged actions in the panel. `seq` is the
+// authoritative order for the hash chain; timestamps alone can collide.
+model AuditEvent {
+  seq         BigInt   @unique @default(autoincrement())
+  id          String   @id
+  action      String
+  actorId     String
+  actorEmail  String
+  targetType  String
+  targetId    String
+  targetLabel String?
+  at          DateTime
+  prevHash    String
+  hash        String
+
+  @@index([actorId, seq])
+  @@index([targetId, seq])
+  @@index([at])
+}
+
+model OrgNote {
+  id         String   @id
+  orgId      String
+  actorId    String
+  actorEmail String
+  content    String   @db.Text
+  at         DateTime
+
+  @@index([orgId, at])
+}
+
+model OrgNoteImport {
+  orgId      String   @id
+  importedAt DateTime @default(now())
 }

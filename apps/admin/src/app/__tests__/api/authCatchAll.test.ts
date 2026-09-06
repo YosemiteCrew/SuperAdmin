@@ -75,7 +75,13 @@ describe('/api/auth/[[...path]] route', () => {
     expect(handleCallMock).not.toHaveBeenCalled();
   });
 
-  it('POST rate-limits by the first x-forwarded-for hop', async () => {
+  // Was 'rate-limits by the FIRST x-forwarded-for hop', asserting '203.0.113.7'.
+  // That specified the bypass as intended behaviour: the leftmost entry is
+  // whatever the caller sent, because CloudFront appends the viewer address
+  // rather than replacing the list. Bucketing on it lets a caller mint a new
+  // bucket per request by rotating the header, so the sign-in limiter never
+  // engages. The rightmost entry is the one the trusted proxy wrote.
+  it('POST rate-limits by the hop the proxy appended, not the one the caller sent', async () => {
     const { POST } = await import('@/app/api/auth/[[...path]]/route');
     handleCallMock.mockResolvedValueOnce(mockResponse());
     const req = new NextRequest('http://localhost:3000/api/auth/signin', {
@@ -83,7 +89,23 @@ describe('/api/auth/[[...path]] route', () => {
       headers: { 'x-forwarded-for': ' 203.0.113.7 , 10.0.0.1' },
     });
     await POST(req);
-    expect(checkRateLimitMock).toHaveBeenCalledWith('203.0.113.7');
+    expect(checkRateLimitMock).toHaveBeenCalledWith('10.0.0.1');
+    expect(checkRateLimitMock).not.toHaveBeenCalledWith('203.0.113.7');
+  });
+
+  it('POST gives one spoofing caller the same bucket however the prefix changes', async () => {
+    const { POST } = await import('@/app/api/auth/[[...path]]/route');
+    for (const forged of ['aaa', 'bbb']) {
+      handleCallMock.mockResolvedValueOnce(mockResponse());
+      await POST(
+        new NextRequest('http://localhost:3000/api/auth/signin', {
+          method: 'POST',
+          headers: { 'x-forwarded-for': `${forged}, 10.0.0.1` },
+        })
+      );
+    }
+    expect(checkRateLimitMock).toHaveBeenCalledTimes(2);
+    expect(checkRateLimitMock.mock.calls.map((c) => c[0])).toEqual(['10.0.0.1', '10.0.0.1']);
   });
 
   it('POST falls back to x-real-ip when x-forwarded-for is absent', async () => {

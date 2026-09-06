@@ -87,6 +87,54 @@ describe('POST /api/consent', () => {
 });
 
 describe('POST /api/consent without a configured key', () => {
+  /**
+   * The logger is mocked rather than spying on console: logger.emit returns
+   * early when NODE_ENV === 'test', so a console spy would never fire and the
+   * assertion would pass whether or not the guard logged anything at all.
+   */
+  async function postUnconfigured(): Promise<{ error: jest.Mock }> {
+    jest.resetModules();
+    jest.doMock('@/app/config/env.server', () => ({ serverEnv: { consentIntakeKey: null } }));
+    const error = jest.fn();
+    jest.doMock('@/app/lib/logger', () => ({
+      logger: { error, warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+    }));
+    const { POST: PostNoKey } = await import('@/app/api/consent/route');
+    await PostNoKey(req(VALID));
+    return { error };
+  }
+
+  it('logs the refusal, naming the intake and the env var that is missing', async () => {
+    const { error } = await postUnconfigured();
+    expect(error).toHaveBeenCalledWith('Intake refused: not configured', {
+      intake: 'consent',
+      envVar: 'CONSENT_INTAKE_KEY',
+    });
+  });
+
+  it('logs nothing beyond the intake and the env var', async () => {
+    const { error } = await postUnconfigured();
+    // The presented secret must never reach a log. Asserting the exact context
+    // rather than a substring means adding any further field fails here first.
+    expect(Object.keys(error.mock.calls[0][1] as object).sort()).toEqual(['envVar', 'intake']);
+    expect(JSON.stringify(error.mock.calls[0])).not.toContain('secret-key');
+  });
+
+  it('does not log a refusal when the intake IS configured', async () => {
+    jest.resetModules();
+    jest.doMock('@/app/config/env.server', () => ({
+      serverEnv: { consentIntakeKey: 'secret-key' },
+    }));
+    const error = jest.fn();
+    jest.doMock('@/app/lib/logger', () => ({
+      logger: { error, warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+    }));
+    const { POST: PostConfigured } = await import('@/app/api/consent/route');
+    const res = await PostConfigured(req(VALID, { 'x-consent-key': 'secret-key' }));
+    expect(res.status).toBe(200);
+    expect(error).not.toHaveBeenCalled();
+  });
+
   it('fails closed with 503', async () => {
     jest.resetModules();
     jest.doMock('@/app/config/env.server', () => ({ serverEnv: { consentIntakeKey: null } }));

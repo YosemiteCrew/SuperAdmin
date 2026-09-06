@@ -11,7 +11,12 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on a pull request, never on a branch build. On `push`
+  # the ref is the branch, so an unconditional `true` makes each merge to `main`
+  # cancel the previous merge's verification - 7 of the last 20 push runs here
+  # were `cancelled`, and a cancelled run verifies nothing. PR iteration still
+  # cancels, which is where the saved minutes actually are.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   NODE_VERSION: '20'
@@ -30,7 +35,7 @@ jobs:
     name: Lint + Type-check + Test + Build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -39,14 +44,14 @@ jobs:
         with:
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
 
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ env.STORE_PATH }}
           key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -69,3 +74,46 @@ jobs:
       - name: Test with coverage (main/dev only)
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
         run: pnpm run test --filter admin -- --ci --maxWorkers=2 --coverage
+
+  rls:
+    name: RLS enabled in the database the migrations build
+    runs-on: ubuntu-latest
+    # A sibling job, not a step in `ci`: it needs a database, and nothing else
+    # in this workflow connects to one. Keeping it separate means the lint and
+    # build path stays credential-free and connection-free as documented above.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: panel
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Ephemeral and thrown away with the runner, so there is nothing here to
+      # leak. `?schema=superadmin` is required: scripts/assert-schema.js refuses
+      # to migrate without it, and the guard reads that schema by name.
+      DATABASE_URL: postgresql://postgres:ci@localhost:5432/panel?schema=superadmin
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Apply the migrations
+        run: pnpm --filter @superadmin/database run migrate:deploy
+
+      - name: Assert row level security is on in the resulting database
+        run: pnpm --filter @superadmin/database run assert-rls
