@@ -26,6 +26,7 @@ type HealthBody = {
   uptime: number;
   timestamp: string;
   env: string;
+  buildSha: string | null;
 };
 
 let errorSpy: jest.SpyInstance;
@@ -188,6 +189,51 @@ describe('GET /api/health', () => {
       expect(res.status).toBe(503);
       const json = (await res.json()) as HealthBody;
       expect(json.intake).toEqual({ contact: 'configured', consent: 'configured' });
+    });
+  });
+  describe('the published build sha', () => {
+    const ORIGINAL = process.env.NEXT_PUBLIC_BUILD_SHA;
+
+    beforeEach(() => mockQueryRaw.mockResolvedValue([{ '?column?': 1 }]));
+    afterEach(() => {
+      if (ORIGINAL === undefined) delete process.env.NEXT_PUBLIC_BUILD_SHA;
+      else process.env.NEXT_PUBLIC_BUILD_SHA = ORIGINAL;
+    });
+
+    it('publishes the sha the build supplied', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = 'abc1234';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBe('abc1234');
+    });
+
+    it('publishes null when the build supplied no sha at all', async () => {
+      delete process.env.NEXT_PUBLIC_BUILD_SHA;
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    // The separating case. A build environment without a commit id writes the
+    // variable with an empty value rather than omitting it, so `?? null` would
+    // publish '' here and a reader comparing shas would match nothing while the
+    // field looked present.
+    it('treats an empty value as no sha rather than publishing an empty one', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = '';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    it('treats a whitespace-only value as no sha', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = '   ';
+      const json = (await (await GET()).json()) as HealthBody;
+      expect(json.buildSha).toBeNull();
+    });
+
+    it('reports the sha even while the database is down, so a failed deploy is identifiable', async () => {
+      process.env.NEXT_PUBLIC_BUILD_SHA = 'deadbee';
+      mockQueryRaw.mockRejectedValue(new Error('connection refused'));
+      const res = await GET();
+      expect(res.status).toBe(503);
+      expect(((await res.json()) as HealthBody).buildSha).toBe('deadbee');
     });
   });
 });

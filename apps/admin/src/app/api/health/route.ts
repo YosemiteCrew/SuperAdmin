@@ -50,6 +50,26 @@ function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigu
 }
 
 /**
+ * The commit this artifact was built from, or null when the build did not
+ * supply one.
+ *
+ * Published for the same reason `intake` is: it lets a check that reads this
+ * body tell one deployment from another, so an assertion about the deployed
+ * configuration can be tied to the artifact it was made against rather than
+ * repeated on a timer.
+ *
+ * `||` rather than `??`, deliberately. The build writes NEXT_PUBLIC_BUILD_SHA
+ * from its own commit id, so a build environment that does not supply one
+ * yields the variable with an EMPTY value rather than no variable at all.
+ * `??` passes `''` through and this field would publish an empty string as
+ * though it were a sha - the same trap the intake fields avoid by treating an
+ * empty key as unconfigured.
+ */
+function buildSha(): string | null {
+  return process.env.NEXT_PUBLIC_BUILD_SHA?.trim() || null;
+}
+
+/**
  * Liveness and readiness for the panel.
  *
  * The database probe is the point of this endpoint. Without it the check only
@@ -84,6 +104,7 @@ export async function GET() {
       uptime: Math.floor((Date.now() - startedAt) / 1000),
       timestamp: new Date().toISOString(),
       env: process.env.NODE_ENV ?? 'development',
+      buildSha: buildSha(),
     },
     {
       status: healthy ? 200 : 503,
