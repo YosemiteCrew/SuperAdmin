@@ -10,8 +10,12 @@
  * touching only `scripts/` still runs this spec.
  *
  * The scanner is also outside `sonar.sources` and outside `collectCoverageFrom`,
- * so it contributes no Sonar coverage in either direction. This spec is the only
- * thing in CI that can go red on a regression here.
+ * so it contributes no Sonar coverage in either direction. For the
+ * `local secrets file` rule this spec is therefore the only thing in CI that can
+ * go red. It does not reach the content scan: the `execFileSync` mock returns an
+ * empty string, so `readStagedFile` yields nothing and `SECRET_PATTERNS` is never
+ * evaluated. A regression in the eleven content patterns is uncovered here and
+ * uncovered everywhere else.
  *
  * `collectFindings` is the exported surface deliberately: the two predicates it
  * composes (`isProtectedPath`, `isBlockedLocalFile`) are each individually
@@ -31,6 +35,11 @@ jest.mock('node:child_process', () => ({ execFileSync: jest.fn(() => '') }));
 type Finding = { file: string; line: number; name: string };
 
 const mockedExecFileSync = execFileSync as unknown as jest.Mock;
+
+// Captured at module scope, immediately after the import above. `clearMocks`
+// wipes the call record before the first test runs, so an assertion inside a
+// test can no longer see what the import itself did.
+const callsDuringImport = mockedExecFileSync.mock.calls.length;
 
 const localSecretsFindings = (paths: string[]): Finding[] =>
   (collectFindings(paths) as Finding[]).filter((f) => f.name === 'local secrets file');
@@ -95,6 +104,14 @@ describe('check-staged-secrets: local secrets file rule', () => {
     mockedExecFileSync.mockClear();
     collectFindings(['apps/admin/.env']);
     expect(mockedExecFileSync).not.toHaveBeenCalled();
+  });
+
+  it('runs nothing on import', () => {
+    // The `require.main === module` guard. Without it the scan runs at import:
+    // it shells out to gitleaks and to `git diff --cached`, reads whatever the
+    // importing process happens to have staged, and can call `process.exit` --
+    // which takes the whole Jest run with it and suppresses the summary.
+    expect(callsDuringImport).toBe(0);
   });
 
   it('content-scans a protected text file that is not blocked', () => {
