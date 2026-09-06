@@ -1,115 +1,98 @@
 # Must-pass corpus for the forbidden-terms gate.
 #
-# Every line below is REAL PROSE ALREADY IN THIS REPOSITORY, copied verbatim.
-# None of it names an external product, and the gate must stay silent on all of
-# it.
 #
-# Why this file is checked in while the must-block half is not: the must-block
-# half IS the term list, and committing it to a public repository publishes
-# exactly what the pattern exists to withhold. That half lives with the pattern
-# in a repository secret. This half is the reviewable one, and it is not the
-# consolation half - broadening a pattern under deadline pressure is what makes
-# it fire on ordinary prose, and this is the file that catches that, in the
-# open, where a reviewer can see what "our own documentation" actually says.
-#
-# Drawn from real sentences rather than invented near-misses on purpose:
-# invented ones drift towards what the author imagines the pattern does. A test
-# asserts every line here appears verbatim in a tracked file, so an approximation
-# is caught rather than trusted.
-#
-# A line matched here is a FALSE POSITIVE in the pattern, not a bug in the
-# prose. Fix the pattern.
-
-
-# .github/dependabot.yml
-No `target-branch`, so Dependabot opens against the default branch, `main`.
-These majors are held back deliberately. Without these rules Dependabot
-
-# .github/workflows/codeql.yml
-GitHub rejects the SARIF while default setup is enabled. It is NOT disabled
-
-# .github/workflows/dependency-review.yml
-`pull-requests: write`, which Dependabot PRs never receive, so it would only
-
-# SECURITY.md
-Please do **not** open a public GitHub issue for security vulnerabilities.
-
-# amplify.yml
-This is a pnpm workspace monorepo, so the `applications` form is required:
-Every `cd` is wrapped in a subshell. Amplify runs all phases in ONE shell, so
-Next 16 needs Node >= 20, and CI builds on 20 - keep them matched
-Amplify does NOT pass environment variables to the Next SSR
-
-# apps/admin/AGENTS.md
-State is local React (`useState` / Server Components / URL params). No client state library.
-
-# apps/admin/README.md
-State is local React (`useState`, Server Components, URL params). No client state library.
-
-# apps/admin/SECURITY-PENTEST.md
-(via middleware) for Next's scripts and add a SHA-256 hash for the static theme
-
-# apps/admin/eslint.config.mjs
-Security-hotspot rules mirrored from SonarCloud so they surface locally
-
-# apps/admin/jest.config.ts
-Server-rendered pages and layouts under (routes) are evaluated by Next at
-
-# apps/admin/next.config.ts
-Next 16 defaults `next build` to Turbopack, so the app's build script pins
-
-# apps/admin/scripts/clean-dev-cache.mjs
-Removes only the cache slices that can poison Turbopack's incremental graph.
-
-# apps/admin/src/app/__tests__/api/health.test.ts
-The endpoint is unauthenticated. Prisma embeds host, port and sometimes
-
-# apps/admin/src/app/__tests__/buildSha.test.ts
-What a manually started Amplify job actually supplies. This is the case
-
-# apps/admin/src/app/__tests__/config/env.test.ts
-This is the form Amplify must receive: `env | grep -E '^AP_SIGNING_KEY='`
-
-# apps/admin/src/app/__tests__/consent/store.test.ts
-The injected object is nested under `equals`, so Prisma compares against it
-
-# apps/admin/src/app/__tests__/contact/store.test.ts
-Prisma does not error on a cursor that matches no row, it just returns
-
-# apps/admin/src/app/__tests__/database/databaseUrlSchema.test.ts
-Prisma reports both of these itself, and more accurately. A second opinion
-
-# apps/admin/src/app/__tests__/invites/InviteForm.test.tsx
-`<form action={...}>`, and React resets such a form once the action settles.
+# Lines are drawn from LOW-CHURN files on purpose. Every line here is asserted
+# to exist verbatim in a tracked file, so a line whose only source is later
+# reworded turns that assertion red on an unrelated pull request, with nothing
+# connecting the failure to the change that caused it. Preferring stable files
+# does not remove that coupling - it moves it away from the files this
+# repository edits most. Prose appearing in two tracked files would be better
+# still; this repository has almost none, so that is not available here.
 
 # apps/admin/src/app/api/social/instagram/callback/route.ts
 NOT request.url: on the Amplify SSR runtime that is the internal origin
 
-# apps/admin/src/app/config/env.public.ts
-Each NEXT_PUBLIC_* must be read by direct property access so Next.js can
+# .github/workflows/forbidden-terms.yml
+nothing from the head - and CodeQL was right that a convention is not a
 
-# apps/admin/src/app/config/env.server.ts
-Amplify does not expose console env vars to the Next SSR runtime, so
+# AGENTS.md
+Use `pnpm`. Always scope with `--filter`. Never run bare `pnpm install` in an app directory — run from root.
+`turbo run <task> --filter=admin` for scoped tasks.
+
+# SECURITY.md
+Please do **not** open a public GitHub issue for security vulnerabilities.
+
+# apps/admin/scripts/clean-dev-cache.mjs
+Removes only the cache slices that can poison Turbopack's incremental graph.
+
+# apps/admin/src/app/__tests__/invites/InviteForm.test.tsx
+`<form action={...}>`, and React resets such a form once the action settles.
+
+# apps/admin/src/app/__tests__/lib/clientIp.test.ts
+The bypass this exists to close. CloudFront appends the viewer address to
+
+# apps/admin/src/app/lib/clientIp.ts
+what is already in it when the request arrives. CloudFront - which fronts this
+
+# apps/admin/AGENTS.md
+State is local React (`useState` / Server Components / URL params). No client state library.
+
+# apps/admin/src/app/(routes)/(dashboard)/health/page.tsx
+function Card({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
+function Row({ label, value }: { readonly label: string; readonly value: React.ReactNode }) {
+
+# apps/admin/src/app/__tests__/api/socialGuard.test.ts
+The Amplify SSR runtime hands the handler an INTERNAL url
+
+# apps/admin/src/app/__tests__/buildSha.test.ts
+What a manually started Amplify job actually supplies. This is the case
+
+# apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts
+Table names declared by the Prisma schema, honouring `@@map`.
+it('reads the models declared in the Prisma schema', () => {
+
+# apps/admin/src/app/__tests__/features/dataRequests/subjectData.test.ts
+Prisma `where`. An object arriving here would be read as query operators
+would reach Prisma as query operators. Nothing but an explicit type check
+
+# apps/admin/src/app/__tests__/organizations/OrgMembers.test.tsx
+so this is two legitimate rows. Keying by userId alone makes React drop
 
 # apps/admin/src/app/config/index.ts
 Next inlines those at build time, and a dynamic lookup would compile to
 
-# apps/admin/src/app/features/contact/store.ts
-Next parses a repeated query param into an array, so `?cursor=a&cursor=b`
+# apps/admin/src/app/features/dataRequests/subjectData.ts
+and everything downstream of this puts the result straight into a Prisma
 
-# apps/admin/src/proxy.ts
-Next.js statically parses this config and only accepts a string literal here;
+# apps/admin/src/app/features/social/guard.ts
+Compare against the PUBLIC origin, never request.nextUrl. On the Amplify
 
-# docs/deploy.md
-The panel is hosted on AWS Amplify at `https://admin.yosemitecrew.com`.
-`amplify.yml` at the repo root is the build spec; it pins Node 20 and pnpm 8.15.6
-Amplify equivalent of `pnpm run release` below, and it is what prevents a repeat
-Set these in Amplify under **App settings > Environment variables**. Everything is
+# CLAUDE.md
+Tooling: `pnpm` workspaces + `turbo`. Always use `--filter` to scope commands.
+Local Sonar Parity — MANDATORY (do this BEFORE suggesting a commit/push)
 
-# packages/database/scripts/assert-schema.js
-Prisma itself uses, so the semantics agree by construction instead of by my
-A missing or unparseable URL is Prisma's to report, and it does so clearly.
+# README.md
+pnpm type-check     # TypeScript check all packages
+pnpm test           # Run tests (use --filter for scoped runs)
+pnpm verify         # Full pre-merge gate: lint + type-check + test + build
 
-# packages/database/src/client.ts
-Point Prisma at the query engine that the build copied into `.next`.
-Prisma looks for the engine next to its generated client, which lives in
+# apps/admin/src/app/__tests__/consent/intake.test.ts
+consentId reaches Prisma as a `where` value in recordConsent, including an
+
+# apps/admin/src/app/__tests__/consent/store.test.ts
+The injected object is nested under `equals`, so Prisma compares against it
+
+# apps/admin/src/app/__tests__/proxy.test.ts
+script-src must not carry unsafe-inline (style-src retaining it for Tailwind is fine)
+
+# apps/admin/src/app/auth/layout.tsx
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+
+# apps/admin/src/app/config/env.public.ts
+Each NEXT_PUBLIC_* must be read by direct property access so Next.js can
+
+# apps/admin/src/app/features/social/instagramPublisher.ts
+response timeout (~30s on Amplify): a longer wait returns a 504 to the caller
+
+# apps/admin/src/app/ui/tables/GenericTable/index.tsx
+render?: (value: T[keyof T], row: T) => React.ReactNode;
