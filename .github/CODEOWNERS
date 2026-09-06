@@ -1,11 +1,9 @@
-# Global owner
-*  @your-org/superadmin-team
+# Default ownership. A bare org account is not resolvable as a code owner, so
+# ownership is held by users with write access.
+* @ankit-yc @aupyay
 
-# Admin app
-apps/admin/  @your-org/frontend-team
-
-# Shared packages
-packages/    @your-org/platform-team
-
-# CI/workflows
-.github/     @your-org/platform-team
+# Repository governance
+/.github/ @ankit-yc @aupyay
+/AGENTS.md @ankit-yc @aupyay
+/CONTRIBUTING.md @ankit-yc @aupyay
+/SECURITY.md @ankit-yc @aupyay
