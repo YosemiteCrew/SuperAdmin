@@ -19,12 +19,20 @@ export interface SubjectErasureReport {
     contactLeads: number;
     contactRequests: number;
   };
+  /** Rows kept as proof, counted after their subject-identifying fields were removed. */
   retained: {
     consentSubjects: number;
     consentEvents: number;
     dataRequests: number;
   };
 }
+
+/**
+ * What a tombstoned subject key reads as. Not an address, and deliberately not a
+ * hash: a hash is a pseudonym and still links the row back to anyone who can
+ * reproduce it. The brackets make collision with a real address impossible.
+ */
+export const ERASED_SUBJECT = '[erased]';
 
 /**
  * Carries out a GDPR erasure across the email-keyed side of the register.
@@ -41,14 +49,25 @@ export interface SubjectErasureReport {
  * - `ContactLead` is deleted, and `ContactRequest` goes with it through the
  *   schema's `onDelete: Cascade`. This is the marketing record; an erasure
  *   request removes the basis for holding it.
- * - `ConsentSubject` keeps its row but loses `email` and `userId`. Art. 7(1)
+ * - `ConsentSubject` keeps its row and loses every identifier on it. Art. 7(1)
  *   requires the controller to be able to demonstrate that consent was
  *   obtained, and `ConsentEvent` — which the schema documents as append-only
  *   precisely so the history stays provable — hangs off `subjectId`, not off
- *   the address. So the identifiers can go without taking the proof with them.
- * - `DataRequest` is kept. It is the evidence that this request was received
- *   and answered inside its month; an erasure that deletes its own paper trail
- *   cannot be shown to have happened.
+ *   any identifier. What Art. 7(1) needs is the category, the grant or
+ *   withdrawal, the source, the policy version and the time. It does not need
+ *   `email`, `userId`, the device key in `consentId`, or the `userAgent` on
+ *   each event, so all four go and the proof is untouched.
+ * - `DataRequest` keeps its row and loses its subject-identifying fields.
+ *   Art. 17(3)(e) covers what is necessary for legal claims, and Art. 5(1)(c)
+ *   and (e) still require minimisation and storage limitation — so the type,
+ *   the status and the dates stay as the proof that a request of that kind was
+ *   answered inside its month, while `subjectEmail` and the controller's
+ *   free-text `notes` about the person do not.
+ *
+ * The cost of that last one is real and worth stating: after an erasure the
+ * panel can no longer show WHOSE request a given row was. That is the trade
+ * Art. 5(1)(c) asks for — the row proves a request was handled in time, and it
+ * stops being a durable record of the person who made it.
  *
  * `AuditEvent` is not addressed here at all: since #275 it is append-only by
  * database trigger, so there is nothing to decide.
@@ -76,15 +95,40 @@ export async function eraseSubjectData(rawEmail: string): Promise<SubjectErasure
     });
 
     const lead = await tx.contactLead.deleteMany({ where: { email: { equals: subjectEmail } } });
-    const consentSubjects = await tx.consentSubject.updateMany({
-      where: { id: { in: consentSubjectIds } },
-      data: { email: null, userId: null },
+
+    // The event history stays; the fingerprint on each event does not. A
+    // `userAgent` is not part of what Art. 7(1) asks the controller to show.
+    await tx.consentEvent.updateMany({
+      where: { subjectId: { in: consentSubjectIds } },
+      data: { userAgent: null },
+    });
+
+    // `consentId` is the device key from the cookie banner and it is `@unique`
+    // and non-nullable, so it is tombstoned per row rather than nulled. The row
+    // id is already opaque and unique, which is what makes the replacement
+    // collision-free without deriving anything from the value being erased.
+    // ponytail: one statement per subject; a subject has a handful of these, and
+    // `updateMany` cannot write a distinct value per row.
+    for (const id of consentSubjectIds) {
+      await tx.consentSubject.update({
+        where: { id },
+        data: { email: null, userId: null, consentId: `${ERASED_SUBJECT}:${id}` },
+      });
+    }
+
+    // The row is the proof a request of this type was answered in time. The
+    // address and the controller's free-text notes about the person are not
+    // part of that proof, and the audit event points at the row id rather than
+    // at either of them.
+    await tx.dataRequest.updateMany({
+      where: { subjectEmail: { equals: subjectEmail } },
+      data: { subjectEmail: ERASED_SUBJECT, notes: null },
     });
 
     return {
       deleted: { contactLeads: lead.count, contactRequests },
       retained: {
-        consentSubjects: consentSubjects.count,
+        consentSubjects: consentSubjectIds.length,
         consentEvents,
         dataRequests,
       },

@@ -46,15 +46,17 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
             contact submission{report.deleted.contactRequests === 1 ? '' : 's'}.
           </li>
           <li>
-            Kept, with the address removed: {report.retained.consentSubjects} consent subject
-            {report.retained.consentSubjects === 1 ? '' : 's'} and {report.retained.consentEvents}{' '}
-            consent event{report.retained.consentEvents === 1 ? '' : 's'} — the ledger is the
-            evidence consent was obtained and withdrawal honoured.
+            Kept as proof, with every identifier removed: {report.retained.consentSubjects} consent
+            subject{report.retained.consentSubjects === 1 ? '' : 's'} and{' '}
+            {report.retained.consentEvents} consent event
+            {report.retained.consentEvents === 1 ? '' : 's'} — address, account, device key and
+            user-agent all gone; the category, decision, source, policy version and time remain as
+            the evidence consent was obtained and withdrawal honoured.
           </li>
           <li>
-            Kept: {report.retained.dataRequests} rights request
-            {report.retained.dataRequests === 1 ? '' : 's'} — the record that this was received and
-            answered.
+            Kept as proof, with the address and notes removed: {report.retained.dataRequests} rights
+            request{report.retained.dataRequests === 1 ? '' : 's'} — the type, status and dates
+            remain as the record that a request was answered in time.
           </li>
         </ul>
       </div>
@@ -67,9 +69,10 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
         <p className="font-medium text-red-900">Erase this subject permanently?</p>
         <p className="mt-1 text-red-800">
           The marketing lead and every contact-form submission under it are deleted. The consent
-          ledger and this request are kept, with the address removed from the ledger, because they
-          are the evidence that consent was obtained and that this request was answered. This cannot
-          be undone.
+          ledger and the rights requests are kept as evidence that consent was obtained and that
+          this request was answered — but every identifier on them is removed, including the
+          address, the device key and this request&rsquo;s notes. After this the panel can no longer
+          show whose request this was. It cannot be undone.
         </p>
         <div className="mt-2 flex gap-2">
           <button

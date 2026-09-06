@@ -36,7 +36,11 @@ describe('EraseSubjectDataButton', () => {
     openConfirm();
 
     expect(screen.getByText(/every contact-form submission under it are deleted/i)).toBeVisible();
-    expect(screen.getByText(/consent ledger and this request are kept/i)).toBeVisible();
+    expect(screen.getByText(/consent ledger and the rights requests are kept/i)).toBeVisible();
+    // The consequence the operator is actually consenting to, named before the
+    // click rather than discovered afterwards.
+    expect(screen.getByText(/every identifier on them is removed/i)).toBeVisible();
+    expect(screen.getByText(/no longer show whose request this was/i)).toBeVisible();
     expect(screen.getByText(/cannot be undone/i)).toBeVisible();
   });
 
@@ -67,7 +71,9 @@ describe('EraseSubjectDataButton', () => {
     expect(status).toHaveTextContent('Erased person@example.com');
     expect(status).toHaveTextContent('Deleted: 1 marketing lead and 2 contact submissions');
     expect(status).toHaveTextContent('1 consent subject and 4 consent events');
-    expect(status).toHaveTextContent('Kept: 1 rights request');
+    expect(status).toHaveTextContent(/address, account, device key and user-agent all gone/i);
+    expect(status).toHaveTextContent(/1 rights request/);
+    expect(status).toHaveTextContent(/with the address and notes removed/i);
   });
 
   it('does not offer to erase again once it has, so a second click cannot re-run it', async () => {

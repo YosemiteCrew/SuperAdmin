@@ -4,9 +4,14 @@
 // to observe a call that could have succeeded.
 const tx = {
   contactRequest: { count: jest.fn() },
-  consentSubject: { findMany: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
-  consentEvent: { count: jest.fn(), deleteMany: jest.fn() },
-  dataRequest: { count: jest.fn(), deleteMany: jest.fn() },
+  consentSubject: {
+    findMany: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  consentEvent: { count: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
+  dataRequest: { count: jest.fn(), updateMany: jest.fn(), deleteMany: jest.fn() },
   contactLead: { deleteMany: jest.fn() },
 };
 
@@ -18,7 +23,7 @@ jest.mock('@superadmin/database', () => ({
 
 import { prisma } from '@superadmin/database';
 
-import { eraseSubjectData } from '@/app/features/dataRequests/subjectErasure';
+import { ERASED_SUBJECT, eraseSubjectData } from '@/app/features/dataRequests/subjectErasure';
 
 const mockTransaction = prisma.$transaction as jest.MockedFunction<typeof prisma.$transaction>;
 
@@ -50,6 +55,9 @@ function resolveAll({
   record('dataRequest.count', tx.dataRequest.count, dataRequests);
   record('contactLead.deleteMany', tx.contactLead.deleteMany, { count: deletedLeads });
   record('consentSubject.updateMany', tx.consentSubject.updateMany, { count: updatedSubjects });
+  record('consentSubject.update', tx.consentSubject.update, {});
+  record('consentEvent.updateMany', tx.consentEvent.updateMany, { count: consentEvents });
+  record('dataRequest.updateMany', tx.dataRequest.updateMany, { count: dataRequests });
   record('consentSubject.deleteMany', tx.consentSubject.deleteMany, { count: 0 });
   record('consentEvent.deleteMany', tx.consentEvent.deleteMany, { count: 0 });
   record('dataRequest.deleteMany', tx.dataRequest.deleteMany, { count: 0 });
@@ -85,10 +93,61 @@ describe('eraseSubjectData', () => {
       where: { email: { equals: 'person@example.com' } },
       select: { id: true },
     });
-    expect(tx.consentSubject.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['cs_1', 'cs_2'] } },
-      data: { email: null, userId: null },
+    // `consentId` is `@unique` and non-nullable, so it is tombstoned per row.
+    // The replacement is derived from the row id, never from the erased value.
+    for (const id of ['cs_1', 'cs_2']) {
+      expect(tx.consentSubject.update).toHaveBeenCalledWith({
+        where: { id },
+        data: { email: null, userId: null, consentId: `${ERASED_SUBJECT}:${id}` },
+      });
+    }
+  });
+
+  // Art. 7(1) needs the category, decision, source, policy version and time.
+  // It does not need a fingerprint of the browser that made the decision.
+  it('strips the user-agent from every retained consent event', async () => {
+    await eraseSubjectData('person@example.com');
+
+    expect(tx.consentEvent.updateMany).toHaveBeenCalledWith({
+      where: { subjectId: { in: ['cs_1', 'cs_2'] } },
+      data: { userAgent: null },
     });
+  });
+
+  // The row proves a request of this type was answered in time. The address and
+  // the controller's free-text notes about the person are not part of that.
+  it('strips the address and the notes from every retained rights request', async () => {
+    await eraseSubjectData('person@example.com');
+
+    expect(tx.dataRequest.updateMany).toHaveBeenCalledWith({
+      where: { subjectEmail: { equals: 'person@example.com' } },
+      data: { subjectEmail: ERASED_SUBJECT, notes: null },
+    });
+  });
+
+  it('leaves no identifier behind on any retained row', async () => {
+    await eraseSubjectData('person@example.com');
+
+    // Everything written to a retained table, flattened. The address must not
+    // survive anywhere in it, and every identifying column must be addressed.
+    const written = JSON.stringify([
+      tx.consentSubject.update.mock.calls,
+      tx.consentEvent.updateMany.mock.calls,
+      tx.dataRequest.updateMany.mock.calls,
+    ]);
+    const data = [
+      ...tx.consentSubject.update.mock.calls.map((c) => (c[0] as { data: object }).data),
+      ...tx.consentEvent.updateMany.mock.calls.map((c) => (c[0] as { data: object }).data),
+      ...tx.dataRequest.updateMany.mock.calls.map((c) => (c[0] as { data: object }).data),
+    ];
+    const keys = new Set(data.flatMap((d) => Object.keys(d)));
+
+    expect(keys).toEqual(
+      new Set(['email', 'userId', 'consentId', 'userAgent', 'subjectEmail', 'notes'])
+    );
+    // The address survives only as the lookup key, never as a written value.
+    expect(written).toContain('person@example.com');
+    expect(JSON.stringify(data)).not.toContain('person@example.com');
   });
 
   it('never deletes the consent ledger or the rights requests', async () => {
@@ -111,11 +170,29 @@ describe('eraseSubjectData', () => {
       calls.indexOf('contactLead.deleteMany')
     );
     expect(calls.indexOf('consentSubject.findMany')).toBeLessThan(
-      calls.indexOf('consentSubject.updateMany')
+      calls.indexOf('consentSubject.update')
     );
     expect(calls.indexOf('consentEvent.count')).toBeLessThan(
-      calls.indexOf('consentSubject.updateMany')
+      calls.indexOf('consentSubject.update')
     );
+    // The address is read out of every DataRequest row, so the count has to
+    // precede the write that replaces it with the tombstone.
+    expect(calls.indexOf('dataRequest.count')).toBeLessThan(
+      calls.indexOf('dataRequest.updateMany')
+    );
+    // Every index above must be a real position, never a -1 from a call that
+    // stopped happening — a rename would otherwise satisfy `toBeLessThan`.
+    for (const name of [
+      'contactRequest.count',
+      'contactLead.deleteMany',
+      'consentSubject.findMany',
+      'consentSubject.update',
+      'consentEvent.count',
+      'dataRequest.count',
+      'dataRequest.updateMany',
+    ]) {
+      expect(calls).toContain(name);
+    }
   });
 
   it('reports what was deleted and what was retained', async () => {
