@@ -78,17 +78,28 @@ function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigu
  * between a fix landing in a public repo and reaching production, this field
  * says which side of that window a deployment is on.
  *
- * Published because the cost is bounded and the benefit is not available any
- * other way: a sha is not a secret and resolves to source anyone can already
- * read, and it is the only thing that lets an external check tie an assertion
- * about deployed configuration to the artifact it was made against - without
- * it the only available cadence is a timer, which is the permanent alarm
- * `intakeStatus` above exists to avoid.
+ * Published because the cost is bounded and the benefit is not otherwise
+ * available to a caller of this endpoint: a sha is not a secret and resolves
+ * to source anyone can already read, and it is the only field in this body
+ * that lets an external check tie an assertion about deployed configuration to
+ * the artifact it was made against. A platform deployment API could do that
+ * too - at the cost of credentials a check reading a public endpoint does not
+ * need. Without either, the only available cadence is a timer, which is the
+ * permanent alarm `intakeStatus` above exists to avoid.
  *
  * The standard for anything added here, which `intake` and `uptime` already
  * follow: a field may name WHAT THIS DEPLOYMENT IS or HOW IT IS BEHAVING; it
- * may never carry a credential, or address infrastructure a caller could not
- * otherwise reach.
+ * may never carry a credential, address infrastructure a caller could not
+ * otherwise reach, or identify a person.
+ *
+ * That list is three cases, not a closed set, and it should not be read as
+ * one. The third is here only because review ran the rule against a case it
+ * was NOT written around - a future field publishing the bootstrap admin
+ * addresses is neither a credential nor infrastructure, so the first two
+ * clauses admitted it. That is the test to apply to a new field: checking a
+ * rule against the fields already in this object proves it CONSISTENT with
+ * them and never COMPLETE, because every one of them was in view when the
+ * sentence was written.
  *
  * It is deliberately not "discloses nothing new". `intake` publishes whether
  * this deployment's keys are configured and `uptime` when it started, neither
