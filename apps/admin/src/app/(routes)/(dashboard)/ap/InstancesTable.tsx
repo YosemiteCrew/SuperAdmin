@@ -2,12 +2,26 @@
 
 import { useActionState } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
+
+/**
+ * The columns this table actually renders.
+ *
+ * Deliberately narrower than `APLicenseToken`: the row carries `token`, the
+ * complete signed license JWT, and this is a client component - anything in
+ * this type crosses to the browser. Keeping the prop a `Pick` makes the page's
+ * `select` and this component's needs one fact rather than two, so adding a
+ * column here fails to type-check until the query is widened on purpose.
+ */
+export type LicenseTokenRow = Pick<
+  APLicenseToken,
+  'id' | 'orgId' | 'instanceDomain' | 'tier' | 'issuedAt' | 'expiresAt' | 'revokedAt'
+>;
 import { issueLicenseTokenAction, revokeLicenseTokenAction } from './actions';
 import type { IssueResult } from './actions';
 
 type TokenStatus = 'active' | 'expired' | 'revoked';
 
-function getStatus(token: APLicenseToken): TokenStatus {
+function getStatus(token: LicenseTokenRow): TokenStatus {
   if (token.revokedAt) return 'revoked';
   if (token.expiresAt < new Date()) return 'expired';
   return 'active';
@@ -149,7 +163,7 @@ function IssueForm() {
   );
 }
 
-export function InstancesTable({ tokens }: { readonly tokens: APLicenseToken[] }) {
+export function InstancesTable({ tokens }: { readonly tokens: LicenseTokenRow[] }) {
   return (
     <div className="space-y-6">
       <IssueForm />

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { prisma } from '@superadmin/database';
 import { requireSuperAdmin } from '@/app/config/backend';
-import { InstancesTable } from './InstancesTable';
+import { InstancesTable, type LicenseTokenRow } from './InstancesTable';
 
 export const metadata: Metadata = {
   title: 'AP Federation',
@@ -10,7 +10,23 @@ export const metadata: Metadata = {
 export default async function APFederationPage() {
   await requireSuperAdmin();
 
-  const tokens = await prisma.aPLicenseToken.findMany({
+  // Select the rendered columns only. An unselected `findMany` returns `token`
+  // - the complete signed license JWT, stored so it can be re-served - and
+  // these rows are handed straight to a client component, so every column here
+  // is serialised into the payload the browser receives. The table never shows
+  // that field; without the select it shipped anyway, for every token ever
+  // issued, on every load. `LicenseTokenRow` is the component's own type, so a
+  // new column has to be added in both places on purpose.
+  const tokens: LicenseTokenRow[] = await prisma.aPLicenseToken.findMany({
+    select: {
+      id: true,
+      orgId: true,
+      instanceDomain: true,
+      tier: true,
+      issuedAt: true,
+      expiresAt: true,
+      revokedAt: true,
+    },
     orderBy: { issuedAt: 'desc' },
   });
 
