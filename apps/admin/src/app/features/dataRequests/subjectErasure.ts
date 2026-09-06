@@ -2,6 +2,8 @@ import 'server-only';
 
 import { prisma } from '@superadmin/database';
 
+import { ERASED_SUBJECT } from '@/app/constants';
+
 import { normalizeSubjectEmail } from './subjectData';
 
 /**
@@ -26,13 +28,6 @@ export interface SubjectErasureReport {
     dataRequests: number;
   };
 }
-
-/**
- * What a tombstoned subject key reads as. Not an address, and deliberately not a
- * hash: a hash is a pseudonym and still links the row back to anyone who can
- * reproduce it. The brackets make collision with a real address impossible.
- */
-export const ERASED_SUBJECT = '[erased]';
 
 /**
  * Carries out a GDPR erasure across the email-keyed side of the register.

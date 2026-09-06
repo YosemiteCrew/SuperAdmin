@@ -55,6 +55,17 @@ describe('logDataRequestAction', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  // Same reserved namespace as the public intakes, refused here by the `@` check.
+  // A request logged under `[erased]` would match every erased row at once.
+  it.each([
+    ['the bare marker', '[erased]'],
+    ['a tombstone', '[erased]:cm0abc123'],
+  ])('refuses to log a request for %s', async (_label, subjectEmail) => {
+    const result = await logDataRequestAction(makeFormData({ subjectEmail, type: 'access' }));
+    expect(result.ok).toBe(false);
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
   it('rejects an unknown request type', async () => {
     const result = await logDataRequestAction(
       makeFormData({ subjectEmail: 'a@b.com', type: 'deletion' })

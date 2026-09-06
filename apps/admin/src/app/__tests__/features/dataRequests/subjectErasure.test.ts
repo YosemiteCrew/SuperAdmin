@@ -23,7 +23,8 @@ jest.mock('@superadmin/database', () => ({
 
 import { prisma } from '@superadmin/database';
 
-import { ERASED_SUBJECT, eraseSubjectData } from '@/app/features/dataRequests/subjectErasure';
+import { ERASED_SUBJECT } from '@/app/constants';
+import { eraseSubjectData } from '@/app/features/dataRequests/subjectErasure';
 
 const mockTransaction = prisma.$transaction as jest.MockedFunction<typeof prisma.$transaction>;
 
