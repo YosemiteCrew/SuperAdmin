@@ -85,7 +85,12 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
     return { error: 'Complete your second factor before accepting this invitation.' };
   }
 
-  await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  const grant = await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  if (grant.status !== 'OK') throw new Error('The super-admin role is unavailable.');
+
+  // Keep the role if the second store fails. A retry sees addRoleToUser's existing
+  // role as a no-op, then completes the invite and audit records. Removing it here
+  // can race a concurrent successful retry and revoke the role that retry owns.
   await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });
   // The actor is whoever accepted and thereby gained super-admin, not the
   // inviter: this is the event that records a privilege escalation, so it has to
