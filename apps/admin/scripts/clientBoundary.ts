@@ -155,8 +155,21 @@ export function isTypeOnlyClause(clause: string): boolean {
   return bindings.every((b) => /^type\s+\S/.test(b));
 }
 
-const STATIC_IMPORT = /(?:^|[\n;])\s*(?:import|export)\s+([\s\S]*?)\s*from\s*['"]([^'"]+)['"]/g;
-const SIDE_EFFECT_IMPORT = /(?:^|[\n;])\s*import\s*['"]([^'"]+)['"]/g;
+/**
+ * An import is only read where it begins a line or follows a `;`. Prettier runs on
+ * every file here, so a statement that shares a line with another one does not
+ * survive a commit — but that is an assumption about the formatter, not about the
+ * language, and `unresolvedLocalSpecifiers` cannot catch it: an edge that is never
+ * read is never unresolved either.
+ *
+ * The clause excludes `;` and quotes and is length-bounded rather than `[\s\S]*?`.
+ * The open-ended form is super-linear on a long whitespace run after `import` with
+ * no `from` following it — measured 141ms at 500 characters and 1,479ms at 2,000,
+ * against 0.07ms and 0.03ms for the form below.
+ */
+const STATIC_IMPORT =
+  /(?:^|[\n;])[ \t]*(?:import|export)\s([^;'"]{0,4000}?)from\s*['"]([^'"]+)['"]/g;
+const SIDE_EFFECT_IMPORT = /(?:^|[\n;])[ \t]*import\s*['"]([^'"]+)['"]/g;
 const DYNAMIC_IMPORT = /\bimport\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
 
 export function readEdges(sourceWithoutComments: string): BoundaryEdge[] {
@@ -309,7 +322,14 @@ export function analyseSources(files: SourceFile[]): BoundaryReport {
 
   const leaks: BoundaryLeak[] = [];
   for (const [entry, facts] of modules) {
-    if (facts.isClientEntry) leaks.push(...leaksFromEntry(entry, modules, graph));
+    if (!facts.isClientEntry) continue;
+    // The entry's OWN import counts, and the walk cannot see it: `server-only` is a
+    // package specifier, so it is discarded before any edge exists to follow. This
+    // is the most direct form of the defect — a server component that gains
+    // `'use client'` and keeps the `import 'server-only'` underneath it — and it
+    // leaves both counters healthy, so the vacuity canary does not fire on it either.
+    if (facts.importsServerOnly) leaks.push({ path: [entry] });
+    leaks.push(...leaksFromEntry(entry, modules, graph));
   }
 
   const count = (predicate: (f: ModuleFacts) => boolean): number =>

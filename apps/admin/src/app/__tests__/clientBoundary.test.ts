@@ -56,6 +56,48 @@ describe('analyseSources', () => {
     ).toEqual(['Panel.tsx -> features/store.ts']);
   });
 
+  it('reports a client entry that imports server-only itself', () => {
+    // The most direct instance of the class, and the one a graph walk cannot see:
+    // `server-only` is a package specifier, so no edge is ever created for it.
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source: "'use client';\nimport 'server-only';\nexport const P = 1;\n",
+      })
+    ).toEqual(['Panel.tsx']);
+  });
+
+  it('is silent on the same file when it is not a client entry', () => {
+    // The control for the case above: a server module may import server-only.
+    expect(
+      leakPaths({ path: 'Panel.tsx', source: "import 'server-only';\nexport const P = 1;\n" })
+    ).toEqual([]);
+  });
+
+  it('reports a client entry that imports server-only itself even when nothing imports it', () => {
+    // A leaf client component rendered by a server page is reachable from no client
+    // entry but its own, which is exactly when the walk alone goes quiet.
+    const report = analyseSources([
+      serverOnly,
+      { path: 'Leaf.tsx', source: "'use client';\nimport 'server-only';\nexport const L = 1;\n" },
+      {
+        path: 'Page.tsx',
+        source: "import { L } from './Leaf';\nexport default function Page() { return L; }\n",
+      },
+    ]);
+    expect(report.leaks.map((leak) => leak.path.join(' -> '))).toEqual(['Leaf.tsx']);
+  });
+
+  it('reads an import clause that spans several lines', () => {
+    expect(
+      leakPaths({
+        path: 'Panel.tsx',
+        source:
+          "'use client';\nimport {\n  readSecret,\n} from '@/features/store';\nexport const P = readSecret;\n",
+      })
+    ).toEqual(['Panel.tsx -> features/store.ts']);
+  });
+
   it('reports the leak through an intermediate module that carries no directive', () => {
     expect(
       leakPaths(
