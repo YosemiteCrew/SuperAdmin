@@ -34,26 +34,31 @@ name: Forbidden Terms
 # Nothing here was leaking. THE PROPERTY WAS HELD BY PROSE AND IS NOW HELD BY
 # THE TRIGGER - that is the whole before-and-after, and it is worth having.
 #
-# THE SIBLING REPOSITORY MADE THIS TRADE FIRST AND REFUSED TO LET IT TRAVEL,
-# so it is made again here, on this repository's own count. Its header says
-# red-on-fork is free there because it has never had a fork pull request, and
-# says in the same breath that the answer there is not evidence about this one.
+# THE SIBLING REPOSITORY MADE THIS TRADE FIRST AND REFUSED TO LET IT TRAVEL.
+# Its header says so in as many words - that its own count is not evidence
+# about another repository - and the first version of this file carried that
+# paragraph across verbatim anyway, asserting the sibling's 1,601 pull requests
+# and 596 fork contributions as this repository's own. The instruction not to
+# let the numbers travel travelled with the numbers. Recounted here.
 #
-# Counted here, 2026-09-06, over all 1,601 pull requests this repository has
+# Counted here, 2026-09-06, over all 237 pull requests this repository has
 # ever had:
 #
-#   596 came from a fork and 536 of those merged - a third of the merged work,
-#       across 22 named external authors
-#   the monthly curve is 54, 15, 32, 11, 17, 36, 28, 4 for 2026-01..08, and the
-#       most recent fork pull request is #2219, 2026-08-16, three weeks ago
+#   28 came from a fork and 26 of those merged - a seventh of the merged work,
+#      all from a single external source
+#   the monthly curve is 1, 6, 7, 12 for 2025-04..08 and 1, 1 for 2026-02 and
+#      2026-06, and the most recent fork pull request is #64, 2026-06-09,
+#      three months ago
 #
 # So the cost is real historically and near zero now, and the two halves point
-# opposite ways. What settles it is a third fact rather than a bigger number:
-# `No named external product` IS NOT A REQUIRED STATUS CHECK on either branch -
-# `dev` requires `CI Required` and `Supply Chain Required`, `main` requires
-# `Only dev may merge into main`. A fork therefore gets a visible red that
-# reports honestly and blocks nothing, and a maintainer who wants it green
-# pushes the branch to this repository and opens the pull request from there.
+# opposite ways - the same shape as the sibling, at a seventh the scale and a
+# longer quiet period. What settles it is a third fact rather than a bigger
+# number: `No named external product` IS NOT A REQUIRED STATUS CHECK on either
+# branch - `dev` and `main` both require `Lint + Type-check + Test + Build`,
+# `secretlint` and `dependency-review`, and neither lists this context. A fork
+# therefore gets a visible red that reports honestly and blocks nothing, and a
+# maintainer who wants it green pushes the branch to this repository and opens
+# the pull request from there.
 #
 # THAT IS ALSO WHAT MAKES THIS PARAGRAPH EXPIRE. The moment this context is
 # added to either ruleset, red-on-fork stops being advisory and starts being a
