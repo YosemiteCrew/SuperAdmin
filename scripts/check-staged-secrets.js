@@ -6,10 +6,12 @@ const { execFileSync } = require('node:child_process');
 const PROTECTED_ROOTS = ['apps/admin/', 'packages/'];
 
 // Hard-block: filenames that must never be committed even if they look empty.
-const BLOCKED_LOCAL_FILES = [
-  /^apps\/admin\/\.env(?:$|\.local$|\.(?!example$).+)/,
-  /^\.env(?:$|\.local$|\.(?!example$).+)/,
-];
+// Anchored to a path boundary (start of path, or a `/`) rather than to a
+// specific root, so it reaches an env file at any depth. The previous pair was
+// anchored to `apps/admin/` and to the repo root, and the repo-root one could
+// never fire: the block test ran only over paths that had already survived the
+// PROTECTED_ROOTS narrowing, and a repo-root path is under neither root.
+const BLOCKED_LOCAL_FILE = /(?:^|\/)\.env(?:$|\.local$|\.(?!example$).+)/;
 
 const TEXT_FILE_EXTENSIONS = new Set([
   '.c',
@@ -119,7 +121,7 @@ const getExtension = (file) => {
 
 const isProtectedPath = (file) => PROTECTED_ROOTS.some((root) => file.startsWith(root));
 
-const isBlockedLocalFile = (file) => BLOCKED_LOCAL_FILES.some((pattern) => pattern.test(file));
+const isBlockedLocalFile = (file) => BLOCKED_LOCAL_FILE.test(file);
 
 const isTextFile = (file) => TEXT_FILE_EXTENSIONS.has(getExtension(file));
 
@@ -158,50 +160,71 @@ const readStagedFile = (file) => {
 
 const findLineNumber = (content, index) => content.slice(0, index).split('\n').length;
 
-const findings = [];
-runGitleaksWhenAvailable();
+const collectFindings = (allStagedFiles) => {
+  const findings = [];
 
-const stagedFiles = getStagedFiles().filter(isProtectedPath);
-
-for (const file of stagedFiles) {
-  if (isBlockedLocalFile(file)) {
-    findings.push({
-      file,
-      line: 1,
-      name: 'local secrets file',
-    });
-    continue;
-  }
-
-  if (!isTextFile(file)) continue;
-
-  const content = readStagedFile(file);
-  if (!content) continue;
-
-  for (const pattern of SECRET_PATTERNS) {
-    pattern.regex.lastIndex = 0;
-    let match;
-    while ((match = pattern.regex.exec(content)) !== null) {
-      const value = match[1] ?? match[0];
-      if (pattern.name === 'generic secret assignment') {
-        if (isLikelyPlaceholder(value) || shannonEntropy(value) < 3.5) continue;
-      }
+  // The hard-block runs over EVERY staged file, before any narrowing. A local
+  // secrets file is a secret wherever it lands, and narrowing first is exactly
+  // what made the repo-root pattern above unreachable.
+  for (const file of allStagedFiles) {
+    if (isBlockedLocalFile(file)) {
       findings.push({
         file,
-        line: findLineNumber(content, match.index),
-        name: pattern.name,
+        line: 1,
+        name: 'local secrets file',
       });
     }
   }
-}
 
-if (findings.length > 0) {
-  console.error('❌ Secret scan failed. Remove these staged values before committing:');
-  for (const finding of findings) {
-    console.error(`  - ${finding.file}:${finding.line} (${finding.name})`);
-  }
-  console.error(
-    '\n  Values are intentionally not printed. Rotate any real secret that was staged.'
+  // The content scan stays scoped to the admin app and the shared packages.
+  // Already-blocked paths are dropped here so one staged file cannot produce
+  // two findings.
+  const stagedFiles = allStagedFiles.filter(
+    (file) => isProtectedPath(file) && !isBlockedLocalFile(file)
   );
-  process.exit(1);
-}
+
+  for (const file of stagedFiles) {
+    if (!isTextFile(file)) continue;
+
+    const content = readStagedFile(file);
+    if (!content) continue;
+
+    for (const pattern of SECRET_PATTERNS) {
+      pattern.regex.lastIndex = 0;
+      let match;
+      while ((match = pattern.regex.exec(content)) !== null) {
+        const value = match[1] ?? match[0];
+        if (pattern.name === 'generic secret assignment') {
+          if (isLikelyPlaceholder(value) || shannonEntropy(value) < 3.5) continue;
+        }
+        findings.push({
+          file,
+          line: findLineNumber(content, match.index),
+          name: pattern.name,
+        });
+      }
+    }
+  }
+
+  return findings;
+};
+
+const main = () => {
+  runGitleaksWhenAvailable();
+  const findings = collectFindings(getStagedFiles());
+
+  if (findings.length > 0) {
+    console.error('❌ Secret scan failed. Remove these staged values before committing:');
+    for (const finding of findings) {
+      console.error(`  - ${finding.file}:${finding.line} (${finding.name})`);
+    }
+    console.error(
+      '\n  Values are intentionally not printed. Rotate any real secret that was staged.'
+    );
+    process.exit(1);
+  }
+};
+
+if (require.main === module) main();
+
+module.exports = { collectFindings };
