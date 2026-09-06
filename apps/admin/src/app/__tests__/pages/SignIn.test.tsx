@@ -63,4 +63,35 @@ describe('Auth sign-in page', () => {
 
     await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard'));
   });
+  it('does not navigate to a same-origin path other than the invite page', async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ returnTo: '/dashboard/settings?token=tok-1' })
+    );
+    (signIn as jest.Mock).mockResolvedValue({ status: 'OK' });
+
+    render(<AuthPage />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@x.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password' } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Sign in' }).closest('form')!);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard'));
+  });
+
+  it('rebuilds the invite destination and drops every parameter but the token', async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (useSearchParams as jest.Mock).mockReturnValue(
+      new URLSearchParams({ returnTo: '/accept-invite?token=tok-1&next=//example.org' })
+    );
+    (signIn as jest.Mock).mockResolvedValue({ status: 'OK' });
+
+    render(<AuthPage />);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'new@x.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password' } });
+    fireEvent.submit(screen.getByRole('button', { name: 'Sign in' }).closest('form')!);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/accept-invite?token=tok-1'));
+  });
 });
