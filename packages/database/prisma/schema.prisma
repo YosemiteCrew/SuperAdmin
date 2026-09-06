@@ -209,3 +209,19 @@ model AuditEvent {
   @@index([targetId, seq])
   @@index([at])
 }
+
+model OrgNote {
+  id         String   @id
+  orgId      String
+  actorId    String
+  actorEmail String
+  content    String   @db.Text
+  at         DateTime
+
+  @@index([orgId, at])
+}
+
+model OrgNoteImport {
+  orgId      String   @id
+  importedAt DateTime @default(now())
+}
