@@ -129,9 +129,20 @@ describe('acceptInviteAction', () => {
       actorId: 'u-9',
       targetType: 'invite',
       targetId: 'inv-1',
-      targetLabel: 'new@x.com',
     });
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('keeps the invitee email address out of the audit record', async () => {
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+
+    const [event] = mockRecordAudit.mock.calls[0];
+    // Asserted over every value, not just targetLabel: recordAuditEvent already
+    // resolves actorEmail from actorId, so the address reaching this call under any
+    // key would store it twice on one row. targetType 'invite' also keeps the store
+    // from back-filling a label, which it does only for targetType 'user'.
+    expect(Object.values(event)).not.toContain('new@x.com');
+    expect(event).not.toHaveProperty('targetLabel');
   });
 
   it('stops when the role grant is unavailable', async () => {
