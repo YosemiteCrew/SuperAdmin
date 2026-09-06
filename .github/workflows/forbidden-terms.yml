@@ -34,26 +34,43 @@ name: Forbidden Terms
 # Nothing here was leaking. THE PROPERTY WAS HELD BY PROSE AND IS NOW HELD BY
 # THE TRIGGER - that is the whole before-and-after, and it is worth having.
 #
-# THE SIBLING REPOSITORY MADE THIS TRADE FIRST AND REFUSED TO LET IT TRAVEL,
-# so it is made again here, on this repository's own count. Its header says
-# red-on-fork is free there because it has never had a fork pull request, and
-# says in the same breath that the answer there is not evidence about this one.
+# THE SIBLING REPOSITORY MADE THIS TRADE FIRST AND REFUSED TO LET IT TRAVEL.
+# Its header says so in as many words - that its own count is not evidence
+# about another repository - and the first version of this file carried that
+# paragraph across verbatim anyway, asserting the sibling's 1,601 pull requests
+# and 596 fork contributions as this repository's own. The instruction not to
+# let the numbers travel travelled with the numbers. Recounted here.
 #
-# Counted here, 2026-09-06, over all 1,601 pull requests this repository has
+# Counted here, 2026-09-06, over all 237 pull requests this repository has
 # ever had:
 #
-#   596 came from a fork and 536 of those merged - a third of the merged work,
-#       across 22 named external authors
-#   the monthly curve is 54, 15, 32, 11, 17, 36, 28, 4 for 2026-01..08, and the
-#       most recent fork pull request is #2219, 2026-08-16, three weeks ago
+#   28 came from a fork and 26 of those merged - a seventh of the merged work
+#   the monthly curve, zeros included, is 1, 6, 0, 7, 12 for 2025-04..08, then
+#      nothing until 1 in 2026-02 and 1 in 2026-06. The most recent fork pull
+#      request is #64, 2026-06-09, three months ago
+#
+#   HOW MANY PEOPLE that was is NOT KNOWABLE from here and is deliberately not
+#      claimed. 27 of the 28 have a null `head.repo` and an author of `ghost`,
+#      which is GitHub's placeholder for a deleted account - it is the absence
+#      of an identity, not one, and every deleted account collapses into the
+#      same label. A first version of this paragraph said "all from a single
+#      external source", which came from listing the head repositories and
+#      dropping the nulls: 27 unknowns silently became the one survivor. The
+#      sibling can say "22 named external authors" because those accounts still
+#      exist; the identical query here returns a placeholder 27 times. That is a
+#      difference in what is knowable, not in concentration, and the argument
+#      below needs only the recency half, which is measured
 #
 # So the cost is real historically and near zero now, and the two halves point
-# opposite ways. What settles it is a third fact rather than a bigger number:
-# `No named external product` IS NOT A REQUIRED STATUS CHECK on either branch -
-# `dev` requires `CI Required` and `Supply Chain Required`, `main` requires
-# `Only dev may merge into main`. A fork therefore gets a visible red that
-# reports honestly and blocks nothing, and a maintainer who wants it green
-# pushes the branch to this repository and opens the pull request from there.
+# opposite ways - a seventh the scale of the sibling, and quiet for longer. What
+# settles it is a third fact rather than a bigger number:
+# `No named external product` IS NOT A REQUIRED STATUS CHECK on either
+# branch. Which contexts each ruleset does require is deliberately not listed
+# here: it drifts, this file cannot notice when it does, and the argument only
+# needs the negative. A fork therefore gets a visible red that reports honestly
+# and blocks nothing, and a
+# maintainer who wants it green pushes the branch to this repository and opens
+# the pull request from there.
 #
 # THAT IS ALSO WHAT MAKES THIS PARAGRAPH EXPIRE. The moment this context is
 # added to either ruleset, red-on-fork stops being advisory and starts being a
@@ -304,7 +321,8 @@ jobs:
       # through an earlier pull request sits in the BASE of every later `dev`
       # comparison and is never looked at again - but a `main` pull request's
       # merge base is the previous promotion, so the whole of `dev` since then
-      # is in scope. That is why this workflow is required on BOTH branches.
+      # is in scope. That is why this workflow RUNS on BOTH branches - which is
+      # this file's `on:` block, not a ruleset. It is required on neither.
       - name: Collect the surfaces
         if: ${{ github.event_name == 'pull_request' }}
         env:
