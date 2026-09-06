@@ -137,6 +137,21 @@ describe('analyseClientBoundary', () => {
     expect(leakPaths()).toEqual(['Panel.tsx -> features/index.ts -> features/store.ts']);
   });
 
+  it('does not call a stylesheet import an unresolved module', () => {
+    write('Panel.module.css', '.a { color: red; }\n');
+    write('Panel.tsx', "'use client';\nimport './Panel.module.css';\nexport const P = 1;\n");
+    expect(analyseClientBoundary(root).unresolvedLocalSpecifiers).toEqual([]);
+  });
+
+  it('resolves a source file whose own name contains a dot', () => {
+    write('features/store.legacy.ts', serverOnlyModule);
+    write(
+      'Panel.tsx',
+      "'use client';\nimport { readSecret } from './features/store.legacy';\nexport const P = readSecret;\n"
+    );
+    expect(leakPaths()).toEqual(['Panel.tsx -> features/store.legacy.ts']);
+  });
+
   it('names a local specifier it could not resolve instead of dropping it', () => {
     write(
       'Panel.tsx',

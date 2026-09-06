@@ -18,7 +18,7 @@
  * and a filesystem reader sitting in `src/app/lib` is one careless import away from
  * being the very defect this file exists to detect.
  */
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname, resolve, relative, sep } from 'node:path';
 
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx'];
@@ -43,31 +43,30 @@ export interface BoundaryReport {
   clientEntries: number;
   serverOnlyModules: number;
   serverActionModules: number;
-  /** Local (relative or `@/`) specifiers that resolved to a file on disk. */
+  /** Local (relative or `@/`) specifiers that resolved to a scanned module. */
   localEdgesResolved: number;
   /** Local specifiers that did not, as `<file> :: <specifier>`. */
   unresolvedLocalSpecifiers: string[];
   leaks: BoundaryLeak[];
 }
 
+/**
+ * One recursive `readdirSync` rather than a hand-rolled walk: the directory tree
+ * is read in a single call, so no derived path is handed to a second filesystem
+ * call to ask what it is.
+ */
 function listSourceFiles(root: string): string[] {
-  const found: string[] = [];
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(dir)) {
-      if (EXCLUDED_PATH_SEGMENTS.includes(entry)) continue;
-      const full = join(dir, entry);
-      if (statSync(full).isDirectory()) {
-        walk(full);
-      } else if (
-        SOURCE_EXTENSIONS.some((ext) => full.endsWith(ext)) &&
-        !EXCLUDED_FILE_PATTERN.test(entry)
-      ) {
-        found.push(full);
-      }
-    }
-  };
-  walk(root);
-  return found;
+  return readdirSync(root, { recursive: true, encoding: 'utf8' })
+    .map((entry) => entry.split(sep))
+    .filter((segments) => {
+      const name = segments[segments.length - 1];
+      return (
+        !segments.some((segment) => EXCLUDED_PATH_SEGMENTS.includes(segment)) &&
+        SOURCE_EXTENSIONS.some((ext) => name.endsWith(ext)) &&
+        !EXCLUDED_FILE_PATTERN.test(name)
+      );
+    })
+    .map((segments) => join(root, ...segments));
 }
 
 /**
@@ -190,22 +189,36 @@ export function readEdges(sourceWithoutComments: string): BoundaryEdge[] {
 
 const PACKAGE_SPECIFIER = Symbol('package');
 
+/**
+ * Resolves against the set of files already listed rather than against the disk.
+ * That keeps resolution and scanning in step — a specifier that resolves to a file
+ * the walk never read would otherwise count as resolved and then be silently
+ * dropped — and it means no derived path is ever handed to the filesystem.
+ */
 function resolveSpecifier(
   specifier: string,
   fromFile: string,
-  srcRoot: string
+  srcRoot: string,
+  known: Set<string>
 ): string | null | typeof PACKAGE_SPECIFIER {
   let base: string;
   if (specifier.startsWith('@/')) base = join(srcRoot, specifier.slice(2));
   else if (specifier.startsWith('.')) base = resolve(dirname(fromFile), specifier);
   else return PACKAGE_SPECIFIER;
 
-  for (const ext of SOURCE_EXTENSIONS) if (existsSync(base + ext)) return resolve(base + ext);
-  for (const ext of SOURCE_EXTENSIONS) {
-    const indexFile = join(base, `index${ext}`);
-    if (existsSync(indexFile)) return resolve(indexFile);
-  }
-  if (existsSync(base) && statSync(base).isFile()) return resolve(base);
+  const candidates = [
+    ...SOURCE_EXTENSIONS.map((ext) => resolve(base + ext)),
+    ...SOURCE_EXTENSIONS.map((ext) => resolve(join(base, `index${ext}`))),
+    resolve(base),
+  ];
+  const hit = candidates.find((candidate) => known.has(candidate));
+  if (hit) return hit;
+
+  // A specifier that names an extension of its own and still matched nothing is a
+  // stylesheet or an asset, not a module this walk can follow. Checked after the
+  // candidates so that a source file whose name merely contains a dot still wins.
+  const named = /\.[^./\\]+$/.exec(specifier)?.[0];
+  if (named && !SOURCE_EXTENSIONS.includes(named)) return PACKAGE_SPECIFIER;
   return null;
 }
 
@@ -249,6 +262,7 @@ function resolveGraph(
   root: string,
   asRelative: (file: string) => string
 ): ResolvedGraph {
+  const known = new Set(modules.keys());
   const edges = new Map<string, ResolvedEdge[]>();
   const unresolvedLocalSpecifiers: string[] = [];
   let localEdgesResolved = 0;
@@ -256,14 +270,14 @@ function resolveGraph(
   for (const [file, facts] of modules) {
     const resolvedEdges: ResolvedEdge[] = [];
     for (const edge of facts.edges) {
-      const target = resolveSpecifier(edge.specifier, file, root);
+      const target = resolveSpecifier(edge.specifier, file, root, known);
       if (target === PACKAGE_SPECIFIER) continue;
       if (target === null) {
         unresolvedLocalSpecifiers.push(`${asRelative(file)} :: ${edge.specifier}`);
         continue;
       }
       localEdgesResolved += 1;
-      if (modules.has(target)) resolvedEdges.push({ target, typeOnly: edge.typeOnly });
+      resolvedEdges.push({ target, typeOnly: edge.typeOnly });
     }
     edges.set(file, resolvedEdges);
   }
