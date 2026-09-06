@@ -7,11 +7,18 @@ import {
   normalisePath,
   readEdges,
   stripComments,
+  type BoundaryReport,
   type SourceFile,
 } from '../../../scripts/clientBoundary';
 
 describe('the client/server module boundary in this app', () => {
-  const report = analyseClientBoundary();
+  // Read in beforeAll, not at describe time: a throw while reading the tree would
+  // otherwise take the whole file down before a single test ran, and jest reports
+  // that as zero failed tests -- indistinguishable from a passing suite in --json.
+  let report: BoundaryReport;
+  beforeAll(() => {
+    report = analyseClientBoundary();
+  });
 
   it('has no client module that reaches a server-only module at runtime', () => {
     // Each entry is the full import path, so a failure names every hop rather
