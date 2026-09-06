@@ -52,15 +52,25 @@ applications:
             # shell is not guaranteed to be bash.
             #
             # The build sha is RENAMED on the way in rather than allowlisted.
-            # `AWS_COMMIT_ID` cannot be added to the pattern above: the guard
-            # two lines below fails the build on any `^AWS_` line in the
-            # artifact, so allowlisting it writes the variable and then aborts.
+            # `AWS_COMMIT_ID` cannot be added to the pattern below: the leak
+            # guard fails the build on any `^AWS_` line in the artifact, so
+            # allowlisting it writes the variable and then aborts.
             # Written only when non-empty - `NEXT_PUBLIC_*` is inlined at build
             # time, and an empty value would be inlined as `''`, which reads as
             # a present-but-blank sha rather than an absent one.
+            # It is written BEFORE the names listing and the leak guard on
+            # purpose: the listing is the build log's record of what shipped, and
+            # the guard exists to catch a mistake in exactly this kind of write.
+            # A write placed after them is in neither.
             - |
               : > .env.production
               env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
+              if [ -n "$AWS_COMMIT_ID" ]; then
+                echo "NEXT_PUBLIC_BUILD_SHA=$AWS_COMMIT_ID" >> .env.production
+                echo "OK: NEXT_PUBLIC_BUILD_SHA written from AWS_COMMIT_ID"
+              else
+                echo "WARN: AWS_COMMIT_ID is empty - /api/health and the Health page will report buildSha as absent"
+              fi
               echo "--- .env.production written, NAMES ONLY ---"
               cut -d= -f1 .env.production
               if grep -qE '^AWS_|^AMPLIFY_' .env.production; then
@@ -70,12 +80,6 @@ applications:
                 grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
               done
               echo "OK: required runtime vars present"
-              if [ -n "$AWS_COMMIT_ID" ]; then
-                echo "NEXT_PUBLIC_BUILD_SHA=$AWS_COMMIT_ID" >> .env.production
-                echo "OK: NEXT_PUBLIC_BUILD_SHA written from AWS_COMMIT_ID"
-              else
-                echo "WARN: AWS_COMMIT_ID is empty - /api/health and the Health page will report buildSha as absent"
-              fi
             # Migrations run on the production branch only. Amplify builds every
             # branch, and a preview build must never migrate the live database.
             # This is what stops a repeat of the 2026-08-11 outage, where code

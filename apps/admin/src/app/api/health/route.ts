@@ -64,6 +64,20 @@ function intakeStatus(): Record<'contact' | 'consent', 'configured' | 'unconfigu
  * `??` passes `''` through and this field would publish an empty string as
  * though it were a sha - the same trap the intake fields avoid by treating an
  * empty key as unconfigured.
+ *
+ * DISCLOSURE, weighed rather than assumed - this endpoint is unauthenticated
+ * and this is the panel's highest-privilege surface, so a new field here is a
+ * decision and not a convenience. A commit sha tells any caller precisely
+ * which build is live, and therefore whether a given fix has shipped yet.
+ * Published anyway because the repository is public: the sha resolves to
+ * source that is already readable by anyone, so it discloses no fact that is
+ * not already disclosed, and it is the only thing that lets an external check
+ * tie an assertion about deployed configuration to the artifact it was made
+ * against. That is the standard for anything added here - a field earns its
+ * place by disclosing nothing a reader of the public repository could not
+ * already establish. It is why `reason` above is narrowed to an error's class
+ * and code: a Prisma connection message embeds the database host and user,
+ * which the repository does not.
  */
 function buildSha(): string | null {
   return process.env.NEXT_PUBLIC_BUILD_SHA?.trim() || null;
