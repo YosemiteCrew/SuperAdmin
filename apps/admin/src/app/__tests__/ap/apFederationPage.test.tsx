@@ -90,6 +90,12 @@ describe('AP Federation page license-token query', () => {
     expect(Object.keys(selectArg()).length).toBeGreaterThan(0);
   });
 
+  // This is also the assertion that catches a deleted `select`, which the
+  // `LicenseTokenRow` annotation on the query does NOT: assignability is
+  // structural, so the full row an unselected query returns compiles clean
+  // against the narrower type. Measured both ways - widening fails tsc,
+  // deleting does not.
+  //
   // Deliberately paired with the identity test above rather than standing
   // alone: with no `select` at all, `selectArg()` is `{}` and every
   // `not.toContain` here passes - the assertion is vacuous for the exact

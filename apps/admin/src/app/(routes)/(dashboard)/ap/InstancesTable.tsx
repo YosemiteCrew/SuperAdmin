@@ -11,6 +11,10 @@ import type { APLicenseToken } from '@superadmin/database';
  * this type crosses to the browser. Keeping the prop a `Pick` makes the page's
  * `select` and this component's needs one fact rather than two, so adding a
  * column here fails to type-check until the query is widened on purpose.
+ *
+ * It does not work in the other direction: deleting the page's `select`
+ * entirely still compiles, because the full row is structurally assignable to
+ * this type. The test is what catches that. See the note on the query.
  */
 export type LicenseTokenRow = Pick<
   APLicenseToken,
