@@ -11,15 +11,20 @@ import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { corroborateBusiness } from '@/app/features/organizations/corroboration';
 import { getDemoOrganization } from '@/app/features/organizations/demo';
 import { getOrgNotes } from '@/app/features/organizations/notes';
-import { getOrganization } from '@/app/features/organizations/services/organizationsService';
+import {
+  getOrganization,
+  listOrganizationMembers,
+} from '@/app/features/organizations/services/organizationsService';
 import type {
   OrganizationAddress,
   SuperAdminOrganizationDetail,
+  SuperAdminOrganizationMember,
 } from '@/app/features/organizations/types';
 import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
 
 import { CorroborationFlag, CorroborationPanel } from '../CorroborationPanel';
 import { OrganizationRowActions } from '../OrganizationRowActions';
+import { OrgMembers } from './OrgMembers';
 import { OrgNotes } from './OrgNotes';
 
 const CARD =
@@ -139,7 +144,16 @@ export default async function OrganizationDetailPage({
   // Corroboration performs a live outbound fetch, so run it only on demand.
   const corroboration = checks === '1' ? await corroborateBusiness(org) : null;
 
-  const notes = await getOrgNotes(org.id);
+  const [notes, members] = await Promise.all([
+    getOrgNotes(org.id),
+    // A backend that does not serve this endpoint yet must leave the rest of
+    // the page intact; null renders as "could not read", never as an empty
+    // roster, because an empty roster reads as a diagnosis.
+    listOrganizationMembers(org.id, {
+      headers: { cookie },
+      baseUrl: apiBaseUrl(environment),
+    }).catch((): SuperAdminOrganizationMember[] | null => null),
+  ]);
   const envParam = environment === DEFAULT_API_ENVIRONMENT ? '' : `&env=${environment}`;
   const checksHref = `/organizations/${encodeURIComponent(org.id)}?checks=1${
     demo === '1' ? '&demo=1' : ''
@@ -228,6 +242,11 @@ export default async function OrganizationDetailPage({
           <Field label="Created" value={formatDate(org.createdAt)} />
           <Field label="Last updated" value={formatDate(org.updatedAt)} />
         </dl>
+      </section>
+
+      <section className={CARD}>
+        <h2 className={CARD_HEAD}>Members</h2>
+        <OrgMembers members={members} memberCount={org.memberCount} />
       </section>
 
       <section className={CARD}>
