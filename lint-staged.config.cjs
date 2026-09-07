@@ -6,8 +6,7 @@ const quote = (file) => `"${file.replaceAll('"', String.raw`\"`)}"`;
 // they scan fine, and route files under them (e.g. `users/[id]/actions.ts`) are
 // exactly the kind of server code a secret would land in.
 const quoteGlob = (file) => quote(file);
-const isAdminPath = (file) =>
-  file.startsWith('apps/admin/') || file.includes('/apps/admin/');
+const isAdminPath = (file) => file.startsWith('apps/admin/') || file.includes('/apps/admin/');
 
 const toAdminRelativePath = (file) => {
   if (file.startsWith('apps/admin/')) {
@@ -24,12 +23,7 @@ module.exports = {
       .filter((file) => isAdminPath(file))
       .map((file) => toAdminRelativePath(file));
 
-    const otherFiles = files.filter(
-      (file) =>
-        !isAdminPath(file) &&
-        !file.includes('/packages/') &&
-        !file.startsWith('packages/')
-    );
+    const otherFiles = files.filter((file) => !isAdminPath(file));
 
     const commands = [];
 
