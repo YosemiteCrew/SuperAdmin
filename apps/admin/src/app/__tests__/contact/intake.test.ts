@@ -194,6 +194,7 @@ describe('parseSubmission', () => {
     ['email without @', { email: 'nope' }],
     ['email without domain dot', { email: 'a@b' }],
     ['email with a space', { email: 'a b@c.com' }],
+    ['email with non-space whitespace', { email: 'a\tb@c.com' }],
     ['oversized email', { email: `${'a'.repeat(250)}@b.com` }],
     ['missing message', { message: undefined }],
     ['blank message', { message: '   ' }],
