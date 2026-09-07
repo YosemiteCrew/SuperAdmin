@@ -44,6 +44,7 @@ describe('logDataRequestAction', () => {
     ['missing @', 'not-an-email'],
     ['nothing before @', '@example.com'],
     ['nothing after @', 'person@'],
+    ['more than one @', 'owner@a@clinic.com'],
     ['no dot in domain', 'person@localhost'],
     ['trailing dot in domain', 'person@example.'],
     ['contains whitespace', 'person @example.com'],

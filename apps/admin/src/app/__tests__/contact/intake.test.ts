@@ -70,13 +70,8 @@ describe('parseSubmission query-operator payloads', () => {
     expect(parseSubmission({ ...VALID, email })).toBeNull();
   });
 
-  // Current behaviour, asserted rather than wished for. `logDataRequestAction`
-  // rejects a second `@` (`at !== value.lastIndexOf('@')`) and this intake does
-  // not, so the two doors into the same register disagree about what an address
-  // is. Filed rather than changed here: this is a live public intake and
-  // tightening it is not this PR's call.
-  it('accepts a second @, unlike the privacy request form — see #313', () => {
-    expect(parseSubmission({ ...VALID, email: 'owner@a@clinic.com' })).not.toBeNull();
+  it('rejects a second @, matching the privacy request form', () => {
+    expect(parseSubmission({ ...VALID, email: 'owner@a@clinic.com' })).toBeNull();
   });
 
   it('rejects the whole submission when message is a query operator', () => {
@@ -220,6 +215,22 @@ describe('isHoneypotTripped', () => {
 });
 
 describe('recordContactSubmission', () => {
+  it.each(['email', 'name', 'company', 'phone'] as const)(
+    'rejects an object passed directly as %s before querying',
+    async (field) => {
+      await expect(
+        recordContactSubmission({
+          email: 'a@b.com',
+          message: 'hi',
+          newsletterConsent: false,
+          [field]: { not: 'x' },
+        } as unknown as Parameters<typeof recordContactSubmission>[0])
+      ).rejects.toThrow('Contact submission contains invalid identity fields.');
+      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
+    }
+  );
+
   it('upserts the lead and appends a request, recording consent time', async () => {
     await recordContactSubmission({
       email: 'a@b.com',
