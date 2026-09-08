@@ -97,12 +97,18 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
   // show up in the new admin's own activity and name them as the one who acted.
   // The inviter is not lost - targetId resolves to the invite, which carries
   // createdBy.
+  //
+  // No targetLabel. recordAuditEvent resolves actorEmail from actorId by the same
+  // SuperTokens lookup that produced userEmail above, and actorId is this user, so a
+  // label here would write the invitee's address a second time onto the same row. The
+  // audit table, the CSV export and the search index all read actorEmail, so nothing
+  // that displayed the address loses it. targetType is 'invite', not 'user', so the
+  // store does not back-fill a label either.
   await recordAuditEvent({
     action: 'invite.use',
     actorId: userId,
     targetType: 'invite',
     targetId: invite.id,
-    targetLabel: userEmail,
   });
 
   redirect('/dashboard');
