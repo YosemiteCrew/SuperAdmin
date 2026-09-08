@@ -15,7 +15,8 @@
     "test:ci": "jest --ci",
     "test:coverage": "jest --coverage",
     "sonar": "node ./scripts/sonar.mjs",
-    "sonar:full": "pnpm test:coverage && pnpm sonar"
+    "sonar:full": "pnpm test:coverage && pnpm sonar",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@superadmin/database": "workspace:^",
