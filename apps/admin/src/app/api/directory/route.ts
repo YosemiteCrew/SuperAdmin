@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@superadmin/database';
 import { authenticateLicenseToken } from '@/app/features/ap/authenticate';
-import { clientIp } from '@/app/lib/clientIp';
-import { checkRateLimit } from '@/app/lib/rateLimit';
+import { rateLimitResponse } from '@/app/lib/rateLimit';
 
 // The directory changes when a clinic toggles its listing, which is rare, but a
 // stale entry is more annoying than a slightly slower read. Instances also keep
@@ -22,13 +21,8 @@ const CACHE_MAX_AGE = 60;
  * GET /api/directory -> { clinics: [{ actorUri, orgName, instanceHost, handle }] }
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
-  const { allowed, resetMs } = checkRateLimit(`directory:read:${clientIp(request)}`);
-  if (!allowed) {
-    return NextResponse.json(
-      { error: 'Too many requests' },
-      { status: 429, headers: { 'Retry-After': String(Math.ceil((resetMs - Date.now()) / 1000)) } }
-    );
-  }
+  const limited = rateLimitResponse(request, 'directory:read');
+  if (limited) return limited;
 
   const auth = await authenticateLicenseToken(request.headers.get('authorization'));
   if (!auth.ok) {
