@@ -11,8 +11,15 @@ type Visual = {
 /**
  * Warm-bone identity chip per business type. Every colour is a theme-aware
  * token, so the chip follows light and dark without a second definition.
+ *
+ * `type` reaches `organizationVisual` from the backend's `type: String`
+ * column, not a validated union, so a value outside `BusinessType` is
+ * reachable at runtime even though the parameter is typed as one. Keying
+ * this map by `BusinessType` claims the lookup always resolves, which makes
+ * the `?? FALLBACK` below read as dead code while it is the only thing
+ * standing between an unrecognised type and an `undefined` destructure.
  */
-const TYPE_VISUALS: Record<BusinessType, Visual> = {
+const TYPE_VISUALS: Record<BusinessType, Visual | undefined> = {
   HOSPITAL: {
     Icon: IoMedkitOutline,
     background: 'var(--blue-soft)',
