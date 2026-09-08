@@ -51,6 +51,10 @@ import process from 'node:process';
 
 const PATTERN_ENV = 'FORBIDDEN_TERMS_PATTERN_B64';
 const CORPUS_ENV = 'FORBIDDEN_TERMS_CORPUS_B64';
+// Commit messages are collected from MERGE_BASE..gate-head. That keeps quoted
+// PR prose out, but a feature branch that merges upstream commits also imports
+// their trailers into the range; feature branches here do not use that shape.
+const ATTRIBUTION_TRAILER = /^co-authored-by:/i;
 
 const ALLOWED_PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-prose.txt');
 
@@ -279,6 +283,13 @@ function entriesFor(surface, text) {
 export function scanSurface(pattern, surface, text) {
   return entriesFor(surface, text)
     .filter((entry) => pattern.test(entry.text))
+    .map((entry) => ({ surface, file: entry.file, line: entry.line }));
+}
+
+function scanAttribution(surface, text) {
+  if (surface !== 'messages') return [];
+  return entriesFor(surface, text)
+    .filter((entry) => ATTRIBUTION_TRAILER.test(entry.text))
     .map((entry) => ({ surface, file: entry.file, line: entry.line }));
 }
 
@@ -538,17 +549,18 @@ function runScan(argv) {
       if (fd !== undefined) closeSync(fd);
     }
     findings.push(...scanSurface(pattern, surface, text));
+    findings.push(...scanAttribution(surface, text));
   }
 
   if (findings.length === 0) {
     process.stdout.write(
-      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product on any of them.\n`
+      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product or attribution trailer found.\n`
     );
     return 0;
   }
 
   process.stderr.write(
-    `forbidden-terms: BLOCKED - a named external product appears on ${findings.length} line(s).\n\n`
+    `forbidden-terms: BLOCKED - a named external product or attribution trailer appears on ${findings.length} line(s).\n\n`
   );
   for (const finding of findings) {
     // Only the diff surface has a file of its own; for the others the "file" IS
