@@ -51,3 +51,11 @@ out/
 
 # Claude Code session state — keep local
 .claude/
+
+# Playwright output: local run artifacts, never committed.
+# error-context.md can capture page snapshots from a failed run, which on an
+# auth spec would be the filled sign-in form.
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/

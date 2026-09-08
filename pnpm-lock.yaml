@@ -77,7 +77,7 @@ importers:
         version: 2.1.1
       next:
         specifier: 16.3.4
-        version: 16.3.4(@babel/core@8.0.1)(@types/node@26.4.1)(react-dom@19.2.8)(react@19.2.8)
+        version: 16.3.4(@babel/core@8.0.1)(@playwright/test@1.63.0)(@types/node@26.4.1)(react-dom@19.2.8)(react@19.2.8)
       react:
         specifier: ^19.2.8
         version: 19.2.8
@@ -97,9 +97,15 @@ importers:
         specifier: ^0.16.0
         version: 0.16.0
     devDependencies:
+      '@axe-core/playwright':
+        specifier: ^4.13.0
+        version: 4.13.0(playwright-core@1.63.0)
       '@eslint/eslintrc':
         specifier: ^3
         version: 3.3.7
+      '@playwright/test':
+        specifier: ^1.62.1
+        version: 1.63.0
       '@superadmin/types':
         specifier: workspace:^
         version: link:../../packages/types
@@ -208,6 +214,15 @@ packages:
       '@csstools/css-parser-algorithms': 3.0.5(@csstools/css-tokenizer@3.0.4)
       '@csstools/css-tokenizer': 3.0.4
       lru-cache: 10.4.3
+    dev: true
+
+  /@axe-core/playwright@4.13.0(playwright-core@1.63.0):
+    resolution: {integrity: sha512-6YLx+kxXu5GJceG4ozFg+33a2EMTdjYwWGloJ3sb9Kta5pp+ZNS53uxGVog5JetIY8s++P5UrtX+cri+u0VAVg==}
+    peerDependencies:
+      playwright-core: '>= 1.0.0'
+    dependencies:
+      axe-core: 4.13.0
+      playwright-core: 1.63.0
     dev: true
 
   /@azu/format-text@1.0.2:
@@ -1827,6 +1842,13 @@ packages:
     resolution: {integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==}
     engines: {node: ^14.18.0 || >=16.0.0}
     dev: true
+
+  /@playwright/test@1.63.0:
+    resolution: {integrity: sha512-oxMK4vllB9RK5NQ2l1pq1IfOf2AvnEuj/vYGDj0H2nMtmtZpKtCwt/l00GEO6xjGfpBNAvjovvYdCm50dRQkpQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+    dependencies:
+      playwright: 1.63.0
 
   /@prisma/client@6.19.3(prisma@6.19.3)(typescript@5.9.3):
     resolution: {integrity: sha512-mKq3jQFhjvko5LTJFHGilsuQs+W+T3Gm451NzuTDGQxwCzwXHYnIu2zGkRoW+Exq3Rob7yp2MfzSrdIiZVhrBg==}
@@ -6395,7 +6417,7 @@ packages:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==}
     dev: true
 
-  /next@16.3.4(@babel/core@8.0.1)(@types/node@26.4.1)(react-dom@19.2.8)(react@19.2.8):
+  /next@16.3.4(@babel/core@8.0.1)(@playwright/test@1.63.0)(@types/node@26.4.1)(react-dom@19.2.8)(react@19.2.8):
     resolution: {integrity: sha512-/Ztf6CeRH+ejEXUrYtqI4gkS66eFIHuSwqi60RgcpWKodxFZx2/dqVCMKBwILfAHXQ+F1b1vAudgj3mnxqtoIA==}
     engines: {node: '>=20.9.0'}
     hasBin: true
@@ -6417,6 +6439,7 @@ packages:
         optional: true
     dependencies:
       '@next/env': 16.3.4
+      '@playwright/test': 1.63.0
       '@swc/helpers': 0.5.23
       baseline-browser-mapping: 2.11.21
       caniuse-lite: 1.0.30001810
@@ -6772,6 +6795,18 @@ packages:
       confbox: 0.2.4
       exsolve: 1.1.0
       pathe: 2.0.3
+
+  /playwright-core@1.63.0:
+    resolution: {integrity: sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  /playwright@1.63.0:
+    resolution: {integrity: sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg==}
+    engines: {node: '>=20'}
+    hasBin: true
+    dependencies:
+      playwright-core: 1.63.0
 
   /pluralize@2.0.0:
     resolution: {integrity: sha512-TqNZzQCD4S42De9IfnnBvILN7HAW7riLqsCyp8lgjXeysyPlX5HhqKAcJHHHb9XskE4/a+7VGC9zzx8Ls0jOAw==}
