@@ -15,7 +15,14 @@ import {
 import { logDataRequestAction, updateDataRequestStatusAction } from './actions';
 import type { ActionResult } from './actions';
 
-const TYPE_LABELS: Record<string, string> = {
+/**
+ * `request.type` is the `DataRequest.type` column, typed `String` with no DB
+ * or app-level constraint, so a value outside these four keys is reachable
+ * (the "unknown type" test below exercises exactly that). Keying this map by
+ * `string` claims every lookup resolves, which makes the `?? request.type`
+ * fallback at the call site read as dead code while it is load-bearing.
+ */
+const TYPE_LABELS: Record<string, string | undefined> = {
   access: 'Access',
   erasure: 'Erasure',
   rectification: 'Rectification',

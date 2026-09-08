@@ -27,7 +27,15 @@ const CARD_CLASS =
 const PANEL_LABEL_CLASS =
   'text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 
-const METHOD_ICONS: Record<string, IconType> = {
+/**
+ * `method` comes from a SuperTokens `recipeId`, which this panel does not
+ * enumerate — a new or renamed recipe reaches the lookup below with no entry
+ * here. Keying this map by `string` claims every lookup resolves, which
+ * makes the `?? IoKeyOutline` fallback at the call site read as dead code
+ * while it is the only thing standing between an unknown recipe and
+ * rendering `undefined` as a component.
+ */
+const METHOD_ICONS: Record<string, IconType | undefined> = {
   emailpassword: IoMailOutline,
   thirdparty: IoLogoGoogle,
   passwordless: IoPhonePortraitOutline,
