@@ -1,0 +1,221 @@
+name: Admin E2E
+
+# Triggered on EVERY pull request, with the path decision made inside the jobs.
+# A pull_request.paths filter here looks equivalent and is not: once
+# `Admin E2E Required` is marked required on the branch ruleset, a PR touching
+# none of those paths skips the whole workflow, the required context is never
+# created, and the PR waits for it forever. `if: always()` cannot rescue a
+# workflow that was never triggered.
+on:
+  pull_request: {}
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+concurrency:
+  group: admin-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect admin changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Decide whether the admin suite needs to run
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          # Fail open off pull_request: a push to dev or main, or a manual
+          # dispatch, is never the case this filter exists to skip.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "admin=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          CHANGED=$(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" \
+            -- 'apps/admin/**' 'packages/**' 'pnpm-lock.yaml' \
+               '.github/workflows/admin-e2e.yml' | wc -l)
+          if [ "$CHANGED" -gt 0 ]; then
+            echo "admin=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "admin=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Runs on every PR against a locally built app. No secrets: a pull_request runs
+  # PR-controlled code, including this workflow file, which is exactly the surface
+  # that could exfiltrate them.
+  local:
+    name: E2E (local build)
+    needs: [changes]
+    if: needs.changes.outputs.admin == 'true'
+    runs-on: ubuntu-latest
+
+    # `next build` collects /api/auth/[[...path]], which needs a REACHABLE
+    # SuperTokens core - placeholder env vars are not enough, and the build fails
+    # identically on plain dev without one. Standing the real dependencies up as
+    # services is what makes this app buildable in CI at all. Both are ephemeral
+    # and seeded here; nothing below is a credential.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: admin_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      supertokens:
+        image: supertokens/supertokens-postgresql:12.2
+        env:
+          POSTGRESQL_CONNECTION_URI: postgresql://ci:ci@postgres:5432/admin_ci
+          API_KEYS: ci-core-key-not-a-secret
+        ports: ['3567:3567']
+
+    env:
+      # ?schema=superadmin is load bearing, not cosmetic: every table and row
+      # lives in that schema and `public` holds nothing, so without it
+      # `migrate deploy` re-applies cleanly into an empty public, reports
+      # success, and the panel comes up looking freshly installed. The repo
+      # refuses to migrate without it, which is why this job stopped here.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/admin_ci?schema=superadmin
+      SUPERTOKENS_CONNECTION_URI: http://localhost:3567
+      SUPERTOKENS_API_KEY: ci-core-key-not-a-secret
+      NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Wait for the SuperTokens core
+        run: |
+          set -euo pipefail
+          # The core has no health probe of its own, and a build that starts one
+          # second early fails with the same "Failed to collect page data" as a
+          # genuinely broken change. Bounded: never poll forever.
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3567/hello >/dev/null; then
+              echo "core up after ${i}s"; exit 0
+            fi
+            sleep 1
+          done
+          echo "SuperTokens core did not answer /hello within 60s"; exit 1
+
+      - run: pnpm --filter @superadmin/database run migrate:deploy
+      - run: pnpm --filter admin exec playwright install --with-deps chromium
+      - run: pnpm --filter admin run build
+      - name: Run specs against the local build
+        env:
+          E2E_WEB_SERVER_COMMAND: pnpm --filter admin run start
+        run: pnpm --filter admin exec playwright test --project=chromium
+
+  # Runs only on trusted refs, where secrets resolve. This is the leg that can
+  # observe the panel real users hit - the deployed origin has been returning 401
+  # at the CloudFront edge to every request, including the public /api/health,
+  # with the whole suite green, because nothing had ever pointed at it.
+  deployed:
+    name: E2E (deployed panel)
+    needs: [changes]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter admin exec playwright install --with-deps chromium
+      # Every one of these is consumed by a spec, so a missing one is a run that
+      # silently proves less than it appears to. The edge gate gets past Amplify
+      # branch password protection, which answers at the CloudFront edge before
+      # the app sees a request; the other three complete a sign-in, which is
+      # mandatory-TOTP for every super admin.
+      - name: Fail early if the deployed leg is unprovisioned
+        env:
+          SA_EDGE_GATE_CREDENTIALS: ${{ secrets.SA_EDGE_GATE_CREDENTIALS }}
+          SA_E2E_EMAIL: ${{ secrets.SA_E2E_EMAIL }}
+          SA_E2E_PASSWORD: ${{ secrets.SA_E2E_PASSWORD }}
+          SA_E2E_TOTP_SECRET: ${{ secrets.SA_E2E_TOTP_SECRET }}
+        run: |
+          missing=""
+          [ -n "$SA_EDGE_GATE_CREDENTIALS" ] || missing="$missing SA_EDGE_GATE_CREDENTIALS"
+          [ -n "$SA_E2E_EMAIL" ]             || missing="$missing SA_E2E_EMAIL"
+          [ -n "$SA_E2E_PASSWORD" ]          || missing="$missing SA_E2E_PASSWORD"
+          [ -n "$SA_E2E_TOTP_SECRET" ]       || missing="$missing SA_E2E_TOTP_SECRET"
+          if [ -n "$missing" ]; then
+            echo "Missing repository secrets:$missing"
+            echo "Specs that need a missing one SKIP, and a skipped auth spec is"
+            echo "indistinguishable from a passing one in the summary."
+            exit 1
+          fi
+      - name: Run specs against the deployed panel
+        env:
+          E2E_BASE_URL: https://admin.yosemitecrew.com
+          SA_EDGE_GATE_CREDENTIALS: ${{ secrets.SA_EDGE_GATE_CREDENTIALS }}
+          # Every super admin is required to hold a TOTP device, so an
+          # authenticated spec needs all three, not just email and password.
+          SA_E2E_EMAIL: ${{ secrets.SA_E2E_EMAIL }}
+          SA_E2E_PASSWORD: ${{ secrets.SA_E2E_PASSWORD }}
+          SA_E2E_TOTP_SECRET: ${{ secrets.SA_E2E_TOTP_SECRET }}
+          # The auth spec disables trace/screenshot/video itself, but the AI
+          # error-context snapshot is a separate on-failure sink that only this
+          # variable turns off. Without it a failed sign-in writes the filled
+          # fields to the runner.
+          PLAYWRIGHT_NO_COPY_PROMPT: '1'
+        run: pnpm --filter admin exec playwright test --project=chromium
+
+  # Skipped, cancelled and never-started all render as green without this.
+  admin-e2e-required:
+    name: Admin E2E Required
+    if: always()
+    needs: [changes, local, deployed]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail unless every leg actually ran and passed
+        env:
+          LOCAL: ${{ needs.local.result }}
+          DEPLOYED: ${{ needs.deployed.result }}
+          NEEDED: ${{ needs.changes.outputs.admin }}
+        run: |
+          echo "local=$LOCAL deployed=$DEPLOYED needed=$NEEDED"
+          # A skipped leg is only acceptable when the filter said the admin app
+          # was untouched. Skipped for any other reason is a stage that silently
+          # did not run, which is what this aggregate exists to catch.
+          if [ "$NEEDED" != "true" ]; then
+            echo "Admin E2E Required: no admin changes in this pull request, nothing to run"
+            exit 0
+          fi
+          case "$LOCAL" in failure|cancelled|skipped)
+            echo "Admin E2E Required: the local leg failed, was cancelled, or did not run"; exit 1 ;;
+          esac
+          # The deployed leg is deliberately absent on pull_request, where secrets
+          # are withheld. Anywhere else, absence is a failure.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            case "$DEPLOYED" in failure|cancelled|skipped)
+              echo "Admin E2E Required: the deployed leg failed, was cancelled, or did not run"; exit 1 ;;
+            esac
+          fi
+          echo "Admin E2E Required: passed"

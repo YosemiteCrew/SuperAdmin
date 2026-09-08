@@ -15,7 +15,8 @@
     "test:ci": "jest --ci",
     "test:coverage": "jest --coverage",
     "sonar": "node ./scripts/sonar.mjs",
-    "sonar:full": "pnpm test:coverage && pnpm sonar"
+    "sonar:full": "pnpm test:coverage && pnpm sonar",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@superadmin/database": "workspace:^",
@@ -29,7 +30,9 @@
     "supertokens-web-js": "^0.16.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.62.1",
     "@superadmin/types": "workspace:^",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
