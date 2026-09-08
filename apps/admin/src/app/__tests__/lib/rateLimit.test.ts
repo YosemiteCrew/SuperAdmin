@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 import { checkRateLimit, __resetForTest } from '@/app/lib/rateLimit';
 
 const WINDOW_MS = 60_000;
