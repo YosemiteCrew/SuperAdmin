@@ -353,6 +353,17 @@ test('an attribution trailer in an introduced commit message is blocked', () => 
   assert.match(result.stderr, /\[messages\] entry 3/);
 });
 
+test('an attribution trailer with whitespace before the colon is also blocked', () => {
+  const dir = surfaceDir({
+    messages: 'feat(admin): change copy\n\nCo-authored-by : Helper <helper@example.invalid>\n',
+  });
+  const result = run(['scan', '--dir', dir], {
+    FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC),
+  });
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /\[messages\] entry 3/);
+});
+
 test('an upstream attribution trailer quoted in the pull request body is allowed', () => {
   const dir = surfaceDir({
     body: 'Upstream changelog:\nCo-authored-by: Helper <helper@example.invalid>\n',

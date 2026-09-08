@@ -54,7 +54,7 @@ const CORPUS_ENV = 'FORBIDDEN_TERMS_CORPUS_B64';
 // Commit messages are collected from MERGE_BASE..gate-head. That keeps quoted
 // PR prose out, but a feature branch that merges upstream commits also imports
 // their trailers into the range; feature branches here do not use that shape.
-const ATTRIBUTION_TRAILER = /^co-authored-by:/i;
+const ATTRIBUTION_TRAILER = /^co-authored-by[ \t]*:/i;
 
 const ALLOWED_PROSE = path.join(import.meta.dirname, 'forbidden-terms-allowed-prose.txt');
 
@@ -554,7 +554,7 @@ function runScan(argv) {
 
   if (findings.length === 0) {
     process.stdout.write(
-      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product or attribution trailer found.\n`
+      `forbidden-terms: clean - ${SURFACES.size} surfaces read, no named external product found and no attribution trailer found in messages.\n`
     );
     return 0;
   }
