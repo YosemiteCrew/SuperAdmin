@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { IoOpenOutline, IoTrashOutline } from 'react-icons/io5';
 
 import { deleteUserAction } from './actions';
 
@@ -49,9 +50,9 @@ export function UserRowActions({ userId, email }: Readonly<{ userId: string; ema
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Actions for ${email}`}
-        className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-ink-2 transition-colors hover:bg-raised hover:text-ink"
+        className="flex h-[30px] w-[30px] items-center justify-center rounded-full border border-[color:var(--hairline)] text-[color:var(--ink-faint)] transition-colors hover:bg-[var(--inset)] hover:text-[color:var(--ink)]"
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="5" cy="12" r="1.6" />
           <circle cx="12" cy="12" r="1.6" />
           <circle cx="19" cy="12" r="1.6" />
@@ -61,14 +62,18 @@ export function UserRowActions({ userId, email }: Readonly<{ userId: string; ema
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+6px)] z-30 w-44 overflow-hidden rounded-xl border border-line bg-surface shadow-[0_8px_22px_rgba(29,28,27,0.12)]"
+          className="absolute right-0 top-[calc(100%+6px)] z-30 w-[190px] overflow-hidden rounded-[14px] border border-[color:var(--hairline)] bg-[var(--screen)] p-[6px] shadow-[0_4px_10px_var(--sh06),0_22px_50px_var(--sh12)]"
         >
           <Link
             href={`/users/${userId}`}
             role="menuitem"
             onClick={() => setOpen(false)}
-            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-raised"
+            className="flex w-full items-center gap-[9px] rounded-[9px] px-[11px] py-[9px] text-left text-[13px] font-medium text-[color:var(--ink)] hover:bg-[var(--surface-soft)]"
           >
+            <IoOpenOutline
+              aria-hidden="true"
+              className="text-[14px] text-[color:var(--ink-faint)]"
+            />
             View details
           </Link>
           <form action={deleteUserAction} onSubmit={handleDeleteSubmit}>
@@ -77,8 +82,9 @@ export function UserRowActions({ userId, email }: Readonly<{ userId: string; ema
               type="submit"
               role="menuitem"
               disabled={pending}
-              className="flex w-full items-center gap-2 border-t border-line px-3 py-2 text-left text-sm text-danger-600 hover:bg-raised disabled:opacity-60"
+              className="flex w-full items-center gap-[9px] rounded-[9px] px-[11px] py-[9px] text-left text-[13px] font-medium text-[color:var(--danger-text)] hover:bg-[var(--danger-bg-faint)] disabled:opacity-60"
             >
+              <IoTrashOutline aria-hidden="true" className="text-[14px]" />
               {pending ? 'Deleting…' : 'Delete'}
             </button>
           </form>

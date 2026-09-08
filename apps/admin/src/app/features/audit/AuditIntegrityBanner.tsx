@@ -2,16 +2,18 @@ import type { AuditChainStatus } from './types';
 
 type Tone = 'ok' | 'partial' | 'broken';
 
+// An intact chain is a good status, so it takes the green badge palette; the
+// dot keeps bare --success, matching the live dots elsewhere.
 const TONE_CLASS: Record<Tone, string> = {
-  ok: 'border-success-600/30 bg-success-100 text-success-700',
-  partial: 'border-warning-600/30 bg-warning-100 text-warning-800',
-  broken: 'border-danger-600/30 bg-danger-100 text-danger-600',
+  ok: 'border-[var(--success)]/40 bg-[var(--avatar-green-bg)] text-[color:var(--avatar-green-ink)]',
+  partial: 'border-[var(--warn-border)] bg-[var(--warn-bg)] text-[color:var(--warn-text)]',
+  broken: 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)]',
 };
 
 const TONE_DOT: Record<Tone, string> = {
-  ok: 'bg-success-600',
-  partial: 'bg-warning-600',
-  broken: 'bg-danger-600',
+  ok: 'bg-[var(--success)]',
+  partial: 'bg-[var(--warn)]',
+  broken: 'bg-[var(--danger)]',
 };
 
 /** Why the hash walk failed, phrased to complete "The hash chain broke...: ". */

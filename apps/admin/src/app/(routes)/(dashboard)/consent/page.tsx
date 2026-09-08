@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { IoArrowForward, IoSearchOutline } from 'react-icons/io5';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { listConsentSubjects, type CategoryState } from '@/app/features/consent/store';
@@ -7,10 +8,26 @@ import type { ConsentCategory } from '@/app/features/consent/types';
 
 export const metadata: Metadata = { title: 'Consent' };
 
+const CARD =
+  'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+const TH =
+  'px-[18px] py-3 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
+const TD = 'px-[18px] py-3 text-[13.5px] text-[color:var(--ink-muted)]';
+const BADGE =
+  'inline-flex rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em]';
+const FOOTER_NOTE =
+  'border-t border-[var(--hairline)] px-5 py-3 text-[12px] text-[color:var(--ink-faint)]';
+
+/**
+ * Warm-bone tokens per consent state, mirroring VERIFICATION_META: granted reads
+ * as success, withdrawn as danger, unset as a neutral inset pill. All resolve
+ * through theme-aware CSS variables, so the badges follow light and dark.
+ */
 const STATE_STYLE: Record<CategoryState, string> = {
-  granted: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  withdrawn: 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400',
-  unset: 'bg-ink-3/10 text-ink-3',
+  granted:
+    'border-[var(--avatar-green-ink)]/30 bg-[var(--avatar-green-bg)] text-[color:var(--avatar-green-ink)]',
+  withdrawn: 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)]',
+  unset: 'border-[var(--hairline)] bg-[var(--inset)] text-[color:var(--ink-faint)]',
 };
 
 const STATE_LABEL: Record<CategoryState, string> = {
@@ -53,79 +70,98 @@ export default async function ConsentPage({
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-medium tracking-tight text-ink">Consent</h1>
-        <p className="text-sm text-ink-3">
+    <div className="flex flex-col gap-[22px]">
+      <header className="flex flex-col gap-[3px]">
+        <h1 className="font-[family-name:var(--font-serif-display)] text-[28px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]">
+          Consent
+        </h1>
+        <p className="text-[13.5px] text-[color:var(--ink-muted)]">
           The GDPR consent ledger. Every analytics and marketing decision from the web and mobile
           apps is recorded here; open a subject for the full, append-only audit trail.
         </p>
       </header>
 
-      <form action="/consent" method="get" className="flex w-full max-w-xl items-center gap-2">
-        <input
-          type="search"
-          name="search"
-          defaultValue={trimmed}
-          placeholder="Search by email or consent id"
-          aria-label="Search consent subjects"
-          className="h-11 w-full rounded-xl border border-line bg-surface px-4 text-sm text-ink outline-none focus:border-btn"
-        />
+      <form action="/consent" method="get" className="flex items-center gap-[10px]">
+        <div className="relative w-[380px] max-w-full">
+          <IoSearchOutline
+            aria-hidden
+            className="pointer-events-none absolute left-[13px] top-1/2 -translate-y-1/2 text-[15px] text-[color:var(--ink-faint)]"
+          />
+          <input
+            type="search"
+            name="search"
+            defaultValue={trimmed}
+            placeholder="Search by email or consent id"
+            aria-label="Search consent subjects"
+            className="h-10 w-full rounded-[12px] border border-[color:var(--hairline)] bg-[var(--field-bg)] pl-[38px] pr-4 text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]"
+          />
+        </div>
         <button
           type="submit"
-          className="h-11 min-w-[6rem] rounded-xl border border-btn bg-btn px-5 text-sm font-medium text-btn-ink"
+          className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13.5px] font-semibold text-[color:var(--btn-ink)]"
         >
-          Search
+          <span>Search</span>
         </button>
       </form>
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <section className={CARD}>
         {subjects.length === 0 ? (
-          <p className="p-5 text-sm text-ink-3">
+          <p className="p-10 text-center text-[13.5px] text-[color:var(--ink-muted)]">
             {trimmed ? `No consent records matched “${trimmed}”.` : 'No consent recorded yet.'}
           </p>
         ) : (
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-2">
-                <th className="px-5 py-3">Subject</th>
+              <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
+                <th className={TH}>Subject</th>
                 {CATEGORIES.map((c) => (
-                  <th key={c.key} className="px-5 py-3">
+                  <th key={c.key} className={TH}>
                     {c.label}
                   </th>
                 ))}
-                <th className="px-5 py-3">Updated</th>
-                <th className="px-5 py-3 text-right">Audit trail</th>
+                <th className={TH}>Updated</th>
+                <th className={`${TH} text-right`}>Audit trail</th>
               </tr>
             </thead>
             <tbody>
               {subjects.map((s) => (
-                <tr key={s.id} className="border-b border-line last:border-b-0">
-                  <td className="px-5 py-3">
-                    <span className="font-medium text-ink">{s.email ?? truncate(s.consentId)}</span>
-                    {s.email ? (
-                      <span className="ml-2 font-mono text-xs text-ink-3">
-                        {truncate(s.consentId, 12)}
+                <tr
+                  key={s.id}
+                  className="border-b border-[color:var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
+                >
+                  <td className="px-[18px] py-3">
+                    <span className="flex min-w-0 items-baseline gap-[9px]">
+                      <span
+                        className={`truncate text-[13.5px] font-semibold ${
+                          s.email ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink-faint)]'
+                        }`}
+                      >
+                        {s.email ?? truncate(s.consentId)}
                       </span>
-                    ) : null}
+                      <span className="flex-none font-mono text-[10.5px] text-[color:var(--ink-faint)]">
+                        {s.email ? truncate(s.consentId, 12) : 'anonymous'}
+                      </span>
+                    </span>
                   </td>
                   {CATEGORIES.map((c) => (
-                    <td key={c.key} className="px-5 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATE_STYLE[s.state[c.key]]}`}
-                      >
+                    <td key={c.key} className="px-[18px] py-3">
+                      <span className={`${BADGE} ${STATE_STYLE[s.state[c.key]]}`}>
                         {STATE_LABEL[s.state[c.key]]}
                       </span>
                     </td>
                   ))}
-                  <td className="px-5 py-3 text-ink-2">
+                  <td className={TD}>
                     <time dateTime={s.updatedAt.toISOString()}>
                       {formatDate(s.updatedAt.getTime())}
                     </time>
                   </td>
-                  <td className="px-5 py-3 text-right">
-                    <Link href={`/consent/${s.id}`} className="text-sm text-ink hover:underline">
-                      History →
+                  <td className="px-[18px] py-3 text-right">
+                    <Link
+                      href={`/consent/${s.id}`}
+                      className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--blue-text)] hover:underline"
+                    >
+                      History
+                      <IoArrowForward aria-hidden className="text-[11px]" />
                     </Link>
                   </td>
                 </tr>
@@ -133,13 +169,20 @@ export default async function ConsentPage({
             </tbody>
           </table>
         )}
+        <p className={FOOTER_NOTE}>
+          Events are never edited or deleted. An anonymous subject is linked to an account the first
+          time it authenticates, and never re-pointed.
+        </p>
       </section>
 
-      <nav className="flex items-center justify-end text-sm" aria-label="Pagination">
+      <nav
+        className="flex items-center justify-end text-[12.5px] text-[color:var(--ink-muted)]"
+        aria-label="Pagination"
+      >
         {nextCursor ? (
           <Link
             href={`/consent?${trimmed ? `search=${encodeURIComponent(trimmed)}&` : ''}cursor=${nextCursor}`}
-            className="rounded-lg border border-btn bg-btn px-3 py-1.5 text-btn-ink hover:opacity-90"
+            className="inline-flex h-8 items-center rounded-full bg-[var(--btn)] px-[14px] font-semibold text-[color:var(--btn-ink)] transition-opacity hover:opacity-90"
           >
             Next →
           </Link>
