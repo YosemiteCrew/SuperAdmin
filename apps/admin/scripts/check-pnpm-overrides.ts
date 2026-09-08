@@ -56,7 +56,8 @@ function copyManifestTree(root: string, target: string): void {
   }
 }
 
-export function main(root = ROOT): number {
+function main(): number {
+  const root = ROOT;
   const packageFile = path.join(root, PACKAGE_JSON);
   const lockFile = path.join(root, LOCKFILE);
   const manifest = JSON.parse(readFileSync(packageFile, 'utf8')) as Manifest;
