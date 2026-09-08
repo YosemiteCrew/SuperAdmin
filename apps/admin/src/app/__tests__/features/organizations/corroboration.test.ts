@@ -296,12 +296,20 @@ describe('CORROBORATION_META', () => {
 });
 
 describe('createPinnedFetch', () => {
+  const servers = new Set<Server>();
+
+  afterEach(() => {
+    for (const server of servers) server.close();
+    servers.clear();
+  });
+
   function listen(
     handler: Parameters<typeof createServer>[1],
     port = 0
   ): Promise<{ server: Server; port: number }> {
     return new Promise((resolve, reject) => {
       const server = createServer(handler);
+      servers.add(server);
       server.once('error', reject);
       // Bind all interfaces so both `127.0.0.1` and `localhost` reach it.
       server.listen(port, () => {
