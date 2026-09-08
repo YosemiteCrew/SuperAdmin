@@ -91,7 +91,7 @@ export function classifyReadiness(body, expectedSha) {
     };
   }
 
-  const unconfigured = (['contact', 'consent']).filter(
+  const unconfigured = ['contact', 'consent'].filter(
     (k) => intake[k] !== 'configured'
   );
   if (unconfigured.length === 0) {
