@@ -1,3 +1,7 @@
+import { NextResponse, type NextRequest } from 'next/server';
+
+import { clientIp } from '@/app/lib/clientIp';
+
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 20;
 
@@ -29,6 +33,15 @@ export function checkRateLimit(ip: string): {
     remaining,
     resetMs: entry.windowStart + WINDOW_MS,
   };
+}
+
+export function rateLimitResponse(request: NextRequest, bucket: string): NextResponse | null {
+  const { allowed, resetMs } = checkRateLimit(`${bucket}:${clientIp(request)}`);
+  if (allowed) return null;
+  return NextResponse.json(
+    { error: 'Too many requests' },
+    { status: 429, headers: { 'Retry-After': String(Math.ceil((resetMs - Date.now()) / 1000)) } }
+  );
 }
 
 /** Reset the in-process store. Only call this in tests. */

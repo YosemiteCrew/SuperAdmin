@@ -296,13 +296,23 @@ describe('CORROBORATION_META', () => {
 });
 
 describe('createPinnedFetch', () => {
+  const servers = new Set<Server>();
+
+  afterEach(() => {
+    for (const server of servers) server.close();
+    servers.clear();
+  });
+
   function listen(
-    handler: Parameters<typeof createServer>[1]
+    handler: Parameters<typeof createServer>[1],
+    port = 0
   ): Promise<{ server: Server; port: number }> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const server = createServer(handler);
+      servers.add(server);
+      server.once('error', reject);
       // Bind all interfaces so both `127.0.0.1` and `localhost` reach it.
-      server.listen(0, () => {
+      server.listen(port, () => {
         resolve({ server, port: (server.address() as AddressInfo).port });
       });
     });
@@ -310,6 +320,17 @@ describe('createPinnedFetch', () => {
 
   // `() => false` makes the pin permit loopback so a local server is reachable.
   const allowLoopback = createPinnedFetch(() => false);
+
+  it('rejects with the underlying error when its port is already in use', async () => {
+    const { server, port } = await listen((_req, res) => res.end());
+    try {
+      await expect(listen((_req, res) => res.end(), port)).rejects.toMatchObject({
+        code: 'EADDRINUSE',
+      });
+    } finally {
+      server.close();
+    }
+  }, 1000);
 
   it('resolves a hostname, pins the connection, and reads the body (URL input)', async () => {
     const { server, port } = await listen((_req, res) => {

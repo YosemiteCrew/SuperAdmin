@@ -2,6 +2,24 @@
 
 import { useActionState, useState } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
+
+/**
+ * The columns this table actually renders.
+ *
+ * Deliberately narrower than `APLicenseToken`: the row carries `token`, the
+ * complete signed license JWT, and this is a client component - anything in
+ * this type crosses to the browser. Keeping the prop a `Pick` makes the page's
+ * `select` and this component's needs one fact rather than two, so adding a
+ * column here fails to type-check until the query is widened on purpose.
+ *
+ * It does not work in the other direction: deleting the page's `select`
+ * entirely still compiles, because the full row is structurally assignable to
+ * this type. The test is what catches that. See the note on the query.
+ */
+export type LicenseTokenRow = Pick<
+  APLicenseToken,
+  'id' | 'orgId' | 'instanceDomain' | 'tier' | 'issuedAt' | 'expiresAt' | 'revokedAt'
+>;
 import { issueLicenseTokenAction, revokeLicenseTokenAction } from './actions';
 import type { IssueResult } from './actions';
 
@@ -24,7 +42,7 @@ const FIELD =
 const GREEN_BORDER = 'border-[var(--success)]/40';
 const GREEN = `${GREEN_BORDER} bg-[var(--avatar-green-bg)] text-[color:var(--avatar-green-ink)]`;
 
-function getStatus(token: APLicenseToken): TokenStatus {
+function getStatus(token: LicenseTokenRow): TokenStatus {
   if (token.revokedAt) return 'revoked';
   if (token.expiresAt < new Date()) return 'expired';
   return 'active';
@@ -220,7 +238,7 @@ function IssueForm() {
   );
 }
 
-function TokenRow({ token }: { readonly token: APLicenseToken }) {
+function TokenRow({ token }: { readonly token: LicenseTokenRow }) {
   const status = getStatus(token);
   return (
     <tr className="border-b border-[var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]">
@@ -245,7 +263,7 @@ function TokenRow({ token }: { readonly token: APLicenseToken }) {
   );
 }
 
-export function InstancesTable({ tokens }: { readonly tokens: APLicenseToken[] }) {
+export function InstancesTable({ tokens }: { readonly tokens: LicenseTokenRow[] }) {
   return (
     <div className="flex flex-col gap-4">
       <IssueForm />

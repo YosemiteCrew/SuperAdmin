@@ -12,14 +12,16 @@
     "generate": "prisma generate",
     "migrate:dev": "node scripts/assert-schema.js && prisma migrate dev",
     "migrate:deploy": "node scripts/assert-schema.js && prisma migrate deploy",
+    "assert-rls": "prisma db execute --file scripts/assert-rls.sql --schema prisma/schema.prisma",
     "studio": "prisma studio",
+    "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern 'src/generated/**'",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.0.0"
   },
   "devDependencies": {
-    "dotenv": "^16.6.1",
+    "dotenv": "^17.4.2",
     "prisma": "^6.0.0",
     "typescript": "^5"
   }

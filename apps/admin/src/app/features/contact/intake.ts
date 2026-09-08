@@ -2,6 +2,8 @@ import 'server-only';
 
 import { prisma } from '@superadmin/database';
 
+import { isValidEmail } from '@/app/features/settings/email';
+
 export interface ContactSubmission {
   email: string;
   name?: string;
@@ -40,15 +42,6 @@ function subjectFromType(value: unknown): string | undefined {
   return typeof value === 'string' ? TYPE_SUBJECTS.get(value) : undefined;
 }
 
-/** Regex-free email sanity check (avoids ReDoS); Plunk/verification is the real gate. */
-function looksLikeEmail(value: string): boolean {
-  const at = value.indexOf('@');
-  if (at < 1) return false;
-  const domain = value.slice(at + 1);
-  const dot = domain.lastIndexOf('.');
-  return dot > 0 && dot < domain.length - 1 && !value.includes(' ');
-}
-
 function optionalString(value: unknown, max: number): string | undefined {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
@@ -70,7 +63,7 @@ export function parseSubmission(body: Record<string, unknown>): ContactSubmissio
   const rawEmail = body.email;
   if (typeof rawEmail !== 'string') return null;
   const email = rawEmail.trim().toLowerCase();
-  if (email.length === 0 || email.length > LIMITS.email || !looksLikeEmail(email)) return null;
+  if (!isValidEmail(email)) return null;
 
   const rawMessage = body.message;
   if (typeof rawMessage !== 'string') return null;
@@ -105,6 +98,21 @@ export function isHoneypotTripped(body: Record<string, unknown>): boolean {
  * this form records when/where it happened; unsubscribing is owned by Plunk.
  */
 export async function recordContactSubmission(input: ContactSubmission): Promise<void> {
+  const { email, name, company, phone } = input;
+  if (
+    typeof email !== 'string' ||
+    !isValidEmail(email) ||
+    (name !== undefined && typeof name !== 'string') ||
+    (company !== undefined && typeof company !== 'string') ||
+    (phone !== undefined && typeof phone !== 'string')
+  ) {
+    throw new TypeError('Contact submission contains invalid identity fields.');
+  }
+  const safeEmail = String(email);
+  const safeName = name === undefined ? undefined : String(name);
+  const safeCompany = company === undefined ? undefined : String(company);
+  const safePhone = phone === undefined ? undefined : String(phone);
+
   const consentPatch = input.newsletterConsent
     ? {
         newsletterConsent: true,
@@ -120,12 +128,12 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
   };
 
   await prisma.contactLead.upsert({
-    where: { email: input.email },
+    where: { email: safeEmail },
     create: {
-      email: input.email,
-      name: input.name ?? null,
-      company: input.company ?? null,
-      phone: input.phone ?? null,
+      email: safeEmail,
+      name: safeName ?? null,
+      company: safeCompany ?? null,
+      phone: safePhone ?? null,
       newsletterConsent: input.newsletterConsent,
       consentAt: input.newsletterConsent ? new Date() : null,
       consentSource: input.newsletterConsent ? (input.sourceUrl ?? 'contact-us') : null,
@@ -141,7 +149,7 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
   // Backfill name/company/phone only when we don't already have them. Filtering
   // on the null column keeps this atomic — no read-modify-write race.
   //
-  // `email: { equals }` rather than a bare `email: input.email`: updateMany's
+  // `email: { equals }` rather than a bare email value: updateMany's
   // where accepts FILTERS, so a value that turned out to be an object at runtime
   // would be read as one — `{ not: 'x' }` would stop identifying this lead and
   // start matching every other one, backfilling onto strangers' rows. `equals`
@@ -149,22 +157,22 @@ export async function recordContactSubmission(input: ContactSubmission): Promise
   // already rejects a non-string email and is the only path here today, but that
   // makes this function's safety a property of its caller; this makes it a
   // property of the query.
-  if (input.name) {
+  if (safeName) {
     await prisma.contactLead.updateMany({
-      where: { email: { equals: input.email }, name: null },
-      data: { name: input.name },
+      where: { email: { equals: safeEmail }, name: null },
+      data: { name: safeName },
     });
   }
-  if (input.company) {
+  if (safeCompany) {
     await prisma.contactLead.updateMany({
-      where: { email: { equals: input.email }, company: null },
-      data: { company: input.company },
+      where: { email: { equals: safeEmail }, company: null },
+      data: { company: safeCompany },
     });
   }
-  if (input.phone) {
+  if (safePhone) {
     await prisma.contactLead.updateMany({
-      where: { email: { equals: input.email }, phone: null },
-      data: { phone: input.phone },
+      where: { email: { equals: safeEmail }, phone: null },
+      data: { phone: safePhone },
     });
   }
 }

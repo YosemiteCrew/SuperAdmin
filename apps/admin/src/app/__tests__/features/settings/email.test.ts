@@ -18,6 +18,9 @@ describe('isValidEmail', () => {
     ['a@bcd', 'domain without a dot'],
     ['a@b.', 'trailing dot in domain'],
     ['a b@c.com', 'contains a space'],
+    ['a\tb@c.com', 'contains a tab'],
+    ['a\nb@c.com', 'contains a newline'],
+    ['a\u00a0b@c.com', 'contains a non-breaking space'],
   ])('rejects %s (%s)', (email) => {
     expect(isValidEmail(email)).toBe(false);
   });

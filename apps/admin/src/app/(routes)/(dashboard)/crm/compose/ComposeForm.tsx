@@ -100,7 +100,7 @@ export function ComposeForm() {
             disabled={pending}
             className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-[22px] text-[13.5px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-50"
           >
-            <span>{pending ? 'Sending…' : 'Send campaign'}</span>
+            {pending ? 'Sending…' : 'Send campaign'}
           </button>
         </div>
       </form>

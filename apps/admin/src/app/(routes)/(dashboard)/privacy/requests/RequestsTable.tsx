@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
 import {
@@ -233,7 +234,9 @@ export function RequestsTable({
                     className="border-b border-[color:var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
                   >
                     <td className="px-[18px] py-3 text-[13.5px] font-semibold text-[color:var(--ink)]">
-                      {request.subjectEmail}
+                      <Link href={`/privacy/requests/${request.id}`} className="hover:underline">
+                        {request.subjectEmail}
+                      </Link>
                     </td>
                     <td className={TD}>{TYPE_LABELS[request.type] ?? request.type}</td>
                     <td className={TD}>{request.receivedAt.toLocaleDateString()}</td>

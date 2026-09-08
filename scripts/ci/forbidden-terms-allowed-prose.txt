@@ -1,0 +1,98 @@
+# Must-pass corpus for the forbidden-terms gate.
+#
+#
+# Lines are drawn from LOW-CHURN files on purpose. Every line here is asserted
+# to exist verbatim in a tracked file, so a line whose only source is later
+# reworded turns that assertion red on an unrelated pull request, with nothing
+# connecting the failure to the change that caused it. Preferring stable files
+# does not remove that coupling - it moves it away from the files this
+# repository edits most. Prose appearing in two tracked files would be better
+# still; this repository has almost none, so that is not available here.
+
+# apps/admin/src/app/api/social/instagram/callback/route.ts
+NOT request.url: on the Amplify SSR runtime that is the internal origin
+
+# .github/workflows/forbidden-terms.yml
+nothing from the head - and CodeQL was right that a convention is not a
+
+# AGENTS.md
+Use `pnpm`. Always scope with `--filter`. Never run bare `pnpm install` in an app directory — run from root.
+`turbo run <task> --filter=admin` for scoped tasks.
+
+# SECURITY.md
+Please do **not** open a public GitHub issue for security vulnerabilities.
+
+# apps/admin/scripts/clean-dev-cache.mjs
+Removes only the cache slices that can poison Turbopack's incremental graph.
+
+# apps/admin/src/app/__tests__/invites/InviteForm.test.tsx
+`<form action={...}>`, and React resets such a form once the action settles.
+
+# apps/admin/src/app/__tests__/lib/clientIp.test.ts
+The bypass this exists to close. CloudFront appends the viewer address to
+
+# apps/admin/src/app/lib/clientIp.ts
+what is already in it when the request arrives. CloudFront - which fronts this
+
+# apps/admin/AGENTS.md
+State is local React (`useState` / Server Components / URL params). No client state library.
+
+# apps/admin/src/app/(routes)/(dashboard)/health/page.tsx
+function Card({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
+function Row({ label, value }: { readonly label: string; readonly value: React.ReactNode }) {
+
+# apps/admin/src/app/__tests__/api/socialGuard.test.ts
+The Amplify SSR runtime hands the handler an INTERNAL url
+
+# apps/admin/src/app/__tests__/buildSha.test.ts
+What a manually started Amplify job actually supplies. This is the case
+
+# apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts
+Table names declared by the Prisma schema, honouring `@@map`.
+it('reads the models declared in the Prisma schema', () => {
+
+# apps/admin/src/app/__tests__/features/dataRequests/subjectData.test.ts
+Prisma `where`. An object arriving here would be read as query operators
+would reach Prisma as query operators. Nothing but an explicit type check
+
+# apps/admin/src/app/__tests__/organizations/OrgMembers.test.tsx
+so this is two legitimate rows. Keying by userId alone makes React drop
+
+# apps/admin/src/app/config/index.ts
+Next inlines those at build time, and a dynamic lookup would compile to
+
+# apps/admin/src/app/features/dataRequests/subjectData.ts
+and everything downstream of this puts the result straight into a Prisma
+
+# apps/admin/src/app/features/social/guard.ts
+Compare against the PUBLIC origin, never request.nextUrl. On the Amplify
+
+# CLAUDE.md
+Tooling: `pnpm` workspaces + `turbo`. Always use `--filter` to scope commands.
+Local Sonar Parity — MANDATORY (do this BEFORE suggesting a commit/push)
+
+# README.md
+pnpm type-check     # TypeScript check all packages
+pnpm test           # Run tests (use --filter for scoped runs)
+pnpm verify         # Full pre-merge gate: lint + type-check + test + build
+
+# apps/admin/src/app/__tests__/consent/intake.test.ts
+consentId reaches Prisma as a `where` value in recordConsent, including an
+
+# apps/admin/src/app/__tests__/consent/store.test.ts
+The injected object is nested under `equals`, so Prisma compares against it
+
+# apps/admin/src/app/__tests__/proxy.test.ts
+script-src must not carry unsafe-inline (style-src retaining it for Tailwind is fine)
+
+# apps/admin/src/app/auth/layout.tsx
+export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+
+# apps/admin/src/app/config/env.public.ts
+Each NEXT_PUBLIC_* must be read by direct property access so Next.js can
+
+# apps/admin/src/app/features/social/instagramPublisher.ts
+response timeout (~30s on Amplify): a longer wait returns a 504 to the caller
+
+# apps/admin/src/app/ui/tables/GenericTable/index.tsx
+render?: (value: T[keyof T], row: T) => React.ReactNode;

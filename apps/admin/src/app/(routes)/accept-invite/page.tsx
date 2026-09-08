@@ -99,7 +99,8 @@ export default async function AcceptInvitePage({
         <AcceptButton token={token} />
       </div>
       <p className="mt-4 text-center text-[12px] text-[color:var(--ink-faint)]">
-        You are currently signed in. Accepting will grant super-admin privileges to your account.
+        Sign in with the invited email address. Accepting grants super-admin privileges to that
+        account.
       </p>
     </div>
   );

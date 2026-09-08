@@ -3,6 +3,7 @@ jest.mock('@superadmin/database', () => ({
     dataRequest: {
       create: jest.fn(),
       findMany: jest.fn(),
+      findUnique: jest.fn(),
       update: jest.fn(),
       count: jest.fn(),
     },
@@ -13,6 +14,7 @@ import { prisma } from '@superadmin/database';
 import {
   computeDueAt,
   createDataRequest,
+  getDataRequest,
   getDataRequestStats,
   listDataRequests,
   updateDataRequestStatus,
@@ -23,6 +25,9 @@ const mockCreate = prisma.dataRequest.create as jest.MockedFunction<
 >;
 const mockFindMany = prisma.dataRequest.findMany as jest.MockedFunction<
   typeof prisma.dataRequest.findMany
+>;
+const mockFindUnique = prisma.dataRequest.findUnique as jest.MockedFunction<
+  typeof prisma.dataRequest.findUnique
 >;
 const mockUpdate = prisma.dataRequest.update as jest.MockedFunction<
   typeof prisma.dataRequest.update
@@ -238,5 +243,20 @@ describe('getDataRequestStats', () => {
     expect(mockCount).toHaveBeenNthCalledWith(3, {
       where: { status: { in: ['received', 'in_progress'] }, dueAt: { lt: now } },
     });
+  });
+});
+
+describe('getDataRequest', () => {
+  it('looks the request up by its id', async () => {
+    mockFindUnique.mockResolvedValue({ id: 'dr_77' } as never);
+
+    await expect(getDataRequest('dr_77')).resolves.toEqual({ id: 'dr_77' });
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 'dr_77' } });
+  });
+
+  it('resolves null for an id that does not exist, rather than throwing', async () => {
+    mockFindUnique.mockResolvedValue(null as never);
+
+    await expect(getDataRequest('gone')).resolves.toBeNull();
   });
 });

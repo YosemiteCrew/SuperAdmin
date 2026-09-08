@@ -44,14 +44,27 @@ describe('logDataRequestAction', () => {
     ['missing @', 'not-an-email'],
     ['nothing before @', '@example.com'],
     ['nothing after @', 'person@'],
+    ['more than one @', 'owner@a@clinic.com'],
     ['no dot in domain', 'person@localhost'],
     ['trailing dot in domain', 'person@example.'],
     ['contains whitespace', 'person @example.com'],
+    ['contains non-space whitespace', 'person\t@example.com'],
   ])('rejects an invalid email (%s)', async (_label, email) => {
     const result = await logDataRequestAction(
       makeFormData({ subjectEmail: email, type: 'access' })
     );
     expect(result).toEqual({ ok: false, error: 'A valid subject email is required' });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  // Same reserved namespace as the public intakes, refused here by the `@` check.
+  // A request logged under `[erased]` would match every erased row at once.
+  it.each([
+    ['the bare marker', '[erased]'],
+    ['a tombstone', '[erased]:cm0abc123'],
+  ])('refuses to log a request for %s', async (_label, subjectEmail) => {
+    const result = await logDataRequestAction(makeFormData({ subjectEmail, type: 'access' }));
+    expect(result.ok).toBe(false);
     expect(mockCreate).not.toHaveBeenCalled();
   });
 

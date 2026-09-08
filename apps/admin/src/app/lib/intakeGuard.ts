@@ -3,6 +3,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { logger } from '@/app/lib/logger';
+import { clientIp } from '@/app/lib/clientIp';
 import { checkRateLimit } from '@/app/lib/rateLimit';
 
 /**
@@ -14,14 +15,6 @@ import { checkRateLimit } from '@/app/lib/rateLimit';
  * copies means a fix to one silently leaves the other behind, which is exactly
  * how one endpoint ends up hardened and its twin does not.
  */
-
-function clientIp(request: NextRequest): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    request.headers.get('x-real-ip') ??
-    'unknown'
-  );
-}
 
 /** Constant-time shared-secret check; length mismatch short-circuits safely. */
 function keyMatches(presented: string, expected: string): boolean {

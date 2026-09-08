@@ -9,6 +9,9 @@ jest.mock('@superadmin/database', () => ({
       upsert: jest.fn(),
       updateMany: jest.fn(),
     },
+    aPLicenseToken: {
+      findMany: jest.fn(),
+    },
   },
 }));
 
@@ -21,6 +24,7 @@ import { prisma } from '@superadmin/database';
 import { authenticateLicenseToken } from '@/app/features/ap/authenticate';
 import { GET } from '@/app/api/directory/route';
 import { PUT } from '@/app/api/directory/listing/route';
+import { __resetForTest } from '@/app/lib/rateLimit';
 
 const auth = authenticateLicenseToken as jest.MockedFunction<typeof authenticateLicenseToken>;
 const listing = prisma.aPDirectoryListing as unknown as {
@@ -29,6 +33,7 @@ const listing = prisma.aPDirectoryListing as unknown as {
   upsert: jest.Mock;
   updateMany: jest.Mock;
 };
+const licenses = prisma.aPLicenseToken as unknown as { findMany: jest.Mock };
 
 const CLAIMS = {
   iss: 'yosemitecrew.com',
@@ -43,9 +48,15 @@ const CLAIMS = {
   keyId: 'yc-ap-2026-01',
 } as const;
 
-function request(body?: unknown, authorization = 'Bearer t'): NextRequest {
+function request(body?: unknown, authorization = 'Bearer t', ip = '203.0.113.10'): NextRequest {
   return {
-    headers: { get: (name: string) => (name === 'authorization' ? authorization : null) },
+    headers: {
+      get: (name: string) => {
+        if (name === 'authorization') return authorization;
+        if (name === 'x-forwarded-for') return ip;
+        return null;
+      },
+    },
     json: async () => {
       if (body === undefined) throw new SyntaxError('no body');
       return body;
@@ -57,7 +68,9 @@ const allow = () => auth.mockResolvedValue({ ok: true, claims: { ...CLAIMS } } a
 
 beforeEach(() => {
   jest.clearAllMocks();
+  __resetForTest();
   allow();
+  licenses.findMany.mockResolvedValue([{ orgId: 'org_test' }]);
 });
 
 describe('GET /api/directory', () => {
@@ -83,7 +96,23 @@ describe('GET /api/directory', () => {
       ],
     });
     expect(listing.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { listed: true } })
+      expect.objectContaining({ where: { listed: true, orgId: { in: ['org_test'] } } })
+    );
+  });
+
+  it('only returns clinics with an unrevoked, unexpired license', async () => {
+    listing.findMany.mockResolvedValue([]);
+    licenses.findMany.mockResolvedValue([{ orgId: 'org_valid' }]);
+
+    await GET(request());
+
+    expect(licenses.findMany).toHaveBeenCalledWith({
+      where: { revokedAt: null, expiresAt: { gt: expect.any(Date) } },
+      select: { orgId: true },
+      distinct: ['orgId'],
+    });
+    expect(listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { listed: true, orgId: { in: ['org_valid'] } } })
     );
   });
 
@@ -108,6 +137,18 @@ describe('GET /api/directory', () => {
   it('propagates a 503 when signing is unconfigured', async () => {
     auth.mockResolvedValue({ ok: false, status: 503, error: 'AP signing not configured' } as never);
     expect((await GET(request())).status).toBe(503);
+  });
+
+  it('rate-limits reads per caller before authenticating again', async () => {
+    listing.findMany.mockResolvedValue([]);
+    for (let i = 0; i < 20; i++) expect((await GET(request())).status).toBe(200);
+
+    const res = await GET(request());
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBeTruthy();
+    expect((await GET(request(undefined, 'Bearer t', '203.0.113.11'))).status).toBe(200);
+    expect(auth).toHaveBeenCalledTimes(21);
   });
 });
 
@@ -144,6 +185,17 @@ describe('PUT /api/directory/listing', () => {
     const res = await PUT(request({ ...body, actorUri: 'https://attacker.example/ap/actor' }));
     expect(res.status).toBe(403);
     expect(listing.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a handle hosted somewhere other than the token domain', async () => {
+    const res = await PUT(request({ ...body, handle: '@example@attacker.example' }));
+    expect(res.status).toBe(403);
+    expect(listing.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects a malformed handle without a host', async () => {
+    const res = await PUT(request({ ...body, handle: '@example' }));
+    expect(res.status).toBe(403);
   });
 
   it('rejects an actorUri that only looks like the domain as a subdomain suffix', async () => {
@@ -226,5 +278,17 @@ describe('PUT /api/directory/listing', () => {
     expect(res.status).toBe(401);
     expect(listing.upsert).not.toHaveBeenCalled();
     expect(listing.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('rate-limits listing writes per caller before authenticating again', async () => {
+    listing.findUnique.mockResolvedValue(null);
+    for (let i = 0; i < 20; i++) expect((await PUT(request(body))).status).toBe(200);
+
+    const res = await PUT(request(body));
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBeTruthy();
+    expect((await PUT(request(body, 'Bearer t', '203.0.113.11'))).status).toBe(200);
+    expect(auth).toHaveBeenCalledTimes(21);
   });
 });

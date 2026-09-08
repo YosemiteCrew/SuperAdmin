@@ -49,6 +49,31 @@ describe('parseSubmission query-operator payloads', () => {
     expect(parseSubmission({ ...VALID, email })).toBeNull();
   });
 
+  // The erasure's reserved keys, refused here by the email shape check rather
+  // than by a dedicated guard. Pinned so a future loosening of `looksLikeEmail`
+  // cannot quietly let a lead be planted under an erased request's address.
+  it.each([
+    ['the bare marker', '[erased]'],
+    ['a tombstone', '[erased]:cm0abc123'],
+  ])('rejects %s as an email, since neither is address-shaped', (_label, email) => {
+    expect(parseSubmission({ ...VALID, email })).toBeNull();
+  });
+
+  // Found by a surviving mutation while pinning the two above: neither half of
+  // the `@` position check was covered, so `looksLikeEmail` could lose the `@`
+  // requirement altogether and every test stayed green.
+  it.each([
+    ['no @ at all', 'ownerclinic.com'],
+    ['an empty local part', '@clinic.com'],
+    ['a trailing @', 'owner@'],
+  ])('rejects an address with %s', (_label, email) => {
+    expect(parseSubmission({ ...VALID, email })).toBeNull();
+  });
+
+  it('rejects a second @, matching the privacy request form', () => {
+    expect(parseSubmission({ ...VALID, email: 'owner@a@clinic.com' })).toBeNull();
+  });
+
   it('rejects the whole submission when message is a query operator', () => {
     expect(parseSubmission({ ...VALID, message: { not: 'x' } })).toBeNull();
   });
@@ -169,6 +194,7 @@ describe('parseSubmission', () => {
     ['email without @', { email: 'nope' }],
     ['email without domain dot', { email: 'a@b' }],
     ['email with a space', { email: 'a b@c.com' }],
+    ['email with non-space whitespace', { email: 'a\tb@c.com' }],
     ['oversized email', { email: `${'a'.repeat(250)}@b.com` }],
     ['missing message', { message: undefined }],
     ['blank message', { message: '   ' }],
@@ -190,6 +216,22 @@ describe('isHoneypotTripped', () => {
 });
 
 describe('recordContactSubmission', () => {
+  it.each(['email', 'name', 'company', 'phone'] as const)(
+    'rejects an object passed directly as %s before querying',
+    async (field) => {
+      await expect(
+        recordContactSubmission({
+          email: 'a@b.com',
+          message: 'hi',
+          newsletterConsent: false,
+          [field]: { not: 'x' },
+        } as unknown as Parameters<typeof recordContactSubmission>[0])
+      ).rejects.toThrow('Contact submission contains invalid identity fields.');
+      expect(mockUpsert).not.toHaveBeenCalled();
+      expect(mockUpdateMany).not.toHaveBeenCalled();
+    }
+  );
+
   it('upserts the lead and appends a request, recording consent time', async () => {
     await recordContactSubmission({
       email: 'a@b.com',

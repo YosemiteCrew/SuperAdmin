@@ -17,6 +17,7 @@ import { Button } from '@/app/ui/components/Button';
 import styles from '../auth.module.css';
 
 const GENERIC_ERROR = 'Something went wrong. Please try again.';
+const DEFAULT_AUTH_DESTINATION = '/dashboard';
 
 function AuthCard({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -174,7 +175,7 @@ function PasswordField({
   );
 }
 
-function SignInForm() {
+function SignInForm({ returnTo = DEFAULT_AUTH_DESTINATION }: Readonly<{ returnTo?: string }>) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -193,7 +194,7 @@ function SignInForm() {
         ],
       });
       if (res.status === 'OK') {
-        router.push('/dashboard');
+        router.push(returnTo);
       } else if (res.status === 'WRONG_CREDENTIALS_ERROR') {
         setError('Incorrect email or password.');
       } else {
@@ -428,6 +429,24 @@ function stripTrailingSlashes(path: string): string {
   return path.slice(0, end);
 }
 
+function inviteReturnTo(value: string | null): string {
+  if (!value) return DEFAULT_AUTH_DESTINATION;
+  try {
+    const parsed = new URL(value, 'https://internal.invalid');
+    const inviteToken = parsed.searchParams.get('token');
+    if (
+      parsed.origin === 'https://internal.invalid' &&
+      parsed.pathname === '/accept-invite' &&
+      inviteToken
+    ) {
+      return `/accept-invite?token=${encodeURIComponent(inviteToken)}`;
+    }
+  } catch {
+    // Invalid or external return targets always fall through to the dashboard.
+  }
+  return DEFAULT_AUTH_DESTINATION;
+}
+
 function AuthContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -442,6 +461,7 @@ function AuthContent() {
   }
 
   const token = searchParams.get('token') ?? '';
+  const returnTo = inviteReturnTo(searchParams.get('returnTo'));
 
   // Public sign-up is disabled (see backend EmailPassword apis override), so
   // /auth/signup is no longer a screen — it falls through to the /auth redirect.
@@ -455,7 +475,7 @@ function AuthContent() {
   }
 
   if (screen === 'unknown') redirect('/auth');
-  if (screen === 'signin') return <SignInForm />;
+  if (screen === 'signin') return <SignInForm returnTo={returnTo} />;
   if (screen === 'forgot') return <ForgotPasswordForm />;
   return <ResetPasswordForm />;
 }
