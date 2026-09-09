@@ -196,8 +196,8 @@ export async function recordAuditEvent(params: RecordAuditEventParams): Promise<
  * erasure uses a failure here to refuse the delete rather than run one with
  * no record of who did it or when.
  */
-export async function recordAuditEventStrict(params: RecordAuditEventParams): Promise<void> {
-  await writeAuditEvent(params);
+export function recordAuditEventStrict(params: RecordAuditEventParams): Promise<void> {
+  return writeAuditEvent(params);
 }
 
 export async function verifyAuditChain(): Promise<AuditChainStatus> {
