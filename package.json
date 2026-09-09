@@ -46,7 +46,8 @@
       "fast-uri@>=3.0.0 <3.1.5": ">=3.1.5 <4",
       "deepmerge-ts@<8.0.0": ">=8.0.0 <9",
       "adm-zip@<0.6.0": ">=0.6.0 <0.7",
-      "qs@<6.16.0": ">=6.16.0 <7"
+      "qs@<6.16.0": ">=6.16.0 <7",
+      "mysql2@<3.22.0": ">=3.22.0 <4"
     }
   },
   "overrideReasons": {
@@ -72,7 +73,8 @@
     "fast-uri@>=3.0.0 <3.1.5": "Security floor added in 78b1752.",
     "deepmerge-ts@<8.0.0": "Security floor added in 6fe3907.",
     "adm-zip@<0.6.0": "GHSA-xcpc-8h2w-3j85 remediation added in 698d6d9; GHSA-vwc7-r8mq-g2x9 has no patched release as of 2026-09-09.",
-    "qs@<6.16.0": "Security floor added in 698d6d9."
+    "qs@<6.16.0": "Security floor added in 698d6d9.",
+    "mysql2@<3.22.0": "GHSA-3f6p-5ww8-9rcr remediation (dependency-review blocked PR #380): @prisma/dev - Prisma 7's local dev-database CLI, pulled in by the Prisma 7 migration - bundles a MySQL driver alongside its Postgres one even though this repo only ever connects via @prisma/adapter-pg. The vulnerable auth downgrade path is unreachable here, but the package still ships in the tree at the pinned version, which is what dependency-review checks."
   },
   "overrideResolutionEffects": {
     "axios@>=1.0.0 <1.16.0": false,
@@ -97,7 +99,8 @@
     "fast-uri@>=3.0.0 <3.1.5": false,
     "deepmerge-ts@<8.0.0": true,
     "adm-zip@<0.6.0": false,
-    "qs@<6.16.0": false
+    "qs@<6.16.0": false,
+    "mysql2@<3.22.0": true
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",

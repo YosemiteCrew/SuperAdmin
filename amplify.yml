@@ -150,35 +150,6 @@ applications:
                 echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
               fi
             - (cd ../.. && pnpm run build --filter admin)
-            # Copy the Prisma query engine into the deployed artifact.
-            #
-            # .next IS the artifact (see baseDirectory below), so anything put
-            # here ships. The engine cannot get there on its own: Prisma writes
-            # it beside the generated client in packages/, outputFileTracingIncludes
-            # only records it in a manifest, and Amplify does not follow trace
-            # entries that escape the app directory. packages/database/src/client.ts
-            # resolves it back out of .next/prisma at runtime.
-            - |
-              ENGINE=libquery_engine-rhel-openssl-3.0.x.so.node
-              SRC=../../packages/database/src/generated/client/$ENGINE
-              mkdir -p .next/prisma
-              if [ ! -f "$SRC" ]; then
-                echo "FAIL: $ENGINE was not generated at $SRC"
-                echo "      (is binaryTargets still set in schema.prisma?)"
-                ls -la ../../packages/database/src/generated/client/ || true
-                exit 1
-              fi
-              cp "$SRC" .next/prisma/
-              echo "copied $ENGINE -> .next/prisma/ ($(du -h .next/prisma/$ENGINE | cut -f1))"
-              # Assert rather than trust. Every layer of this failure is silent:
-              # the build goes green, the deploy succeeds, and only a query in
-              # production reveals PrismaClientInitializationError.
-              if [ -f ".next/prisma/$ENGINE" ]; then
-                echo "OK: engine is in the artifact"
-              else
-                echo "FAIL: engine missing from .next/prisma after copy"
-                exit 1
-              fi
       artifacts:
         baseDirectory: .next
         files:

@@ -1,5 +1,12 @@
 import '@testing-library/jest-dom';
 import { configureAxe } from 'jest-axe';
+import { TextEncoder } from 'node:util';
+
+// jsdom omits TextEncoder, while Prisma 7's PostgreSQL adapter loads pg's SASL
+// helpers even when a test never opens a database connection.
+if (typeof globalThis.TextEncoder === 'undefined') {
+  Object.defineProperty(globalThis, 'TextEncoder', { value: TextEncoder });
+}
 
 configureAxe({
   rules: {

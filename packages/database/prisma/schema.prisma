@@ -11,16 +11,11 @@ generator client {
   // absent from the Amplify compute bundle - and the whole server chunk then
   // fails to load, taking EVERY route handler down, not just Prisma ones.
   //
-  // binaryTargets pins the engines built at generate time. "native" covers
-  // local development; the rhel target covers the Amazon Linux that both the
-  // Amplify build container and its SSR compute run on.
-  output        = "../src/generated/client"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  output = "../src/generated/client"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // Adding a model here is two steps, not one. Every table the panel owns must
