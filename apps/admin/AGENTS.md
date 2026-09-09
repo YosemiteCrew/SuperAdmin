@@ -2,7 +2,7 @@
 
 ## Stack
 
-- Next.js 15 (App Router, TypeScript strict)
+- Next.js 16 (App Router, TypeScript strict)
 - React 19
 - Tailwind CSS 4
 - SuperTokens (auth: email/password + sessions + user metadata + multitenancy)

@@ -14,6 +14,7 @@ Write an ADR when a decision is expensive to reverse or picks between two reason
 
 ## Index
 
-| #                                                       | Title                                                                     | Status   | Date       |
-| ------------------------------------------------------- | ------------------------------------------------------------------------- | -------- | ---------- |
-| [0001](./0001-audit-log-on-supertokens-usermetadata.md) | Audit log persisted in SuperTokens UserMetadata (no dedicated DB, no CAS) | Accepted | 2026-07-01 |
+| #                                                       | Title                                                                     | Status                    | Date       |
+| ------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------- | ---------- |
+| [0001](./0001-audit-log-on-supertokens-usermetadata.md) | Audit log persisted in SuperTokens UserMetadata (no dedicated DB, no CAS) | Superseded by ADR-0002    | 2026-07-01 |
+| [0002](./0002-durable-audit-store.md)                   | Audit log is a durable compliance record in Postgres                     | Accepted                  | 2026-09-05 |
