@@ -114,29 +114,31 @@ export default async function InvitesPage() {
             No invites yet.
           </p>
         ) : (
-          <table className="w-full table-fixed border-collapse">
-            <colgroup>
-              <col className="w-[1.7fr]" />
-              <col className="w-[1.5fr]" />
-              <col className="w-[1.1fr]" />
-              <col className="w-[1fr]" />
-              <col className="w-[1.4fr]" />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
-                <th className={TH}>Email</th>
-                <th className={TH}>Created by</th>
-                <th className={TH}>Expires</th>
-                <th className={TH}>Status</th>
-                <th className={`${TH} text-right`}>Used by / Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invites.map((invite) => (
-                <InviteRow key={invite.id} invite={invite} />
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] table-fixed border-collapse">
+              <colgroup>
+                <col className="w-[1.7fr]" />
+                <col className="w-[1.5fr]" />
+                <col className="w-[1.1fr]" />
+                <col className="w-[1fr]" />
+                <col className="w-[1.4fr]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
+                  <th className={TH}>Email</th>
+                  <th className={TH}>Created by</th>
+                  <th className={TH}>Expires</th>
+                  <th className={TH}>Status</th>
+                  <th className={`${TH} text-right`}>Used by / Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {invites.map((invite) => (
+                  <InviteRow key={invite.id} invite={invite} />
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className={CARD_FOOT}>
           The 50 most-recent invites are kept. Every generate, accept, and revoke lands in the audit

@@ -110,64 +110,66 @@ export default async function ConsentPage({
             {trimmed ? `No consent records matched “${trimmed}”.` : 'No consent recorded yet.'}
           </p>
         ) : (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
-                <th className={TH}>Subject</th>
-                {CATEGORIES.map((c) => (
-                  <th key={c.key} className={TH}>
-                    {c.label}
-                  </th>
-                ))}
-                <th className={TH}>Updated</th>
-                <th className={`${TH} text-right`}>Audit trail</th>
-              </tr>
-            </thead>
-            <tbody>
-              {subjects.map((s) => (
-                <tr
-                  key={s.id}
-                  className="border-b border-[color:var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
-                >
-                  <td className="px-[18px] py-3">
-                    <span className="flex min-w-0 items-baseline gap-[9px]">
-                      <span
-                        className={`truncate text-[13.5px] font-semibold ${
-                          s.email ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink-faint)]'
-                        }`}
-                      >
-                        {s.email ?? truncate(s.consentId)}
-                      </span>
-                      <span className="flex-none font-mono text-[10.5px] text-[color:var(--ink-faint)]">
-                        {s.email ? truncate(s.consentId, 12) : 'anonymous'}
-                      </span>
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="min-w-[880px] border-collapse">
+              <thead>
+                <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
+                  <th className={TH}>Subject</th>
                   {CATEGORIES.map((c) => (
-                    <td key={c.key} className="px-[18px] py-3">
-                      <span className={`${BADGE} ${STATE_STYLE[s.state[c.key]]}`}>
-                        {STATE_LABEL[s.state[c.key]]}
+                    <th key={c.key} className={TH}>
+                      {c.label}
+                    </th>
+                  ))}
+                  <th className={TH}>Updated</th>
+                  <th className={`${TH} text-right`}>Audit trail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subjects.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="border-b border-[color:var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
+                  >
+                    <td className="px-[18px] py-3">
+                      <span className="flex min-w-0 items-baseline gap-[9px]">
+                        <span
+                          className={`truncate text-[13.5px] font-semibold ${
+                            s.email ? 'text-[color:var(--ink)]' : 'text-[color:var(--ink-faint)]'
+                          }`}
+                        >
+                          {s.email ?? truncate(s.consentId)}
+                        </span>
+                        <span className="flex-none font-mono text-[10.5px] text-[color:var(--ink-faint)]">
+                          {s.email ? truncate(s.consentId, 12) : 'anonymous'}
+                        </span>
                       </span>
                     </td>
-                  ))}
-                  <td className={TD}>
-                    <time dateTime={s.updatedAt.toISOString()}>
-                      {formatDate(s.updatedAt.getTime())}
-                    </time>
-                  </td>
-                  <td className="px-[18px] py-3 text-right">
-                    <Link
-                      href={`/consent/${s.id}`}
-                      className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--blue-text)] hover:underline"
-                    >
-                      History
-                      <IoArrowForward aria-hidden className="text-[11px]" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {CATEGORIES.map((c) => (
+                      <td key={c.key} className="px-[18px] py-3">
+                        <span className={`${BADGE} ${STATE_STYLE[s.state[c.key]]}`}>
+                          {STATE_LABEL[s.state[c.key]]}
+                        </span>
+                      </td>
+                    ))}
+                    <td className={TD}>
+                      <time dateTime={s.updatedAt.toISOString()}>
+                        {formatDate(s.updatedAt.getTime())}
+                      </time>
+                    </td>
+                    <td className="px-[18px] py-3 text-right">
+                      <Link
+                        href={`/consent/${s.id}`}
+                        className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-[color:var(--blue-text)] hover:underline"
+                      >
+                        History
+                        <IoArrowForward aria-hidden className="text-[11px]" />
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className={FOOTER_NOTE}>
           Events are never edited or deleted. An anonymous subject is linked to an account the first

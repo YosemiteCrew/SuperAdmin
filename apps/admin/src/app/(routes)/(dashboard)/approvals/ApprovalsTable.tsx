@@ -182,92 +182,94 @@ export function ApprovalsTable({
             {emptyMessage}
           </p>
         ) : (
-          <table className="w-full table-fixed border-collapse">
-            <colgroup>
-              <col className="w-11" />
-              <col className="w-[1.8fr]" />
-              <col className="w-[1.1fr]" />
-              <col className="w-[1.4fr]" />
-              <col className="w-[190px]" />
-            </colgroup>
-            <thead>
-              <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
-                <th className={TH}>
-                  {pendingRows.length > 0 ? (
-                    <input
-                      type="checkbox"
-                      checked={allPendingSelected}
-                      onChange={toggleAll}
-                      aria-label="Select all pending accounts"
-                      className={CHECKBOX}
-                    />
-                  ) : null}
-                </th>
-                <th className={TH}>Account</th>
-                <th className={TH}>Joined</th>
-                <th className={TH}>Status</th>
-                <th className={`${TH} text-right`}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className={`border-b border-[var(--hairline)] transition-colors last:border-b-0 ${
-                    selected.has(row.id)
-                      ? 'bg-[var(--nav-active-bg)]'
-                      : 'hover:bg-[var(--surface-soft)]'
-                  }`}
-                >
-                  <td className="px-5 py-3">
-                    {row.status === 'pending' ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-[760px] table-fixed border-collapse">
+              <colgroup>
+                <col className="w-11" />
+                <col className="w-[1.8fr]" />
+                <col className="w-[1.1fr]" />
+                <col className="w-[1.4fr]" />
+                <col className="w-[190px]" />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
+                  <th className={TH}>
+                    {pendingRows.length > 0 ? (
                       <input
                         type="checkbox"
-                        checked={selected.has(row.id)}
-                        onChange={() => toggle(row.id)}
-                        aria-label={`Select ${row.email}`}
+                        checked={allPendingSelected}
+                        onChange={toggleAll}
+                        aria-label="Select all pending accounts"
                         className={CHECKBOX}
                       />
                     ) : null}
-                  </td>
-                  <td className="px-5 py-3">
-                    <Link
-                      href={`/users/${row.id}`}
-                      className="block truncate text-[13.5px] font-semibold text-[color:var(--ink)] hover:underline"
-                    >
-                      {row.email}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3 text-[13.5px] text-[color:var(--ink-muted)]">
-                    <time dateTime={new Date(row.joinedAt).toISOString()}>
-                      {formatDate(row.joinedAt)}
-                    </time>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex flex-none rounded-full px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLE[row.status]}`}
-                      >
-                        {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
-                      </span>
-                      {row.decidedAt ? (
-                        <span className="text-[11px] text-[color:var(--ink-faint)]">
-                          {formatDate(row.decidedAt)}
-                        </span>
-                      ) : null}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    {row.status === 'pending' ? (
-                      <ApprovalRowActions userId={row.id} email={row.email} />
-                    ) : (
-                      <span className="text-[11.5px] text-[color:var(--ink-faint)]">·</span>
-                    )}
-                  </td>
+                  </th>
+                  <th className={TH}>Account</th>
+                  <th className={TH}>Joined</th>
+                  <th className={TH}>Status</th>
+                  <th className={`${TH} text-right`}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={`border-b border-[var(--hairline)] transition-colors last:border-b-0 ${
+                      selected.has(row.id)
+                        ? 'bg-[var(--nav-active-bg)]'
+                        : 'hover:bg-[var(--surface-soft)]'
+                    }`}
+                  >
+                    <td className="px-5 py-3">
+                      {row.status === 'pending' ? (
+                        <input
+                          type="checkbox"
+                          checked={selected.has(row.id)}
+                          onChange={() => toggle(row.id)}
+                          aria-label={`Select ${row.email}`}
+                          className={CHECKBOX}
+                        />
+                      ) : null}
+                    </td>
+                    <td className="px-5 py-3">
+                      <Link
+                        href={`/users/${row.id}`}
+                        className="block truncate text-[13.5px] font-semibold text-[color:var(--ink)] hover:underline"
+                      >
+                        {row.email}
+                      </Link>
+                    </td>
+                    <td className="px-5 py-3 text-[13.5px] text-[color:var(--ink-muted)]">
+                      <time dateTime={new Date(row.joinedAt).toISOString()}>
+                        {formatDate(row.joinedAt)}
+                      </time>
+                    </td>
+                    <td className="px-5 py-3">
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`inline-flex flex-none rounded-full px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLE[row.status]}`}
+                        >
+                          {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                        </span>
+                        {row.decidedAt ? (
+                          <span className="text-[11px] text-[color:var(--ink-faint)]">
+                            {formatDate(row.decidedAt)}
+                          </span>
+                        ) : null}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {row.status === 'pending' ? (
+                        <ApprovalRowActions userId={row.id} email={row.email} />
+                      ) : (
+                        <span className="text-[11.5px] text-[color:var(--ink-faint)]">·</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         <p className={CARD_FOOT}>
           Bulk results report processed, skipped, failed, and welcome emails sent. A manual disable

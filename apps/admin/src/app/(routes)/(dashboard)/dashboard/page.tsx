@@ -157,54 +157,56 @@ export default async function DashboardPage() {
           {recent.length === 0 ? (
             <div className="p-5 text-sm text-[color:var(--ink-faint)]">No signups yet.</div>
           ) : (
-            <table className="w-full border-collapse text-[13.5px]">
-              <thead>
-                <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
-                  <th className="px-[18px] py-2.5 font-bold">Email</th>
-                  <th className="px-[18px] py-2.5 font-bold">Login method</th>
-                  <th className="px-[18px] py-2.5 font-bold">Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recent.map((user) => {
-                  const primaryEmail = user.emails[0] ?? '—';
-                  const methods = Array.from(
-                    new Set(user.loginMethods.map((m) => m.recipeId))
-                  ).join(', ');
-                  const tone = toneFor(user.id);
-                  return (
-                    <tr
-                      key={user.id}
-                      className="border-b border-[var(--hairline)] last:border-b-0 hover:bg-[var(--screen-2)]"
-                    >
-                      <td className="px-[18px] py-3">
-                        <span className="flex min-w-0 items-center gap-2.5">
-                          <span
-                            aria-hidden
-                            className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-bold"
-                            style={{ background: tone.bg, color: tone.ink }}
-                          >
-                            {initialsFor(primaryEmail)}
+            <div className="overflow-x-auto">
+              <table className="min-w-[560px] border-collapse text-[13.5px]">
+                <thead>
+                  <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
+                    <th className="px-[18px] py-2.5 font-bold">Email</th>
+                    <th className="px-[18px] py-2.5 font-bold">Login method</th>
+                    <th className="px-[18px] py-2.5 font-bold">Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recent.map((user) => {
+                    const primaryEmail = user.emails[0] ?? '—';
+                    const methods = Array.from(
+                      new Set(user.loginMethods.map((m) => m.recipeId))
+                    ).join(', ');
+                    const tone = toneFor(user.id);
+                    return (
+                      <tr
+                        key={user.id}
+                        className="border-b border-[var(--hairline)] last:border-b-0 hover:bg-[var(--screen-2)]"
+                      >
+                        <td className="px-[18px] py-3">
+                          <span className="flex min-w-0 items-center gap-2.5">
+                            <span
+                              aria-hidden
+                              className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-full text-[10.5px] font-bold"
+                              style={{ background: tone.bg, color: tone.ink }}
+                            >
+                              {initialsFor(primaryEmail)}
+                            </span>
+                            <Link
+                              href={`/users/${user.id}`}
+                              className="truncate font-semibold text-[color:var(--ink)] hover:underline"
+                            >
+                              {primaryEmail}
+                            </Link>
                           </span>
-                          <Link
-                            href={`/users/${user.id}`}
-                            className="truncate font-semibold text-[color:var(--ink)] hover:underline"
-                          >
-                            {primaryEmail}
-                          </Link>
-                        </span>
-                      </td>
-                      <td className="px-[18px] py-3 text-[color:var(--ink-muted)]">{methods}</td>
-                      <td className="px-[18px] py-3 text-[color:var(--ink-muted)]">
-                        <span title={formatDate(user.timeJoined)}>
-                          {relativeFromNow(user.timeJoined)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="px-[18px] py-3 text-[color:var(--ink-muted)]">{methods}</td>
+                        <td className="px-[18px] py-3 text-[color:var(--ink-muted)]">
+                          <span title={formatDate(user.timeJoined)}>
+                            {relativeFromNow(user.timeJoined)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 

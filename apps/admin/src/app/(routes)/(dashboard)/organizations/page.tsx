@@ -208,8 +208,8 @@ function OrganizationsTable({
   if (environment !== DEFAULT_API_ENVIRONMENT) rowQuery.set('env', environment);
   const suffix = rowQuery.toString() ? `?${rowQuery.toString()}` : '';
   return (
-    <section className="overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <table className="w-full border-collapse text-[13.5px]">
+    <section className="overflow-x-auto rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <table className="min-w-[760px] border-collapse text-[13.5px]">
         <thead>
           <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
             <th className="px-5 py-3">Name</th>

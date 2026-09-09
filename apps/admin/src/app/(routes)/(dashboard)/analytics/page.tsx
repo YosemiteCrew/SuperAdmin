@@ -235,39 +235,41 @@ export default async function AnalyticsPage() {
             {methodRows.length === 0 ? (
               <div className="p-5 text-sm text-[color:var(--ink-faint)]">No users yet.</div>
             ) : (
-              <table className="w-full border-collapse text-[13.5px]">
-                <tbody>
-                  {methodRows.map(([method, count]) => {
-                    const Icon = METHOD_ICONS[method] ?? IoKeyOutline;
-                    return (
-                      <tr
-                        key={method}
-                        className="border-b border-[var(--hairline)] last:border-b-0"
-                      >
-                        <td className="px-[18px] py-3.5 font-semibold text-[color:var(--ink)]">
-                          <span className="flex items-center gap-2.5">
-                            <span
-                              aria-hidden
-                              className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-[var(--nav-active-bg)] text-[15px] text-[color:var(--nav-active)]"
-                            >
-                              <Icon />
+              <div className="overflow-x-auto">
+                <table className="min-w-[360px] border-collapse text-[13.5px]">
+                  <tbody>
+                    {methodRows.map(([method, count]) => {
+                      const Icon = METHOD_ICONS[method] ?? IoKeyOutline;
+                      return (
+                        <tr
+                          key={method}
+                          className="border-b border-[var(--hairline)] last:border-b-0"
+                        >
+                          <td className="px-[18px] py-3.5 font-semibold text-[color:var(--ink)]">
+                            <span className="flex items-center gap-2.5">
+                              <span
+                                aria-hidden
+                                className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-[var(--nav-active-bg)] text-[15px] text-[color:var(--nav-active)]"
+                              >
+                                <Icon />
+                              </span>
+                              {method}
                             </span>
-                            {method}
-                          </span>
-                        </td>
-                        <td className="px-[18px] py-3.5 text-right font-bold text-[color:var(--ink)] tabular-nums">
-                          {count}
-                        </td>
-                        {/* Share of the sample (dev). Kept in the warm-bone table:
+                          </td>
+                          <td className="px-[18px] py-3.5 text-right font-bold text-[color:var(--ink)] tabular-nums">
+                            {count}
+                          </td>
+                          {/* Share of the sample (dev). Kept in the warm-bone table:
                             the count alone does not say how common a method is. */}
-                        <td className="w-[52px] px-[18px] py-3.5 text-right text-[11.5px] text-[color:var(--ink-faint)] tabular-nums">
-                          {users.length > 0 ? `${Math.round((count / users.length) * 100)}%` : ''}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          <td className="w-[52px] px-[18px] py-3.5 text-right text-[11.5px] text-[color:var(--ink-faint)] tabular-nums">
+                            {users.length > 0 ? `${Math.round((count / users.length) * 100)}%` : ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </section>
 

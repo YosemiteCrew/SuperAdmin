@@ -221,7 +221,7 @@ export function RequestsTable({
             No data-subject requests logged yet.
           </p>
         ) : (
-          <table className="min-w-full border-collapse">
+          <table className="min-w-[900px] border-collapse">
             <thead>
               <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
                 <th className={TH}>Subject</th>

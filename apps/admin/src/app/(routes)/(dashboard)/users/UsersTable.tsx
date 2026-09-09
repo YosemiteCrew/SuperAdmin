@@ -134,8 +134,8 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
         </div>
       ) : null}
 
-      <div className="rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-        <table className="w-full border-collapse">
+      <div className="overflow-x-auto rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <table className="min-w-[940px] border-collapse">
           <thead>
             <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left [&>th:first-child]:rounded-tl-[18px] [&>th:last-child]:rounded-tr-[18px]">
               <th className={`${TH} w-11`}>
