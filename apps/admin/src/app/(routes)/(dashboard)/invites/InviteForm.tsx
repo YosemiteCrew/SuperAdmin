@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useState } from 'react';
 
 import { type CreateInviteResult, createInviteAction } from './actions';
 
@@ -16,7 +16,12 @@ const CARD =
 function InviteReadyCard({
   inviteUrl,
   onCopy,
-}: Readonly<{ inviteUrl: string; onCopy: () => void }>) {
+  copyStatus,
+}: Readonly<{
+  inviteUrl: string;
+  onCopy: () => void;
+  copyStatus: 'copied' | 'failed' | null;
+}>) {
   return (
     <div className={`${CARD} flex flex-col gap-3 border-[var(--avatar-green-ink)]/30`}>
       <h3 className="text-[13px] font-bold text-[color:var(--avatar-green-ink)]">
@@ -34,6 +39,16 @@ function InviteReadyCard({
           Copy
         </button>
       </div>
+      {copyStatus === 'copied' ? (
+        <p role="status" className="text-[11.5px] font-semibold text-[color:var(--success)]">
+          Copied to clipboard.
+        </p>
+      ) : null}
+      {copyStatus === 'failed' ? (
+        <p role="alert" className="text-[11.5px] font-semibold text-[color:var(--danger-text)]">
+          Could not copy the link. Select it and copy it manually.
+        </p>
+      ) : null}
       {/* 24 hours is INVITE_TTL_MS, not a guess; the result carries no expiry. */}
       <p className="text-[11.5px] text-[color:var(--ink-faint)]">
         Expires in 24 hours · accepting grants the superadmin role to the signed-in account
@@ -43,12 +58,16 @@ function InviteReadyCard({
 }
 
 export function InviteForm() {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [email, setEmail] = useState('');
+  const [copyStatus, setCopyStatus] = useState<'copied' | 'failed' | null>(null);
 
   const [state, formAction, pending] = useActionState(
     async (_prev: CreateInviteResult, fd: FormData): Promise<CreateInviteResult> => {
       const result = await createInviteAction(fd);
-      if (!result.error) formRef.current?.reset();
+      if (!result.error) {
+        setEmail('');
+        setCopyStatus(null);
+      }
       return result;
     },
     INITIAL
@@ -56,7 +75,12 @@ export function InviteForm() {
 
   async function copyLink() {
     if (!state.inviteUrl) return;
-    await navigator.clipboard.writeText(state.inviteUrl);
+    try {
+      await navigator.clipboard.writeText(state.inviteUrl);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('failed');
+    }
   }
 
   return (
@@ -69,7 +93,7 @@ export function InviteForm() {
           </p>
         </div>
 
-        <form ref={formRef} action={formAction} className="flex flex-col gap-3">
+        <form action={formAction} className="flex flex-col gap-3">
           <div className="flex items-end gap-[10px]">
             <div className="flex min-w-0 flex-1 flex-col gap-1.5">
               <label
@@ -82,6 +106,8 @@ export function InviteForm() {
                 id="invite-email"
                 type="email"
                 name="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
                 placeholder="newadmin@example.com"
                 required
                 className="h-10 w-full rounded-xl border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]"
@@ -104,7 +130,13 @@ export function InviteForm() {
         </form>
       </div>
 
-      {state.inviteUrl ? <InviteReadyCard inviteUrl={state.inviteUrl} onCopy={copyLink} /> : null}
+      {state.inviteUrl ? (
+        <InviteReadyCard
+          inviteUrl={state.inviteUrl}
+          onCopy={copyLink}
+          copyStatus={copyStatus}
+        />
+      ) : null}
     </div>
   );
 }

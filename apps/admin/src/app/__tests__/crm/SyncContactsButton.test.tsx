@@ -52,4 +52,14 @@ describe('SyncContactsButton', () => {
       expect(screen.getByText(/not configured/i)).toBeInTheDocument();
     });
   });
+
+  it('styles a total sync failure as an error', async () => {
+    syncMock.mockResolvedValue({ synced: 0, failed: 5 });
+    render(<SyncContactsButton />);
+    fireEvent.submit(screen.getByRole('button', { name: /Sync contacts/i }).closest('form')!);
+
+    expect(await screen.findByText('0 synced, 5 failed')).toHaveClass(
+      'text-[color:var(--danger-text)]'
+    );
+  });
 });
