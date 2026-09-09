@@ -78,7 +78,7 @@ async function indexApprovalStatus(userId: string, status: ApprovalStatus): Prom
   } catch (error) {
     // Derived-state failure must never undo or block the authoritative decision.
     // A missing row can only over-count pending work, and /approvals repairs it.
-    logger.error('Approval decision index write failed', { userId, error: errorMessage(error) });
+    logger.error('Approval decision index write failed', { error: errorMessage(error) });
   }
 }
 

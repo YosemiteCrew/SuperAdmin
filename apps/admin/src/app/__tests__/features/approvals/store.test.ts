@@ -149,10 +149,9 @@ describe('approveAccount', () => {
       stillDisabled: false,
     });
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      'Approval decision index write failed',
-      expect.objectContaining({ userId: 'u1', error: 'database down' })
-    );
+    expect(errorSpy).toHaveBeenCalledWith('Approval decision index write failed', {
+      error: 'database down',
+    });
     errorSpy.mockRestore();
   });
 });
