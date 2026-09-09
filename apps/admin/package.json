@@ -30,7 +30,6 @@
     "supertokens-web-js": "^0.16.0"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
     "@superadmin/types": "workspace:^",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
@@ -43,7 +42,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "eslint": "^9",
-    "eslint-config-next": "15.5.25",
+    "eslint-config-next": "^16",
     "eslint-plugin-sonarjs": "^4.2.0",
     "jest": "^30.5.1",
     "jest-axe": "^11.0.0",

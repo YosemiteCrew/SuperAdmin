@@ -128,6 +128,10 @@ function countSignInMethods(users: readonly SampledUser[]): [string, number][] {
   return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
+function currentTimestamp(): number {
+  return Date.now();
+}
+
 export default async function AnalyticsPage() {
   ensureSuperTokensInit();
 
@@ -142,7 +146,7 @@ export default async function AnalyticsPage() {
   const timestamps = users.map((u) => u.timeJoined);
   const sampleHint = sampled ? `Based on the ${SAMPLE_CAP} newest users` : undefined;
 
-  const now = Date.now();
+  const now = currentTimestamp();
   const last7 = timestamps.filter((t) => t >= now - 7 * DAY_MS).length;
   const last30 = timestamps.filter((t) => t >= now - 30 * DAY_MS).length;
 
