@@ -94,6 +94,11 @@ jobs:
       SUPERTOKENS_CONNECTION_URI: http://localhost:3567
       SUPERTOKENS_API_KEY: ci-core-key-not-a-secret
       NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
+      # main's application-level gate fails closed in production builds. The
+      # local Playwright client must present the same synthetic credential or
+      # its webServer readiness probe sees 503 until the 60-second timeout.
+      PANEL_BASIC_AUTH_CREDENTIALS: ci-gate:ci-gate-placeholder
+      SA_EDGE_GATE_CREDENTIALS: ci-gate:ci-gate-placeholder
 
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

@@ -31,7 +31,7 @@ export function ExportAccountDataButton({ userId }: Readonly<{ userId: string }>
       type="button"
       onClick={handleExport}
       disabled={pending}
-      className="inline-flex h-10 items-center justify-center rounded-xl border border-line bg-surface px-4 text-sm font-medium text-ink transition-colors hover:bg-raised disabled:opacity-60"
+      className="inline-flex h-[38px] items-center justify-center gap-[7px] rounded-full border border-[color:var(--divider)] bg-transparent px-4 text-[13px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--pill-raised)] disabled:opacity-60"
     >
       {pending ? 'Exporting…' : 'Export account data'}
     </button>

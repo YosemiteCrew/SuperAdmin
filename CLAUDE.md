@@ -35,11 +35,16 @@ npx tsc --noemit
 # 2. Lint
 pnpm --filter admin run lint
 
-# 3. Tests — TARGETED ONLY
+# 3. Tests: targeted while iterating
 pnpm --filter admin run test --testPathPatterns="<relevant-file>"
+
+# 4. Full suite before opening or updating a PR
+pnpm --filter admin run test:ci
 ```
 
-**Full test suite runs are forbidden.** Always target the test file(s) related to what you changed.
+Use targeted tests for fast feedback while iterating. Run the full `test:ci` suite before opening
+or updating a pull request. When quoting suite or test totals, measure the base commit separately
+so the comparison is attributable to the change.
 
 **Coverage mandate:** ≥ 95% Statements, Branches, Functions, Lines. Any file you touch must finish equal or higher. New files must hit ≥ 90% on first commit.
 
@@ -60,10 +65,8 @@ Never let SonarCloud issues or **security hotspots** be discovered only after co
 
 ## Commit Discipline
 
-**NEVER run `git commit` yourself.** After every logical batch of changes tell the user:
-
-`**COMMIT CHECKPOINT** — suggested message: \`<conventional commit message>\``
-
+- Commit each logical batch using the author configured for this repository.
+- Use a conventional commit message with one of the allowed scopes below.
 - Never add `Co-Authored-By` lines.
 - Never skip pre-commit hooks.
 - Validate scope against `commitlint.config.cjs`. Allowed scopes: `admin`, `types`, `repo`, `ci`, `docs`.
@@ -72,7 +75,7 @@ Never let SonarCloud issues or **security hotspots** be discovered only after co
 
 ## What NOT to Do
 
-- Do not run `pnpm run test` without `--testPathPattern`.
+- Do not use the full suite as the iteration loop when a targeted test can provide faster feedback.
 - Do not commit `.env` files or secrets.
 - Do not add `// eslint-disable` comments.
 - Do not create new files when editing existing ones achieves the goal.

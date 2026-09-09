@@ -3,13 +3,18 @@
  */
 import { NextRequest } from 'next/server';
 
-import { proxy } from '@/proxy';
+import { config, proxy } from '@/proxy';
 
-function makeRequest(path: string, token?: string): NextRequest {
+function makeRequest(
+  path: string,
+  token?: string,
+  init: { method?: string; authorization?: string } = {}
+): NextRequest {
   const url = `http://localhost:3000${path}`;
   const headers = new Headers();
   if (token) headers.set('cookie', `sAccessToken=${token}`);
-  return new NextRequest(url, { headers });
+  if (init.authorization) headers.set('authorization', init.authorization);
+  return new NextRequest(url, { headers, method: init.method });
 }
 
 function makeJwt(expMs: number): string {
@@ -18,7 +23,84 @@ function makeJwt(expMs: number): string {
   return `${header}.${payload}.signature`;
 }
 
+function setNodeEnv(value: string | undefined): void {
+  Object.defineProperty(process.env, 'NODE_ENV', {
+    configurable: true,
+    enumerable: true,
+    writable: true,
+    value,
+  });
+}
+
 describe('proxy', () => {
+  const originalCredentials = process.env.PANEL_BASIC_AUTH_CREDENTIALS;
+  const originalNodeEnv = process.env.NODE_ENV;
+
+  afterEach(() => {
+    process.env.PANEL_BASIC_AUTH_CREDENTIALS = originalCredentials;
+    setNodeEnv(originalNodeEnv);
+  });
+
+  it('challenges private pages and APIs when Basic Auth is configured', () => {
+    process.env.PANEL_BASIC_AUTH_CREDENTIALS = 'operator:test-password';
+
+    for (const path of ['/dashboard', '/auth', '/api/profile']) {
+      const res = proxy(makeRequest(path));
+      expect(res.status).toBe(401);
+      expect(res.headers.get('WWW-Authenticate')).toBe('Basic realm="Login"');
+    }
+  });
+
+  it('accepts the configured Basic Auth credential', () => {
+    process.env.PANEL_BASIC_AUTH_CREDENTIALS = 'operator:test-password';
+    const authorization = `Basic ${Buffer.from('operator:test-password').toString('base64')}`;
+
+    const res = proxy(makeRequest('/auth', undefined, { authorization }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('WWW-Authenticate')).toBeNull();
+  });
+
+  it.each([
+    ['GET', '/api/ap/signing-key.json'],
+    ['GET', '/api/ap/revoked.json'],
+    ['GET', '/api/directory'],
+    ['PUT', '/api/directory/listing'],
+    ['GET', '/api/health'],
+    ['POST', '/api/contact'],
+    ['POST', '/api/consent'],
+    ['POST', '/api/social/tiktok/scheduled'],
+    ['POST', '/api/social/instagram/scheduled'],
+  ])('exempts the machine route %s %s from Basic Auth', (method, path) => {
+    process.env.PANEL_BASIC_AUTH_CREDENTIALS = 'operator:test-password';
+
+    const res = proxy(makeRequest(path, undefined, { method }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('WWW-Authenticate')).toBeNull();
+  });
+
+  it('matches dotted API routes so the gate can evaluate them', () => {
+    expect(config.matcher).toContain('/api/:path*');
+  });
+
+  it('matches exemptions by exact method and path', () => {
+    process.env.PANEL_BASIC_AUTH_CREDENTIALS = 'operator:test-password';
+
+    expect(proxy(makeRequest('/api/directory/listing')).status).toBe(401);
+    expect(proxy(makeRequest('/api/health/private')).status).toBe(401);
+  });
+
+  it.each([undefined, '', 'operator', ':password', 'operator:', 'operator:pass\nword'])(
+    'fails closed in production for a missing or malformed credential (%p)',
+    (credentials) => {
+      setNodeEnv('production');
+      process.env.PANEL_BASIC_AUTH_CREDENTIALS = credentials;
+
+      expect(proxy(makeRequest('/dashboard')).status).toBe(503);
+    }
+  );
+
   it('redirects unauthenticated request to a private path to /auth', () => {
     const res = proxy(makeRequest('/dashboard'));
     expect(res.status).toBe(307);

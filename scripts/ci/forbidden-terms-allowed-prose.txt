@@ -39,7 +39,6 @@ State is local React (`useState` / Server Components / URL params). No client st
 
 # apps/admin/src/app/(routes)/(dashboard)/health/page.tsx
 function Card({ title, children }: { readonly title: string; readonly children: React.ReactNode }) {
-function Row({ label, value }: { readonly label: string; readonly value: React.ReactNode }) {
 
 # apps/admin/src/app/__tests__/api/socialGuard.test.ts
 The Amplify SSR runtime hands the handler an INTERNAL url

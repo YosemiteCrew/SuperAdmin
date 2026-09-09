@@ -18,4 +18,23 @@ if (!isCI && !hasPattern) {
 }
 
 const child = spawn('jest', args, { stdio: 'inherit' });
-child.on('exit', (code) => process.exit(code ?? 0));
+
+// A child that could not be started never emits 'exit', so without this the
+// wrapper would reject an unhandled error instead of reporting a failed run.
+child.on('error', (error) => {
+  console.error(`\n❌ Could not start jest: ${error.message}\n`);
+  process.exit(1);
+});
+
+// `code` is null when the child was terminated by a SIGNAL — the signal name
+// arrives in the second argument. Defaulting that to 0 would report an
+// OOM-killed or timed-out jest as a passing test run, and turbo keys the task
+// result off this exit status. An exit carrying neither a code nor a signal is
+// not evidence of success either, so the fallback is a failure.
+child.on('exit', (code, signal) => {
+  if (signal) {
+    console.error(`\n❌ jest was terminated by ${signal}. Reporting a failed run.\n`);
+    process.exit(1);
+  }
+  process.exit(code ?? 1);
+});
