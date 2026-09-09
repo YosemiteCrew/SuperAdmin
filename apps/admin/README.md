@@ -4,7 +4,7 @@ Internal admin dashboard for the Yosemite Crew platform. Manages user accounts, 
 
 ## Stack
 
-- Next.js 15 (App Router, Turbopack dev)
+- Next.js 16 (App Router, Turbopack dev)
 - React 19 + TypeScript (strict)
 - Tailwind CSS v4 with custom design tokens
 - SuperTokens for auth (email/password, sessions, user metadata, multitenancy)
@@ -156,7 +156,7 @@ Then in a browser:
 
 - `/auth` — sign-in form, header logo + Sign up CTA, "Don't have an account? Sign up" link
 - `/auth/signup` — full signup form, header CTA reads "Sign in" (contextual swap)
-- `/dashboard` (signed in) — Sidebar with 5 nav items + collapse, glass header with profile pill + ⌘K chip
+- `/dashboard` (signed in) — Sidebar with 7 groups and 17 destinations + collapse, glass header with profile pill + ⌘K chip
 - Press `⌘K` anywhere — command palette opens (matches production glass styling)
 - Tab from page load — first focusable is "Skip to main content" (a11y)
 
@@ -169,9 +169,19 @@ src/
 │  │  ├─ layout.tsx                # admin session gate; lives behind /api/signout on failure
 │  │  ├─ dashboard/                # stats overview, recent signups
 │  │  ├─ users/                    # list + detail (search, pagination, session revoke)
-│  │  ├─ organizations/            # tenants list (stub)
-│  │  ├─ analytics/                # stub
-│  │  └─ settings/                 # stub
+│  │  ├─ organizations/            # tenant list, detail, activity and lifecycle controls
+│  │  ├─ approvals/                # account approval queue
+│  │  ├─ invites/                  # create and manage administrator invitations
+│  │  ├─ admins/                   # administrator directory and roles
+│  │  ├─ crm/                      # campaigns, requests, Discord and message composition
+│  │  ├─ social/                   # scheduled and draft social posts
+│  │  ├─ consent/                  # consent-event list and detail
+│  │  ├─ privacy/requests/         # subject-access and erasure requests
+│  │  ├─ analytics/                # user, signup, MFA and sign-in-method metrics
+│  │  ├─ audit/                    # searchable audit log and integrity status
+│  │  ├─ health/                   # deployment and service health dashboard
+│  │  ├─ ap/                       # ActivityPub federation instances
+│  │  └─ settings/                 # profile, session and appearance settings
 │  ├─ auth/                        # custom sign-in / sign-up / reset password
 │  ├─ api/
 │  │  ├─ auth/[[...path]]/         # SuperTokens-managed
