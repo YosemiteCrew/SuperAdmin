@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useState, useTransition } from 'react';
 
 import { type SendCampaignResult, sendCampaignAction } from './actions';
 
@@ -11,24 +11,53 @@ const FIELD =
   'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
 const HINT = 'mt-[5px] text-[11.5px] text-[color:var(--ink-faint)]';
 
+function CampaignResult({ result }: Readonly<{ result: SendCampaignResult }>) {
+  if (result.sent === undefined) return null;
+
+  const totalFailure = result.sent === 0 && Boolean(result.failed);
+
+  return (
+    <div
+      role={totalFailure ? 'alert' : 'status'}
+      className={`flex flex-col gap-[3px] rounded-[18px] border bg-[var(--screen)] px-[18px] py-[14px] ${
+        totalFailure ? 'border-[var(--danger)]/40' : 'border-[var(--success)]/40'
+      }`}
+    >
+      <p
+        className={`text-[12.5px] font-bold ${
+          totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--avatar-green-ink)]'
+        }`}
+      >
+        {totalFailure ? 'Campaign delivery failed' : 'Campaign delivered'}
+      </p>
+      <p className="text-[12px] text-[color:var(--ink-muted)]">
+        Sent to {result.sent} recipient{result.sent === 1 ? '' : 's'}
+        {result.failed && result.failed > 0 ? ` (${result.failed} failed)` : ''}.
+      </p>
+    </div>
+  );
+}
+
 export function ComposeForm() {
   const [audience, setAudience] = useState('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
-  const [state, formAction, pending] = useActionState(
-    async (_prev: SendCampaignResult, fd: FormData): Promise<SendCampaignResult> => {
-      const result = await sendCampaignAction(fd);
-      if (!result.error) {
+  const [state, setState] = useState<SendCampaignResult>(INITIAL);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    startTransition(async () => {
+      const result = await sendCampaignAction(formData);
+      setState(result);
+      if ((result.sent ?? 0) > 0) {
         setAudience('all');
         setSubject('');
         setBody('');
       }
-      return result;
-    },
-    INITIAL
-  );
-  const totalFailure = state.sent === 0 && Boolean(state.failed);
-
+    });
+  }
   return (
     <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
       <div className="mb-[14px] flex flex-col gap-0.5">
@@ -38,7 +67,7 @@ export function ComposeForm() {
         </p>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-[14px]">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-[14px]">
         <div>
           <label htmlFor="campaign-audience" className={LABEL}>
             Audience
@@ -89,34 +118,14 @@ export function ComposeForm() {
         </div>
 
         {state.error ? (
-          <p className="text-[13px] font-semibold text-[color:var(--danger-text)]">{state.error}</p>
+          <p role="alert" className="text-[13px] font-semibold text-[color:var(--danger-text)]">
+            {state.error}
+          </p>
         ) : null}
 
         {/* Delivery results keep the detail neutral while the border and headline
             distinguish a total failure from a campaign that reached recipients. */}
-        {state.sent === undefined ? null : (
-          <div
-            className={`flex flex-col gap-[3px] rounded-[18px] border bg-[var(--screen)] px-[18px] py-[14px] ${
-              totalFailure
-                ? 'border-[var(--danger)]/40'
-                : 'border-[var(--success)]/40'
-            }`}
-          >
-            <p
-              className={`text-[12.5px] font-bold ${
-                totalFailure
-                  ? 'text-[color:var(--danger-text)]'
-                  : 'text-[color:var(--avatar-green-ink)]'
-              }`}
-            >
-              {totalFailure ? 'Campaign failed' : 'Campaign delivered'}
-            </p>
-            <p className="text-[12px] text-[color:var(--ink-muted)]">
-              Sent to {state.sent} recipient{state.sent === 1 ? '' : 's'}
-              {state.failed && state.failed > 0 ? ` (${state.failed} failed)` : ''}.
-            </p>
-          </div>
-        )}
+        <CampaignResult result={state} />
 
         <div>
           <button

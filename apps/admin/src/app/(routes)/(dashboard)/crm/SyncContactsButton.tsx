@@ -13,6 +13,11 @@ export function SyncContactsButton() {
     syncContactsAction,
     {}
   );
+  const totalFailure = state.synced === 0 && Boolean(state.failed);
+  const failedSuffix = state.failed ? `, ${state.failed} failed` : '';
+  const syncResult = totalFailure
+    ? `No contacts synced; ${state.failed} failed.`
+    : `${state.synced} synced${failedSuffix}`;
 
   return (
     <form action={formAction} className="flex flex-col items-end gap-[3px]">
@@ -24,17 +29,18 @@ export function SyncContactsButton() {
         {pending ? 'Syncing…' : 'Sync contacts to Plunk'}
       </button>
       {state.error ? (
-        <p className="text-[11px] font-semibold text-[color:var(--danger-text)]">{state.error}</p>
+        <p role="alert" className="text-[11px] font-semibold text-[color:var(--danger-text)]">
+          {state.error}
+        </p>
       ) : null}
       {state.synced === undefined ? null : (
         <p
+          role={totalFailure ? 'alert' : 'status'}
           className={`text-[11px] font-semibold ${
-            state.synced === 0 && state.failed
-              ? 'text-[color:var(--danger-text)]'
-              : 'text-[color:var(--success)]'
+            totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--success)]'
           }`}
         >
-          {state.synced} synced{state.failed ? `, ${state.failed} failed` : ''}
+          {syncResult}
         </p>
       )}
     </form>
