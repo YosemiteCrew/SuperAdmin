@@ -275,7 +275,7 @@ export function InstancesTable({ tokens }: { readonly tokens: LicenseTokenRow[] 
       ) : (
         <section className={`${CARD} overflow-hidden`}>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse text-left">
+            <table className="min-w-[900px] table-fixed border-collapse text-left">
               <thead>
                 <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)]">
                   <th className={`${TH} w-[25%]`}>Domain</th>

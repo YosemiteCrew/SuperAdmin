@@ -55,47 +55,49 @@ export function SessionsSection({
           No active sessions.
         </div>
       ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
-              <th className={SESSION_TH}>Session handle</th>
-              <th className={SESSION_TH}>Tenant</th>
-              <th className={SESSION_TH}>Created</th>
-              <th className={SESSION_TH}>Expires in</th>
-              <th className={`${SESSION_TH} text-right`}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((session) => (
-              <tr
-                key={session.sessionHandle}
-                className="border-b border-[color:var(--hairline)] last:border-b-0"
-              >
-                <td
-                  className="px-[18px] py-3 font-mono text-[11.5px] text-[color:var(--ink-muted)]"
-                  title={session.sessionHandle}
-                >
-                  {session.sessionHandle.slice(0, 16)}…
-                </td>
-                <td className={SESSION_TD}>{session.tenantId}</td>
-                <td className={SESSION_TD}>{formatDateTime(session.timeCreated)}</td>
-                <td className={SESSION_TD}>{timeUntil(session.expiry)}</td>
-                <td className="px-[18px] py-3 text-right">
-                  <form action={revokeSessionAction}>
-                    <input type="hidden" name="sessionHandle" value={session.sessionHandle} />
-                    <input type="hidden" name="userId" value={userId} />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-[color:var(--divider)] px-3 py-1 text-[12px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
-                    >
-                      Revoke
-                    </button>
-                  </form>
-                </td>
+        <div className="overflow-x-auto">
+          <table className="min-w-[640px] border-collapse">
+            <thead>
+              <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
+                <th className={SESSION_TH}>Session handle</th>
+                <th className={SESSION_TH}>Tenant</th>
+                <th className={SESSION_TH}>Created</th>
+                <th className={SESSION_TH}>Expires in</th>
+                <th className={`${SESSION_TH} text-right`}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sessions.map((session) => (
+                <tr
+                  key={session.sessionHandle}
+                  className="border-b border-[color:var(--hairline)] last:border-b-0"
+                >
+                  <td
+                    className="px-[18px] py-3 font-mono text-[11.5px] text-[color:var(--ink-muted)]"
+                    title={session.sessionHandle}
+                  >
+                    {session.sessionHandle.slice(0, 16)}…
+                  </td>
+                  <td className={SESSION_TD}>{session.tenantId}</td>
+                  <td className={SESSION_TD}>{formatDateTime(session.timeCreated)}</td>
+                  <td className={SESSION_TD}>{timeUntil(session.expiry)}</td>
+                  <td className="px-[18px] py-3 text-right">
+                    <form action={revokeSessionAction}>
+                      <input type="hidden" name="sessionHandle" value={session.sessionHandle} />
+                      <input type="hidden" name="userId" value={userId} />
+                      <button
+                        type="submit"
+                        className="rounded-full border border-[color:var(--divider)] px-3 py-1 text-[12px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
+                      >
+                        Revoke
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </section>
   );

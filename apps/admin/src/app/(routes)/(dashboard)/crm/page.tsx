@@ -175,40 +175,42 @@ export default async function CrmPage() {
         {campaigns.length === 0 ? (
           <p className="p-5 text-[13.5px] text-[color:var(--ink-faint)]">No campaigns sent yet.</p>
         ) : (
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
-                <th className={TH}>Subject</th>
-                <th className={TH}>Audience</th>
-                <th className={TH}>Sent</th>
-                <th className={TH}>Date</th>
-                <th className={TH}>By</th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((c) => (
-                <tr
-                  key={c.id}
-                  className="border-b border-[var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
-                >
-                  <td className="px-[18px] py-3 text-[13.5px] font-semibold text-[color:var(--ink)]">
-                    {c.subject}
-                  </td>
-                  <td className={`${TD} capitalize`}>{c.audience}</td>
-                  <td className={`${TD} tabular-nums`}>
-                    {c.sentCount}
-                    {c.failedCount > 0 ? (
-                      <span className="ml-1 text-[11.5px] font-semibold text-[color:var(--danger-text)]">
-                        ({c.failedCount} failed)
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className={TD}>{formatDate(c.sentAt)}</td>
-                  <td className={TD}>{c.sentByEmail}</td>
+          <div className="overflow-x-auto">
+            <table className="min-w-[700px] border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
+                  <th className={TH}>Subject</th>
+                  <th className={TH}>Audience</th>
+                  <th className={TH}>Sent</th>
+                  <th className={TH}>Date</th>
+                  <th className={TH}>By</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {campaigns.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-[var(--hairline)] transition-colors last:border-b-0 hover:bg-[var(--surface-soft)]"
+                  >
+                    <td className="px-[18px] py-3 text-[13.5px] font-semibold text-[color:var(--ink)]">
+                      {c.subject}
+                    </td>
+                    <td className={`${TD} capitalize`}>{c.audience}</td>
+                    <td className={`${TD} tabular-nums`}>
+                      {c.sentCount}
+                      {c.failedCount > 0 ? (
+                        <span className="ml-1 text-[11.5px] font-semibold text-[color:var(--danger-text)]">
+                          ({c.failedCount} failed)
+                        </span>
+                      ) : null}
+                    </td>
+                    <td className={TD}>{formatDate(c.sentAt)}</td>
+                    <td className={TD}>{c.sentByEmail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
         {/* The store caps history at MAX_CAMPAIGNS (50), so the design's footnote
             states a real retention rule rather than decoration. */}
