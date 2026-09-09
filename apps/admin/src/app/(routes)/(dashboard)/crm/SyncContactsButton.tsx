@@ -27,7 +27,13 @@ export function SyncContactsButton() {
         <p className="text-[11px] font-semibold text-[color:var(--danger-text)]">{state.error}</p>
       ) : null}
       {state.synced === undefined ? null : (
-        <p className="text-[11px] font-semibold text-[color:var(--success)]">
+        <p
+          className={`text-[11px] font-semibold ${
+            state.synced === 0 && state.failed
+              ? 'text-[color:var(--danger-text)]'
+              : 'text-[color:var(--success)]'
+          }`}
+        >
           {state.synced} synced{state.failed ? `, ${state.failed} failed` : ''}
         </p>
       )}

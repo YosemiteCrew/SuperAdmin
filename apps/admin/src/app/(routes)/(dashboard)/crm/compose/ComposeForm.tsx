@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useState } from 'react';
 
 import { type SendCampaignResult, sendCampaignAction } from './actions';
 
@@ -12,15 +12,22 @@ const FIELD =
 const HINT = 'mt-[5px] text-[11.5px] text-[color:var(--ink-faint)]';
 
 export function ComposeForm() {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [audience, setAudience] = useState('all');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
   const [state, formAction, pending] = useActionState(
     async (_prev: SendCampaignResult, fd: FormData): Promise<SendCampaignResult> => {
       const result = await sendCampaignAction(fd);
-      if (!result.error) formRef.current?.reset();
+      if (!result.error) {
+        setAudience('all');
+        setSubject('');
+        setBody('');
+      }
       return result;
     },
     INITIAL
   );
+  const totalFailure = state.sent === 0 && Boolean(state.failed);
 
   return (
     <div className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] px-6 py-[22px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
@@ -31,7 +38,7 @@ export function ComposeForm() {
         </p>
       </div>
 
-      <form ref={formRef} action={formAction} className="flex flex-col gap-[14px]">
+      <form action={formAction} className="flex flex-col gap-[14px]">
         <div>
           <label htmlFor="campaign-audience" className={LABEL}>
             Audience
@@ -39,7 +46,8 @@ export function ComposeForm() {
           <select
             id="campaign-audience"
             name="audience"
-            defaultValue="all"
+            value={audience}
+            onChange={(event) => setAudience(event.target.value)}
             className={`h-10 ${FIELD}`}
           >
             <option value="all">All users</option>
@@ -55,6 +63,8 @@ export function ComposeForm() {
             id="campaign-subject"
             type="text"
             name="subject"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
             placeholder="What's new at Yosemite Crew"
             required
             className={`h-10 ${FIELD}`}
@@ -68,6 +78,8 @@ export function ComposeForm() {
           <textarea
             id="campaign-body"
             name="body"
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
             rows={8}
             placeholder="Write your message here…"
             required
@@ -80,12 +92,24 @@ export function ComposeForm() {
           <p className="text-[13px] font-semibold text-[color:var(--danger-text)]">{state.error}</p>
         ) : null}
 
-        {/* The design's "campaign delivered" panel: a green-bordered card whose
-            headline carries the status colour and whose detail stays ink. */}
+        {/* Delivery results keep the detail neutral while the border and headline
+            distinguish a total failure from a campaign that reached recipients. */}
         {state.sent === undefined ? null : (
-          <div className="flex flex-col gap-[3px] rounded-[18px] border border-[var(--success)]/40 bg-[var(--screen)] px-[18px] py-[14px]">
-            <p className="text-[12.5px] font-bold text-[color:var(--avatar-green-ink)]">
-              Campaign delivered
+          <div
+            className={`flex flex-col gap-[3px] rounded-[18px] border bg-[var(--screen)] px-[18px] py-[14px] ${
+              totalFailure
+                ? 'border-[var(--danger)]/40'
+                : 'border-[var(--success)]/40'
+            }`}
+          >
+            <p
+              className={`text-[12.5px] font-bold ${
+                totalFailure
+                  ? 'text-[color:var(--danger-text)]'
+                  : 'text-[color:var(--avatar-green-ink)]'
+              }`}
+            >
+              {totalFailure ? 'Campaign failed' : 'Campaign delivered'}
             </p>
             <p className="text-[12px] text-[color:var(--ink-muted)]">
               Sent to {state.sent} recipient{state.sent === 1 ? '' : 's'}

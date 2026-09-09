@@ -62,6 +62,17 @@ describe('InviteForm', () => {
     await waitFor(() =>
       expect(writeTextMock).toHaveBeenCalledWith('https://admin.test/accept?t=1')
     );
+    expect(await screen.findByRole('status')).toHaveTextContent('Copied to clipboard.');
+  });
+
+  it('explains how to recover when clipboard access fails', async () => {
+    writeTextMock.mockRejectedValue(new Error('clipboard denied'));
+    createInviteActionMock.mockResolvedValue({ inviteUrl: 'https://admin.test/accept?t=1' });
+    render(<InviteForm />);
+    submit('new@x.com');
+
+    fireEvent.click(await screen.findByRole('button', { name: /^copy$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/copy it manually/i);
   });
 
   it('shows the error and produces no link on failure', async () => {
@@ -73,17 +84,12 @@ describe('InviteForm', () => {
     expect(screen.queryByText(/invite link ready/i)).not.toBeInTheDocument();
   });
 
-  it('clears the field even when the action fails', async () => {
-    // Documents current behaviour, not intended behaviour. The component guards
-    // its reset with `if (!result.error)`, but the input is uncontrolled inside a
-    // `<form action={...}>`, and React resets such a form once the action settles.
-    // So the guard cannot preserve the input and a failed attempt has to be
-    // retyped. Compare ChangeEmailForm, which keeps its value by controlling it.
+  it('preserves the field when the action fails', async () => {
     createInviteActionMock.mockResolvedValue({ error: 'That user is already a super-admin.' });
     render(<InviteForm />);
     submit('taken@x.com');
 
     await screen.findByText('That user is already a super-admin.');
-    await waitFor(() => expect(emailInput().value).toBe(''));
+    expect(emailInput().value).toBe('taken@x.com');
   });
 });
