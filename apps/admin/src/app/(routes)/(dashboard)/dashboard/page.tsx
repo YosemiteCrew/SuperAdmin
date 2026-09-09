@@ -10,6 +10,7 @@ import {
 } from '@/app/features/approvals/queue';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getRecentAuditEvents } from '@/app/features/audit/store';
+import { getServerTimestamp } from '@/app/lib/serverTime';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -102,7 +103,7 @@ export default async function DashboardPage() {
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
   const pendingApprovals = countPending(await annotateApprovalStatuses(approvalCandidates));
-  const cutoff = new Date().getTime() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = getServerTimestamp() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
     newest.users.length === ROLLING_FETCH_CAP && newThisWeekSample === ROLLING_FETCH_CAP
