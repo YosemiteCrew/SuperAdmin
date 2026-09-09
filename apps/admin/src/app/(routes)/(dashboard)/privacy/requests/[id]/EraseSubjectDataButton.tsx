@@ -107,8 +107,8 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
       </button>
       {failed && (
         <p role="alert" className="text-xs text-red-600">
-          Nothing was erased. The request may have been deleted, or it may not be an erasure
-          request.
+          Nothing was erased. The request may have been deleted, it may not be an erasure request,
+          or the audit log could not be written — an erasure only runs once that write succeeds.
         </p>
       )}
     </div>

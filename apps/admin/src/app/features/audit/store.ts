@@ -132,42 +132,53 @@ async function resolveEmail(userId: string): Promise<string> {
   }
 }
 
-export async function recordAuditEvent(params: {
+type RecordAuditEventParams = {
   action: AuditAction;
   actorId: string;
   targetType: AuditTargetType;
   targetId: string;
   targetLabel?: string;
-}): Promise<void> {
-  try {
-    const actorEmail = await resolveEmail(params.actorId);
-    let targetLabel = params.targetLabel;
-    if (!targetLabel && params.targetType === 'user') {
-      targetLabel = await resolveEmail(params.targetId);
-    }
-    const event = buildAuditEvent({ ...params, actorEmail, targetLabel });
+};
 
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${WRITE_LOCK_ID})`;
-      const previous = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' } });
-      let prevHash = previous?.hash;
-      if (!prevHash) {
-        const imported = await readVerifiedLegacy();
-        if (imported.length > 0) {
-          await tx.auditEvent.createMany({ data: imported });
-          prevHash = imported.at(-1)?.hash;
-        }
+async function writeAuditEvent(params: RecordAuditEventParams): Promise<void> {
+  const actorEmail = await resolveEmail(params.actorId);
+  let targetLabel = params.targetLabel;
+  if (!targetLabel && params.targetType === 'user') {
+    targetLabel = await resolveEmail(params.targetId);
+  }
+  const event = buildAuditEvent({ ...params, actorEmail, targetLabel });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${WRITE_LOCK_ID})`;
+    const previous = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' } });
+    let prevHash = previous?.hash;
+    if (!prevHash) {
+      const imported = await readVerifiedLegacy();
+      if (imported.length > 0) {
+        await tx.auditEvent.createMany({ data: imported });
+        prevHash = imported.at(-1)?.hash;
       }
-      prevHash ??= GENESIS_HASH;
-      await tx.auditEvent.create({
-        data: {
-          ...event,
-          at: new Date(event.at),
-          prevHash,
-          hash: hashAuditEvent(prevHash, event),
-        },
-      });
+    }
+    prevHash ??= GENESIS_HASH;
+    await tx.auditEvent.create({
+      data: {
+        ...event,
+        at: new Date(event.at),
+        prevHash,
+        hash: hashAuditEvent(prevHash, event),
+      },
     });
+  });
+}
+
+/**
+ * Fire-and-forget write used by every call site but the two decided in #310:
+ * a lost audit line is preferable to blocking a privileged action that has
+ * already legitimately happened.
+ */
+export async function recordAuditEvent(params: RecordAuditEventParams): Promise<void> {
+  try {
+    await writeAuditEvent(params);
   } catch (error) {
     logger.error('Audit write failed; privileged action was not recorded', {
       action: params.action,
@@ -176,6 +187,17 @@ export async function recordAuditEvent(params: {
       error: error instanceof Error ? error.message : String(error),
     });
   }
+}
+
+/**
+ * Same write, but rethrows instead of swallowing. For the two privacy call
+ * sites (#310) that need to know a write failed: the export surfaces a
+ * warning instead of silently returning an unrecorded disclosure, and the
+ * erasure uses a failure here to refuse the delete rather than run one with
+ * no record of who did it or when.
+ */
+export async function recordAuditEventStrict(params: RecordAuditEventParams): Promise<void> {
+  await writeAuditEvent(params);
 }
 
 export async function verifyAuditChain(): Promise<AuditChainStatus> {

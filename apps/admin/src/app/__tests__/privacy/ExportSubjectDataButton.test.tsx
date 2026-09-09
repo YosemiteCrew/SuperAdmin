@@ -13,7 +13,10 @@ describe('ExportSubjectDataButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    exportMock.mockResolvedValue('{"subjectEmail":"person@example.com"}');
+    exportMock.mockResolvedValue({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditFailed: false,
+    });
     URL.createObjectURL = jest.fn(() => 'blob:mock');
     URL.revokeObjectURL = jest.fn();
   });
@@ -65,6 +68,43 @@ describe('ExportSubjectDataButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
+    fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
+
+  it('still downloads the dossier and warns the operator when the audit write failed (#310)', async () => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    exportMock.mockResolvedValue({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditFailed: true,
+    });
+    render(<ExportSubjectDataButton requestId="dr_1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not recorded in the audit log/i);
+    await waitFor(() => {
+      expect(URL.createObjectURL).toHaveBeenCalled();
+    });
+  });
+
+  it('clears a previous audit-failure warning once a clean export runs', async () => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    exportMock.mockResolvedValueOnce({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditFailed: true,
+    });
+    render(<ExportSubjectDataButton requestId="dr_1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not recorded in the audit log/i);
+
+    exportMock.mockResolvedValueOnce({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditFailed: false,
+    });
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();

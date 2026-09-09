@@ -34,6 +34,7 @@ import {
   getRecentAuditEvents,
   readAuditEventsInvolving,
   recordAuditEvent,
+  recordAuditEventStrict,
   verifyAuditChain,
 } from '@/app/features/audit/store';
 import { GENESIS_HASH, hashAuditEvent } from '@/app/features/audit/chain';
@@ -208,6 +209,48 @@ describe('recordAuditEvent', () => {
       'Audit write failed; privileged action was not recorded',
       expect.objectContaining({ error: 'write failed' })
     );
+    errorSpy.mockRestore();
+  });
+});
+
+describe('recordAuditEventStrict', () => {
+  it('writes the same event shape as the fire-and-forget path', async () => {
+    const previous = row({ id: 'old' });
+    findFirstMock.mockResolvedValue(previous);
+
+    await recordAuditEventStrict({
+      action: 'privacy.subject_erase',
+      actorId: 'admin-1',
+      targetType: 'data_request',
+      targetId: 'dr-1',
+      targetLabel: 'erasure',
+    });
+
+    expect(createMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        action: 'privacy.subject_erase',
+        targetLabel: 'erasure',
+        prevHash: previous.hash,
+      }),
+    });
+  });
+
+  // The whole point of #310: unlike recordAuditEvent, this must not swallow a
+  // write failure — the two privacy call sites need to see it and react.
+  it('rethrows on a database write failure instead of logging and resolving', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    transactionMock.mockRejectedValue(new Error('write failed'));
+
+    await expect(
+      recordAuditEventStrict({
+        action: 'privacy.subject_export',
+        actorId: 'admin-1',
+        targetType: 'data_request',
+        targetId: 'dr-1',
+        targetLabel: 'access',
+      })
+    ).rejects.toThrow('write failed');
+    expect(errorSpy).not.toHaveBeenCalled();
     errorSpy.mockRestore();
   });
 });

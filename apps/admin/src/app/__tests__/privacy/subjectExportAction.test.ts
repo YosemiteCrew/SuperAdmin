@@ -11,11 +11,11 @@ jest.mock('@/app/features/dataRequests/subjectData', () => ({
 }));
 
 jest.mock('@/app/features/audit/store', () => ({
-  recordAuditEvent: jest.fn(),
+  recordAuditEventStrict: jest.fn(),
 }));
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { recordAuditEvent } from '@/app/features/audit/store';
+import { recordAuditEventStrict } from '@/app/features/audit/store';
 import { getDataRequest } from '@/app/features/dataRequests/store';
 import { collectSubjectData } from '@/app/features/dataRequests/subjectData';
 import { exportSubjectDataAction } from '@/app/(routes)/(dashboard)/privacy/requests/[id]/actions';
@@ -23,7 +23,7 @@ import { exportSubjectDataAction } from '@/app/(routes)/(dashboard)/privacy/requ
 const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof requireSuperAdmin>;
 const mockGetRequest = getDataRequest as jest.MockedFunction<typeof getDataRequest>;
 const mockCollect = collectSubjectData as jest.MockedFunction<typeof collectSubjectData>;
-const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockAudit = recordAuditEventStrict as jest.MockedFunction<typeof recordAuditEventStrict>;
 
 const REQUEST = {
   id: 'dr_1',
@@ -58,6 +58,7 @@ beforeEach(() => {
   mockRequireSuperAdmin.mockResolvedValue({ userId: 'admin_1' });
   mockGetRequest.mockResolvedValue(REQUEST as never);
   mockCollect.mockResolvedValue(DOSSIER as never);
+  mockAudit.mockResolvedValue(undefined);
 });
 
 describe('exportSubjectDataAction', () => {
@@ -148,16 +149,35 @@ describe('exportSubjectDataAction', () => {
       order.push('audit');
     });
 
-    const json = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
     expect(order).toEqual(['collect', 'audit']);
-    expect(json).not.toBeNull();
+    expect(result).not.toBeNull();
   });
 
-  it('returns the dossier as indented JSON', async () => {
-    const json = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+  it('returns the dossier as indented JSON, with no audit failure', async () => {
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
-    expect(json).toBe(JSON.stringify(DOSSIER, null, 2));
-    expect(JSON.parse(json as string)).toEqual(DOSSIER);
+    expect(result).toEqual({ json: JSON.stringify(DOSSIER, null, 2), auditFailed: false });
+    expect(JSON.parse((result as { json: string }).json)).toEqual(DOSSIER);
+  });
+
+  // Decided on #310: the export proceeds even when the audit write fails, but
+  // the caller must be told, since a silently unrecorded disclosure is worse
+  // than a disclosure the operator knows was not logged.
+  it('still returns the dossier when the audit write fails, flagged as unrecorded', async () => {
+    mockAudit.mockRejectedValue(new Error('db unavailable'));
+
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+
+    expect(result).toEqual({ json: JSON.stringify(DOSSIER, null, 2), auditFailed: true });
+  });
+
+  it('never puts the audit-failure flag inside the returned dossier JSON', async () => {
+    mockAudit.mockRejectedValue(new Error('db unavailable'));
+
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+
+    expect((result as { json: string }).json).not.toContain('auditFailed');
   });
 });
