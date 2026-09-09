@@ -23,13 +23,18 @@ export function ConfirmDeleteDialog({
 
   useEffect(() => {
     if (!open) return;
-    setTyped('');
-    inputRef.current?.focus();
+    const timeout = globalThis.setTimeout(() => {
+      setTyped('');
+      inputRef.current?.focus();
+    }, 0);
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
     };
     document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    return () => {
+      globalThis.clearTimeout(timeout);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open, onCancel]);
 
   if (!open) return null;

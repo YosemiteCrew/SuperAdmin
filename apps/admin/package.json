@@ -32,7 +32,6 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
-    "@eslint/eslintrc": "^3",
     "@playwright/test": "^1.62.1",
     "@superadmin/types": "workspace:^",
     "@tailwindcss/postcss": "^4.3.3",
@@ -46,7 +45,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "eslint": "^9",
-    "eslint-config-next": "15.5.25",
+    "eslint-config-next": "^16",
     "eslint-plugin-sonarjs": "^4.2.0",
     "jest": "^30.5.1",
     "jest-axe": "^11.0.0",
