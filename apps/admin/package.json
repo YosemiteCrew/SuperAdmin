@@ -14,6 +14,7 @@
     "test:watch": "jest --watch",
     "test:ci": "jest --ci",
     "test:coverage": "jest --coverage",
+    "backfill:contact": "node scripts/import-contact-backfill.mjs",
     "sonar": "node ./scripts/sonar.mjs",
     "sonar:full": "pnpm test:coverage && pnpm sonar"
   },
