@@ -12,7 +12,7 @@
     "generate": "prisma generate",
     "migrate:dev": "node scripts/assert-schema.js && prisma migrate dev",
     "migrate:deploy": "node scripts/assert-schema.js && prisma migrate deploy",
-    "assert-rls": "prisma db execute --file scripts/assert-rls.sql --schema prisma/schema.prisma",
+    "assert-rls": "prisma db execute --file scripts/assert-rls.sql",
     "studio": "prisma studio",
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .js,.jsx,.ts,.tsx --ignore-pattern 'src/generated/**'",
     "type-check": "tsc --noEmit"
