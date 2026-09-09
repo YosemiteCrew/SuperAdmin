@@ -102,7 +102,7 @@ applications:
             # A write placed after them is in neither.
             - |
               : > .env.production
-              env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
+              env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|PANEL_BASIC_AUTH_CREDENTIALS|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
               # >>> build sha
               is_commit_sha() {
                 case "$1" in
@@ -135,7 +135,7 @@ applications:
               if grep -qE '^AWS_|^AMPLIFY_' .env.production; then
                 echo "FAIL: build-environment variables leaked into the artifact"; exit 1
               fi
-              for R in DATABASE_URL SUPERTOKENS_CONNECTION_URI SUPERTOKENS_API_KEY; do
+              for R in DATABASE_URL SUPERTOKENS_CONNECTION_URI SUPERTOKENS_API_KEY PANEL_BASIC_AUTH_CREDENTIALS; do
                 grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
               done
               echo "OK: required runtime vars present"
