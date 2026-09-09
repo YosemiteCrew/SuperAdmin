@@ -38,6 +38,10 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
     label: 'Exported the panel record for a data-subject request',
     severity: 'warning',
   },
+  'privacy.subject_erase_authorize': {
+    label: 'Authorized erasure for a data-subject request',
+    severity: 'danger',
+  },
   'privacy.subject_erase': {
     label: 'Erased the panel record for a data-subject request',
     severity: 'danger',

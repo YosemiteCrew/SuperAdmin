@@ -13,7 +13,10 @@ describe('ExportSubjectDataButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    exportMock.mockResolvedValue('{"subjectEmail":"person@example.com"}');
+    exportMock.mockResolvedValue({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditRecorded: true,
+    });
     URL.createObjectURL = jest.fn(() => 'blob:mock');
     URL.revokeObjectURL = jest.fn();
   });
@@ -69,5 +72,16 @@ describe('ExportSubjectDataButton', () => {
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+  });
+
+  it('downloads the export and warns when its audit record could not be written', async () => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    exportMock.mockResolvedValue({ json: '{}', auditRecorded: false });
+    render(<ExportSubjectDataButton requestId="dr_1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/audit record could not be written/i);
+    expect(URL.createObjectURL).toHaveBeenCalled();
   });
 });

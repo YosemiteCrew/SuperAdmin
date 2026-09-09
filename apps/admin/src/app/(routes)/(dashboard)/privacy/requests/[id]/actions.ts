@@ -1,7 +1,7 @@
 'use server';
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { recordAuditEvent } from '@/app/features/audit/store';
+import { recordAuditEvent, tryRecordAuditEvent } from '@/app/features/audit/store';
 import { getDataRequest } from '@/app/features/dataRequests/store';
 import { collectSubjectData } from '@/app/features/dataRequests/subjectData';
 import {
@@ -29,7 +29,14 @@ import {
  * The event points at the request row, never the address: the row is what an
  * erasure keeps, and the audit log has no erasure of its own.
  */
-export async function exportSubjectDataAction(formData: FormData): Promise<string | null> {
+export interface SubjectDataExportResult {
+  json: string;
+  auditRecorded: boolean;
+}
+
+export async function exportSubjectDataAction(
+  formData: FormData
+): Promise<SubjectDataExportResult | null> {
   const { userId: actorId } = await requireSuperAdmin();
 
   const id = formData.get('id');
@@ -40,7 +47,7 @@ export async function exportSubjectDataAction(formData: FormData): Promise<strin
 
   const data = await collectSubjectData(request.subjectEmail);
 
-  await recordAuditEvent({
+  const auditRecorded = await tryRecordAuditEvent({
     action: 'privacy.subject_export',
     actorId,
     targetType: 'data_request',
@@ -48,7 +55,7 @@ export async function exportSubjectDataAction(formData: FormData): Promise<strin
     targetLabel: request.type,
   });
 
-  return JSON.stringify(data, null, 2);
+  return { json: JSON.stringify(data, null, 2), auditRecorded };
 }
 
 /**
@@ -60,10 +67,9 @@ export async function exportSubjectDataAction(formData: FormData): Promise<strin
  * run for a request that actually asked for it, and a mis-posted id belonging
  * to an `access` request refuses rather than deletes.
  *
- * Audited at `danger` after the fact rather than before it, so the log records
- * an erasure that happened rather than one that was attempted. The same
- * fail-open caveat as the export applies and matters more here, because the
- * action cannot be undone if the record of it is lost — #310.
+ * A durable authorization event is required before deletion. The completed
+ * erasure is then recorded separately, so a failed delete is never described
+ * as completed and an audit outage cannot permit an unrecorded deletion.
  */
 export async function eraseSubjectDataAction(
   formData: FormData
@@ -75,6 +81,15 @@ export async function eraseSubjectDataAction(
 
   const request = await getDataRequest(id);
   if (!request || request.type !== 'erasure') return null;
+
+  const authorized = await tryRecordAuditEvent({
+    action: 'privacy.subject_erase_authorize',
+    actorId,
+    targetType: 'data_request',
+    targetId: request.id,
+    targetLabel: request.type,
+  });
+  if (!authorized) return null;
 
   const report = await eraseSubjectData(request.subjectEmail);
 
