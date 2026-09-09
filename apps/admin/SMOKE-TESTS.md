@@ -3,10 +3,10 @@
 These checks **cannot** be covered by unit tests / CI, because they exercise the real
 SuperTokens core, the browser, the auth flow, or the platform backend. Run them against a
 running app (`pnpm --filter admin run dev`) signed in as a super admin (creds + TOTP)
-before marking PR #81 ready for review / merge.
+after changes to authentication, live integrations, or privileged workflows.
 
 Legend: 🔴 = highest risk (touches the live auth flow — validate first) · 🟡 = important ·
-⚪ = nice-to-have · ⛔ = blocked until the platform backend endpoint exists.
+⚪ = nice-to-have.
 
 ---
 
@@ -96,13 +96,13 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
 - [ ] ⚪ **Command palette** (⌘K / Ctrl+K) opens, searches, and navigates.
 - [ ] ⚪ **Self-hosted Satoshi** font renders (no Fontshare CDN request in the network tab).
 
-## Organizations ⛔ (blocked until `NEXT_PUBLIC_API_URL` + the backend endpoint exist)
+## Organizations 🟡
 
-- [ ] ⛔ **List loads** real businesses from `GET /v1/super-admin/businesses`; status tabs +
+- [ ] 🟡 **List loads** real businesses from `GET /v1/super-admin/businesses`; status tabs +
       name search filter correctly.
-- [ ] ⛔ **Verify / suspend / reactivate** persist via `PATCH /v1/super-admin/businesses/:id`
+- [ ] 🟡 **Verify / suspend / reactivate** persist via `PATCH /v1/super-admin/businesses/:id`
       and update visibility to pet parents.
-- [ ] ⛔ **Detail page** renders identity / contact / compliance / activity.
+- [ ] 🟡 **Detail page** renders identity / contact / compliance / activity.
 - [ ] 🟡 **Corroboration**: on the org detail page, "Run pre-verification checks" performs the
       live website fetch and shows the confidence flag + checklist. (Can be exercised today via
       `?demo=1`.)
