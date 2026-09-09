@@ -132,50 +132,66 @@ async function resolveEmail(userId: string): Promise<string> {
   }
 }
 
-export async function recordAuditEvent(params: {
+type AuditEventParams = {
   action: AuditAction;
   actorId: string;
   targetType: AuditTargetType;
   targetId: string;
   targetLabel?: string;
-}): Promise<void> {
-  try {
-    const actorEmail = await resolveEmail(params.actorId);
-    let targetLabel = params.targetLabel;
-    if (!targetLabel && params.targetType === 'user') {
-      targetLabel = await resolveEmail(params.targetId);
-    }
-    const event = buildAuditEvent({ ...params, actorEmail, targetLabel });
+};
 
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${WRITE_LOCK_ID})`;
-      const previous = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' } });
-      let prevHash = previous?.hash;
-      if (!prevHash) {
-        const imported = await readVerifiedLegacy();
-        if (imported.length > 0) {
-          await tx.auditEvent.createMany({ data: imported });
-          prevHash = imported.at(-1)?.hash;
-        }
-      }
-      prevHash ??= GENESIS_HASH;
-      await tx.auditEvent.create({
-        data: {
-          ...event,
-          at: new Date(event.at),
-          prevHash,
-          hash: hashAuditEvent(prevHash, event),
-        },
-      });
-    });
-  } catch (error) {
-    logger.error('Audit write failed; privileged action was not recorded', {
-      action: params.action,
-      actorId: params.actorId,
-      targetId: params.targetId,
-      error: error instanceof Error ? error.message : String(error),
-    });
+async function appendAuditEvent(params: AuditEventParams): Promise<void> {
+  const actorEmail = await resolveEmail(params.actorId);
+  let targetLabel = params.targetLabel;
+  if (!targetLabel && params.targetType === 'user') {
+    targetLabel = await resolveEmail(params.targetId);
   }
+  const event = buildAuditEvent({ ...params, actorEmail, targetLabel });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${WRITE_LOCK_ID})`;
+    const previous = await tx.auditEvent.findFirst({ orderBy: { seq: 'desc' } });
+    let prevHash = previous?.hash;
+    if (!prevHash) {
+      const imported = await readVerifiedLegacy();
+      if (imported.length > 0) {
+        await tx.auditEvent.createMany({ data: imported });
+        prevHash = imported.at(-1)?.hash;
+      }
+    }
+    prevHash ??= GENESIS_HASH;
+    await tx.auditEvent.create({
+      data: {
+        ...event,
+        at: new Date(event.at),
+        prevHash,
+        hash: hashAuditEvent(prevHash, event),
+      },
+    });
+  });
+}
+
+function reportAuditFailure(params: AuditEventParams, error: unknown) {
+  logger.error('Audit write failed; privileged action was not recorded', {
+    action: params.action,
+    actorId: params.actorId,
+    targetId: params.targetId,
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
+
+export async function tryRecordAuditEvent(params: AuditEventParams): Promise<boolean> {
+  try {
+    await appendAuditEvent(params);
+    return true;
+  } catch (error) {
+    reportAuditFailure(params, error);
+    return false;
+  }
+}
+
+export async function recordAuditEvent(params: AuditEventParams): Promise<void> {
+  await tryRecordAuditEvent(params);
 }
 
 export async function verifyAuditChain(): Promise<AuditChainStatus> {

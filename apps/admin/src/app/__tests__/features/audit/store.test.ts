@@ -34,6 +34,7 @@ import {
   getRecentAuditEvents,
   readAuditEventsInvolving,
   recordAuditEvent,
+  tryRecordAuditEvent,
   verifyAuditChain,
 } from '@/app/features/audit/store';
 import { GENESIS_HASH, hashAuditEvent } from '@/app/features/audit/chain';
@@ -208,6 +209,29 @@ describe('recordAuditEvent', () => {
       'Audit write failed; privileged action was not recorded',
       expect.objectContaining({ error: 'write failed' })
     );
+    errorSpy.mockRestore();
+  });
+
+  it('reports whether a caller-required audit write succeeded', async () => {
+    await expect(
+      tryRecordAuditEvent({
+        action: 'privacy.subject_export',
+        actorId: 'admin-1',
+        targetType: 'data_request',
+        targetId: 'dr-1',
+      })
+    ).resolves.toBe(true);
+
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    transactionMock.mockRejectedValue(new Error('database unavailable'));
+    await expect(
+      tryRecordAuditEvent({
+        action: 'privacy.subject_erase_authorize',
+        actorId: 'admin-1',
+        targetType: 'data_request',
+        targetId: 'dr-1',
+      })
+    ).resolves.toBe(false);
     errorSpy.mockRestore();
   });
 });
