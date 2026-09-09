@@ -2,17 +2,6 @@
 
 This file is auto-loaded by Claude Code on every session. All rules here are **mandatory**.
 
-## Skills Index
-
-| Skill                             | When to use                                    |
-| --------------------------------- | ---------------------------------------------- |
-| `.claude/skills/frontend-design`  | UI work, new components, styling in apps/admin |
-| `.claude/skills/frontend-sonar`   | SonarQube fixes or writing Sonar-clean code    |
-| `.claude/skills/frontend-testing` | Writing/fixing/running tests in apps/admin     |
-| `.claude/skills/code-review`      | Reviewing code or auditing a PR                |
-
----
-
 ## Monorepo Layout
 
 ```
