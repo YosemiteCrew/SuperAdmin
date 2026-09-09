@@ -31,6 +31,14 @@ datasource db {
 // apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
 // the table. See docs/deploy.md, "Row level security".
 
+// Rebuildable status index for the dashboard's pending-approval count. Approval
+// state and rejection enforcement remain authoritative in UserMetadata.
+model ApprovalStatusIndex {
+  userId    String   @id
+  status    String
+  indexedAt DateTime @default(now()) @updatedAt
+}
+
 // A GDPR data-subject rights request (access / erasure / rectification /
 // objection). The controller must respond within one month, so dueAt is the
 // statutory deadline; the row is the record that the request was handled.

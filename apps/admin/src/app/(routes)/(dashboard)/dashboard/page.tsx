@@ -4,8 +4,7 @@ import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
 import {
-  annotateApprovalStatuses,
-  countPending,
+  countPendingApprovalCandidates,
   fetchApprovalCandidates,
 } from '@/app/features/approvals/queue';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
@@ -101,7 +100,7 @@ export default async function DashboardPage() {
   ]);
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
-  const pendingApprovals = countPending(await annotateApprovalStatuses(approvalCandidates));
+  const pendingApprovals = await countPendingApprovalCandidates(approvalCandidates);
   const cutoff = Date.now() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
