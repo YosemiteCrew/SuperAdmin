@@ -10,11 +10,34 @@ import type { ApprovalStatus } from '@/app/features/approvals/store';
 import { ApprovalRowActions } from './ApprovalRowActions';
 import { bulkApproveAccountsAction, bulkRejectAccountsAction } from './bulkActions';
 
+/**
+ * Warm-bone status badges. These mirror the shipped VERIFICATION_META treatment
+ * on the organizations screens so a positive/pending/negative status reads the
+ * same everywhere: pending as warn, approved as the avatar-green palette,
+ * rejected as danger. All resolve through theme-aware CSS variables.
+ */
 const STATUS_STYLE: Record<ApprovalStatus, string> = {
-  pending: 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400',
-  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-  rejected: 'bg-danger-100 text-danger-700 dark:bg-danger-900/30 dark:text-danger-400',
+  pending: 'border border-[var(--warn-border)] bg-[var(--warn-bg)] text-[color:var(--warn-text)]',
+  approved:
+    'border border-[var(--success)]/40 bg-[var(--avatar-green-bg)] text-[color:var(--avatar-green-ink)]',
+  rejected:
+    'border border-[var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)]',
 };
+
+const BULK_BTN =
+  'inline-flex h-[31px] items-center justify-center rounded-full border px-[13px] text-[11.5px] font-semibold transition-colors disabled:opacity-60';
+
+/** Approve reads as a positive status action, so it carries the green outline. */
+const APPROVE_BTN =
+  'border-[var(--avatar-green-ink)] text-[color:var(--avatar-green-ink)] hover:bg-[var(--avatar-green-bg)]';
+const REJECT_BTN =
+  'border-[var(--danger-border)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]';
+
+const TH =
+  'px-5 py-3 text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
+const CARD_FOOT =
+  'border-t border-[var(--hairline)] px-5 py-3 text-[12px] text-[color:var(--ink-faint)]';
+const CHECKBOX = 'h-4 w-4 rounded-[5px] border-[1.5px] border-[var(--divider)] accent-[var(--cta)]';
 
 // Pinned to UTC: this renders on the server AND hydrates in the browser, so a
 // timezone-dependent format would produce hydration mismatches.
@@ -34,11 +57,16 @@ interface Feedback {
   message: string;
 }
 
+/**
+ * Success is carried by weight rather than colour: warm-bone reserves the green
+ * --success token for live/status dots, so a green success line would be the
+ * only green text on the screen.
+ */
 function feedbackClass(feedback: Feedback | null): string {
   if (!feedback) return 'sr-only';
   return feedback.kind === 'error'
-    ? 'text-sm text-red-500'
-    : 'text-sm text-emerald-600 dark:text-emerald-400';
+    ? 'text-[13px] font-semibold text-[color:var(--danger-text)]'
+    : 'text-[13px] font-semibold text-[color:var(--ink)]';
 }
 
 export function ApprovalsTable({
@@ -114,19 +142,21 @@ export function ApprovalsTable({
   return (
     <div className="flex flex-col gap-3">
       {selected.size > 0 ? (
-        <div className="flex items-center justify-between rounded-xl border border-line bg-raised px-4 py-2.5">
-          <p className="text-sm text-ink">
+        <div className="flex flex-wrap items-center gap-[10px] rounded-[14px] border border-[var(--hairline)] bg-[var(--inset)] px-4 py-[9px]">
+          <p className="text-[13px] font-bold text-[color:var(--ink)]">
             {selected.size} selected
             {pendingRows.length > MAX_BULK ? (
-              <span className="ml-2 text-xs text-ink-3">(max {MAX_BULK} per batch)</span>
+              <span className="ml-2 text-[11.5px] font-medium text-[color:var(--ink-faint)]">
+                (max {MAX_BULK} per batch)
+              </span>
             ) : null}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-[10px]">
             <button
               type="button"
               onClick={() => runBulk('approve')}
               disabled={pending}
-              className="rounded-lg border border-emerald-600 px-3 py-1.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-600 hover:text-white disabled:opacity-50"
+              className={`${BULK_BTN} ${APPROVE_BTN}`}
             >
               {pending ? 'Working…' : `Approve ${selected.size}`}
             </button>
@@ -134,7 +164,7 @@ export function ApprovalsTable({
               type="button"
               onClick={() => runBulk('reject')}
               disabled={pending}
-              className="rounded-lg border border-danger-600 px-3 py-1.5 text-xs font-medium text-danger-600 transition-colors hover:bg-danger-600 hover:text-white disabled:opacity-50"
+              className={`${BULK_BTN} ${REJECT_BTN}`}
             >
               {pending ? 'Working…' : `Reject ${selected.size}`}
             </button>
@@ -146,33 +176,49 @@ export function ApprovalsTable({
         {feedback?.message ?? ''}
       </p>
 
-      <section className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
+      <section className="overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
         {rows.length === 0 ? (
-          <p className="p-5 text-sm text-ink-3">{emptyMessage}</p>
+          <p className="p-10 text-center text-[13.5px] text-[color:var(--ink-muted)]">
+            {emptyMessage}
+          </p>
         ) : (
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full table-fixed border-collapse">
+            <colgroup>
+              <col className="w-11" />
+              <col className="w-[1.8fr]" />
+              <col className="w-[1.1fr]" />
+              <col className="w-[1.4fr]" />
+              <col className="w-[190px]" />
+            </colgroup>
             <thead>
-              <tr className="border-b border-line text-left text-xs font-medium uppercase tracking-wide text-ink-2">
-                <th className="w-10 px-5 py-3">
+              <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
+                <th className={TH}>
                   {pendingRows.length > 0 ? (
                     <input
                       type="checkbox"
                       checked={allPendingSelected}
                       onChange={toggleAll}
                       aria-label="Select all pending accounts"
-                      className="h-4 w-4 rounded border-line accent-btn"
+                      className={CHECKBOX}
                     />
                   ) : null}
                 </th>
-                <th className="px-5 py-3">Account</th>
-                <th className="px-5 py-3">Joined</th>
-                <th className="px-5 py-3">Status</th>
-                <th className="px-5 py-3 text-right">Actions</th>
+                <th className={TH}>Account</th>
+                <th className={TH}>Joined</th>
+                <th className={TH}>Status</th>
+                <th className={`${TH} text-right`}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-b border-line last:border-b-0">
+                <tr
+                  key={row.id}
+                  className={`border-b border-[var(--hairline)] transition-colors last:border-b-0 ${
+                    selected.has(row.id)
+                      ? 'bg-[var(--nav-active-bg)]'
+                      : 'hover:bg-[var(--surface-soft)]'
+                  }`}
+                >
                   <td className="px-5 py-3">
                     {row.status === 'pending' ? (
                       <input
@@ -180,38 +226,42 @@ export function ApprovalsTable({
                         checked={selected.has(row.id)}
                         onChange={() => toggle(row.id)}
                         aria-label={`Select ${row.email}`}
-                        className="h-4 w-4 rounded border-line accent-btn"
+                        className={CHECKBOX}
                       />
                     ) : null}
                   </td>
                   <td className="px-5 py-3">
                     <Link
                       href={`/users/${row.id}`}
-                      className="font-medium text-ink hover:underline"
+                      className="block truncate text-[13.5px] font-semibold text-[color:var(--ink)] hover:underline"
                     >
                       {row.email}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 text-ink-2">
+                  <td className="px-5 py-3 text-[13.5px] text-[color:var(--ink-muted)]">
                     <time dateTime={new Date(row.joinedAt).toISOString()}>
                       {formatDate(row.joinedAt)}
                     </time>
                   </td>
                   <td className="px-5 py-3">
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[row.status]}`}
-                    >
-                      {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={`inline-flex flex-none rounded-full px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLE[row.status]}`}
+                      >
+                        {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
+                      </span>
+                      {row.decidedAt ? (
+                        <span className="text-[11px] text-[color:var(--ink-faint)]">
+                          {formatDate(row.decidedAt)}
+                        </span>
+                      ) : null}
                     </span>
-                    {row.decidedAt ? (
-                      <span className="ml-2 text-xs text-ink-3">{formatDate(row.decidedAt)}</span>
-                    ) : null}
                   </td>
                   <td className="px-5 py-3 text-right">
                     {row.status === 'pending' ? (
                       <ApprovalRowActions userId={row.id} email={row.email} />
                     ) : (
-                      <span className="text-xs text-ink-3">—</span>
+                      <span className="text-[11.5px] text-[color:var(--ink-faint)]">·</span>
                     )}
                   </td>
                 </tr>
@@ -219,6 +269,10 @@ export function ApprovalsTable({
             </tbody>
           </table>
         )}
+        <p className={CARD_FOOT}>
+          Bulk results report processed, skipped, failed, and welcome emails sent. A manual disable
+          set from the Users page is never lifted by approval.
+        </p>
       </section>
     </div>
   );

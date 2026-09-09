@@ -1,6 +1,60 @@
+import { createHash, timingSafeEqual } from 'node:crypto';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 import { buildStrictCsp } from '@/securityHeaders';
+
+const BASIC_AUTH_REALM = 'Login';
+
+/**
+ * Routes called by machines that cannot complete a browser Basic Auth
+ * challenge. Their route handlers retain their existing authentication and
+ * validation; this list only exempts them from the panel-wide extra layer.
+ */
+const BASIC_AUTH_EXEMPTIONS = new Set([
+  'GET /api/ap/signing-key.json',
+  'GET /api/ap/revoked.json',
+  'GET /api/directory',
+  'PUT /api/directory/listing',
+  'GET /api/health',
+  'POST /api/contact',
+  'POST /api/consent',
+  'POST /api/social/tiktok/scheduled',
+  'POST /api/social/instagram/scheduled',
+]);
+
+function constantTimeEquals(left: string, right: string): boolean {
+  const leftDigest = createHash('sha256').update(left).digest();
+  const rightDigest = createHash('sha256').update(right).digest();
+  return timingSafeEqual(leftDigest, rightDigest);
+}
+
+function expectedBasicAuthorization(credentials: string | undefined): string | null {
+  if (!credentials || /[\r\n]/.test(credentials)) return null;
+  const separator = credentials.indexOf(':');
+  if (separator <= 0 || separator === credentials.length - 1) return null;
+  return `Basic ${Buffer.from(credentials).toString('base64')}`;
+}
+
+function basicAuthResponse(request: NextRequest): NextResponse | null {
+  const routeKey = `${request.method.toUpperCase()} ${request.nextUrl.pathname}`;
+  if (BASIC_AUTH_EXEMPTIONS.has(routeKey)) return null;
+
+  const expected = expectedBasicAuthorization(process.env.PANEL_BASIC_AUTH_CREDENTIALS);
+  if (!expected) {
+    // Local development stays usable without a second credential. A deployed
+    // production build fails closed if the credential was not materialised.
+    return process.env.NODE_ENV === 'production' ? new NextResponse(null, { status: 503 }) : null;
+  }
+
+  const presented = request.headers.get('authorization') ?? '';
+  if (constantTimeEquals(presented, expected)) return null;
+
+  return new NextResponse(null, {
+    status: 401,
+    headers: { 'WWW-Authenticate': `Basic realm="${BASIC_AUTH_REALM}"` },
+  });
+}
 
 // NOTE: this decodes the JWT WITHOUT verifying its signature. It is deliberately
 // NOT a security boundary — it only decides client-side redirects (a forged token
@@ -36,6 +90,9 @@ export function proxy(request: NextRequest) {
   const token = request.cookies.get('sAccessToken')?.value;
   const isAuthenticated = !!token && isTokenValid(token);
   const nonce = generateNonce();
+
+  const basicAuthFailure = basicAuthResponse(request);
+  if (basicAuthFailure) return withCsp(basicAuthFailure, nonce);
 
   // Preserve the full invitation URL through sign-in. The route lives outside
   // the super-admin layout because its recipient does not have that role yet,
@@ -82,6 +139,9 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // API paths are explicit so dotted route names such as the AP JSON trust
+    // anchors cannot fall through the static-asset exclusion below.
+    '/api/:path*',
     // Next.js statically parses this config and only accepts a string literal here;
     // String.raw breaks the production build, so the escaped form stays. NOSONAR
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico|json|txt|xml|css|js|map|woff|woff2|ttf|eot)).*)', // NOSONAR: Next.js requires a static string literal

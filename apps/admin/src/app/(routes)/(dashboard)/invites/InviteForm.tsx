@@ -6,6 +6,42 @@ import { type CreateInviteResult, createInviteAction } from './actions';
 
 const INITIAL: CreateInviteResult = {};
 
+const CARD =
+  'rounded-[18px] border bg-[var(--screen)] px-[22px] py-[18px] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
+
+/**
+ * The ready panel is the one card that does not take the neutral hairline: a
+ * generated link is a good status, so it earns the green border and title.
+ */
+function InviteReadyCard({
+  inviteUrl,
+  onCopy,
+}: Readonly<{ inviteUrl: string; onCopy: () => void }>) {
+  return (
+    <div className={`${CARD} flex flex-col gap-3 border-[var(--avatar-green-ink)]/30`}>
+      <h3 className="text-[13px] font-bold text-[color:var(--avatar-green-ink)]">
+        Invite link ready
+      </h3>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 truncate rounded-[10px] border border-[var(--hairline)] bg-[var(--field-bg)] px-3 py-2 font-mono text-[11.5px] text-[color:var(--ink)]">
+          {inviteUrl}
+        </code>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="inline-flex h-[34px] flex-none items-center justify-center rounded-full border border-[var(--divider)] px-[14px] text-[12.5px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
+        >
+          Copy
+        </button>
+      </div>
+      {/* 24 hours is INVITE_TTL_MS, not a guess; the result carries no expiry. */}
+      <p className="text-[11.5px] text-[color:var(--ink-faint)]">
+        Expires in 24 hours · accepting grants the superadmin role to the signed-in account
+      </p>
+    </div>
+  );
+}
+
 export function InviteForm() {
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -24,59 +60,51 @@ export function InviteForm() {
   }
 
   return (
-    <div className="rounded-2xl border border-line bg-surface p-6 shadow-[0_1px_2px_rgba(29,28,27,0.04),0_4px_12px_rgba(29,28,27,0.06)]">
-      <h2 className="text-lg font-medium text-ink">Generate invite link</h2>
-      <p className="mt-1 mb-5 text-sm text-ink-3">
-        The link expires in 24 hours. The recipient must be signed in to accept it.
-      </p>
-
-      <form ref={formRef} action={formAction} className="flex flex-col gap-4">
-        <div>
-          <label htmlFor="invite-email" className="mb-1.5 block text-sm font-medium text-ink">
-            Recipient email
-          </label>
-          <input
-            id="invite-email"
-            type="email"
-            name="email"
-            placeholder="newadmin@example.com"
-            required
-            className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
-          />
-        </div>
-
-        {state.error ? <p className="text-sm text-red-500">{state.error}</p> : null}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={pending}
-            className="h-10 rounded-xl bg-btn px-5 text-sm font-medium text-btn-ink disabled:opacity-50"
-          >
-            {pending ? 'Generating…' : 'Generate link'}
-          </button>
-        </div>
-      </form>
-
-      {state.inviteUrl ? (
-        <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/20 p-4">
-          <p className="mb-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-            Invite link ready
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-start">
+      <div className={`${CARD} flex flex-col gap-3 border-[var(--hairline)]`}>
+        <div className="flex flex-col gap-1">
+          <h2 className="text-[15.5px] font-bold text-[color:var(--ink)]">Generate invite link</h2>
+          <p className="text-[12.5px] text-[color:var(--ink-faint)]">
+            The link expires in 24 hours. The recipient must be signed in to accept it.
           </p>
-          <div className="flex items-center gap-2">
-            <code className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap rounded-lg border border-line bg-surface px-3 py-2 text-xs text-ink">
-              {state.inviteUrl}
-            </code>
+        </div>
+
+        <form ref={formRef} action={formAction} className="flex flex-col gap-3">
+          <div className="flex items-end gap-[10px]">
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+              <label
+                htmlFor="invite-email"
+                className="text-[12px] font-semibold text-[color:var(--ink-soft)]"
+              >
+                Recipient email
+              </label>
+              <input
+                id="invite-email"
+                type="email"
+                name="email"
+                placeholder="newadmin@example.com"
+                required
+                className="h-10 w-full rounded-xl border-[1.5px] border-[var(--hairline)] bg-[var(--field-bg)] px-4 text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]"
+              />
+            </div>
             <button
-              type="button"
-              onClick={copyLink}
-              className="h-9 shrink-0 rounded-xl border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-raised"
+              type="submit"
+              disabled={pending}
+              className="yc-primary-button inline-flex h-10 flex-none items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13.5px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-60"
             >
-              Copy
+              <span>{pending ? 'Generating…' : 'Generate link'}</span>
             </button>
           </div>
-        </div>
-      ) : null}
+
+          {state.error ? (
+            <p className="text-[13px] font-semibold text-[color:var(--danger-text)]">
+              {state.error}
+            </p>
+          ) : null}
+        </form>
+      </div>
+
+      {state.inviteUrl ? <InviteReadyCard inviteUrl={state.inviteUrl} onCopy={copyLink} /> : null}
     </div>
   );
 }

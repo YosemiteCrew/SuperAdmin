@@ -1,10 +1,7 @@
-/**
- * Lightweight, regex-free email sanity check (avoids any ReDoS surface). This is
- * a format guard only — SuperTokens performs authoritative validation on update.
- */
+/** Lightweight email sanity check; authoritative validation remains downstream. */
 export function isValidEmail(value: string): boolean {
   const email = value.trim();
-  if (email.length === 0 || email.length > 254 || email.includes(' ')) return false;
+  if (email.length === 0 || email.length > 254 || /\s/u.test(email)) return false;
 
   const at = email.indexOf('@');
   if (at <= 0 || at !== email.lastIndexOf('@')) return false;
