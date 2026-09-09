@@ -84,6 +84,10 @@ function Stat({ label, value, hint }: Readonly<{ label: string; value: string; h
   );
 }
 
+function currentTimestamp(): number {
+  return Date.now();
+}
+
 export default async function DashboardPage() {
   ensureSuperTokensInit();
 
@@ -102,7 +106,7 @@ export default async function DashboardPage() {
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
   const pendingApprovals = countPending(await annotateApprovalStatuses(approvalCandidates));
-  const cutoff = Date.now() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const cutoff = currentTimestamp() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
     newest.users.length === ROLLING_FETCH_CAP && newThisWeekSample === ROLLING_FETCH_CAP

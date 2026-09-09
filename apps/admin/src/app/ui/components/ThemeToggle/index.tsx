@@ -16,13 +16,17 @@ function resolveDark(theme: Theme): boolean {
   return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
 }
 
+function applyThemeToDocument(theme: Theme): void {
+  document.documentElement.dataset.theme = resolveDark(theme) ? 'dark' : 'light';
+}
+
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
-    const stored = globalThis.localStorage?.getItem('theme') as Theme | null;
+    const stored = globalThis.localStorage?.getItem('theme');
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      setTheme(stored);
+      queueMicrotask(() => setTheme(stored));
     }
   }, []);
 
@@ -33,7 +37,7 @@ export function ThemeToggle() {
     } catch {
       /* storage may be unavailable (private mode) — theme still applies for this session */
     }
-    document.documentElement.dataset.theme = resolveDark(next) ? 'dark' : 'light';
+    applyThemeToDocument(next);
   }
 
   return (
