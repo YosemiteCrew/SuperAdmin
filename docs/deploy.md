@@ -95,14 +95,17 @@ character for character, or the callback fails:
 
 ### Access control
 
-Amplify branch **password protection** should stay on. It is a coarse gate in
-front of everything, sitting ahead of SuperTokens rather than replacing it: the
-panel still requires a super-admin account and TOTP. The point is that
-unauthenticated internet traffic never reaches application code.
+Set `PANEL_BASIC_AUTH_CREDENTIALS` to a distinct `username:password` credential.
+The application proxy requires it for every panel page and API route except the
+nine exact machine-facing method/path pairs declared in `src/proxy.ts`. Those
+routes retain their own bearer token, shared-key, rate-limit, and validation
+controls. SuperTokens role enforcement and TOTP remain required behind this
+additional layer.
 
-Note this gate also covers `/api/social/*/scheduled`, which is server-to-server.
-Run the scheduler so it does not cross the public internet, or give it whatever
-credential the gate expects.
+Deploy and verify this application gate before disabling Amplify branch
+password protection. Once the application gate is live, disable the branch-wide
+gate so the machine-facing routes can reach their own controls. Probe every
+exemption plus protected page and private-API controls immediately afterward.
 
 ## Before the first migrate on an unfamiliar database
 

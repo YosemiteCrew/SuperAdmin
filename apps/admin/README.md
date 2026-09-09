@@ -28,12 +28,13 @@ App boots at `http://localhost:3000` (or the next free port if 3000 is busy — 
 
 All configuration is environment-driven. Missing required vars cause the app to throw at startup with a clear message naming the missing var.
 
-| Variable                     | Required | Purpose                                                                                                  |
-| ---------------------------- | -------- | -------------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | yes      | Origin where the app is served. `http://localhost:3000` in dev, `https://admin.your-domain.com` in prod. |
-| `SUPERTOKENS_CONNECTION_URI` | yes      | SuperTokens core URI (e.g. `https://…aws.supertokens.io`).                                               |
-| `SUPERTOKENS_API_KEY`        | yes      | SuperTokens core API key.                                                                                |
-| `DATABASE_URL`               | yes      | Postgres connection string for Prisma. Contact requests, consent and privacy requests all read from it.  |
+| Variable                       | Required   | Purpose                                                                                                  |
+| ------------------------------ | ---------- | -------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`       | yes        | Origin where the app is served. `http://localhost:3000` in dev, `https://admin.your-domain.com` in prod. |
+| `SUPERTOKENS_CONNECTION_URI`   | yes        | SuperTokens core URI (e.g. `https://…aws.supertokens.io`).                                               |
+| `SUPERTOKENS_API_KEY`          | yes        | SuperTokens core API key.                                                                                |
+| `DATABASE_URL`                 | yes        | Postgres connection string for Prisma. Contact requests, consent and privacy requests all read from it.  |
+| `PANEL_BASIC_AUTH_CREDENTIALS` | production | Extra HTTP Basic Auth credential in `username:password` form for the panel-wide application gate.        |
 
 System-level constants (`APP_NAME`, SuperTokens base paths) live in [`src/app/constants/index.ts`](src/app/constants/index.ts) — these don't vary by environment and are not env-driven.
 
