@@ -55,6 +55,47 @@ pnpm --filter admin run test:coverage  # coverage report
 
 > Targeted tests are enforced via [`scripts/run-jest.mjs`](scripts/run-jest.mjs) to prevent accidental full-suite runs in local dev. CI uses `test:ci`.
 
+### Recover missed contact submissions
+
+The contact mirror is best effort, so submissions made while either deployment
+was unconfigured remain only in the product database. Recover them with the
+local stdin importer after the `sourceRequestId` migration is deployed. The
+importer is deliberately a script rather than an API route: it runs only with a
+direct database connection held by the operator. It is never imported by an API
+route or deployed as a remotely callable recovery endpoint.
+
+Feed one JSON object per line with these source fields:
+
+```text
+{"sourceRequestId":"11111111-1111-4111-8111-111111111111","email":"synthetic@example.test","name":"Synthetic Person","phone":"+1 555 0100","type":"GENERAL_ENQUIRY","message":"Synthetic recovery check.","createdAt":"2026-09-01T12:34:56.789Z"}
+```
+
+`name` and `phone` are optional. `type` accepts `GENERAL_ENQUIRY`,
+`FEATURE_REQUEST`, `DSAR`, or `COMPLAINT`. The source query must select only web
+contact rows and preserve the original `id` as `sourceRequestId` and
+`createdAt` timestamp. Pipe the export directly to the command so personal data
+does not land in the repository or shell history.
+
+Run without `--apply` first. This validates every row without connecting to the
+database or writing anything:
+
+```bash
+approved-contact-export-command | pnpm --filter admin run backfill:contact
+```
+
+After the validated count matches the source count, run the same export through
+the write mode with the panel's `DATABASE_URL` supplied by the approved secret
+manager:
+
+```bash
+approved-contact-export-command | pnpm --filter admin run backfill:contact -- --apply
+```
+
+The importer preserves each request timestamp and records the source request
+ID under a unique constraint. Repeating the same stream is safe: identical rows
+are reported as already present, while a reused source ID carrying different
+data stops the run. The script never prints submission content.
+
 ## Verify
 
 ```bash
