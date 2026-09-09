@@ -12,10 +12,11 @@ jest.mock('@/app/features/dataRequests/subjectData', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({
   recordAuditEvent: jest.fn(),
+  tryRecordAuditEvent: jest.fn(),
 }));
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { recordAuditEvent } from '@/app/features/audit/store';
+import { tryRecordAuditEvent } from '@/app/features/audit/store';
 import { getDataRequest } from '@/app/features/dataRequests/store';
 import { collectSubjectData } from '@/app/features/dataRequests/subjectData';
 import { exportSubjectDataAction } from '@/app/(routes)/(dashboard)/privacy/requests/[id]/actions';
@@ -23,7 +24,7 @@ import { exportSubjectDataAction } from '@/app/(routes)/(dashboard)/privacy/requ
 const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof requireSuperAdmin>;
 const mockGetRequest = getDataRequest as jest.MockedFunction<typeof getDataRequest>;
 const mockCollect = collectSubjectData as jest.MockedFunction<typeof collectSubjectData>;
-const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockAudit = tryRecordAuditEvent as jest.MockedFunction<typeof tryRecordAuditEvent>;
 
 const REQUEST = {
   id: 'dr_1',
@@ -58,6 +59,7 @@ beforeEach(() => {
   mockRequireSuperAdmin.mockResolvedValue({ userId: 'admin_1' });
   mockGetRequest.mockResolvedValue(REQUEST as never);
   mockCollect.mockResolvedValue(DOSSIER as never);
+  mockAudit.mockResolvedValue(true);
 });
 
 describe('exportSubjectDataAction', () => {
@@ -146,18 +148,28 @@ describe('exportSubjectDataAction', () => {
     });
     mockAudit.mockImplementation(async () => {
       order.push('audit');
+      return true;
     });
 
-    const json = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
     expect(order).toEqual(['collect', 'audit']);
-    expect(json).not.toBeNull();
+    expect(result).not.toBeNull();
   });
 
   it('returns the dossier as indented JSON', async () => {
-    const json = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
+    const result = await exportSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
-    expect(json).toBe(JSON.stringify(DOSSIER, null, 2));
-    expect(JSON.parse(json as string)).toEqual(DOSSIER);
+    expect(result).toEqual({ json: JSON.stringify(DOSSIER, null, 2), auditRecorded: true });
+    expect(JSON.parse(result?.json as string)).toEqual(DOSSIER);
+  });
+
+  it('returns the payload with an audit warning when recording fails', async () => {
+    mockAudit.mockResolvedValue(false);
+
+    await expect(exportSubjectDataAction(formDataWith({ id: 'dr_1' }))).resolves.toEqual({
+      json: JSON.stringify(DOSSIER, null, 2),
+      auditRecorded: false,
+    });
   });
 });
