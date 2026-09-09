@@ -18,8 +18,8 @@ export const revalidate = 0;
  *
  *   P1001  cannot reach the database server        -> network / egress
  *   P1000  authentication failed                   -> wrong credentials
- *   PrismaClientInitializationError with no code   -> query engine binary
- *                                                     missing from the bundle
+ *   PrismaClientInitializationError with no code   -> client initialization
+ *                                                     failed before a query
  *
  * The full error still goes to the server log, where it is not public.
  */
@@ -155,7 +155,7 @@ export async function GET() {
     database = 'down';
     reason = describe(error);
     // Swallowing this entirely is what made the 2026-08-21 outage opaque: the
-    // endpoint reported "down" with no way to tell a missing query engine from
+    // endpoint reported "down" with no way to distinguish initialization from
     // an unreachable host without redeploying instrumentation.
     console.error('[health] database probe failed', error);
   }
