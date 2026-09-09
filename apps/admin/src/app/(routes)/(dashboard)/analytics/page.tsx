@@ -12,6 +12,7 @@ import supertokens from 'supertokens-node';
 import { ensureSuperTokensInit } from '@/app/config/backend';
 import { getMFAStats } from '@/app/features/analytics';
 import type { DayBucket } from '@/app/features/analytics/types';
+import { getServerTimestamp } from '@/app/lib/serverTime';
 
 export const metadata: Metadata = {
   title: 'Analytics',
@@ -142,7 +143,7 @@ export default async function AnalyticsPage() {
   const timestamps = users.map((u) => u.timeJoined);
   const sampleHint = sampled ? `Based on the ${SAMPLE_CAP} newest users` : undefined;
 
-  const now = new Date().getTime();
+  const now = getServerTimestamp();
   const last7 = timestamps.filter((t) => t >= now - 7 * DAY_MS).length;
   const last30 = timestamps.filter((t) => t >= now - 30 * DAY_MS).length;
 
