@@ -63,12 +63,16 @@ export function InviteForm() {
 
   const [state, formAction, pending] = useActionState(
     async (_prev: CreateInviteResult, fd: FormData): Promise<CreateInviteResult> => {
-      const result = await createInviteAction(fd);
-      if (!result.error) {
-        setEmail('');
-        setCopyStatus(null);
+      try {
+        const result = await createInviteAction(fd);
+        if (!result.error) {
+          setEmail('');
+          setCopyStatus(null);
+        }
+        return result;
+      } catch {
+        return { error: 'Invite could not be created. Try again.' };
       }
-      return result;
     },
     INITIAL
   );
@@ -123,7 +127,7 @@ export function InviteForm() {
           </div>
 
           {state.error ? (
-            <p className="text-[13px] font-semibold text-[color:var(--danger-text)]">
+            <p role="alert" className="text-[13px] font-semibold text-[color:var(--danger-text)]">
               {state.error}
             </p>
           ) : null}
@@ -131,11 +135,7 @@ export function InviteForm() {
       </div>
 
       {state.inviteUrl ? (
-        <InviteReadyCard
-          inviteUrl={state.inviteUrl}
-          onCopy={copyLink}
-          copyStatus={copyStatus}
-        />
+        <InviteReadyCard inviteUrl={state.inviteUrl} onCopy={copyLink} copyStatus={copyStatus} />
       ) : null}
     </div>
   );
