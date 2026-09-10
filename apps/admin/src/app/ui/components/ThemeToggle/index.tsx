@@ -20,11 +20,15 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system');
 
   useEffect(() => {
-    const stored = globalThis.localStorage?.getItem('theme') as Theme | null;
+    const stored = globalThis.localStorage?.getItem('theme');
     if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      setTheme(stored);
+      queueMicrotask(() => setTheme(stored));
     }
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolveDark(theme) ? 'dark' : 'light';
+  }, [theme]);
 
   function apply(next: Theme) {
     setTheme(next);
@@ -33,7 +37,6 @@ export function ThemeToggle() {
     } catch {
       /* storage may be unavailable (private mode) — theme still applies for this session */
     }
-    document.documentElement.dataset.theme = resolveDark(next) ? 'dark' : 'light';
   }
 
   return (

@@ -194,8 +194,8 @@ export function CommandPalette() {
   useEffect(() => {
     const q = debouncedQuery.trim();
     if (!isOpen || q.length < LIVE_SEARCH_MIN_CHARS) {
-      setLiveHits([]);
-      return;
+      const timeout = globalThis.setTimeout(() => setLiveHits([]), 0);
+      return () => globalThis.clearTimeout(timeout);
     }
     const seq = ++searchSeq.current;
     // Lazy import: keeps the server-action module (and its server-only

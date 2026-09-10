@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaCaretDown } from 'react-icons/fa6';
 import { IoLogOutOutline, IoSettingsOutline } from 'react-icons/io5';
 import { signOut } from 'supertokens-auth-react/recipe/emailpassword';
@@ -17,6 +18,7 @@ export function UserMenu({
   firstName: string | null;
   lastName: string | null;
 }>) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -57,7 +59,7 @@ export function UserMenu({
     } catch {
       /* network failure — proceed to /auth regardless */
     }
-    globalThis.location.href = '/auth';
+    router.replace('/auth');
   }
 
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
