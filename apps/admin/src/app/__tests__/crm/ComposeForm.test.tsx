@@ -30,6 +30,7 @@ describe('ComposeForm', () => {
 
   it('shows the sent count after a successful send', async () => {
     render(<ComposeForm />);
+    fireEvent.change(screen.getByLabelText(/Audience/i), { target: { value: 'admins' } });
     fireEvent.change(screen.getByLabelText(/Subject/i), { target: { value: 'Big news' } });
     fireEvent.change(screen.getByLabelText(/Body/i), {
       target: { value: 'A body long enough to pass validation.' },
@@ -42,6 +43,9 @@ describe('ComposeForm', () => {
       expect(screen.getByText(/Sent to 2 recipients/i)).toBeInTheDocument();
     });
     expect(sendMock).toHaveBeenCalled();
+    expect(screen.getByLabelText(/Audience/i)).toHaveValue('all');
+    expect(screen.getByLabelText(/Subject/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Body/i)).toHaveValue('');
   });
 
   it('shows failed count when some sends fail', async () => {
@@ -54,34 +58,45 @@ describe('ComposeForm', () => {
     await waitFor(() => {
       expect(screen.getByText(/\(1 failed\)/i)).toBeInTheDocument();
     });
+    expect(screen.getByRole('status')).toHaveTextContent('Campaign delivered');
   });
 
   it('shows the error returned by the action', async () => {
     sendMock.mockResolvedValue({ error: 'Subject must be at least 3 characters.' });
     render(<ComposeForm />);
+    fireEvent.change(screen.getByLabelText(/Audience/i), { target: { value: 'admins' } });
     fireEvent.change(screen.getByLabelText(/Subject/i), { target: { value: 'Big news' } });
     fireEvent.change(screen.getByLabelText(/Body/i), {
       target: { value: 'A body long enough to retry.' },
+    });
+    expect(screen.getByLabelText(/Audience/i)).toHaveValue('admins');
+    fireEvent.submit(
+      screen.getByRole('button', { name: /Send campaign/i }).closest('form') as HTMLFormElement
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Subject must be at least 3 characters.'
+    );
+    await waitFor(() => expect(screen.getByLabelText(/Audience/i)).toHaveValue('admins'));
+    expect(screen.getByLabelText(/Subject/i)).toHaveValue('Big news');
+    expect(screen.getByLabelText(/Body/i)).toHaveValue('A body long enough to retry.');
+  });
+
+  it('reports a total delivery failure as an error and preserves the draft', async () => {
+    sendMock.mockResolvedValue({ sent: 0, failed: 2 });
+    render(<ComposeForm />);
+    fireEvent.change(screen.getByLabelText(/Subject/i), { target: { value: 'Big news' } });
+    fireEvent.change(screen.getByLabelText(/Body/i), {
+      target: { value: 'A body long enough to pass validation.' },
     });
     fireEvent.submit(
       screen.getByRole('button', { name: /Send campaign/i }).closest('form') as HTMLFormElement
     );
 
-    await waitFor(() => {
-      expect(screen.getByText(/Subject must be at least 3 characters/)).toBeInTheDocument();
-    });
-    expect(screen.getByLabelText(/Subject/i)).toHaveValue('Big news');
-    expect(screen.getByLabelText(/Body/i)).toHaveValue('A body long enough to retry.');
-  });
-
-  it('presents a total delivery failure as an error', async () => {
-    sendMock.mockResolvedValue({ sent: 0, failed: 2 });
-    render(<ComposeForm />);
-    fireEvent.submit(screen.getByRole('button', { name: /Send campaign/i }).closest('form')!);
-
-    expect(await screen.findByText('Campaign failed')).toHaveClass(
-      'text-[color:var(--danger-text)]'
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Campaign delivery failedSent to 0 recipients (2 failed).'
     );
-    expect(screen.queryByText('Campaign delivered')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Subject/i)).toHaveValue('Big news');
+    expect(screen.getByLabelText(/Body/i)).toHaveValue('A body long enough to pass validation.');
   });
 });

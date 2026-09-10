@@ -38,6 +38,7 @@ describe('SyncContactsButton', () => {
     await waitFor(() => {
       expect(screen.getByText(/3 synced, 2 failed/i)).toBeInTheDocument();
     });
+    expect(screen.getByRole('status')).toHaveTextContent('3 synced, 2 failed');
   });
 
   it('shows the error returned by the action', async () => {
@@ -48,18 +49,16 @@ describe('SyncContactsButton', () => {
     fireEvent.submit(
       screen.getByRole('button', { name: /Sync contacts/i }).closest('form') as HTMLFormElement
     );
-    await waitFor(() => {
-      expect(screen.getByText(/not configured/i)).toBeInTheDocument();
-    });
+    expect(await screen.findByRole('alert')).toHaveTextContent(/not configured/i);
   });
 
-  it('styles a total sync failure as an error', async () => {
-    syncMock.mockResolvedValue({ synced: 0, failed: 5 });
+  it('reports a total sync failure as an error', async () => {
+    syncMock.mockResolvedValue({ synced: 0, failed: 2 });
     render(<SyncContactsButton />);
-    fireEvent.submit(screen.getByRole('button', { name: /Sync contacts/i }).closest('form')!);
-
-    expect(await screen.findByText('0 synced, 5 failed')).toHaveClass(
-      'text-[color:var(--danger-text)]'
+    fireEvent.submit(
+      screen.getByRole('button', { name: /Sync contacts/i }).closest('form') as HTMLFormElement
     );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No contacts synced; 2 failed.');
   });
 });
