@@ -1,6 +1,6 @@
 'use client';
 
-import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
 
 /**
@@ -86,29 +86,43 @@ function TierBadge({ tier }: { readonly tier: string }) {
 }
 
 function RevokeButton({ tokenId }: { readonly tokenId: string }) {
-  const [, action, isPending] = useActionState<null, FormData>(async (_prev, formData) => {
-    await revokeLicenseTokenAction(formData);
-    return null;
-  }, null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      !window.confirm('Revoke this token? Federated instances will lose access within 24 hours.')
+    ) {
+      return;
+    }
+
+    const form = event.currentTarget;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await revokeLicenseTokenAction(new FormData(form));
+      } catch {
+        setError('Token could not be revoked. Try again.');
+      }
+    });
+  }
+
   return (
-    <form action={action}>
+    <form onSubmit={handleSubmit}>
       <input type="hidden" name="tokenId" value={tokenId} />
       <button
         type="submit"
         disabled={isPending}
-        onClick={(e) => {
-          if (
-            !window.confirm(
-              'Revoke this token? Federated instances will lose access within 24 hours.'
-            )
-          ) {
-            e.preventDefault();
-          }
-        }}
         className="inline-flex h-7 items-center rounded-full border border-[var(--danger-border)] px-3 text-[11.5px] font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)] disabled:opacity-60"
       >
         {isPending ? 'Revoking...' : 'Revoke'}
       </button>
+      {error ? (
+        <p role="alert" className="mt-1 text-[11.5px] text-[color:var(--danger-text)]">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }

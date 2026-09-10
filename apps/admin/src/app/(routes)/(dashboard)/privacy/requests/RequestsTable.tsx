@@ -1,6 +1,6 @@
 'use client';
 
-import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
@@ -99,12 +99,19 @@ function DeadlineBadge({
 }
 
 function StatusControl({ request }: { readonly request: DataRequest }) {
-  const [result, action, isPending] = useActionState<ActionResult | null, FormData>(
-    async (_prev, formData) => updateDataRequestStatusAction(formData),
-    null
-  );
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      setResult(await updateDataRequestStatusAction(new FormData(form)));
+    });
+  }
+
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
       <input type="hidden" name="id" value={request.id} />
       <label className="sr-only" htmlFor={`status-${request.id}`}>
         Status for {request.subjectEmail}
@@ -129,7 +136,9 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
         {isPending ? 'Saving...' : 'Update'}
       </button>
       {result && !result.ok && (
-        <span className="text-[11.5px] text-[color:var(--danger-text)]">{result.error}</span>
+        <span role="alert" className="text-[11.5px] text-[color:var(--danger-text)]">
+          {result.error}
+        </span>
       )}
     </form>
   );
