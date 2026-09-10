@@ -119,10 +119,16 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'new@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
+    fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Verified by support' } });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
-    expect(await screen.findByText(/one-month response clock has started/)).toBeInTheDocument();
+    const success = await screen.findByText(/one-month response clock/i);
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
+    expect(screen.getByLabelText(/Notes/i)).toHaveValue('');
+    expect(success).toHaveAttribute('role', 'status');
   });
 
   it('shows the error message when the action reports a failure', async () => {
@@ -134,9 +140,15 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'someone@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
+    fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Needs identity check' } });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
-    expect(await screen.findByText('A valid subject email is required')).toBeInTheDocument();
+    const error = await screen.findByText('A valid subject email is required');
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('someone@example.com');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('erasure');
+    expect(screen.getByLabelText(/Notes/i)).toHaveValue('Needs identity check');
+    expect(error).toHaveAttribute('role', 'alert');
   });
 
   it('submits a status update for a row', async () => {

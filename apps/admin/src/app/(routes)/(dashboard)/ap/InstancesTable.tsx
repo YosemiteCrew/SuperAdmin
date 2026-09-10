@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { type FormEvent, useActionState, useState, useTransition } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
 
 /**
@@ -164,12 +164,18 @@ function IssuedTokenPanel({ token }: { readonly token: string }) {
 }
 
 function IssueForm() {
-  const [result, action, isPending] = useActionState<IssueResult | null, FormData>(
-    async (_prev, formData) => {
-      return issueLicenseTokenAction(formData);
-    },
-    null
-  );
+  const [result, setResult] = useState<IssueResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      const nextResult = await issueLicenseTokenAction(new FormData(form));
+      setResult(nextResult);
+      if (nextResult.ok) form.reset();
+    });
+  }
 
   return (
     <div
@@ -179,7 +185,7 @@ function IssueForm() {
     >
       <section className={`${CARD} flex flex-col gap-2.5 px-5 py-4`}>
         <h2 className="text-[13px] font-bold text-[color:var(--ink)]">Issue new license token</h2>
-        <form action={action} className="flex flex-wrap items-end gap-2.5">
+        <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2.5">
           <div className="flex w-[170px] flex-col gap-1.5">
             <label htmlFor="ap-orgId" className={FIELD_LABEL}>
               Org ID
@@ -223,7 +229,7 @@ function IssueForm() {
           </button>
         </form>
         {result && !result.ok && (
-          <p className="text-[12.5px] font-semibold text-[color:var(--danger-text)]">
+          <p role="alert" className="text-[12.5px] font-semibold text-[color:var(--danger-text)]">
             {result.error}
           </p>
         )}
