@@ -27,6 +27,6 @@ jobs:
       # `low` to tighten. `comment-summary-in-pr` is deliberately not set: it needs
       # `pull-requests: write`, which Dependabot PRs never receive, so it would only
       # add a failure mode to the PRs this job exists to check.
-      - uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           fail-on-severity: high
