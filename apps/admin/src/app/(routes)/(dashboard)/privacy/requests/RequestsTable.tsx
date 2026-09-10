@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
@@ -136,13 +136,22 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
 }
 
 function LogForm() {
-  const [result, action, isPending] = useActionState<ActionResult | null, FormData>(
-    async (_prev, formData) => logDataRequestAction(formData),
-    null
-  );
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      const nextResult = await logDataRequestAction(new FormData(form));
+      setResult(nextResult);
+      if (nextResult.ok) form.reset();
+    });
+  }
+
   return (
     <div className={`${CARD} px-5 py-[14px]`}>
-      <form action={action} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
         <div className="flex w-[250px] flex-col gap-1">
           {/* The design puts the card title where this field's label would sit.
               The visible label is kept for screen readers rather than dropped. */}
@@ -193,12 +202,14 @@ function LogForm() {
         </button>
       </form>
       {result && !result.ok && (
-        <p className="mt-2 text-[13px] text-[color:var(--danger-text)]">{result.error}</p>
+        <p role="alert" className="mt-2 text-[13px] text-[color:var(--danger-text)]">
+          {result.error}
+        </p>
       )}
       {result?.ok && (
-        <p className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
+        <output className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
           Request logged. The one-month response clock has started.
-        </p>
+        </output>
       )}
     </div>
   );

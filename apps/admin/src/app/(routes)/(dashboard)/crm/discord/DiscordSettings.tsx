@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
 
 import type { DiscordConfig } from '@/app/features/crm/discord/store';
 
@@ -29,24 +29,32 @@ const OK_TEXT = 'text-[12px] font-semibold text-[color:var(--success)]';
 const ERROR_TEXT = 'text-[12px] font-semibold text-[color:var(--danger-text)]';
 
 export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>) {
-  const broadcastRef = useRef<HTMLFormElement>(null);
-
-  const [saveState, saveAction, savePending] = useActionState(
-    (_prev: DiscordActionResult, fd: FormData) => saveDiscordConfigAction(fd),
-    INIT
-  );
+  const [saveState, setSaveState] = useState(INIT);
+  const [savePending, startSaveTransition] = useTransition();
   const [testState, testAction, testPending] = useActionState(
     (_prev: DiscordActionResult, fd: FormData) => testDiscordWebhookAction(fd),
     INIT
   );
-  const [broadcastState, broadcastAction, broadcastPending] = useActionState(
-    async (_prev: DiscordActionResult, fd: FormData): Promise<DiscordActionResult> => {
-      const result = await broadcastDiscordAction(fd);
-      if (!result.error) broadcastRef.current?.reset();
-      return result;
-    },
-    INIT
-  );
+  const [broadcastState, setBroadcastState] = useState(INIT);
+  const [broadcastPending, startBroadcastTransition] = useTransition();
+
+  function handleSave(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startSaveTransition(async () => {
+      setSaveState(await saveDiscordConfigAction(new FormData(form)));
+    });
+  }
+
+  function handleBroadcast(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startBroadcastTransition(async () => {
+      const result = await broadcastDiscordAction(new FormData(form));
+      setBroadcastState(result);
+      if (!result.error) form.reset();
+    });
+  }
 
   return (
     <div className="flex flex-col gap-[22px]">
@@ -59,7 +67,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
           </p>
         </div>
 
-        <form action={saveAction} className="flex flex-col gap-[14px]">
+        <form onSubmit={handleSave} className="flex flex-col gap-[14px]">
           <div>
             <label htmlFor="discord-url" className={LABEL}>
               Webhook URL
@@ -105,8 +113,12 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
             <button type="submit" disabled={savePending} className={PRIMARY_BTN}>
               <span>{savePending ? 'Saving…' : 'Save'}</span>
             </button>
-            {saveState.error ? <p className={ERROR_TEXT}>{saveState.error}</p> : null}
-            {saveState.success ? <p className={OK_TEXT}>Configuration saved.</p> : null}
+            {saveState.error ? (
+              <p role="alert" className={ERROR_TEXT}>
+                {saveState.error}
+              </p>
+            ) : null}
+            {saveState.success ? <output className={OK_TEXT}>Configuration saved.</output> : null}
           </div>
         </form>
 
@@ -123,8 +135,12 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
           >
             {testPending ? 'Testing…' : 'Send test'}
           </button>
-          {testState.error ? <p className={ERROR_TEXT}>{testState.error}</p> : null}
-          {testState.success ? <p className={OK_TEXT}>Test message sent.</p> : null}
+          {testState.error ? (
+            <p role="alert" className={ERROR_TEXT}>
+              {testState.error}
+            </p>
+          ) : null}
+          {testState.success ? <output className={OK_TEXT}>Test message sent.</output> : null}
         </form>
       </section>
 
@@ -135,7 +151,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
           <p className={CARD_SUB}>Post a one-off message to the configured channel.</p>
         </div>
 
-        <form ref={broadcastRef} action={broadcastAction} className="flex flex-col gap-3">
+        <form onSubmit={handleBroadcast} className="flex flex-col gap-3">
           <textarea
             name="message"
             rows={4}
@@ -152,8 +168,12 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
             >
               <span>{broadcastPending ? 'Sending…' : 'Send to Discord'}</span>
             </button>
-            {broadcastState.error ? <p className={ERROR_TEXT}>{broadcastState.error}</p> : null}
-            {broadcastState.success ? <p className={OK_TEXT}>Message sent.</p> : null}
+            {broadcastState.error ? (
+              <p role="alert" className={ERROR_TEXT}>
+                {broadcastState.error}
+              </p>
+            ) : null}
+            {broadcastState.success ? <output className={OK_TEXT}>Message sent.</output> : null}
           </div>
         </form>
       </section>
