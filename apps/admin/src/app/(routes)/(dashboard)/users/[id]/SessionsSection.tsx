@@ -84,7 +84,6 @@ export function SessionsSection({
                   <td className="px-[18px] py-3 text-right">
                     <form action={revokeSessionAction}>
                       <input type="hidden" name="sessionHandle" value={session.sessionHandle} />
-                      <input type="hidden" name="userId" value={userId} />
                       <button
                         type="submit"
                         className="rounded-full border border-[color:var(--divider)] px-3 py-1 text-[12px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"

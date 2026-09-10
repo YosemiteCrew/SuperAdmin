@@ -6,6 +6,7 @@ import UserRolesNode from 'supertokens-node/recipe/userroles';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 export async function revokeAdminAction(formData: FormData) {
   const { userId: callerId } = await requireSuperAdmin();
@@ -14,6 +15,7 @@ export async function revokeAdminAction(formData: FormData) {
   if (typeof userId !== 'string' || userId.length === 0) return;
 
   if (userId === callerId) return;
+  if (await isBootstrapAdmin(userId)) return;
 
   const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
   const admins = roleHolders.status === 'OK' ? roleHolders.users : [];

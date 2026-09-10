@@ -50,6 +50,7 @@ export async function bulkDeleteUsersAction(userIds: string[]) {
   const { userId: actorId } = await requireSuperAdmin();
   for (const id of cleanIds(userIds)) {
     if (id === actorId) continue; // never delete yourself in a sweep
+    if (await isBootstrapAdmin(id)) continue; // never delete a break-glass admin
     let label: string | undefined;
     try {
       const user = await SuperTokens.getUser(id);

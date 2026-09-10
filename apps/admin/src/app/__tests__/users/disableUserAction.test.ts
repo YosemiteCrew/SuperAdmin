@@ -35,6 +35,11 @@ jest.mock('@/app/features/audit/store', () => ({
 }));
 jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: jest.fn() }));
 
+const isBootstrapAdminMock = jest.fn();
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: (...args: unknown[]) => isBootstrapAdminMock(...args),
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -55,6 +60,7 @@ beforeEach(() => {
   revokeAllSessionsForUserMock.mockReset().mockResolvedValue([]);
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
+  isBootstrapAdminMock.mockReset().mockResolvedValue(false);
 });
 
 describe('disableUserAction', () => {
@@ -67,6 +73,14 @@ describe('disableUserAction', () => {
   it('refuses to disable the calling admin (self-lockout guard)', async () => {
     const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await disableUserAction(makeForm({ userId: 'admin-1' }));
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses to disable a bootstrap admin', async () => {
+    isBootstrapAdminMock.mockResolvedValue(true);
+    const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    await disableUserAction(makeForm({ userId: 'bootstrap-1' }));
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
     expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
   });
