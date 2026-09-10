@@ -12,9 +12,13 @@ jest.mock('@/app/(routes)/(dashboard)/ap/actions', () => ({
 }));
 
 import { InstancesTable } from '@/app/(routes)/(dashboard)/ap/InstancesTable';
-import { issueLicenseTokenAction } from '@/app/(routes)/(dashboard)/ap/actions';
+import {
+  issueLicenseTokenAction,
+  revokeLicenseTokenAction,
+} from '@/app/(routes)/(dashboard)/ap/actions';
 
 const mockIssue = issueLicenseTokenAction as jest.MockedFunction<typeof issueLicenseTokenAction>;
+const mockRevoke = revokeLicenseTokenAction as jest.MockedFunction<typeof revokeLicenseTokenAction>;
 
 const now = new Date();
 const future90 = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
@@ -78,6 +82,33 @@ describe('InstancesTable', () => {
       .getAllByRole('button', { name: /Revoke/i })
       .filter((btn) => btn.textContent === 'Revoke');
     expect(revokeButtons).toHaveLength(1);
+  });
+
+  it('shows a retryable error when token revocation fails', async () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(true);
+    mockRevoke.mockRejectedValue(new Error('database unavailable'));
+    render(<InstancesTable tokens={[makeToken()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Token could not be revoked');
+    expect(screen.getByRole('button', { name: 'Revoke' })).toBeEnabled();
+
+    mockRevoke.mockResolvedValue();
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+    await waitFor(() => expect(mockRevoke).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(mockRevoke.mock.calls[0][0].get('tokenId')).toBe('tok_1');
+  });
+
+  it('does not revoke a token when confirmation is dismissed', () => {
+    jest.spyOn(window, 'confirm').mockReturnValue(false);
+    render(<InstancesTable tokens={[makeToken()]} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
+
+    expect(mockRevoke).not.toHaveBeenCalled();
   });
 
   it('renders tier badge', () => {

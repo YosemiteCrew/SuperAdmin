@@ -169,9 +169,12 @@ describe('RequestsTable', () => {
     mockUpdate.mockResolvedValue({ ok: false, error: 'Unknown status' });
     render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);
 
+    const status = screen.getByLabelText(/Status for person@example.com/i);
+    fireEvent.change(status, { target: { value: 'fulfilled' } });
     fireEvent.click(screen.getByRole('button', { name: /Update/i }));
 
     expect(await screen.findByText('Unknown status')).toBeInTheDocument();
+    expect(status).toHaveValue('fulfilled');
   });
 
   it('renders the current status badge for a row', () => {
