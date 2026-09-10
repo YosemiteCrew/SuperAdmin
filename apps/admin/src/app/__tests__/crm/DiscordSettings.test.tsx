@@ -53,7 +53,7 @@ describe('DiscordSettings', () => {
       expect(screen.getByText(/Configuration saved/i)).toBeInTheDocument();
     });
     expect(saveMock).toHaveBeenCalled();
-    expect(screen.getByText(/Configuration saved/i)).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the save error when the action rejects the URL', async () => {
@@ -88,7 +88,7 @@ describe('DiscordSettings', () => {
     });
     expect(broadcastMock).toHaveBeenCalled();
     expect(screen.getByPlaceholderText(/Type your message/i)).toHaveValue('');
-    expect(screen.getByText(/Message sent/i)).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the broadcast error and keeps the message for a retry', async () => {
@@ -113,7 +113,7 @@ describe('DiscordSettings', () => {
       expect(screen.getByText(/Test message sent/i)).toBeInTheDocument();
     });
     expect(testMock).toHaveBeenCalled();
-    expect(screen.getByText(/Test message sent/i)).toHaveAttribute('role', 'status');
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the error when the webhook test fails', async () => {

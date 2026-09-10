@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useActionState, useState, useTransition } from 'react';
+import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
@@ -139,7 +139,7 @@ function LogForm() {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     startTransition(async () => {
@@ -207,9 +207,9 @@ function LogForm() {
         </p>
       )}
       {result?.ok && (
-        <p role="status" className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
+        <output className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
           Request logged. The one-month response clock has started.
-        </p>
+        </output>
       )}
     </div>
   );

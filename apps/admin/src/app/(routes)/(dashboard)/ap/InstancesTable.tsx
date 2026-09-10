@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useActionState, useState, useTransition } from 'react';
+import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
 
 /**
@@ -167,7 +167,7 @@ function IssueForm() {
   const [result, setResult] = useState<IssueResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     startTransition(async () => {

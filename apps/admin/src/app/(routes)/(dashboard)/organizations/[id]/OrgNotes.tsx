@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useState, useTransition } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 
 import { MAX_NOTE_CHARS, type OrgNote } from '@/app/features/organizations/notesShared';
 
@@ -22,7 +22,7 @@ export function OrgNotes({ orgId, notes }: { readonly orgId: string; readonly no
   const [state, setState] = useState(INITIAL);
   const [pending, startTransition] = useTransition();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     startTransition(async () => {

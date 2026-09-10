@@ -128,7 +128,7 @@ describe('RequestsTable', () => {
     expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
     expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
     expect(screen.getByLabelText(/Notes/i)).toHaveValue('');
-    expect(success).toHaveAttribute('role', 'status');
+    expect(success.tagName).toBe('OUTPUT');
   });
 
   it('shows the error message when the action reports a failure', async () => {
@@ -141,7 +141,9 @@ describe('RequestsTable', () => {
       target: { value: 'someone@example.com' },
     });
     fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
-    fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Needs identity check' } });
+    fireEvent.change(screen.getByLabelText(/Notes/i), {
+      target: { value: 'Needs identity check' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     const error = await screen.findByText('A valid subject email is required');

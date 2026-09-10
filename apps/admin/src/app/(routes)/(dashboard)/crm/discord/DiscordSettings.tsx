@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useActionState, useState, useTransition } from 'react';
+import { type SyntheticEvent, useActionState, useState, useTransition } from 'react';
 
 import type { DiscordConfig } from '@/app/features/crm/discord/store';
 
@@ -38,7 +38,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
   const [broadcastState, setBroadcastState] = useState(INIT);
   const [broadcastPending, startBroadcastTransition] = useTransition();
 
-  function handleSave(event: FormEvent<HTMLFormElement>) {
+  function handleSave(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     startSaveTransition(async () => {
@@ -46,7 +46,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
     });
   }
 
-  function handleBroadcast(event: FormEvent<HTMLFormElement>) {
+  function handleBroadcast(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     startBroadcastTransition(async () => {
@@ -118,11 +118,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
                 {saveState.error}
               </p>
             ) : null}
-            {saveState.success ? (
-              <p role="status" className={OK_TEXT}>
-                Configuration saved.
-              </p>
-            ) : null}
+            {saveState.success ? <output className={OK_TEXT}>Configuration saved.</output> : null}
           </div>
         </form>
 
@@ -144,11 +140,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
               {testState.error}
             </p>
           ) : null}
-          {testState.success ? (
-            <p role="status" className={OK_TEXT}>
-              Test message sent.
-            </p>
-          ) : null}
+          {testState.success ? <output className={OK_TEXT}>Test message sent.</output> : null}
         </form>
       </section>
 
@@ -181,11 +173,7 @@ export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>)
                 {broadcastState.error}
               </p>
             ) : null}
-            {broadcastState.success ? (
-              <p role="status" className={OK_TEXT}>
-                Message sent.
-              </p>
-            ) : null}
+            {broadcastState.success ? <output className={OK_TEXT}>Message sent.</output> : null}
           </div>
         </form>
       </section>
