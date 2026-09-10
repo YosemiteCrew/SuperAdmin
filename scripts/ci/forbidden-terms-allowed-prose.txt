@@ -26,7 +26,6 @@ Please do **not** open a public GitHub issue for security vulnerabilities.
 Removes only the cache slices that can poison Turbopack's incremental graph.
 
 # apps/admin/src/app/__tests__/invites/InviteForm.test.tsx
-`<form action={...}>`, and React resets such a form once the action settles.
 
 # apps/admin/src/app/__tests__/lib/clientIp.test.ts
 The bypass this exists to close. CloudFront appends the viewer address to
