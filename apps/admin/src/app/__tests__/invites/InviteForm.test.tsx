@@ -92,4 +92,15 @@ describe('InviteForm', () => {
     await screen.findByText('That user is already a super-admin.');
     expect(emailInput().value).toBe('taken@x.com');
   });
+
+  it('keeps the form and entered email when the action rejects', async () => {
+    createInviteActionMock.mockRejectedValue(new Error('database unavailable'));
+    render(<InviteForm />);
+    submit('retry@x.com');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Invite could not be created. Try again.'
+    );
+    expect(emailInput().value).toBe('retry@x.com');
+  });
 });
