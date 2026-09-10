@@ -19,7 +19,13 @@ export function StatusControl({
   status,
 }: Readonly<{ requestId: string; status: RequestStatus }>) {
   const [state, formAction, pending] = useActionState(
-    (_prev: UpdateStatusResult, fd: FormData) => updateRequestStatusAction(fd),
+    async (_prev: UpdateStatusResult, formData: FormData) => {
+      try {
+        return await updateRequestStatusAction(formData);
+      } catch {
+        return { error: 'Status could not be updated. Try again.' };
+      }
+    },
     INIT
   );
 
@@ -44,7 +50,7 @@ export function StatusControl({
         ))}
       </select>
       {state.error ? (
-        <span className="text-[11.5px] font-semibold text-[color:var(--danger-text)]">
+        <span role="alert" className="text-[11.5px] font-semibold text-[color:var(--danger-text)]">
           {state.error}
         </span>
       ) : null}
