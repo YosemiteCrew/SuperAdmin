@@ -15,7 +15,9 @@ jest.mock('@/app/config/apiEnvironment', () => {
 });
 
 const updateOrganizationMock = jest.fn();
+const getOrganizationMock = jest.fn();
 jest.mock('@/app/features/organizations/services/organizationsService', () => ({
+  getOrganization: (...args: unknown[]) => getOrganizationMock(...args),
   updateOrganization: (...args: unknown[]) => updateOrganizationMock(...args),
 }));
 
@@ -44,6 +46,8 @@ beforeEach(() => {
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   updateOrganizationMock.mockReset();
   updateOrganizationMock.mockResolvedValue(undefined);
+  getOrganizationMock.mockReset();
+  getOrganizationMock.mockResolvedValue({ id: 'o1', name: 'Acme Vet' });
   recordAuditEventMock.mockReset();
 });
 
@@ -128,6 +132,7 @@ describe('environment routing', () => {
   });
 
   it('marks a non-production action in the audit label', async () => {
+    getOrganizationMock.mockResolvedValueOnce({ id: 'o9', name: 'Dev Vet' });
     const { verifyOrganizationAction } = await import(ACTIONS);
     await verifyOrganizationAction(
       makeForm({ organizationId: 'o9', organizationName: 'Dev Vet', env: 'development' })
@@ -139,11 +144,23 @@ describe('environment routing', () => {
     );
   });
 
-  it('falls back to the id when a dev action has no name', async () => {
+  it('uses the backend name when browser input omits it', async () => {
+    getOrganizationMock.mockResolvedValueOnce({ id: 'o9', name: 'Server Vet' });
     const { verifyOrganizationAction } = await import(ACTIONS);
     await verifyOrganizationAction(makeForm({ organizationId: 'o9', env: 'development' }));
     expect(recordAuditEventMock).toHaveBeenCalledWith(
-      expect.objectContaining({ targetLabel: 'o9 [Development]' })
+      expect.objectContaining({ targetLabel: 'Server Vet [Development]' })
+    );
+  });
+
+  it('does not let browser input spoof the organization audit label', async () => {
+    getOrganizationMock.mockResolvedValueOnce({ id: 'o1', name: 'Authoritative Vet' });
+    const { verifyOrganizationAction } = await import(ACTIONS);
+    await verifyOrganizationAction(
+      makeForm({ organizationId: 'o1', organizationName: 'Different Vet', env: 'production' })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ targetId: 'o1', targetLabel: 'Authoritative Vet' })
     );
   });
 
