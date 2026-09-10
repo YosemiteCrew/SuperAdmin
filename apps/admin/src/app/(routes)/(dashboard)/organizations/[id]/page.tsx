@@ -10,6 +10,7 @@ import {
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { corroborateBusiness } from '@/app/features/organizations/corroboration';
 import { getDemoOrganization } from '@/app/features/organizations/demo';
+import { getOrganizationMetadataName } from '@/app/features/organizations/metadata';
 import { getOrgNotes } from '@/app/features/organizations/notes';
 import {
   getOrganization,
@@ -38,17 +39,14 @@ const BACK_LINK =
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ env?: string }>;
 }): Promise<Metadata> {
-  ensureSuperTokensInit();
   const { id } = await params;
-  try {
-    const org = await getOrganization(id);
-    return { title: org.name };
-  } catch {
-    return { title: 'Organization' };
-  }
+  const { env } = await searchParams;
+  return { title: (await getOrganizationMetadataName(id, env)) ?? 'Organization' };
 }
 
 function formatDate(iso?: string): string {
@@ -163,6 +161,10 @@ export default async function OrganizationDetailPage({
     }).catch((): SuperAdminOrganizationMember[] | null => null),
   ]);
   const envParam = environment === DEFAULT_API_ENVIRONMENT ? '' : `&env=${environment}`;
+  const activityHref =
+    environment === DEFAULT_API_ENVIRONMENT
+      ? `/organizations/${encodeURIComponent(org.id)}/activity`
+      : `/organizations/${encodeURIComponent(org.id)}/activity?env=${environment}`;
   const checksHref = `/organizations/${encodeURIComponent(org.id)}?checks=1${
     demo === '1' ? '&demo=1' : ''
   }${envParam}`;
@@ -175,7 +177,7 @@ export default async function OrganizationDetailPage({
         <Link href={backHref} className={BACK_LINK}>
           ← Back to organizations
         </Link>
-        <Link href={`/organizations/${id}/activity`} className={BACK_LINK}>
+        <Link href={activityHref} className={BACK_LINK}>
           Activity →
         </Link>
       </div>

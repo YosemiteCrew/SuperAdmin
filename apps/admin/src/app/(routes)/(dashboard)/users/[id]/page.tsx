@@ -28,6 +28,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   ensureSuperTokensInit();
+  await requireSuperAdmin();
   const { id } = await params;
   try {
     const user = await supertokens.getUser(id);
@@ -405,7 +406,9 @@ export default async function UserDetailPage({
               metadata. Cannot be undone.
             </p>
           </div>
-          <DeleteUserButton userId={user.id} email={primaryEmail} variant="danger-zone" />
+          {canManageStatus ? (
+            <DeleteUserButton userId={user.id} email={primaryEmail} variant="danger-zone" />
+          ) : null}
         </div>
       </section>
     </div>

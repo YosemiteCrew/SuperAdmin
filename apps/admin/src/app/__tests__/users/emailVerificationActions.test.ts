@@ -26,6 +26,9 @@ const setEmailVerifiedMock = jest.fn();
 jest.mock('@/app/features/users/emailVerification', () => ({
   setEmailVerified: (...a: unknown[]) => setEmailVerifiedMock(...a),
 }));
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn().mockResolvedValue(false),
+}));
 
 const recordAuditEventMock = jest.fn();
 jest.mock('@/app/features/audit/store', () => ({

@@ -9,6 +9,7 @@ import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyAccountDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 export interface ApprovalActionResult {
   error?: string;
@@ -121,6 +122,9 @@ export async function rejectAccountAction(formData: FormData): Promise<ApprovalA
   const validated = await validateTarget(formData);
   if ('error' in validated) return { error: validated.error };
   const { userId, targetEmail } = validated;
+  if (await isBootstrapAdmin(userId)) {
+    return { error: 'You cannot reject a bootstrap admin.' };
+  }
 
   await rejectAccount({ userId, actorId });
   await recordAuditEvent({

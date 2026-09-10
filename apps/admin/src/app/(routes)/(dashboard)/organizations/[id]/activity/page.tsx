@@ -2,11 +2,17 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 
+import {
+  DEFAULT_API_ENVIRONMENT,
+  apiBaseUrl,
+  parseApiEnvironment,
+} from '@/app/config/apiEnvironment';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { AUDIT_META } from '@/app/features/audit/audit';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForTarget } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
+import { getOrganizationMetadataName } from '@/app/features/organizations/metadata';
 import { getOrganization } from '@/app/features/organizations/services/organizationsService';
 
 const ACTIVITY_LIMIT = 50;
@@ -20,17 +26,15 @@ const BACK_LINK =
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ env?: string }>;
 }): Promise<Metadata> {
-  ensureSuperTokensInit();
   const { id } = await params;
-  try {
-    const org = await getOrganization(id);
-    return { title: `${org.name} - Activity` };
-  } catch {
-    return { title: 'Organization Activity' };
-  }
+  const { env } = await searchParams;
+  const organizationName = await getOrganizationMetadataName(id, env);
+  return { title: organizationName ? `${organizationName} - Activity` : 'Organization Activity' };
 }
 
 function ActionPill({ action }: { readonly action: AuditAction }) {
@@ -44,18 +48,29 @@ function ActionPill({ action }: { readonly action: AuditAction }) {
 
 export default async function OrgActivityPage({
   params,
+  searchParams,
 }: Readonly<{
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ env?: string }>;
 }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin();
 
   const { id } = await params;
+  const { env } = await searchParams;
+  const environment = parseApiEnvironment(env);
+  const backHref =
+    environment === DEFAULT_API_ENVIRONMENT
+      ? `/organizations/${encodeURIComponent(id)}`
+      : `/organizations/${encodeURIComponent(id)}?env=${environment}`;
   const cookie = (await headers()).get('cookie') ?? '';
 
   let orgName: string | null = null;
   try {
-    const org = await getOrganization(id, { headers: { cookie } });
+    const org = await getOrganization(id, {
+      headers: { cookie },
+      baseUrl: apiBaseUrl(environment),
+    });
     orgName = org.name;
   } catch {
     /* backend not connected — activity still available from local audit log */
@@ -72,7 +87,7 @@ export default async function OrgActivityPage({
   return (
     <div className="flex flex-col gap-[22px]">
       <div className="flex flex-col gap-1">
-        <Link href={`/organizations/${id}`} className={BACK_LINK}>
+        <Link href={backHref} className={BACK_LINK}>
           ← Back to {orgName ?? 'organization'}
         </Link>
       </div>

@@ -34,6 +34,10 @@ jest.mock('@/app/features/crm/discord/dispatcher', () => ({
   notifyAccountDecision: jest.fn(),
 }));
 
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn(),
+}));
+
 import SuperTokens from 'supertokens-node';
 import SessionNode from 'supertokens-node/recipe/session';
 import { requireSuperAdmin } from '@/app/config/backend';
@@ -41,6 +45,7 @@ import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyAccountDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 import {
   approveAccountAction,
   rejectAccountAction,
@@ -57,6 +62,7 @@ const mockGetState = getApprovalState as jest.MockedFunction<typeof getApprovalS
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
 const mockSendEmail = sendTransactional as jest.MockedFunction<typeof sendTransactional>;
 const mockNotify = notifyAccountDecision as jest.MockedFunction<typeof notifyAccountDecision>;
+const mockBootstrap = isBootstrapAdmin as jest.MockedFunction<typeof isBootstrapAdmin>;
 
 const ACTOR_ID = 'admin-1';
 
@@ -82,6 +88,7 @@ beforeEach(() => {
   mockAudit.mockResolvedValue(undefined);
   mockSendEmail.mockResolvedValue(undefined);
   mockNotify.mockResolvedValue(undefined);
+  mockBootstrap.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -182,6 +189,15 @@ describe('rejectAccountAction', () => {
   it('blocks rejecting your own account', async () => {
     const result = await rejectAccountAction(fd({ userId: ACTOR_ID, expectedStatus: 'pending' }));
     expect(result.error).toBe('You cannot reject your own account.');
+    expect(mockReject).not.toHaveBeenCalled();
+  });
+
+  it('blocks rejecting a bootstrap admin', async () => {
+    mockBootstrap.mockResolvedValueOnce(true);
+    const result = await rejectAccountAction(
+      fd({ userId: 'bootstrap-1', expectedStatus: 'pending' })
+    );
+    expect(result.error).toBe('You cannot reject a bootstrap admin.');
     expect(mockReject).not.toHaveBeenCalled();
   });
 

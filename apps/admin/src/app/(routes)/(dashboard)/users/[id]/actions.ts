@@ -12,6 +12,7 @@ import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { collectAccountData } from '@/app/features/users/dataExport';
 import { setEmailVerified } from '@/app/features/users/emailVerification';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 function auditUser(action: AuditAction, actorId: string, userId: string): Promise<void> {
   return recordAuditEvent({ action, actorId, targetType: 'user', targetId: userId });
@@ -28,6 +29,7 @@ export async function disableUserAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
   if (userId === actorId) return; // never lock yourself out
+  if (await isBootstrapAdmin(userId)) return; // never lock out a break-glass admin
 
   await UserMetadataNode.updateUserMetadata(userId, { disabledAt: Date.now() });
   await SessionNode.revokeAllSessionsForUser(userId);
@@ -75,12 +77,15 @@ export async function revokeSessionAction(formData: FormData) {
   const { userId: actorId } = await requireSuperAdmin();
 
   const sessionHandle = formData.get('sessionHandle');
-  const userId = formData.get('userId');
-  if (typeof sessionHandle !== 'string' || typeof userId !== 'string') return;
+  if (typeof sessionHandle !== 'string' || sessionHandle.length === 0) return;
 
-  await SessionNode.revokeSession(sessionHandle);
-  await auditUser('user.session_revoke', actorId, userId);
-  revalidatePath(`/users/${userId}`);
+  const session = await SessionNode.getSessionInformation(sessionHandle);
+  if (!session) return;
+
+  const revoked = await SessionNode.revokeSession(sessionHandle);
+  if (!revoked) return;
+  await auditUser('user.session_revoke', actorId, session.userId);
+  revalidatePath(`/users/${session.userId}`);
   revalidatePath('/settings'); // self-revoke from the Settings page
 }
 
@@ -136,7 +141,10 @@ export async function revokeSuperAdminAction(formData: FormData) {
   // Guard 1: an admin can never strip their own access (self-lockout).
   if (userId === callerId) return;
 
-  // Guard 2: never remove the final super admin — keep at least one standing.
+  // Guard 2: bootstrap access is configuration-owned, not removable from the UI.
+  if (await isBootstrapAdmin(userId)) return;
+
+  // Guard 3: never remove the final super admin — keep at least one standing.
   const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
   const admins = roleHolders.status === 'OK' ? roleHolders.users : [];
   if (admins.length <= 1) return;

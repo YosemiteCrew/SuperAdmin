@@ -125,9 +125,15 @@ describe('bulkDeleteUsersAction', () => {
     );
   });
 
-  it('still deletes when the label lookup throws', async () => {
+  it('skips deletion when bootstrap status cannot be confirmed', async () => {
     getUserMock.mockRejectedValueOnce(new Error('down'));
     await bulkDeleteUsersAction(['u-9']);
-    expect(deleteUserMock).toHaveBeenCalledWith('u-9');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('skips bootstrap-allowlisted admins', async () => {
+    getUserMock.mockResolvedValue({ emails: ['boot@x.com'] });
+    await bulkDeleteUsersAction(['boot-1']);
+    expect(deleteUserMock).not.toHaveBeenCalled();
   });
 });

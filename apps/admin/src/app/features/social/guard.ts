@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import SuperTokens from 'supertokens-node';
 import { withSession } from 'supertokens-node/nextjs';
 
-import { ensureSuperTokensInit, isSuperAdminUser } from '@/app/config/backend';
+import { ensureSuperTokensInit, isDisabledOrUnknown, isSuperAdminUser } from '@/app/config/backend';
 import { publicEnv } from '@/app/config/env.public';
 
 export interface AdminActor {
@@ -14,10 +14,10 @@ export interface AdminActor {
 }
 
 /**
- * The same three checks `requireSuperAdmin()` applies to a page — a verified
- * session, the super-admin role, and a completed second factor — expressed as
- * status codes instead of redirects, because an API client cannot follow a
- * redirect to a sign-in page meaningfully.
+ * The same checks `requireSuperAdmin()` applies to a page — a verified session,
+ * the super-admin role, a completed second factor, and an enabled account —
+ * expressed as status codes instead of redirects, because an API client cannot
+ * follow a redirect to a sign-in page meaningfully.
  */
 export function withSuperAdmin(
   request: NextRequest,
@@ -39,6 +39,9 @@ export function withSuperAdmin(
     const userId = session.getUserId();
     if (!(await isSuperAdminUser(userId))) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    if (await isDisabledOrUnknown(userId)) {
+      return NextResponse.json({ error: 'Account disabled' }, { status: 403 });
     }
 
     const user = await SuperTokens.getUser(userId);

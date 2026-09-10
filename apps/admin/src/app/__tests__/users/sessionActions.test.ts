@@ -4,11 +4,13 @@ jest.mock('next/cache', () => ({
 
 const revokeSessionMock = jest.fn();
 const revokeAllSessionsForUserMock = jest.fn();
+const getSessionInformationMock = jest.fn();
 jest.mock('supertokens-node/recipe/session', () => ({
   __esModule: true,
   default: {
     revokeSession: (...args: unknown[]) => revokeSessionMock(...args),
     revokeAllSessionsForUser: (...args: unknown[]) => revokeAllSessionsForUserMock(...args),
+    getSessionInformation: (...args: unknown[]) => getSessionInformationMock(...args),
   },
 }));
 
@@ -29,6 +31,9 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
 jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: jest.fn() }));
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn().mockResolvedValue(false),
+}));
 
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
@@ -51,7 +56,8 @@ beforeEach(() => {
 
 describe('revokeSessionAction', () => {
   beforeEach(() => {
-    revokeSessionMock.mockReset();
+    revokeSessionMock.mockReset().mockResolvedValue(true);
+    getSessionInformationMock.mockReset().mockResolvedValue({ userId: 'u-1' });
   });
 
   it('skips when sessionHandle missing', async () => {
@@ -78,6 +84,36 @@ describe('revokeSessionAction', () => {
     await revokeSessionAction(makeForm({ sessionHandle: 'sh-1', userId: 'u-1' }));
     expect(revokeSessionMock).toHaveBeenCalledWith('sh-1');
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-1');
+  });
+
+  it('derives the audit target from the session instead of untrusted form data', async () => {
+    const { revokeSessionAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    getSessionInformationMock.mockResolvedValueOnce({ userId: 'actual-user' });
+    await revokeSessionAction(makeForm({ sessionHandle: 'sh-1', userId: 'forged-user' }));
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ targetId: 'actual-user' })
+    );
+  });
+
+  it('does not revoke a missing session', async () => {
+    const { revokeSessionAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    getSessionInformationMock.mockResolvedValueOnce(undefined);
+    await revokeSessionAction(makeForm({ sessionHandle: 'missing' }));
+    expect(revokeSessionMock).not.toHaveBeenCalled();
+  });
+
+  it('does not audit when the session disappears before revocation', async () => {
+    const { revokeSessionAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    recordAuditEvent.mockClear();
+    revokeSessionMock.mockResolvedValueOnce(false);
+    await revokeSessionAction(makeForm({ sessionHandle: 'expired' }));
+    expect(recordAuditEvent).not.toHaveBeenCalled();
   });
 });
 
