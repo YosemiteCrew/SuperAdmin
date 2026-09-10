@@ -73,17 +73,21 @@ describe('InviteForm', () => {
     expect(screen.queryByText(/invite link ready/i)).not.toBeInTheDocument();
   });
 
-  it('clears the field even when the action fails', async () => {
-    // Documents current behaviour, not intended behaviour. The component guards
-    // its reset with `if (!result.error)`, but the input is uncontrolled inside a
-    // `<form action={...}>`, and React resets such a form once the action settles.
-    // So the guard cannot preserve the input and a failed attempt has to be
-    // retyped. Compare ChangeEmailForm, which keeps its value by controlling it.
+  it('preserves the email when the action returns an error', async () => {
     createInviteActionMock.mockResolvedValue({ error: 'That user is already a super-admin.' });
     render(<InviteForm />);
     submit('taken@x.com');
 
     await screen.findByText('That user is already a super-admin.');
-    await waitFor(() => expect(emailInput().value).toBe(''));
+    expect(emailInput().value).toBe('taken@x.com');
+  });
+
+  it('shows a generic error and preserves the email when the action rejects', async () => {
+    createInviteActionMock.mockRejectedValue(new Error('network'));
+    render(<InviteForm />);
+    submit('fail@x.com');
+
+    expect(await screen.findByText('Something went wrong. Please try again.')).toBeInTheDocument();
+    expect(emailInput().value).toBe('fail@x.com');
   });
 });

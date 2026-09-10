@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { useActionState, useRef, useState } from 'react';
 
 import { type CreateInviteResult, createInviteAction } from './actions';
 
@@ -8,12 +8,20 @@ const INITIAL: CreateInviteResult = {};
 
 export function InviteForm() {
   const formRef = useRef<HTMLFormElement>(null);
+  const [email, setEmail] = useState('');
 
   const [state, formAction, pending] = useActionState(
     async (_prev: CreateInviteResult, fd: FormData): Promise<CreateInviteResult> => {
-      const result = await createInviteAction(fd);
-      if (!result.error) formRef.current?.reset();
-      return result;
+      try {
+        const result = await createInviteAction(fd);
+        if (!result.error) {
+          setEmail('');
+          formRef.current?.reset();
+        }
+        return result;
+      } catch {
+        return { error: 'Something went wrong. Please try again.' };
+      }
     },
     INITIAL
   );
@@ -39,6 +47,8 @@ export function InviteForm() {
             id="invite-email"
             type="email"
             name="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="newadmin@example.com"
             required
             className="h-10 w-full rounded-xl border border-line bg-raised px-4 text-sm text-ink placeholder:text-ink-3 focus:border-btn focus:outline-none"
