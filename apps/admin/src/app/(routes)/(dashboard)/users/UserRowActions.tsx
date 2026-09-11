@@ -6,7 +6,11 @@ import { IoOpenOutline, IoTrashOutline } from 'react-icons/io5';
 
 import { deleteUserAction } from './actions';
 
-export function UserRowActions({ userId, email }: Readonly<{ userId: string; email: string }>) {
+export function UserRowActions({
+  userId,
+  email,
+  canDelete,
+}: Readonly<{ userId: string; email: string; canDelete: boolean }>) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -76,18 +80,20 @@ export function UserRowActions({ userId, email }: Readonly<{ userId: string; ema
             />
             View details
           </Link>
-          <form action={deleteUserAction} onSubmit={handleDeleteSubmit}>
-            <input type="hidden" name="userId" value={userId} />
-            <button
-              type="submit"
-              role="menuitem"
-              disabled={pending}
-              className="flex w-full items-center gap-[9px] rounded-[9px] px-[11px] py-[9px] text-left text-[13px] font-medium text-[color:var(--danger-text)] hover:bg-[var(--danger-bg-faint)] disabled:opacity-60"
-            >
-              <IoTrashOutline aria-hidden="true" className="text-[14px]" />
-              {pending ? 'Deleting…' : 'Delete'}
-            </button>
-          </form>
+          {canDelete ? (
+            <form action={deleteUserAction} onSubmit={handleDeleteSubmit}>
+              <input type="hidden" name="userId" value={userId} />
+              <button
+                type="submit"
+                role="menuitem"
+                disabled={pending}
+                className="flex w-full items-center gap-[9px] rounded-[9px] px-[11px] py-[9px] text-left text-[13px] font-medium text-[color:var(--danger-text)] hover:bg-[var(--danger-bg-faint)] disabled:opacity-60"
+              >
+                <IoTrashOutline aria-hidden="true" className="text-[14px]" />
+                {pending ? 'Deleting…' : 'Delete'}
+              </button>
+            </form>
+          ) : null}
         </div>
       ) : null}
     </div>
