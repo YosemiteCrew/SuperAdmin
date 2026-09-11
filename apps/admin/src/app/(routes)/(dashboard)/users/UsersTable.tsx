@@ -21,6 +21,7 @@ export type UserRow = {
   lastSeen: string;
   lastSeenTitle: string;
   disabled: boolean;
+  canDelete: boolean;
 };
 
 const BULK_BTN =
@@ -56,6 +57,9 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
 
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
   const someSelected = selected.size > 0;
+  const deletableSelectedIds = rows
+    .filter((row) => row.canDelete && selected.has(row.id))
+    .map((row) => row.id);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -81,7 +85,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
   }
 
   function confirmBulkDelete() {
-    const ids = [...selected];
+    const ids = deletableSelectedIds;
     if (ids.length === 0) return;
     startTransition(async () => {
       await bulkDeleteUsersAction(ids);
@@ -92,6 +96,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
 
   const count = selected.size;
   const noun = count === 1 ? 'user' : 'users';
+  const deleteCount = deletableSelectedIds.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -122,14 +127,16 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
             >
               Enable
             </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => setDeleteOpen(true)}
-              className={`${BULK_BTN} border-[color:var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
-            >
-              Delete
-            </button>
+            {deleteCount > 0 ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setDeleteOpen(true)}
+                className={`${BULK_BTN} border-[color:var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
+              >
+                Delete
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -210,7 +217,11 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
                   {row.lastSeen}
                 </td>
                 <td className="px-[18px] py-3 text-right">
-                  <UserRowActions userId={row.id} email={row.primaryEmail} />
+                  <UserRowActions
+                    userId={row.id}
+                    email={row.primaryEmail}
+                    canDelete={row.canDelete}
+                  />
                 </td>
               </tr>
             ))}
@@ -220,7 +231,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
 
       <ConfirmDeleteDialog
         open={deleteOpen}
-        count={count}
+        count={deleteCount}
         pending={pending}
         onCancel={() => setDeleteOpen(false)}
         onConfirm={confirmBulkDelete}

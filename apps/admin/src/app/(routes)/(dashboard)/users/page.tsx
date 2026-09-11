@@ -3,7 +3,8 @@ import Link from 'next/link';
 import supertokens from 'supertokens-node';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { canOfferUserDeletion } from '@/app/features/users/bootstrap';
 import {
   DEFAULT_USER_TYPE_FILTER,
   USER_TYPE_FILTERS,
@@ -86,6 +87,7 @@ export default async function UsersPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   ensureSuperTokensInit();
+  const { userId: callerId } = await requireSuperAdmin();
 
   const { search, cursor, type } = await searchParams;
   const trimmedSearch = search?.trim() ?? '';
@@ -103,6 +105,7 @@ export default async function UsersPage({
     users.map(async (user) => {
       let lastSignInAt: number | null = null;
       let disabled = false;
+      const primaryEmail = user.emails[0] ?? '—';
       try {
         const { metadata } = await UserMetadataNode.getUserMetadata(user.id);
         if (typeof metadata.lastSignInAt === 'number') {
@@ -114,7 +117,7 @@ export default async function UsersPage({
       }
       return {
         id: user.id,
-        primaryEmail: user.emails[0] ?? '—',
+        primaryEmail,
         extraEmailCount: Math.max(user.emails.length - 1, 0),
         methods: Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).join(', '),
         tenants: user.tenantIds.join(', ') || DEFAULT_TENANT,
@@ -124,6 +127,7 @@ export default async function UsersPage({
           ? 'Last sign-in'
           : 'Has not signed in since lastSignInAt tracking was enabled — falling back to account creation time',
         disabled,
+        canDelete: canOfferUserDeletion(user.id, primaryEmail, callerId),
       };
     })
   );

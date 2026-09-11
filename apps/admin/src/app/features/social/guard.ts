@@ -14,10 +14,9 @@ export interface AdminActor {
 }
 
 /**
- * The same checks `requireSuperAdmin()` applies to a page — a verified session,
- * the super-admin role, a completed second factor, and an enabled account —
- * expressed as status codes instead of redirects, because an API client cannot
- * follow a redirect to a sign-in page meaningfully.
+ * The same authentication and authorization checks `requireSuperAdmin()` applies
+ * to a page, with disabled-account metadata failing closed here. Status codes
+ * replace redirects because an API client cannot follow a sign-in page meaningfully.
  */
 export function withSuperAdmin(
   request: NextRequest,
