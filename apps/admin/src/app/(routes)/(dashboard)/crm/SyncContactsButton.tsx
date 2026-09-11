@@ -13,20 +13,34 @@ export function SyncContactsButton() {
     syncContactsAction,
     {}
   );
+  const totalFailure = state.synced === 0 && Boolean(state.failed);
+  const failedSuffix = state.failed ? `, ${state.failed} failed` : '';
+  const syncResult = totalFailure
+    ? `No contacts synced; ${state.failed} failed.`
+    : `${state.synced} synced${failedSuffix}`;
 
   return (
-    <form action={formAction} className="flex flex-col items-end gap-1">
+    <form action={formAction} className="flex flex-col items-end gap-[3px]">
       <button
         type="submit"
         disabled={pending}
-        className="h-10 rounded-xl border border-line bg-surface px-5 text-sm font-medium text-ink hover:bg-raised disabled:opacity-50"
+        className="inline-flex h-10 items-center justify-center rounded-full border border-[color:var(--divider)] bg-[var(--screen)] px-5 text-[13.5px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)] disabled:opacity-50"
       >
         {pending ? 'Syncing…' : 'Sync contacts to Plunk'}
       </button>
-      {state.error ? <p className="text-xs text-red-500">{state.error}</p> : null}
+      {state.error ? (
+        <p role="alert" className="text-[11px] font-semibold text-[color:var(--danger-text)]">
+          {state.error}
+        </p>
+      ) : null}
       {state.synced === undefined ? null : (
-        <p className="text-xs text-emerald-600 dark:text-emerald-400">
-          {state.synced} synced{state.failed ? `, ${state.failed} failed` : ''}
+        <p
+          role={totalFailure ? 'alert' : 'status'}
+          className={`text-[11px] font-semibold ${
+            totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--success)]'
+          }`}
+        >
+          {syncResult}
         </p>
       )}
     </form>

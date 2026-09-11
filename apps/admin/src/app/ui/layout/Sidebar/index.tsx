@@ -1,28 +1,37 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { IconType } from 'react-icons';
-import { IoAnalyticsOutline, IoPeopleOutline, IoSettingsOutline } from 'react-icons/io5';
 import {
-  MdDashboard,
-  MdHistory,
-  MdOutlineAdminPanelSettings,
-  MdOutlineCampaign,
-  MdOutlineCorporateFare,
-  MdOutlineHowToReg,
+  IoAnalyticsOutline,
+  IoBusinessOutline,
+  IoChatboxEllipsesOutline,
+  IoCheckmarkCircleOutline,
+  IoFileTrayFullOutline,
+  IoFingerPrintOutline,
+  IoGridOutline,
+  IoLogoDiscord,
+  IoMegaphoneOutline,
+  IoPeopleOutline,
+  IoPersonAddOutline,
+  IoPlanetOutline,
+  IoPulseOutline,
+  IoSettingsOutline,
+  IoShareSocialOutline,
+  IoShieldCheckmarkOutline,
+  IoTimeOutline,
+} from 'react-icons/io5';
+import {
+  MdClose,
+  MdMenu,
   MdOutlineKeyboardDoubleArrowLeft,
   MdOutlineKeyboardDoubleArrowRight,
-  MdOutlineHub,
-  MdOutlineForwardToInbox,
-  MdOutlineMailOutline,
-  MdOutlineMonitor,
-  MdOutlineShare,
-  MdOutlinePrivacyTip,
 } from 'react-icons/md';
-import { SiDiscord } from 'react-icons/si';
+
+import styles from '../shell.module.css';
 
 type RouteItem = {
   name: string;
@@ -35,50 +44,56 @@ type RouteGroup = {
   routes: RouteItem[];
 };
 
+/**
+ * Groups, order, labels and icons all follow the design's own nav model. Every
+ * group label must stay unique: the render keys off it, so a duplicate silently
+ * collides two groups into one React key.
+ */
 const ROUTE_GROUPS: RouteGroup[] = [
   {
     label: 'Overview',
-    routes: [{ name: 'Dashboard', href: '/dashboard', icon: MdDashboard }],
+    routes: [{ name: 'Dashboard', href: '/dashboard', icon: IoGridOutline }],
   },
   {
-    label: 'People & Access',
+    label: 'People & access',
     routes: [
       { name: 'Users', href: '/users', icon: IoPeopleOutline },
-      { name: 'Approvals', href: '/approvals', icon: MdOutlineHowToReg },
-      {
-        name: 'Organizations',
-        href: '/organizations',
-        icon: MdOutlineCorporateFare,
-      },
-      { name: 'Admins', href: '/admins', icon: MdOutlineAdminPanelSettings },
-      { name: 'Invites', href: '/invites', icon: MdOutlineMailOutline },
+      { name: 'Approvals', href: '/approvals', icon: IoCheckmarkCircleOutline },
+      { name: 'Organizations', href: '/organizations', icon: IoBusinessOutline },
+      { name: 'Invites', href: '/invites', icon: IoPersonAddOutline },
+      { name: 'Admins', href: '/admins', icon: IoShieldCheckmarkOutline },
+    ],
+  },
+  {
+    label: 'CRM',
+    routes: [
+      { name: 'Campaigns', href: '/crm', icon: IoMegaphoneOutline },
+      { name: 'Requests', href: '/crm/requests', icon: IoChatboxEllipsesOutline },
+      { name: 'Discord', href: '/crm/discord', icon: IoLogoDiscord },
+      // Added after this design was drawn, and placed with its siblings rather
+      // than left out: the social poster is reached from nowhere else, so a
+      // sidebar without it makes the page unreachable.
+      { name: 'Social', href: '/social', icon: IoShareSocialOutline },
+    ],
+  },
+  {
+    label: 'Privacy',
+    routes: [
+      { name: 'Consent', href: '/consent', icon: IoFingerPrintOutline },
+      { name: 'Data requests', href: '/privacy/requests', icon: IoFileTrayFullOutline },
     ],
   },
   {
     label: 'Insights',
     routes: [
       { name: 'Analytics', href: '/analytics', icon: IoAnalyticsOutline },
-      { name: 'Audit log', href: '/audit', icon: MdHistory },
-      { name: 'Consent', href: '/consent', icon: MdOutlinePrivacyTip },
-      { name: 'System Health', href: '/health', icon: MdOutlineMonitor },
+      { name: 'Audit log', href: '/audit', icon: IoTimeOutline },
+      { name: 'Health', href: '/health', icon: IoPulseOutline },
     ],
   },
   {
-    label: 'CRM',
-    routes: [
-      { name: 'Campaigns', href: '/crm', icon: MdOutlineCampaign },
-      { name: 'Discord', href: '/crm/discord', icon: SiDiscord },
-      { name: 'Contact requests', href: '/crm/requests', icon: MdOutlineForwardToInbox },
-      { name: 'Social', href: '/social', icon: MdOutlineShare },
-    ],
-  },
-  {
-    label: 'Compliance',
-    routes: [{ name: 'Data requests', href: '/privacy/requests', icon: MdOutlinePrivacyTip }],
-  },
-  {
-    label: 'Federation',
-    routes: [{ name: 'AP Instances', href: '/ap', icon: MdOutlineHub }],
+    label: 'Platform',
+    routes: [{ name: 'Federation', href: '/ap', icon: IoPlanetOutline }],
   },
   {
     label: 'Account',
@@ -129,6 +144,7 @@ function isActive(pathname: string, href: string): boolean {
 
 export function Sidebar() {
   const pathname = usePathname() ?? '';
+  const [mobileOpen, setMobileOpen] = useState(false);
   const collapsed = useSyncExternalStore(
     subscribeCollapsed,
     isCollapsedByDefault,
@@ -140,98 +156,145 @@ export function Sidebar() {
     collapsedListeners.forEach((fn) => fn());
   }
 
+  const showLabels = !collapsed || mobileOpen;
+  const sidebarClassName = [
+    styles.sidebar,
+    collapsed ? styles.sidebarCollapsed : '',
+    mobileOpen ? styles.sidebarMobileOpen : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <nav
-      aria-label="Main navigation"
-      className={collapsed ? 'sidebar sidebar-collapsed' : 'sidebar'}
-    >
-      <div className="sidebar-top">
-        <Link
-          href="/dashboard"
-          aria-label="Yosemite Crew Super Admin home"
-          className={collapsed ? 'logo logo-collapsed' : 'logo'}
-        >
-          <Image
-            src="/yosemite-crew-logo.png"
-            alt="Yosemite Crew"
-            width={112}
-            height={52}
-            priority
-            style={{ width: 'auto' }}
-          />
-        </Link>
-      </div>
-
-      <div className="sidebar-routes">
-        {ROUTE_GROUPS.map((group) => (
-          <div className="sidebar-route-group" key={group.label}>
-            {collapsed ? null : <div className="sidebar-route-group-label">{group.label}</div>}
-            <div className="sidebar-route-group-items">
-              {group.routes.map((route) => {
-                const active = isActive(pathname, route.href);
-                const RouteIcon = route.icon;
-                const className = active ? 'route route-active' : 'route';
-
-                if (collapsed) {
-                  return (
-                    <span className="yc-tooltip-host" key={route.name}>
-                      <Link
-                        href={route.href}
-                        className={className}
-                        aria-current={active ? 'page' : undefined}
-                      >
-                        <span className="sr-only">{route.name}</span>
-                        <span className="route-collapsed-icon-wrap">
-                          <span className="route-icon" aria-hidden>
-                            <RouteIcon size={18} />
-                          </span>
-                        </span>
-                      </Link>
-                      <span className="yc-tooltip" role="tooltip">
-                        {group.label}: {route.name}
-                      </span>
-                    </span>
-                  );
-                }
-
-                return (
-                  <Link
-                    key={route.name}
-                    href={route.href}
-                    className={className}
-                    aria-current={active ? 'page' : undefined}
-                  >
-                    <span className="route-icon" aria-hidden>
-                      <RouteIcon size={18} />
-                    </span>
-                    <span className="route-label">{route.name}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="sidebar-footer">
-        <span className="yc-tooltip-host">
-          <button
-            type="button"
-            onClick={handleToggle}
-            className="sidebar-collapse-btn"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+    <>
+      <button
+        type="button"
+        className={styles.mobileNavToggle}
+        aria-controls="main-navigation"
+        aria-expanded={mobileOpen}
+        aria-label={mobileOpen ? 'Close navigation' : 'Open navigation'}
+        onClick={() => setMobileOpen((open) => !open)}
+      >
+        {mobileOpen ? <MdClose size={20} /> : <MdMenu size={20} />}
+      </button>
+      {mobileOpen ? (
+        <button
+          type="button"
+          className={styles.sidebarBackdrop}
+          aria-label="Close navigation"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
+      <nav id="main-navigation" aria-label="Main navigation" className={sidebarClassName}>
+        <div>
+          <Link
+            href="/dashboard"
+            aria-label="Yosemite Crew Super Admin home"
+            className={showLabels ? styles.brand : `${styles.brand} ${styles.brandCollapsed}`}
+            onClick={() => setMobileOpen(false)}
           >
-            {collapsed ? (
-              <MdOutlineKeyboardDoubleArrowRight size={21} />
-            ) : (
-              <MdOutlineKeyboardDoubleArrowLeft size={21} />
-            )}
-          </button>
-          <span className="yc-tooltip" role="tooltip">
-            {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            <Image
+              src="/yosemite-crew-logo.png"
+              alt="Yosemite Crew"
+              width={30}
+              height={30}
+              priority
+              className={styles.brandMark}
+            />
+            {showLabels ? (
+              <span className={styles.brandText}>
+                <span className={styles.brandName}>Yosemite Crew</span>
+                <span className={styles.brandKicker}>Super Admin</span>
+              </span>
+            ) : null}
+          </Link>
+        </div>
+
+        <div className={styles.routes}>
+          {ROUTE_GROUPS.map((group) => (
+            <div className={styles.routeGroup} key={group.label}>
+              {showLabels ? <div className={styles.routeGroupLabel}>{group.label}</div> : null}
+              <div className={styles.routeGroupItems}>
+                {group.routes.map((route) => {
+                  const active = isActive(pathname, route.href);
+                  const RouteIcon = route.icon;
+                  const className = active ? `${styles.route} ${styles.routeActive}` : styles.route;
+
+                  if (!showLabels) {
+                    return (
+                      <span className={styles.tooltipHost} key={route.name}>
+                        <Link
+                          href={route.href}
+                          className={className}
+                          aria-current={active ? 'page' : undefined}
+                          onClick={() => setMobileOpen(false)}
+                        >
+                          <span className="sr-only">{route.name}</span>
+                          <span className={styles.routeCollapsedIconWrap}>
+                            <span className={styles.routeIcon} aria-hidden>
+                              <RouteIcon size={15} />
+                            </span>
+                          </span>
+                        </Link>
+                        <span className={styles.tooltip} role="tooltip">
+                          {group.label}: {route.name}
+                        </span>
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={route.name}
+                      href={route.href}
+                      className={className}
+                      aria-current={active ? 'page' : undefined}
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      <span className={styles.routeIcon} aria-hidden>
+                        <RouteIcon size={15} />
+                      </span>
+                      <span className={styles.routeLabel}>{route.name}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className={
+            collapsed
+              ? `${styles.sidebarFooter} ${styles.sidebarFooterCollapsed}`
+              : styles.sidebarFooter
+          }
+        >
+          {showLabels ? (
+            <span className={styles.status}>
+              <span className={styles.statusDot} aria-hidden />
+              <span className={styles.statusLabel}>Core connected</span>
+            </span>
+          ) : null}
+          <span className={styles.tooltipHost}>
+            <button
+              type="button"
+              onClick={handleToggle}
+              className={styles.collapseBtn}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {collapsed ? (
+                <MdOutlineKeyboardDoubleArrowRight size={17} />
+              ) : (
+                <MdOutlineKeyboardDoubleArrowLeft size={17} />
+              )}
+            </button>
+            <span className={styles.tooltip} role="tooltip">
+              {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            </span>
           </span>
-        </span>
-      </div>
-    </nav>
+        </div>
+      </nav>
+    </>
   );
 }

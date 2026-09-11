@@ -23,7 +23,7 @@ jest.mock('supertokens-node', () => ({
 
 jest.mock('supertokens-node/recipe/userroles', () => ({
   __esModule: true,
-  default: { addRoleToUser: jest.fn() },
+  default: { addRoleToUser: jest.fn(), removeUserRole: jest.fn() },
 }));
 
 jest.mock('@/app/features/audit/store', () => ({
@@ -54,6 +54,9 @@ const mockDisabled = isDisabledOrUnknown as jest.MockedFunction<typeof isDisable
 const mockListDevices = TotpNode.listDevices as jest.MockedFunction<typeof TotpNode.listDevices>;
 const mockAddRole = UserRolesNode.addRoleToUser as jest.MockedFunction<
   typeof UserRolesNode.addRoleToUser
+>;
+const mockRemoveRole = UserRolesNode.removeUserRole as jest.MockedFunction<
+  typeof UserRolesNode.removeUserRole
 >;
 const mockGetInvite = getInviteByToken as jest.MockedFunction<typeof getInviteByToken>;
 const mockMarkUsed = markInviteUsed as jest.MockedFunction<typeof markInviteUsed>;
@@ -94,6 +97,9 @@ beforeEach(() => {
   mockGetUser.mockResolvedValue({ emails: ['new@x.com'] } as Awaited<
     ReturnType<typeof SuperTokens.getUser>
   >);
+  mockMarkUsed.mockResolvedValue();
+  mockAddRole.mockResolvedValue({ status: 'OK', didUserAlreadyHaveRole: false });
+  mockRemoveRole.mockResolvedValue({ status: 'OK', didUserHaveRole: true });
 });
 
 afterEach(() => {
@@ -123,8 +129,61 @@ describe('acceptInviteAction', () => {
       actorId: 'u-9',
       targetType: 'invite',
       targetId: 'inv-1',
-      targetLabel: 'new@x.com',
     });
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('keeps the invitee email address out of the audit record', async () => {
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+
+    const [event] = mockRecordAudit.mock.calls[0];
+    // Asserted over every value, not just targetLabel: recordAuditEvent already
+    // resolves actorEmail from actorId, so the address reaching this call under any
+    // key would store it twice on one row. targetType 'invite' also keeps the store
+    // from back-filling a label, which it does only for targetType 'user'.
+    expect(Object.values(event)).not.toContain('new@x.com');
+    expect(event).not.toHaveProperty('targetLabel');
+  });
+
+  it('stops when the role grant is unavailable', async () => {
+    mockAddRole.mockResolvedValue({ status: 'UNKNOWN_ROLE_ERROR' });
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).rejects.toThrow(
+      'The super-admin role is unavailable.'
+    );
+
+    expect(mockMarkUsed).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps the grant retryable when marking the invite used fails', async () => {
+    const failure = new Error('invite store unavailable');
+    let hasRole = false;
+    mockMarkUsed.mockRejectedValueOnce(failure).mockResolvedValueOnce();
+    mockAddRole.mockImplementation(async () => {
+      const didUserAlreadyHaveRole = hasRole;
+      hasRole = true;
+      return { status: 'OK', didUserAlreadyHaveRole };
+    });
+    mockRemoveRole.mockImplementation(async () => {
+      const didUserHaveRole = hasRole;
+      hasRole = false;
+      return { status: 'OK', didUserHaveRole };
+    });
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).rejects.toBe(failure);
+
+    expect(hasRole).toBe(true);
+    expect(mockRemoveRole).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(redirectMock).not.toHaveBeenCalled();
+
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+
+    expect(mockAddRole).toHaveBeenCalledTimes(2);
+    expect(mockMarkUsed).toHaveBeenCalledTimes(2);
+    expect(mockRecordAudit).toHaveBeenCalledTimes(1);
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 

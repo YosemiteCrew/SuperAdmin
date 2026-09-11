@@ -12,7 +12,9 @@ jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
 }));
 
 jest.mock('@/app/(routes)/(dashboard)/users/UserRowActions', () => ({
-  UserRowActions: () => <div data-testid="row-actions" />,
+  UserRowActions: ({ email, canDelete }: Readonly<{ email: string; canDelete: boolean }>) => (
+    <div data-testid={`row-actions-${email}`} data-can-delete={canDelete} />
+  ),
 }));
 
 jest.mock('@/app/(routes)/(dashboard)/users/ConfirmDeleteDialog', () => ({
@@ -51,6 +53,7 @@ function row(over: Partial<UserRow> = {}): UserRow {
     lastSeen: 'Jan 1, 2026',
     lastSeenTitle: 'Last sign-in',
     disabled: false,
+    canDelete: true,
     ...over,
   };
 }
@@ -148,6 +151,49 @@ describe('UsersTable', () => {
     fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
     fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
     expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
+  });
+
+  it('excludes protected accounts from row and bulk delete controls', () => {
+    const rows = [
+      row({ id: 'u-1', primaryEmail: 'regular@x.com' }),
+      row({ id: 'u-2', primaryEmail: 'self@x.com', canDelete: false }),
+      row({ id: 'u-3', primaryEmail: 'bootstrap@x.com', canDelete: false }),
+    ];
+    render(<UsersTable rows={rows} />);
+
+    expect(screen.getByTestId('row-actions-regular@x.com')).toHaveAttribute(
+      'data-can-delete',
+      'true'
+    );
+    expect(screen.getByTestId('row-actions-self@x.com')).toHaveAttribute(
+      'data-can-delete',
+      'false'
+    );
+    expect(screen.getByTestId('row-actions-bootstrap@x.com')).toHaveAttribute(
+      'data-can-delete',
+      'false'
+    );
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('3 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    expect(screen.getByText('count 1')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1']);
+  });
+
+  it('hides bulk delete when every selected account is protected', () => {
+    render(
+      <UsersTable
+        rows={[
+          row({ id: 'u-2', primaryEmail: 'self@x.com', canDelete: false }),
+          row({ id: 'u-3', primaryEmail: 'bootstrap@x.com', canDelete: false }),
+        ]}
+      />
+    );
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    expect(within(bar).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it('closes the dialog without deleting when cancelled', () => {

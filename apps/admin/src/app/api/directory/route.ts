@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@superadmin/database';
 import { authenticateLicenseToken } from '@/app/features/ap/authenticate';
+import { rateLimitResponse } from '@/app/lib/rateLimit';
 
 // The directory changes when a clinic toggles its listing, which is rare, but a
 // stale entry is more annoying than a slightly slower read. Instances also keep
@@ -9,7 +10,8 @@ import { authenticateLicenseToken } from '@/app/features/ap/authenticate';
 const CACHE_MAX_AGE = 60;
 
 /**
- * Returns every clinic that has opted into the federation directory.
+ * Returns every clinic that has opted into the federation directory and still
+ * has at least one unrevoked, unexpired license.
  *
  * Gated on a valid, unrevoked license token: the directory is a membership
  * benefit of the federation, not public data, and publishing the full list of
@@ -19,13 +21,21 @@ const CACHE_MAX_AGE = 60;
  * GET /api/directory -> { clinics: [{ actorUri, orgName, instanceHost, handle }] }
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
+  const limited = rateLimitResponse(request, 'directory:read');
+  if (limited) return limited;
+
   const auth = await authenticateLicenseToken(request.headers.get('authorization'));
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
+  const validLicenses = await prisma.aPLicenseToken.findMany({
+    where: { revokedAt: null, expiresAt: { gt: new Date() } },
+    select: { orgId: true },
+    distinct: ['orgId'],
+  });
   const rows = await prisma.aPDirectoryListing.findMany({
-    where: { listed: true },
+    where: { listed: true, orgId: { in: validLicenses.map(({ orgId }) => orgId) } },
     select: { actorUri: true, orgName: true, instanceHost: true, handle: true },
     orderBy: { orgName: 'asc' },
   });

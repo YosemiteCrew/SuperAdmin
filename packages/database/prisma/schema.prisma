@@ -31,6 +31,14 @@ datasource db {
 // apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
 // the table. See docs/deploy.md, "Row level security".
 
+// Rebuildable status index for the dashboard's pending-approval count. Approval
+// state and rejection enforcement remain authoritative in UserMetadata.
+model ApprovalStatusIndex {
+  userId    String   @id
+  status    String
+  indexedAt DateTime @default(now()) @updatedAt
+}
+
 // A GDPR data-subject rights request (access / erasure / rectification /
 // objection). The controller must respond within one month, so dueAt is the
 // statutory deadline; the row is the record that the request was handled.
@@ -81,19 +89,23 @@ model ContactLead {
 
 // A single contact-us submission. Many requests can belong to one lead.
 model ContactRequest {
-  id        String      @id @default(cuid())
-  leadId    String
-  lead      ContactLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  subject   String?
-  message   String      @db.Text
+  id              String      @id @default(cuid())
+  // Original ContactRequest id in the Yosemite Crew product database. Live
+  // intake rows predate this link and leave it null; recovery imports set it
+  // so a stopped or repeated backfill cannot duplicate requests.
+  sourceRequestId String?     @unique
+  leadId          String
+  lead            ContactLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  subject         String?
+  message         String      @db.Text
   // Origin page, e.g. https://www.yosemitecrew.com/contact-us.
-  sourceUrl String?
+  sourceUrl       String?
   // new | in_progress | closed
-  status    String      @default("new")
+  status          String      @default("new")
   // super-admin userId who last changed the status.
-  handledBy String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  handledBy       String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@index([leadId])
   @@index([status])
@@ -208,4 +220,20 @@ model AuditEvent {
   @@index([actorId, seq])
   @@index([targetId, seq])
   @@index([at])
+}
+
+model OrgNote {
+  id         String   @id
+  orgId      String
+  actorId    String
+  actorEmail String
+  content    String   @db.Text
+  at         DateTime
+
+  @@index([orgId, at])
+}
+
+model OrgNoteImport {
+  orgId      String   @id
+  importedAt DateTime @default(now())
 }

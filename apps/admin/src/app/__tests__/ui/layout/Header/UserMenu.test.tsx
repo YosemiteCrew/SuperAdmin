@@ -4,6 +4,10 @@ import userEvent from '@testing-library/user-event';
 import { UserMenu } from '@/app/ui/layout/Header/UserMenu';
 
 const signOutMock = jest.fn();
+const replaceMock = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: replaceMock }),
+}));
 jest.mock('supertokens-auth-react/recipe/emailpassword', () => ({
   signOut: () => signOutMock(),
 }));
@@ -14,6 +18,7 @@ describe('UserMenu', () => {
   beforeEach(() => {
     signOutMock.mockReset();
     signOutMock.mockResolvedValue(undefined);
+    replaceMock.mockReset();
   });
 
   it('shows the firstName when provided', () => {
@@ -57,6 +62,7 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('menuitem', { name: SIGN_OUT }));
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(replaceMock).toHaveBeenCalledWith('/auth');
     });
   });
 

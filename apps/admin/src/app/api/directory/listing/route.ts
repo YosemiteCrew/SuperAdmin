@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { prisma } from '@superadmin/database';
 import { authenticateLicenseToken } from '@/app/features/ap/authenticate';
+import { rateLimitResponse } from '@/app/lib/rateLimit';
 
 const MAX_ORG_NAME = 120;
 const MAX_HANDLE = 120;
@@ -22,16 +23,23 @@ interface ListingBody {
  *
  * The display fields are required to list, optional to unlist. `instanceHost` is
  * never read from the body - it comes from the token's `instanceDomain` claim,
- * and `actorUri` must resolve to that same host. Without that binding any
+ * and both `actorUri` and the webfinger-style handle must name that same host.
+ * Without that binding any
  * licensed clinic could publish a directory entry pointing at another practice's
  * server, which is directory poisoning with a side of impersonation.
  */
 export async function PUT(request: NextRequest): Promise<NextResponse> {
+  const limited = rateLimitResponse(request, 'directory:listing');
+  if (limited) return limited;
+
   const auth = await authenticateLicenseToken(request.headers.get('authorization'));
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
-  const { orgId, instanceDomain } = auth.claims;
+  // The verifier already rejects non-string claims. Keep both values explicit
+  // primitives at this trust boundary in case the token decoder changes later.
+  const orgId = String(auth.claims.orgId);
+  const instanceDomain = String(auth.claims.instanceDomain);
 
   let body: ListingBody;
   try {
@@ -60,6 +68,18 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
   }
   if (!handle) {
     return NextResponse.json({ error: '`handle` is required to list' }, { status: 400 });
+  }
+  const handleParts = handle.split('@');
+  if (
+    handleParts.length !== 3 ||
+    handleParts[0] !== '' ||
+    !handleParts[1] ||
+    handleParts[2]?.toLowerCase() !== instanceDomain.toLowerCase()
+  ) {
+    return NextResponse.json(
+      { error: '`handle` must name an account on this instance domain' },
+      { status: 403 }
+    );
   }
   if (!actorUri) {
     return NextResponse.json({ error: '`actorUri` is required to list' }, { status: 400 });

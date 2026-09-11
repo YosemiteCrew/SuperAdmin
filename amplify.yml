@@ -55,28 +55,87 @@ applications:
             # `AWS_COMMIT_ID` cannot be added to the pattern below: the leak
             # guard fails the build on any `^AWS_` line in the artifact, so
             # allowlisting it writes the variable and then aborts.
-            # Written only when non-empty - `NEXT_PUBLIC_*` is inlined at build
-            # time, and an empty value would be inlined as `''`, which reads as
-            # a present-but-blank sha rather than an absent one.
+            # Written only when it LOOKS LIKE A COMMIT, not merely when it is
+            # non-empty. `NEXT_PUBLIC_*` is inlined at build time, so an empty
+            # value would be inlined as `''` and read as a present-but-blank sha
+            # rather than an absent one - but a non-empty non-sha is worse,
+            # because it reads as a correctly populated field. A manually started
+            # job (`amplify start-job`) supplies AWS_COMMIT_ID as the literal
+            # string `HEAD`, which a presence test accepts and publishes; a
+            # webhook build supplies a real sha. So the presence test was right
+            # every ordinary day and wrong during a hand-run recovery deploy,
+            # which is exactly when "which commit is live" is the question being
+            # asked. Anything that is not a hex sha yields an absent buildSha,
+            # which is honest, instead of one that identifies nothing.
+            #
+            # `case` rather than `grep -qE '^...$'`, because grep anchors PER
+            # LINE and `printf '%s'` preserves embedded newlines: a value of
+            # "HEAD\ndeadbeef1234" has a matching line and `grep -q` succeeds,
+            # so a validity check written to reject an invalid value accepted
+            # one. Nothing today can reach it - AWS_COMMIT_ID is platform-set
+            # and `git rev-parse HEAD` emits one line - but it is the same class
+            # this change exists to close, one layer out. `case` is whole-string
+            # by construction and needs no external command.
+            # Both cases are accepted deliberately. Git emits lowercase, so
+            # uppercase has no known source - but narrowing the predicate to
+            # lowercase could only ever turn a WORKING sha into an absent one,
+            # and no non-sha this is guarding against is hex in any case.
+            #
+            # The git fallback is what makes a hand-run deploy report a real
+            # commit rather than nothing: Amplify clones the repository, so the
+            # checkout is authoritative for what was built even when the platform
+            # declines to name it.
+            #
+            # The success line prints the VALUE and the source, not just that a
+            # branch was taken. Job 64 wrote `HEAD` and job 65 wrote a real sha
+            # and the old line was byte-identical in both, so it carried no
+            # information. The log is not blind - a manual job omits `Switching
+            # to commit` entirely, and that absence is readable - but an absence
+            # establishes only that no sha was REQUESTED; it never names the
+            # commit that arrived. Printing the value answers that directly
+            # rather than by inference from an omission and a clone timestamp.
+            # A commit sha is not a secret and is already inlined into the
+            # artifact.
             # It is written BEFORE the names listing and the leak guard on
             # purpose: the listing is the build log's record of what shipped, and
             # the guard exists to catch a mistake in exactly this kind of write.
             # A write placed after them is in neither.
             - |
               : > .env.production
-              env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
-              if [ -n "$AWS_COMMIT_ID" ]; then
-                echo "NEXT_PUBLIC_BUILD_SHA=$AWS_COMMIT_ID" >> .env.production
-                echo "OK: NEXT_PUBLIC_BUILD_SHA written from AWS_COMMIT_ID"
+              env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|PANEL_BASIC_AUTH_CREDENTIALS|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
+              # >>> build sha
+              is_commit_sha() {
+                case "$1" in
+                  ''|*[!0-9a-fA-F]*) return 1 ;;
+                esac
+                [ "${#1}" -ge 7 ] && [ "${#1}" -le 40 ]
+              }
+              BUILD_SHA=""
+              BUILD_SHA_SOURCE="none"
+              if is_commit_sha "$AWS_COMMIT_ID"; then
+                BUILD_SHA="$AWS_COMMIT_ID"
+                BUILD_SHA_SOURCE="AWS_COMMIT_ID"
               else
-                echo "WARN: AWS_COMMIT_ID is empty - /api/health and the Health page will report buildSha as absent"
+                echo "WARN: AWS_COMMIT_ID is not a commit sha (got '$AWS_COMMIT_ID') - trying git"
+                GIT_SHA="$(git rev-parse HEAD 2>/dev/null || true)"
+                if is_commit_sha "$GIT_SHA"; then
+                  BUILD_SHA="$GIT_SHA"
+                  BUILD_SHA_SOURCE="git"
+                fi
               fi
+              if [ -n "$BUILD_SHA" ]; then
+                echo "NEXT_PUBLIC_BUILD_SHA=$BUILD_SHA" >> .env.production
+                echo "OK: NEXT_PUBLIC_BUILD_SHA=$BUILD_SHA (from $BUILD_SHA_SOURCE)"
+              else
+                echo "WARN: no commit sha available - /api/health and the Health page will report buildSha as absent"
+              fi
+              # <<< build sha
               echo "--- .env.production written, NAMES ONLY ---"
               cut -d= -f1 .env.production
               if grep -qE '^AWS_|^AMPLIFY_' .env.production; then
                 echo "FAIL: build-environment variables leaked into the artifact"; exit 1
               fi
-              for R in DATABASE_URL SUPERTOKENS_CONNECTION_URI SUPERTOKENS_API_KEY; do
+              for R in DATABASE_URL SUPERTOKENS_CONNECTION_URI SUPERTOKENS_API_KEY PANEL_BASIC_AUTH_CREDENTIALS; do
                 grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
               done
               echo "OK: required runtime vars present"

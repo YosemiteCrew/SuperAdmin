@@ -1,6 +1,9 @@
 import 'server-only';
 
+import { prisma } from '@superadmin/database';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
+
+import { logger } from '@/app/lib/logger';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -10,6 +13,73 @@ export interface ApprovalState {
   approvedBy?: string;
   rejectedAt?: number;
   rejectedBy?: string;
+}
+
+type IndexableApprovalRow = {
+  id: string;
+  status: ApprovalStatus;
+};
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * Returns indexed statuses for the requested candidate window. Missing rows
+ * remain distinguishable from genuinely pending accounts so callers can repair
+ * only the gaps from UserMetadata.
+ */
+export async function getIndexedApprovalStatuses(
+  userIds: string[]
+): Promise<Map<string, ApprovalStatus>> {
+  if (userIds.length === 0) return new Map();
+
+  const rows = await prisma.approvalStatusIndex.findMany({
+    where: { userId: { in: userIds } },
+    select: { userId: true, status: true },
+  });
+  return new Map(
+    rows
+      .filter((row): row is { userId: string; status: ApprovalStatus } =>
+        ['pending', 'approved', 'rejected'].includes(row.status)
+      )
+      .map((row) => [row.userId, row.status])
+  );
+}
+
+/**
+ * Repairs the derived index from metadata rows that were read successfully.
+ */
+export async function refreshApprovalStatusIndex(rows: IndexableApprovalRow[]): Promise<boolean> {
+  try {
+    await Promise.all(
+      rows.map((row) =>
+        prisma.approvalStatusIndex.upsert({
+          where: { userId: row.id },
+          update: { status: row.status },
+          create: { userId: row.id, status: row.status },
+        })
+      )
+    );
+    return true;
+  } catch (error) {
+    logger.error('Approval decision index refresh failed', { error: errorMessage(error) });
+    return false;
+  }
+}
+
+async function indexApprovalStatus(userId: string, status: ApprovalStatus): Promise<void> {
+  try {
+    await prisma.approvalStatusIndex.upsert({
+      where: { userId },
+      update: { status },
+      create: { userId, status },
+    });
+  } catch (error) {
+    // Derived-state failure must never undo or block the authoritative decision.
+    // A missing row can only over-count pending work, and /approvals repairs it.
+    logger.error('Approval decision index write failed', { error: errorMessage(error) });
+  }
 }
 
 /**
@@ -63,6 +133,8 @@ export async function approveAccount(params: {
     ...(rejectionOwnsDisable ? { disabledAt: null, disabledBy: null } : {}),
   });
 
+  await indexApprovalStatus(params.userId, 'approved');
+
   return { stillDisabled: hasDisable && !rejectionOwnsDisable };
 }
 
@@ -83,4 +155,6 @@ export async function rejectAccount(params: { userId: string; actorId: string })
       ? {}
       : { disabledAt: now, disabledBy: params.actorId, rejectionDisabled: true }),
   });
+
+  await indexApprovalStatus(params.userId, 'rejected');
 }

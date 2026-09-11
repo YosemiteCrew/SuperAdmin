@@ -19,17 +19,38 @@ describe('Sidebar', () => {
     globalThis.localStorage.clear();
   });
 
+  // The full target-state nav. Listed exhaustively on purpose: an earlier merge
+  // silently collided two groups onto one React key, and the previous version of
+  // this test only named six rows, so it stayed green through the regression.
+  const NAV_GROUPS: ReadonlyArray<readonly [string, readonly string[]]> = [
+    ['Overview', ['Dashboard']],
+    ['People & access', ['Users', 'Approvals', 'Organizations', 'Invites', 'Admins']],
+    // Social was added to the panel after this design was drawn and is reachable
+    // from nowhere else, so it belongs in the enumeration rather than being an
+    // unexpected 17th link.
+    ['CRM', ['Campaigns', 'Requests', 'Discord', 'Social']],
+    ['Privacy', ['Consent', 'Data requests']],
+    ['Insights', ['Analytics', 'Audit log', 'Health']],
+    ['Platform', ['Federation']],
+    ['Account', ['Settings']],
+  ];
+  const NAV_ROWS = NAV_GROUPS.flatMap(([, rows]) => rows);
+
   it('renders every nav item', () => {
     render(<Sidebar />);
-    for (const label of [
-      'Dashboard',
-      'Users',
-      'Organizations',
-      'Analytics',
-      'Audit log',
-      'Settings',
-    ]) {
+    for (const label of NAV_ROWS) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument();
+    }
+    // Nothing extra, nothing dropped: every row above plus the brand home link.
+    expect(screen.getAllByRole('link')).toHaveLength(NAV_ROWS.length + 1);
+  });
+
+  it('renders each nav group label exactly once', () => {
+    render(<Sidebar />);
+    for (const [group] of NAV_GROUPS) {
+      // A duplicate label is the collision signature, so assert on all matches
+      // rather than getByText, which would throw before we could count them.
+      expect(screen.getAllByText(group)).toHaveLength(1);
     }
   });
 
@@ -62,6 +83,31 @@ describe('Sidebar', () => {
     expect(
       screen.getByRole('button', { name: /collapse sidebar|expand sidebar/i })
     ).toBeInTheDocument();
+  });
+
+  it('opens and closes the phone navigation', () => {
+    render(<Sidebar />);
+    const openButton = screen.getByRole('button', { name: 'Open navigation' });
+    expect(openButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(openButton);
+    const closeButtons = screen.getAllByRole('button', { name: 'Close navigation' });
+    expect(closeButtons[0]).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(closeButtons[1]);
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('closes the phone navigation after choosing a route', () => {
+    render(<Sidebar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
   });
 
   it('renders without an active route when the pathname is null', () => {

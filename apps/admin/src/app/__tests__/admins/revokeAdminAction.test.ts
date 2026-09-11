@@ -14,6 +14,11 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
 
+const isBootstrapAdminMock = jest.fn();
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: (...args: unknown[]) => isBootstrapAdminMock(...args),
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -34,6 +39,7 @@ beforeEach(() => {
   getUsersThatHaveRoleMock
     .mockReset()
     .mockResolvedValue({ status: 'OK', users: ['admin-self', 'target-1'] });
+  isBootstrapAdminMock.mockReset().mockResolvedValue(false);
 });
 
 describe('revokeAdminAction', () => {
@@ -53,6 +59,13 @@ describe('revokeAdminAction', () => {
     getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'OK', users: ['target-1'] });
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     await revokeAdminAction(makeForm({ userId: 'target-1' }));
+    expect(removeUserRoleMock).not.toHaveBeenCalled();
+  });
+
+  it('skips bootstrap admins whose access is configuration-owned', async () => {
+    isBootstrapAdminMock.mockResolvedValueOnce(true);
+    const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+    await revokeAdminAction(makeForm({ userId: 'bootstrap-1' }));
     expect(removeUserRoleMock).not.toHaveBeenCalled();
   });
 

@@ -12,7 +12,10 @@ import {
 import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
-import { updateOrganization } from '@/app/features/organizations/services/organizationsService';
+import {
+  getOrganization,
+  updateOrganization,
+} from '@/app/features/organizations/services/organizationsService';
 import type { OrganizationStatusPatch } from '@/app/features/organizations/types';
 
 async function patchOrganization(
@@ -25,27 +28,27 @@ async function patchOrganization(
   const id = formData.get('organizationId');
   if (typeof id !== 'string' || id.length === 0) return;
 
-  const name = formData.get('organizationName');
   const rawEnv = formData.get('env');
   const environment = parseApiEnvironment(typeof rawEnv === 'string' ? rawEnv : undefined);
 
   // The list page reads with the admin's session cookie; the mutation has to
   // present the same one or the platform backend rejects it as unauthenticated.
   const cookie = (await headers()).get('cookie') ?? '';
-  await updateOrganization(id, patch, {
+  const requestConfig = {
     headers: { cookie },
     baseUrl: apiBaseUrl(environment),
-  });
+  };
+  const organization = await getOrganization(id, requestConfig);
+  await updateOrganization(id, patch, requestConfig);
 
   // The audit log must not imply a production change when the action ran against
   // dev. There is no metadata field on an audit event, and the audit files are
   // high-collision, so the environment rides along in the label — and only when
   // it is not production, leaving existing production entries byte-identical.
-  const baseLabel = typeof name === 'string' && name.length > 0 ? name : undefined;
   const targetLabel =
     environment === DEFAULT_API_ENVIRONMENT
-      ? baseLabel
-      : `${baseLabel ?? id} [${API_ENVIRONMENT_META[environment].label}]`;
+      ? organization.name
+      : `${organization.name} [${API_ENVIRONMENT_META[environment].label}]`;
 
   await recordAuditEvent({
     action,

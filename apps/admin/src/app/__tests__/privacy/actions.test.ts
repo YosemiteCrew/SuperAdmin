@@ -44,9 +44,11 @@ describe('logDataRequestAction', () => {
     ['missing @', 'not-an-email'],
     ['nothing before @', '@example.com'],
     ['nothing after @', 'person@'],
+    ['more than one @', 'owner@a@clinic.com'],
     ['no dot in domain', 'person@localhost'],
     ['trailing dot in domain', 'person@example.'],
     ['contains whitespace', 'person @example.com'],
+    ['contains non-space whitespace', 'person\t@example.com'],
   ])('rejects an invalid email (%s)', async (_label, email) => {
     const result = await logDataRequestAction(
       makeFormData({ subjectEmail: email, type: 'access' })

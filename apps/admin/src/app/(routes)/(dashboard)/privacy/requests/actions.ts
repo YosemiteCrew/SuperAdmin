@@ -10,23 +10,9 @@ import {
   isRequestType,
   REQUEST_TYPES,
 } from '@/app/features/dataRequests/types';
+import { isValidEmail } from '@/app/features/settings/email';
 
 const REQUESTS_PATH = '/privacy/requests';
-
-/**
- * Structural email sanity check: exactly one `@` (not at either end) and a dot
- * inside the domain (not at either end), with no whitespace. Done with string
- * ops rather than a regex to avoid catastrophic backtracking (S5852) — this is
- * an intake guard against obvious garbage, not RFC 5322 validation.
- */
-function isEmailish(value: string): boolean {
-  if (/\s/.test(value)) return false;
-  const at = value.indexOf('@');
-  if (at <= 0 || at !== value.lastIndexOf('@') || at === value.length - 1) return false;
-  const domain = value.slice(at + 1);
-  const dot = domain.lastIndexOf('.');
-  return dot > 0 && dot < domain.length - 1;
-}
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -41,7 +27,7 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
   const type = formData.get('type');
   const notesRaw = formData.get('notes');
 
-  if (typeof subjectEmail !== 'string' || !isEmailish(subjectEmail.trim())) {
+  if (typeof subjectEmail !== 'string' || !isValidEmail(subjectEmail)) {
     return { ok: false, error: 'A valid subject email is required' };
   }
   if (!isRequestType(type)) {

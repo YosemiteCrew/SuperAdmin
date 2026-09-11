@@ -1,17 +1,31 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { MdNotificationsActive } from 'react-icons/md';
+import { IoSearchOutline } from 'react-icons/io5';
 
 import { COMMAND_PALETTE_EVENT } from '@/app/ui/overlays/CommandPalette';
+import styles from '@/app/ui/layout/shell.module.css';
 
 import { UserMenu } from './UserMenu';
 
 const SECTION_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/users': 'Users',
+  '/approvals': 'Approvals',
   '/organizations': 'Organizations',
+  '/invites': 'Invites',
+  '/admins': 'Admins',
+  '/crm/requests': 'Contact requests',
+  '/crm/compose': 'New campaign',
+  '/crm/discord': 'Discord',
+  '/crm': 'Campaigns',
+  '/social': 'Social',
+  '/consent': 'Consent',
+  '/privacy/requests': 'Data requests',
   '/analytics': 'Analytics',
+  '/audit': 'Audit log',
+  '/health': 'Health',
+  '/ap': 'Federation',
   '/settings': 'Settings',
 };
 
@@ -41,29 +55,27 @@ export function Header({
   const title = resolveTitle(pathname);
 
   return (
-    <header className="yc-user-header-shell">
-      <div className="yc-user-header">
-        <div className="yc-header-left">
-          <span className="yc-header-kicker">Super Admin</span>
-          <span className="yc-header-title">{title}</span>
+    <header className={styles.headerShell}>
+      <div className={styles.header}>
+        <div className={styles.headerLeft}>
+          <span className={styles.headerKicker}>Super Admin</span>
+          <span className={styles.headerTitle}>{title}</span>
         </div>
 
-        <div className="yc-header-actions">
+        <div className={styles.headerActions}>
           <button
             type="button"
             onClick={openCommandPalette}
             aria-label="Open command palette"
-            className="yc-command-button"
+            className={styles.searchPill}
           >
-            <span className="yc-command-key">⌘</span>
-            <span className="yc-command-divider">/</span>
-            <span className="yc-command-key">Ctrl</span>
-            <span className="yc-command-divider">+</span>
-            <span className="yc-command-key">K</span>
-          </button>
-
-          <button type="button" aria-label="Notifications" className="yc-icon-button">
-            <MdNotificationsActive size={19} />
+            <span className={styles.searchIcon} aria-hidden>
+              <IoSearchOutline size={15} />
+            </span>
+            <span className={styles.searchPlaceholder}>Search users, organizations</span>
+            <span className={styles.keycap} aria-hidden>
+              ⌘K
+            </span>
           </button>
 
           <UserMenu email={email} firstName={firstName} lastName={lastName} />

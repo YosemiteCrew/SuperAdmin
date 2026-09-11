@@ -18,16 +18,18 @@ jest.mock('supertokens-node', () => ({
 }));
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
+  isDisabledOrUnknown: jest.fn(),
   isSuperAdminUser: jest.fn(),
 }));
 
 import SuperTokens from 'supertokens-node';
 import { withSession } from 'supertokens-node/nextjs';
 
-import { isSuperAdminUser } from '@/app/config/backend';
+import { isDisabledOrUnknown, isSuperAdminUser } from '@/app/config/backend';
 import { isSameOrigin, withSuperAdmin } from '@/app/features/social/guard';
 
 const withSessionMock = withSession as jest.Mock;
+const isDisabledOrUnknownMock = isDisabledOrUnknown as jest.Mock;
 const isSuperAdminUserMock = isSuperAdminUser as jest.Mock;
 const getUserMock = SuperTokens.getUser as jest.Mock;
 
@@ -50,6 +52,7 @@ const handler = jest.fn(async () => NextResponse.json({ reached: true }));
 
 beforeEach(() => {
   jest.clearAllMocks();
+  isDisabledOrUnknownMock.mockResolvedValue(false);
   isSuperAdminUserMock.mockResolvedValue(true);
   getUserMock.mockResolvedValue({ emails: ['admin@example.com'] });
   withSessionMock.mockImplementation((_req, cb) => cb(undefined, session()));
@@ -84,6 +87,14 @@ describe('withSuperAdmin', () => {
   it('returns 403 for a signed-in user who is not a super admin', async () => {
     isSuperAdminUserMock.mockResolvedValue(false);
     expect((await withSuperAdmin(request(), handler)).status).toBe(403);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('returns 403 for a disabled admin with a surviving session', async () => {
+    isDisabledOrUnknownMock.mockResolvedValue(true);
+    const response = await withSuperAdmin(request(), handler);
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'Account disabled' });
     expect(handler).not.toHaveBeenCalled();
   });
 

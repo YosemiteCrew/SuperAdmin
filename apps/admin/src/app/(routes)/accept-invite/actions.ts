@@ -85,19 +85,30 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
     return { error: 'Complete your second factor before accepting this invitation.' };
   }
 
-  await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  const grant = await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  if (grant.status !== 'OK') throw new Error('The super-admin role is unavailable.');
+
+  // Keep the role if the second store fails. A retry sees addRoleToUser's existing
+  // role as a no-op, then completes the invite and audit records. Removing it here
+  // can race a concurrent successful retry and revoke the role that retry owns.
   await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });
   // The actor is whoever accepted and thereby gained super-admin, not the
   // inviter: this is the event that records a privilege escalation, so it has to
   // show up in the new admin's own activity and name them as the one who acted.
   // The inviter is not lost - targetId resolves to the invite, which carries
   // createdBy.
+  //
+  // No targetLabel. recordAuditEvent resolves actorEmail from actorId by the same
+  // SuperTokens lookup that produced userEmail above, and actorId is this user, so a
+  // label here would write the invitee's address a second time onto the same row. The
+  // audit table, the CSV export and the search index all read actorEmail, so nothing
+  // that displayed the address loses it. targetType is 'invite', not 'user', so the
+  // store does not back-fill a label either.
   await recordAuditEvent({
     action: 'invite.use',
     actorId: userId,
     targetType: 'invite',
     targetId: invite.id,
-    targetLabel: userEmail,
   });
 
   redirect('/dashboard');

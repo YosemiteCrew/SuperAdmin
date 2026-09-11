@@ -29,6 +29,11 @@ jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
 }));
 
+const isBootstrapAdminMock = jest.fn();
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: (...args: unknown[]) => isBootstrapAdminMock(...args),
+}));
+
 function makeForm(entries: Record<string, string | undefined>): FormData {
   const fd = new FormData();
   for (const [k, v] of Object.entries(entries)) {
@@ -45,11 +50,25 @@ describe('deleteUserAction', () => {
     recordAuditEventMock.mockReset();
     requireSuperAdminMock.mockReset();
     requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
+    isBootstrapAdminMock.mockReset().mockResolvedValue(false);
   });
 
   it('does nothing when userId is missing', async () => {
     const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
     await deleteUserAction(makeForm({}));
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete the calling admin', async () => {
+    const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
+    await deleteUserAction(makeForm({ userId: 'admin-1' }));
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('refuses to delete a bootstrap admin', async () => {
+    isBootstrapAdminMock.mockResolvedValue(true);
+    const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
+    await deleteUserAction(makeForm({ userId: 'bootstrap-1' }));
     expect(deleteUserMock).not.toHaveBeenCalled();
   });
 

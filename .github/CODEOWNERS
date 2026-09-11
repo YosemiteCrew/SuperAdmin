@@ -1,11 +1,3 @@
-# Global owner
-*  @your-org/superadmin-team
-
-# Admin app
-apps/admin/  @your-org/frontend-team
-
-# Shared packages
-packages/    @your-org/platform-team
-
-# CI/workflows
-.github/     @your-org/platform-team
+* @ankit-yc @aupyay
+/.github/ @ankit-yc @aupyay
+/CODEOWNERS @ankit-yc @aupyay

@@ -33,6 +33,9 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
 jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: jest.fn() }));
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn().mockResolvedValue(false),
+}));
 
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({

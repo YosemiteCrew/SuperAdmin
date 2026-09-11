@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { FaCaretDown } from 'react-icons/fa6';
 import { IoLogOutOutline, IoSettingsOutline } from 'react-icons/io5';
 import { signOut } from 'supertokens-auth-react/recipe/emailpassword';
+
+import styles from '@/app/ui/layout/shell.module.css';
 
 export function UserMenu({
   email,
@@ -15,6 +18,7 @@ export function UserMenu({
   firstName: string | null;
   lastName: string | null;
 }>) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -55,7 +59,7 @@ export function UserMenu({
     } catch {
       /* network failure — proceed to /auth regardless */
     }
-    globalThis.location.href = '/auth';
+    router.replace('/auth');
   }
 
   const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
@@ -65,49 +69,54 @@ export function UserMenu({
   const initial = (firstName ?? fallbackName).charAt(0).toUpperCase();
 
   return (
-    <div ref={containerRef} className="yc-profile-wrap">
+    <div ref={containerRef} className={styles.profileWrap}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={open ? 'yc-profile-trigger yc-header-trigger-open' : 'yc-profile-trigger'}
+        className={
+          open ? `${styles.profileTrigger} ${styles.profileTriggerOpen}` : styles.profileTrigger
+        }
       >
-        <span className="yc-header-avatar" aria-hidden>
+        <span className={styles.avatar} aria-hidden>
           {initial}
         </span>
-        <span className="yc-profile-name">{displayName}</span>
-        <FaCaretDown size={15} className={open ? 'yc-chevron-open' : undefined} />
+        <span className={styles.profileName}>{displayName}</span>
+        <FaCaretDown
+          size={15}
+          className={open ? `${styles.chevron} ${styles.chevronOpen}` : styles.chevron}
+        />
       </button>
 
       {open ? (
-        <div role="menu" className="yc-header-dropdown-panel">
-          <div className="yc-header-dropdown-title">Account</div>
+        <div role="menu" className={styles.dropdownPanel}>
+          <div className={styles.dropdownTitle}>Account</div>
           {fullName ? (
-            <div className="yc-header-dropdown-meta" title={fullName}>
+            <div className={styles.dropdownMeta} title={fullName}>
               {fullName}
             </div>
           ) : null}
-          <div className="yc-header-dropdown-meta" title={email}>
+          <div className={styles.dropdownMeta} title={email}>
             {email}
           </div>
           <Link
             href="/settings"
             onClick={() => setOpen(false)}
-            className="yc-menu-row"
+            className={styles.menuRow}
             role="menuitem"
           >
-            <IoSettingsOutline className="yc-menu-row-icon" aria-hidden />
+            <IoSettingsOutline className={styles.menuRowIcon} aria-hidden />
             Settings
           </Link>
           <button
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
-            className="yc-menu-row yc-menu-row-danger"
+            className={`${styles.menuRow} ${styles.menuRowDanger}`}
             role="menuitem"
           >
-            <IoLogOutOutline className="yc-menu-row-icon" aria-hidden />
+            <IoLogOutOutline className={styles.menuRowIcon} aria-hidden />
             {signingOut ? 'Signing out...' : 'Sign out'}
           </button>
         </div>
