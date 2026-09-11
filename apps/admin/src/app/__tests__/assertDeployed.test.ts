@@ -168,6 +168,19 @@ describe('assert-deployed', () => {
     expect(errorSpy.mock.calls.flat().join('\n')).toContain('NOT DEPLOYED:');
   });
 
+  it('escapes line breaks from response diagnostics before logging', async () => {
+    fetchSpy.mockRejectedValue(
+      Object.assign(new Error('fetch failed'), { cause: { code: 'ENOTFOUND\nFORGED' } })
+    );
+
+    await expect(
+      main(['--url', 'https://example.test/health', '--sha', EXPECTED_SHA, '--timeout', '0'])
+    ).resolves.toBe(1);
+    const output = [...logSpy.mock.calls, ...errorSpy.mock.calls].flat().join('\n');
+    expect(output).not.toContain('ENOTFOUND\nFORGED');
+    expect(output).toContain('ENOTFOUND\\nFORGED');
+  });
+
   it('stops immediately when the Basic Auth exemption is gone', async () => {
     fetchSpy.mockResolvedValue(response(401, null, { 'www-authenticate': 'Basic realm="Login"' }));
 

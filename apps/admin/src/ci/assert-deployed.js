@@ -123,7 +123,7 @@ async function main(argv = process.argv.slice(2)) {
 
   const deadline = Date.now() + timeout * 1000;
   console.log(`expecting ${expected}`);
-  console.log(`polling   ${url} every ${interval}s for up to ${timeout}s`);
+  console.log(`polling   ${JSON.stringify(url)} every ${interval}s for up to ${timeout}s`);
 
   let attempts = 0;
   let last = { sha: null, reason: 'never read' };
@@ -135,10 +135,12 @@ async function main(argv = process.argv.slice(2)) {
     last = await readDeployedSha(url);
     const seen = last.sha ?? `- (${last.reason})`;
     const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
-    console.log(`  attempt ${attempts}  deployed ${seen}  ${remaining}s left`);
+    console.log(`  attempt ${attempts}  deployed ${JSON.stringify(seen)}  ${remaining}s left`);
 
     if (last.sha === expected) {
-      console.log(`\nDEPLOYED: ${url} is serving ${expected} after ${attempts} attempt(s).`);
+      console.log(
+        `\nDEPLOYED: ${JSON.stringify(url)} is serving ${expected} after ${attempts} attempt(s).`
+      );
       return 0;
     }
     if (last.terminal) {
@@ -157,7 +159,7 @@ async function main(argv = process.argv.slice(2)) {
         ? 'COULD NOT READ THE DEPLOYED COMMIT: /api/health answered with a Basic Auth challenge.'
         : 'NOT DEPLOYED: the expected commit is not the one being served.',
       `  expected  ${expected}`,
-      `  deployed  ${last.sha ?? `not read (${last.reason})`}`,
+      `  deployed  ${JSON.stringify(last.sha ?? `not read (${last.reason})`)}`,
       `  after     ${attempts} attempt(s)`,
       '',
       ...(gated
@@ -187,7 +189,7 @@ if (require.main === module) {
   main().then(
     (code) => process.exit(code),
     (error) => {
-      console.error(`assert-deployed: ${error.message}`);
+      console.error(`assert-deployed: ${JSON.stringify(error.message)}`);
       process.exit(1);
     }
   );
