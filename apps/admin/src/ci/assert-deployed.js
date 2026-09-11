@@ -29,7 +29,7 @@
  * narrowed; treat it as terminal rather than retrying, since no credential
  * this script could supply would fix a routing decision.
  *
- *   node scripts/assert-deployed.js --url <health-url> --sha <commit>
+ *   node apps/admin/src/ci/assert-deployed.js --url <health-url> --sha <commit>
  *
  * Exit 0 only when the deployed sha equals the expected one. Every other
  * outcome - unreachable, non-200, unparseable, absent sha, still the previous
@@ -108,8 +108,8 @@ async function readDeployedSha(url) {
 
 const sleep = (seconds) => new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
-async function main() {
-  const args = parseArgs(process.argv.slice(2));
+async function main(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
   const url = args.url;
   const expected = args.sha;
   const timeout = Number(args.timeout ?? DEFAULTS.timeout);
@@ -183,10 +183,14 @@ async function main() {
   return 1;
 }
 
-main().then(
-  (code) => process.exit(code),
-  (error) => {
-    console.error(`assert-deployed: ${error.message}`);
-    process.exit(1);
-  }
-);
+if (require.main === module) {
+  main().then(
+    (code) => process.exit(code),
+    (error) => {
+      console.error(`assert-deployed: ${error.message}`);
+      process.exit(1);
+    }
+  );
+}
+
+module.exports = { main, parseArgs, readDeployedSha };

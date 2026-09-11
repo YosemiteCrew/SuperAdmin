@@ -71,7 +71,7 @@ jobs:
         run: |
           set -uo pipefail
 
-          if node scripts/assert-deployed.js \
+          if node apps/admin/src/ci/assert-deployed.js \
                --url "$HEALTH_URL" \
                --sha "$EXPECTED_SHA" \
                --timeout "$TIMEOUT_SECONDS" \
