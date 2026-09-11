@@ -20,15 +20,16 @@
  * explicit deny for Amplify configuration, and a check nobody can run is not a
  * check. One HTTP request is the whole dependency.
  *
- * `main` is behind Amplify branch access control, which is a single boolean per
- * branch with no per-path exemption - it sits in front of `/api/health` exactly
- * as it sits in front of everything else. So the request carries HTTP basic
- * auth, supplied through `HEALTH_BASIC_AUTH` as the base64 `user:password`
- * Amplify itself stores. The value is never printed, and no default is baked
- * in: if the gate is on and the variable is absent, this fails rather than
- * quietly reporting an unreachable app.
+ * `/api/health` is one of the named `BASIC_AUTH_EXEMPTIONS` the app's own gate
+ * carries (`apps/admin/src/proxy.ts`, landed in #377) - a route called by
+ * machines that cannot complete a browser Basic Auth challenge is exempt from
+ * the panel-wide layer by design. So this request is unauthenticated on
+ * purpose, not because a credential is missing. If a 401 with a Basic
+ * challenge ever comes back from this URL, that exemption has been removed or
+ * narrowed; treat it as terminal rather than retrying, since no credential
+ * this script could supply would fix a routing decision.
  *
- *   HEALTH_BASIC_AUTH=<base64> node scripts/assert-deployed.js --url <health-url> --sha <commit>
+ *   node scripts/assert-deployed.js --url <health-url> --sha <commit>
  *
  * Exit 0 only when the deployed sha equals the expected one. Every other
  * outcome - unreachable, non-200, unparseable, absent sha, still the previous
@@ -61,12 +62,10 @@ const SHA_PATTERN = /^[0-9a-f]{40}$/;
  * a swap, and a partially deployed app can answer with an older body. The
  * caller retries on a reason and only the deadline is fatal.
  */
-async function readDeployedSha(url, authorization) {
+async function readDeployedSha(url) {
   let response;
   try {
-    const headers = { 'cache-control': 'no-cache' };
-    if (authorization) headers.authorization = authorization;
-    response = await fetch(url, { headers });
+    response = await fetch(url, { headers: { 'cache-control': 'no-cache' } });
   } catch (error) {
     // `fetch` rejects with a bare `TypeError: fetch failed` and puts the useful
     // code on `cause`. Reporting the wrapper would print "TypeError" for a
@@ -75,23 +74,17 @@ async function readDeployedSha(url, authorization) {
     return { sha: null, reason: `unreachable (${code})` };
   }
   if (!response.ok) {
-    // A 401 has two meanings here and they need different fixes. The branch
-    // gate answers with `WWW-Authenticate: Basic`; the application's own routes
-    // do not. Reading the code alone is what let a gate rejection be mistaken
-    // for an application rejection on 2026-09-06 - same status, opposite cause.
+    // `/api/health` is a named exemption from the app's own Basic Auth gate
+    // (see the file header). A 401 with a Basic challenge means that
+    // exemption is gone, not that this run is missing a credential - there is
+    // no credential to supply, so polling for the full timeout only delays
+    // the answer.
     const challenge = response.headers.get('www-authenticate');
     if (response.status === 401 && challenge?.toLowerCase().startsWith('basic')) {
-      // Terminal. Every other reason here is a state a deployment in flight can
-      // leave and does: a 502 during a swap, an older artifact still answering,
-      // a body that is not JSON yet. A credential the gate refuses is not one of
-      // those - it cannot become correct inside this run, so polling it for the
-      // full timeout only delays the answer the workflow exists to give.
       return {
         sha: null,
         terminal: true,
-        reason: authorization
-          ? 'HTTP 401 from the branch access-control gate - the supplied credential was rejected'
-          : 'HTTP 401 from the branch access-control gate - no credential was supplied',
+        reason: 'HTTP 401 with a Basic challenge - the /api/health exemption appears to be gone',
       };
     }
     return { sha: null, reason: `HTTP ${response.status}` };
@@ -128,14 +121,9 @@ async function main() {
     throw new Error('--timeout and --interval must be numbers, and --interval must be positive');
   }
 
-  // Never interpolated into output. Only its presence is ever reported.
-  const credential = (process.env.HEALTH_BASIC_AUTH ?? '').trim();
-  const authorization = credential ? `Basic ${credential}` : null;
-
   const deadline = Date.now() + timeout * 1000;
   console.log(`expecting ${expected}`);
   console.log(`polling   ${url} every ${interval}s for up to ${timeout}s`);
-  console.log(`basic auth ${authorization ? 'supplied' : 'NOT supplied'}`);
 
   let attempts = 0;
   let last = { sha: null, reason: 'never read' };
@@ -144,7 +132,7 @@ async function main() {
   // request rather than a full interval.
   for (;;) {
     attempts += 1;
-    last = await readDeployedSha(url, authorization);
+    last = await readDeployedSha(url);
     const seen = last.sha ?? `- (${last.reason})`;
     const remaining = Math.max(0, Math.round((deadline - Date.now()) / 1000));
     console.log(`  attempt ${attempts}  deployed ${seen}  ${remaining}s left`);
@@ -166,7 +154,7 @@ async function main() {
     [
       '',
       gated
-        ? 'COULD NOT READ THE DEPLOYED COMMIT: the access-control gate refused the request.'
+        ? 'COULD NOT READ THE DEPLOYED COMMIT: /api/health answered with a Basic Auth challenge.'
         : 'NOT DEPLOYED: the expected commit is not the one being served.',
       `  expected  ${expected}`,
       `  deployed  ${last.sha ?? `not read (${last.reason})`}`,
@@ -175,15 +163,11 @@ async function main() {
       ...(gated
         ? [
             'This says NOTHING about whether the deploy succeeded - the sha was',
-            'never read. It is a credential problem, and it is worth being precise',
-            'about which one before assuming a mis-pasted secret:',
-            '',
-            '  - the value must be what the gate accepts, demonstrated by an',
-            '    authenticated 200, not merely copied from a plausible source;',
-            '  - the branch\'s stored `basicAuthCredentials` was measured on',
-            '    2026-09-06 NOT to authenticate, so it is not a safe default;',
-            '  - `Authorization: Basic <v>` is sent verbatim, so the secret must',
-            '    be the base64 of `user:password`, not the raw pair.',
+            'never read. `GET /api/health` is supposed to be exempt from the',
+            "panel's Basic Auth gate (`BASIC_AUTH_EXEMPTIONS` in",
+            '`apps/admin/src/proxy.ts`). A 401 here means that exemption has been',
+            'removed or the route renamed - fix the exemption list, there is no',
+            'credential this workflow can add to work around it.',
             '',
             'Do not switch this workflow off to make the red go away. It is',
             'reporting that it cannot see production, which is the state it exists',
