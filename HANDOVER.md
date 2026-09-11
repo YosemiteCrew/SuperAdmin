@@ -1,4 +1,4 @@
-# SuperAdmin — Engineering Handover (for Claude Code)
+# SuperAdmin — Engineering Handover
 
 This document hands over the **YosemiteCrew/SuperAdmin** repository to a fresh agent
 that will own the entire codebase. It captures the architecture, conventions, the
