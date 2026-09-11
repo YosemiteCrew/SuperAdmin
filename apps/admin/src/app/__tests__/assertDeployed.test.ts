@@ -178,7 +178,7 @@ describe('assert-deployed', () => {
     ).resolves.toBe(1);
     const output = [...logSpy.mock.calls, ...errorSpy.mock.calls].flat().join('\n');
     expect(output).not.toContain('ENOTFOUND\nFORGED');
-    expect(output).toContain('ENOTFOUND\\nFORGED');
+    expect(output).toContain('ENOTFOUND_FORGED');
   });
 
   it('stops immediately when the Basic Auth exemption is gone', async () => {
