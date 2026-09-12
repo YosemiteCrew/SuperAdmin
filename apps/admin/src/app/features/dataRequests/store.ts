@@ -2,6 +2,7 @@ import 'server-only';
 import { prisma } from '@superadmin/database';
 
 import {
+  isDataRequestStatus,
   isOpenStatus,
   RESPONSE_WINDOW_MONTHS,
   type DataRequestStatus,
@@ -92,27 +93,45 @@ export async function getDataRequest(id: string) {
 export interface UpdateStatusInput {
   id: string;
   status: DataRequestStatus;
+  /** The status shown to the operator when they chose the new one. */
+  expectedStatus: DataRequestStatus;
   handledBy: string;
   /** Injectable for tests; defaults to now. */
   now?: Date;
 }
 
+export type UpdateStatusResult =
+  { ok: true } | { ok: false; currentStatus: DataRequestStatus | null };
+
 /**
  * Moves a request to a new status. Fulfilling stamps `fulfilledAt`; reopening a
  * previously-fulfilled request clears it so the timeline never claims a
  * completion that was undone.
+ *
+ * The write only applies when the row's persisted status still matches
+ * `expectedStatus`, in the same statement as the update (`updateMany`'s WHERE
+ * clause), so a second admin acting on a page loaded before the first admin's
+ * change can never silently overwrite it - including clearing a real
+ * `fulfilledAt` by replaying a stale "fulfilled -> something else" submission.
  */
-export async function updateDataRequestStatus(input: UpdateStatusInput) {
+export async function updateDataRequestStatus(
+  input: UpdateStatusInput
+): Promise<UpdateStatusResult> {
   const now = input.now ?? new Date();
   const fulfilledAt = input.status === 'fulfilled' ? now : null;
-  return prisma.dataRequest.update({
-    where: { id: input.id },
+  const { count } = await prisma.dataRequest.updateMany({
+    where: { id: input.id, status: input.expectedStatus },
     data: {
       status: input.status,
       handledBy: input.handledBy,
       fulfilledAt,
     },
   });
+  if (count > 0) return { ok: true };
+
+  const current = await prisma.dataRequest.findUnique({ where: { id: input.id } });
+  const currentStatus = current && isDataRequestStatus(current.status) ? current.status : null;
+  return { ok: false, currentStatus };
 }
 
 export interface DataRequestStats {
