@@ -66,6 +66,7 @@ describe('proxy', () => {
     ['GET', '/api/ap/revoked.json'],
     ['GET', '/api/directory'],
     ['PUT', '/api/directory/listing'],
+    ['GET', '/api/cloud-users'],
     ['GET', '/api/health'],
     ['POST', '/api/contact'],
     ['POST', '/api/consent'],

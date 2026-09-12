@@ -20,12 +20,8 @@ import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
 import { __resetForTest as resetRateLimit } from '@/app/lib/rateLimit';
-import {
-  GET,
-  getCachedStats,
-  __resetCacheForTest,
-  type CloudUsersStats,
-} from '@/app/api/cloud-users/route';
+import { GET } from '@/app/api/cloud-users/route';
+import { getCachedStats, __resetCacheForTest, type CloudUsersStats } from '@/app/lib/cloudUsers';
 
 const mockGetUserCount = supertokens.getUserCount as jest.Mock;
 const mockGetUsersNewestFirst = supertokens.getUsersNewestFirst as jest.Mock;
