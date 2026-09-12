@@ -68,8 +68,12 @@ export const serverEnv = {
   // consent can never be recorded unauthenticated.
   consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
   // Shared secret the marketing site presents when POSTing contact-us
-  // submissions to /api/contact. Optional — the intake endpoint refuses all
-  // requests when absent, so the form cannot silently start dropping leads.
+  // submissions to /api/contact. Optional: the intake refuses all requests
+  // when absent, so writes fail closed against unauthenticated callers. That
+  // does not stop loss while absent - the product write still succeeds and the
+  // visitor still gets 201, while the CRM mirror never receives the submission.
+  // Those rows stay missing from /crm/requests until the contact backfill
+  // import restores them (see apps/admin/README.md).
   contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
   // Social poster (TikTok) credentials. Optional on purpose: the panel must
   // still boot on a host where the poster was never provisioned — the Social
