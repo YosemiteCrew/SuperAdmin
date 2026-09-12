@@ -1,11 +1,10 @@
-import type { Config } from 'jest';
 // Explicit .js extension: jest 30's stricter ESM resolver rejects the
 // extensionless 'next/jest' specifier.
 import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({ dir: './' });
 
-const config: Config = {
+const config = {
   watchman: false,
   clearMocks: true,
   collectCoverage: false,
