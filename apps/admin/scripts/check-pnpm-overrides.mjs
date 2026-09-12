@@ -1,4 +1,4 @@
-#!/usr/bin/env ts-node
+#!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
 import {
@@ -12,27 +12,17 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(__dirname, '../../..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const PACKAGE_JSON = 'package.json';
 const LOCKFILE = 'pnpm-lock.yaml';
 
-type StringMap = Record<string, string>;
-type Manifest = {
-  pnpm?: { overrides?: StringMap };
-  overrideReasons?: StringMap;
-  overrideResolutionEffects?: Record<string, boolean>;
-};
-
-export function withoutOverrideHeader(lockfile: string): string {
+export function withoutOverrideHeader(lockfile) {
   return lockfile.replace(/\noverrides:\n[\s\S]*?\nimporters:\n/, '\nimporters:\n');
 }
 
-export function validateMetadata(
-  overrides: StringMap,
-  reasons: StringMap,
-  effects: Record<string, boolean>
-) {
+export function validateMetadata(overrides, reasons, effects) {
   const overrideKeys = Object.keys(overrides).sort();
   const reasonKeys = Object.keys(reasons).sort();
   const effectKeys = Object.keys(effects).sort();
@@ -44,7 +34,7 @@ export function validateMetadata(
   };
 }
 
-function copyManifestTree(root: string, target: string): void {
+function copyManifestTree(root, target) {
   for (const directory of ['apps', 'packages']) {
     const source = path.join(root, directory);
     for (const entry of readdirSync(source, { withFileTypes: true })) {
@@ -56,11 +46,11 @@ function copyManifestTree(root: string, target: string): void {
   }
 }
 
-function main(): number {
+function main() {
   const root = ROOT;
   const packageFile = path.join(root, PACKAGE_JSON);
   const lockFile = path.join(root, LOCKFILE);
-  const manifest = JSON.parse(readFileSync(packageFile, 'utf8')) as Manifest;
+  const manifest = JSON.parse(readFileSync(packageFile, 'utf8'));
   const overrides = manifest.pnpm?.overrides ?? {};
   const expectedEffects = manifest.overrideResolutionEffects ?? {};
   const metadata = validateMetadata(overrides, manifest.overrideReasons ?? {}, expectedEffects);
@@ -118,4 +108,6 @@ function main(): number {
   return 0;
 }
 
-if (require.main === module) process.exitCode = main();
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  process.exitCode = main();
+}

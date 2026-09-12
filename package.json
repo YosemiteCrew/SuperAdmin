@@ -20,7 +20,7 @@
     "commitlint": "commitlint --edit",
     "check:secrets": "secretlint \"**/*\" --maskSecrets",
     "check:staged-secrets": "node scripts/check-staged-secrets.js",
-    "check:overrides": "pnpm --filter admin exec ts-node --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\",\"types\":[\"node\"]}' scripts/check-pnpm-overrides.ts"
+    "check:overrides": "pnpm --filter admin exec node scripts/check-pnpm-overrides.mjs"
   },
   "pnpm": {
     "overrides": {
