@@ -13,6 +13,7 @@ import {
   canOfferUserDeletion,
   isBootstrapAdmin,
   isBootstrapAdminEmail,
+  isConfirmedBootstrapAdmin,
 } from '@/app/features/users/bootstrap';
 
 describe('bootstrap admin protection', () => {
@@ -45,5 +46,13 @@ describe('bootstrap admin protection', () => {
   it('fails closed when the account lookup fails', async () => {
     getUserMock.mockRejectedValue(new Error('unavailable'));
     await expect(isBootstrapAdmin('user-1')).resolves.toBe(true);
+  });
+
+  it('only confirms a bootstrap safety anchor after a successful lookup', async () => {
+    getUserMock.mockResolvedValueOnce({ emails: ['ADMIN@EXAMPLE.COM'] });
+    await expect(isConfirmedBootstrapAdmin('user-1')).resolves.toBe(true);
+
+    getUserMock.mockRejectedValueOnce(new Error('unavailable'));
+    await expect(isConfirmedBootstrapAdmin('user-1')).resolves.toBe(false);
   });
 });
