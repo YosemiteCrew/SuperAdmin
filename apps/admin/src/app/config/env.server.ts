@@ -31,14 +31,15 @@ function optionalPem(value: string | undefined): string | null {
   return trimmed.length > 0 ? `${trimmed}\n` : null;
 }
 
-function optionalEmailList(value: string | undefined): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
+function requiredEmailList(name: string, value: string | undefined): string[] {
+  const emails = requiredServer(name, value)
     .split(',')
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
+  if (emails.length === 0) {
+    throw new Error(`Missing required server env var: ${name}. Configure at least one email.`);
+  }
+  return emails;
 }
 
 export const serverEnv = {
@@ -56,7 +57,12 @@ export const serverEnv = {
   // behind a digest, so the panel looks selectively broken rather than
   // misconfigured.
   databaseUrl: requiredServer('DATABASE_URL', process.env.DATABASE_URL),
-  superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
+  // At least one configuration-owned admin is the serialization anchor that
+  // prevents concurrent revocations from removing every admin role.
+  superadminBootstrapEmails: requiredEmailList(
+    'SUPERADMIN_BOOTSTRAP_EMAILS',
+    process.env.SUPERADMIN_BOOTSTRAP_EMAILS
+  ),
   plunkApiKey: process.env.PLUNK_API_KEY ?? '',
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
   // ActivityPub federation: RSA private key PEM used to sign license JWTs.

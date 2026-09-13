@@ -30,3 +30,17 @@ export async function isBootstrapAdmin(userId: string): Promise<boolean> {
     return true;
   }
 }
+
+/**
+ * Whether an account is confirmed to be a bootstrap admin. Use this only when
+ * `true` grants permission to rely on that account as a safety anchor: a lookup
+ * failure cannot prove the account is protected.
+ */
+export async function isConfirmedBootstrapAdmin(userId: string): Promise<boolean> {
+  try {
+    const user = await SuperTokens.getUser(userId);
+    return isBootstrapAdminEmail(user?.emails[0]);
+  } catch {
+    return false;
+  }
+}
