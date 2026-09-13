@@ -83,6 +83,7 @@ describe('serverEnv', () => {
   // since the var is read while the serverEnv object literal is built.
   beforeEach(() => {
     setEnv('DATABASE_URL', 'postgresql://u:p@localhost:5432/db');
+    setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', 'admin@example.com');
   });
   afterEach(() => {
     setEnv('SUPERTOKENS_CONNECTION_URI', originals.SUPERTOKENS_CONNECTION_URI);
@@ -140,14 +141,25 @@ describe('serverEnv', () => {
     });
   });
 
-  it('defaults superadminBootstrapEmails to an empty list when unset', () => {
+  it('throws when SUPERADMIN_BOOTSTRAP_EMAILS is missing', () => {
     setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
     setEnv('SUPERTOKENS_API_KEY', 'secret');
     setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', undefined);
     jest.isolateModules(() => {
-      const { serverEnv } =
-        jest.requireActual<typeof import('@/app/config/env.server')>('@/app/config/env.server');
-      expect(serverEnv.superadminBootstrapEmails).toEqual([]);
+      expect(() => jest.requireActual('@/app/config/env.server')).toThrow(
+        /SUPERADMIN_BOOTSTRAP_EMAILS/
+      );
+    });
+  });
+
+  it('throws when SUPERADMIN_BOOTSTRAP_EMAILS contains no email', () => {
+    setEnv('SUPERTOKENS_CONNECTION_URI', 'https://s.example.com');
+    setEnv('SUPERTOKENS_API_KEY', 'secret');
+    setEnv('SUPERADMIN_BOOTSTRAP_EMAILS', ' ,  , ');
+    jest.isolateModules(() => {
+      expect(() => jest.requireActual('@/app/config/env.server')).toThrow(
+        /SUPERADMIN_BOOTSTRAP_EMAILS/
+      );
     });
   });
 
@@ -168,6 +180,7 @@ describe('serverEnv.apSigningKey', () => {
     ['SUPERTOKENS_CONNECTION_URI', 'https://s.example.com'],
     ['SUPERTOKENS_API_KEY', 'secret'],
     ['DATABASE_URL', 'postgresql://u:p@localhost:5432/db'],
+    ['SUPERADMIN_BOOTSTRAP_EMAILS', 'admin@example.com'],
   ];
 
   // Only the line structure is under test - no crypto runs here, so the content

@@ -52,23 +52,25 @@ is baked into the bundle, so changing it needs a redeploy.
 
 Required, the app refuses to boot without them:
 
-| Variable                     | Value                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                  |
-| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                          |
-| `SUPERTOKENS_API_KEY`        | the core API key                                                                                  |
-| `DATABASE_URL`               | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
+| Variable                      | Value                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`      | `https://admin.yosemitecrew.com`                                                                  |
+| `SUPERTOKENS_CONNECTION_URI`  | the SuperTokens core URI                                                                          |
+| `SUPERTOKENS_API_KEY`         | the core API key                                                                                  |
+| `DATABASE_URL`                | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
+| `SUPERADMIN_BOOTSTRAP_EMAILS` | Comma-separated emails for configuration-owned admin accounts                                     |
 
 #### Which ones actually block a build
 
-Only three stop a build, and they stop it at different points, so fix them in this
+Four variables stop a build, and they stop it at different points, so fix them in this
 order:
 
 1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
    `next build`, so an absent value halts everything with `Validation Error
 Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
    attempted to compile the app.
-2. **`SUPERTOKENS_CONNECTION_URI`** and **`SUPERTOKENS_API_KEY`** fail next, while
+2. **`SUPERTOKENS_CONNECTION_URI`**, **`SUPERTOKENS_API_KEY`**, and
+   **`SUPERADMIN_BOOTSTRAP_EMAILS`** fail next, while
    Next collects page data - `env.server.ts` throws on module load. The URI has to
    point at a core that is genuinely _reachable_, not merely be set: collecting
    `/api/auth/[[...path]]` opens a connection. Check with
@@ -79,8 +81,7 @@ Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
 so a wrong value ships silently and breaks both OAuth callbacks.
 
 Optional; each one that is absent disables exactly one feature and leaves the
-rest of the panel working, so a first deploy can go green with only the three
-above: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
+rest of the panel working: `PLUNK_API_KEY`,
 `PLUNK_API_ENDPOINT`, `AP_SIGNING_KEY`, `AP_SIGNING_KEY_ID`, `CONSENT_INTAKE_KEY`,
 `CONTACT_INTAKE_KEY`, and the social poster set (`TIKTOK_CLIENT_KEY`,
 `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `INSTAGRAM_APP_ID`,
