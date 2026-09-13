@@ -147,6 +147,7 @@ describe('issueLicenseTokenAction', () => {
 
 describe('revokeLicenseTokenAction', () => {
   const tokenId = '00000000-0000-4000-8000-000000000001';
+  const cuidTokenId = 'c'.padEnd(25, 'a');
 
   async function revoke(fields: Record<string, string>): Promise<void> {
     const { revokeLicenseTokenAction } = await import('@/app/(routes)/(dashboard)/ap/actions');
@@ -165,7 +166,8 @@ describe('revokeLicenseTokenAction', () => {
 
   it('does nothing when token not found', async () => {
     mockFindUnique.mockResolvedValue(null);
-    await revoke({ tokenId });
+    await revoke({ tokenId: cuidTokenId });
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: cuidTokenId } });
     expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
