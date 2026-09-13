@@ -256,3 +256,37 @@ model OrgNoteImport {
   orgId      String   @id
   importedAt DateTime @default(now())
 }
+
+// A super-admin invitation, from creation through use or revocation.
+//
+// Previously a single JSON array under one UserMetadata key, read in full,
+// modified, and written back in full on every create/use/revoke. Two
+// concurrent writers (two invites created back to back, or an accept racing a
+// revoke) could each read the same snapshot and then replace it independently,
+// silently dropping whichever write landed first (issue #469). A row per
+// invite makes create a single INSERT and use/revoke a single conditional
+// UPDATE, so there is no shared snapshot for a second writer to clobber.
+model Invite {
+  id             String    @id
+  token          String    @unique
+  email          String
+  createdBy      String
+  createdByEmail String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  usedAt         DateTime?
+  usedBy         String?
+  usedByEmail    String?
+  revokedAt      DateTime?
+  revokedBy      String?
+
+  @@index([createdAt])
+}
+
+// Marks the one-time import of legacy UserMetadata invites into `Invite` as
+// done. Single-row table (fixed id) — mirrors OrgNoteImport's per-org marker,
+// just without a key, since invites were never partitioned by org.
+model InviteImport {
+  id         String   @id
+  importedAt DateTime @default(now())
+}
