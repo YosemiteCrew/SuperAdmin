@@ -251,6 +251,34 @@ describe('PUT /api/directory/listing', () => {
     expect(listing.upsert).not.toHaveBeenCalled();
   });
 
+  it('returns the same conflict when another org claims the actorUri during the write', async () => {
+    listing.findUnique.mockResolvedValue(null);
+    listing.upsert.mockRejectedValueOnce({ code: 'P2002', meta: { target: ['actorUri'] } });
+
+    const res = await PUT(request(body));
+
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      error: '`actorUri` is already registered to another organisation',
+    });
+  });
+
+  it('does not hide unrelated database failures', async () => {
+    listing.findUnique.mockResolvedValue(null);
+    const failure = new Error('database unavailable');
+    listing.upsert.mockRejectedValueOnce(failure);
+
+    await expect(PUT(request(body))).rejects.toBe(failure);
+  });
+
+  it('does not misreport a different unique-constraint failure as an actorUri conflict', async () => {
+    listing.findUnique.mockResolvedValue(null);
+    const failure = { code: 'P2002', meta: { target: ['orgId'] } };
+    listing.upsert.mockRejectedValueOnce(failure);
+
+    await expect(PUT(request(body))).rejects.toBe(failure);
+  });
+
   it('allows an org to re-save its own actorUri', async () => {
     listing.findUnique.mockResolvedValue({ orgId: 'org_test' });
     expect((await PUT(request(body))).status).toBe(200);
