@@ -7,7 +7,7 @@ jest.mock('@superadmin/database', () => ({
     aPLicenseToken: {
       create: jest.fn(),
       findUnique: jest.fn(),
-      update: jest.fn(),
+      updateMany: jest.fn(),
     },
   },
 }));
@@ -52,8 +52,8 @@ const mockCreate = prisma.aPLicenseToken.create as jest.MockedFunction<
 const mockFindUnique = prisma.aPLicenseToken.findUnique as jest.MockedFunction<
   typeof prisma.aPLicenseToken.findUnique
 >;
-const mockUpdate = prisma.aPLicenseToken.update as jest.MockedFunction<
-  typeof prisma.aPLicenseToken.update
+const mockUpdateMany = prisma.aPLicenseToken.updateMany as jest.MockedFunction<
+  typeof prisma.aPLicenseToken.updateMany
 >;
 
 function makeFormData(fields: Record<string, string>): FormData {
@@ -149,37 +149,83 @@ describe('revokeLicenseTokenAction', () => {
 
   it('does nothing when tokenId is empty', async () => {
     await revoke({ tokenId: '' });
-    expect(mockFindUnique).not.toHaveBeenCalled();
+    expect(mockUpdateMany).not.toHaveBeenCalled();
   });
 
-  it('does nothing when token not found', async () => {
-    mockFindUnique.mockResolvedValue(null);
-    await revoke({ tokenId: 'tok_missing' });
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  it('does nothing when token already revoked', async () => {
-    mockFindUnique.mockResolvedValue({
-      revokedAt: new Date(),
-      orgId: 'org_1',
-      instanceDomain: 'd',
-    } as never);
-    await revoke({ tokenId: 'tok_already' });
-    expect(mockUpdate).not.toHaveBeenCalled();
-  });
-
-  it('updates revokedAt and revokedBy on success', async () => {
+  it('performs the transition as a single conditional update scoped to active tokens', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 });
     mockFindUnique.mockResolvedValue({
       id: 'tok_1',
-      revokedAt: null,
       orgId: 'org_1',
       instanceDomain: 'pims.example.com',
     } as never);
-    mockUpdate.mockResolvedValue({} as never);
     await revoke({ tokenId: 'tok_1' });
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'tok_1' },
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'tok_1', revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
     });
+  });
+
+  it('does not audit or revalidate when the token was already revoked (count 0)', async () => {
+    const { recordAuditEvent } = await import('@/app/features/audit/store');
+    const { revalidatePath } = await import('next/cache');
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    await revoke({ tokenId: 'tok_already' });
+    expect(mockFindUnique).not.toHaveBeenCalled();
+    expect(recordAuditEvent).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('does not audit or revalidate when the token does not exist (count 0)', async () => {
+    const { recordAuditEvent } = await import('@/app/features/audit/store');
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    await revoke({ tokenId: 'tok_missing' });
+    expect(recordAuditEvent).not.toHaveBeenCalled();
+  });
+
+  it('records exactly one audit event when two concurrent revokes race the same token', async () => {
+    const { recordAuditEvent } = await import('@/app/features/audit/store');
+    // Simulates the DB serialising two concurrent `updateMany` calls: only the first
+    // request's WHERE clause (`revokedAt: null`) still matches, so it alone gets count 1.
+    mockUpdateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+    mockFindUnique.mockResolvedValue({
+      id: 'tok_1',
+      orgId: 'org_1',
+      instanceDomain: 'pims.example.com',
+    } as never);
+
+    await Promise.all([revoke({ tokenId: 'tok_1' }), revoke({ tokenId: 'tok_1' })]);
+
+    expect(recordAuditEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates revokedAt and revokedBy, and audits with the token label, on success', async () => {
+    const { recordAuditEvent } = await import('@/app/features/audit/store');
+    const { revalidatePath } = await import('next/cache');
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockFindUnique.mockResolvedValue({
+      id: 'tok_1',
+      orgId: 'org_1',
+      instanceDomain: 'pims.example.com',
+    } as never);
+
+    await revoke({ tokenId: 'tok_1' });
+
+    expect(recordAuditEvent).toHaveBeenCalledWith({
+      action: 'ap_token.revoke',
+      actorId: 'admin_1',
+      targetType: 'ap_token',
+      targetId: 'tok_1',
+      targetLabel: 'pims.example.com (org_1)',
+    });
+    expect(revalidatePath).toHaveBeenCalledWith('/ap');
+  });
+
+  it('does nothing when the row vanished between the atomic update and the label read', async () => {
+    const { recordAuditEvent } = await import('@/app/features/audit/store');
+    mockUpdateMany.mockResolvedValue({ count: 1 });
+    mockFindUnique.mockResolvedValue(null);
+    await revoke({ tokenId: 'tok_1' });
+    expect(recordAuditEvent).not.toHaveBeenCalled();
   });
 });

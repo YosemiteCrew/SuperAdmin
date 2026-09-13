@@ -118,6 +118,12 @@ export async function issueLicenseTokenAction(formData: FormData): Promise<Issue
 /**
  * Revokes an active AP license token by setting `revokedAt` and `revokedBy`.
  * The revocation is reflected in GET /ap/revoked.json on the next request.
+ *
+ * `updateMany` with `revokedAt: null` in the where clause makes the active-to-revoked
+ * transition a single compare-and-set statement: only the request whose WHERE clause
+ * still matches (i.e. the first to reach the DB) flips the row and gets `count === 1`.
+ * A concurrent or retried call always resolves to `count === 0` and no-ops before any
+ * audit write, instead of two separate read/update round trips both observing "active".
  */
 export async function revokeLicenseTokenAction(formData: FormData): Promise<void> {
   const { userId: callerId } = await requireSuperAdmin();
@@ -125,20 +131,21 @@ export async function revokeLicenseTokenAction(formData: FormData): Promise<void
   const tokenId = formData.get('tokenId');
   if (typeof tokenId !== 'string' || tokenId.length === 0) return;
 
-  const existing = await prisma.aPLicenseToken.findUnique({ where: { id: tokenId } });
-  if (!existing || existing.revokedAt) return;
-
-  await prisma.aPLicenseToken.update({
-    where: { id: tokenId },
+  const { count } = await prisma.aPLicenseToken.updateMany({
+    where: { id: tokenId, revokedAt: null },
     data: { revokedAt: new Date(), revokedBy: callerId },
   });
+  if (count === 0) return;
+
+  const revoked = await prisma.aPLicenseToken.findUnique({ where: { id: tokenId } });
+  if (!revoked) return;
 
   await recordAuditEvent({
     action: 'ap_token.revoke',
     actorId: callerId,
     targetType: 'ap_token',
     targetId: tokenId,
-    targetLabel: `${existing.instanceDomain} (${existing.orgId})`,
+    targetLabel: `${revoked.instanceDomain} (${revoked.orgId})`,
   });
 
   revalidatePath('/ap');
