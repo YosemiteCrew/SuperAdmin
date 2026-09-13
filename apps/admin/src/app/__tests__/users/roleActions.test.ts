@@ -30,6 +30,9 @@ jest.mock('@/app/features/users/emailVerification', () => ({ setEmailVerified: j
 jest.mock('@/app/features/users/bootstrap', () => ({
   isBootstrapAdmin: jest.fn().mockResolvedValue(false),
 }));
+jest.mock('@/app/features/users/adminRoleRevocation', () => ({
+  canRevokeSuperAdminRole: jest.fn().mockResolvedValue(true),
+}));
 
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
@@ -83,7 +86,22 @@ describe('grantSuperAdminAction', () => {
 });
 
 describe('revokeSuperAdminAction', () => {
+  beforeEach(() => {
+    const { canRevokeSuperAdminRole } = jest.requireMock(
+      '@/app/features/users/adminRoleRevocation'
+    ) as {
+      canRevokeSuperAdminRole: jest.Mock;
+    };
+    canRevokeSuperAdminRole.mockReset().mockResolvedValue(true);
+  });
+
   it('refuses to remove the caller’s own role (self-lockout guard)', async () => {
+    const { canRevokeSuperAdminRole } = jest.requireMock(
+      '@/app/features/users/adminRoleRevocation'
+    ) as {
+      canRevokeSuperAdminRole: jest.Mock;
+    };
+    canRevokeSuperAdminRole.mockResolvedValueOnce(false);
     const { revokeSuperAdminAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeSuperAdminAction(makeForm({ userId: 'admin-self' }));
@@ -91,7 +109,12 @@ describe('revokeSuperAdminAction', () => {
   });
 
   it('refuses to remove the last remaining super admin', async () => {
-    getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'OK', users: ['target-1'] });
+    const { canRevokeSuperAdminRole } = jest.requireMock(
+      '@/app/features/users/adminRoleRevocation'
+    ) as {
+      canRevokeSuperAdminRole: jest.Mock;
+    };
+    canRevokeSuperAdminRole.mockResolvedValueOnce(false);
     const { revokeSuperAdminAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeSuperAdminAction(makeForm({ userId: 'target-1' }));
@@ -99,10 +122,12 @@ describe('revokeSuperAdminAction', () => {
   });
 
   it('refuses to remove configuration-owned bootstrap access', async () => {
-    const { isBootstrapAdmin } = jest.requireMock('@/app/features/users/bootstrap') as {
-      isBootstrapAdmin: jest.Mock;
+    const { canRevokeSuperAdminRole } = jest.requireMock(
+      '@/app/features/users/adminRoleRevocation'
+    ) as {
+      canRevokeSuperAdminRole: jest.Mock;
     };
-    isBootstrapAdmin.mockResolvedValueOnce(true);
+    canRevokeSuperAdminRole.mockResolvedValueOnce(false);
     const { revokeSuperAdminAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeSuperAdminAction(makeForm({ userId: 'bootstrap-1' }));
@@ -110,10 +135,22 @@ describe('revokeSuperAdminAction', () => {
   });
 
   it('refuses to remove when the role has no holders (UNKNOWN_ROLE_ERROR)', async () => {
-    getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'UNKNOWN_ROLE_ERROR' });
+    const { canRevokeSuperAdminRole } = jest.requireMock(
+      '@/app/features/users/adminRoleRevocation'
+    ) as {
+      canRevokeSuperAdminRole: jest.Mock;
+    };
+    canRevokeSuperAdminRole.mockResolvedValueOnce(false);
     const { revokeSuperAdminAction } =
       await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await revokeSuperAdminAction(makeForm({ userId: 'target-1' }));
+    expect(
+      (
+        jest.requireMock('@/app/features/users/adminRoleRevocation') as {
+          canRevokeSuperAdminRole: jest.Mock;
+        }
+      ).canRevokeSuperAdminRole
+    ).toHaveBeenCalledWith('admin-self', 'target-1');
     expect(removeUserRoleMock).not.toHaveBeenCalled();
   });
 
