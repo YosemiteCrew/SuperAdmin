@@ -25,6 +25,7 @@ env:
   NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
   SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
   SUPERTOKENS_API_KEY: placeholder-ci-key
+  SUPERADMIN_BOOTSTRAP_EMAILS: admin@example.com
 
 jobs:
   changes:
