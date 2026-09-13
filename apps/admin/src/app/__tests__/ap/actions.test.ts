@@ -193,7 +193,7 @@ describe('revokeLicenseTokenAction', () => {
     await revoke({ tokenId });
 
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: { equals: tokenId }, revokedAt: { equals: null } },
+      where: { id: tokenId, revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
     });
     expect(mockRecordAuditEvent).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe('revokeLicenseTokenAction', () => {
     mockUpdateMany.mockResolvedValue({ count: 1 });
     await revoke({ tokenId });
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: { equals: tokenId }, revokedAt: { equals: null } },
+      where: { id: tokenId, revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
     });
   });

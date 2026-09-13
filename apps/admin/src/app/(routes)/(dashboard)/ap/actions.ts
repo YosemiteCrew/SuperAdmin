@@ -130,7 +130,7 @@ export async function revokeLicenseTokenAction(formData: FormData): Promise<void
   if (!existing || existing.revokedAt) return;
 
   const { count } = await prisma.aPLicenseToken.updateMany({
-    where: { id: { equals: tokenId }, revokedAt: { equals: null } },
+    where: { id: existing.id, revokedAt: null },
     data: { revokedAt: new Date(), revokedBy: callerId },
   });
   if (count === 0) return;
