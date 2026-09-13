@@ -96,8 +96,10 @@ export async function revokeAllSessionsAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string') return;
 
-  await SessionNode.revokeAllSessionsForUser(userId);
-  await auditUser('user.session_revoke_all', actorId, userId);
+  const revokedSessions = await SessionNode.revokeAllSessionsForUser(userId);
+  if (revokedSessions.length > 0) {
+    await auditUser('user.session_revoke_all', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
@@ -114,10 +116,14 @@ export async function resetMfaAction(formData: FormData) {
   if (typeof userId !== 'string' || userId.length === 0) return;
 
   const { devices } = await TotpNode.listDevices(userId);
-  await Promise.all(devices.map((device) => TotpNode.removeDevice(userId, device.name)));
+  const removedDevices = await Promise.all(
+    devices.map((device) => TotpNode.removeDevice(userId, device.name))
+  );
 
-  await SessionNode.revokeAllSessionsForUser(userId);
-  await auditUser('user.mfa_reset', actorId, userId);
+  const revokedSessions = await SessionNode.revokeAllSessionsForUser(userId);
+  if (removedDevices.some(({ didDeviceExist }) => didDeviceExist) || revokedSessions.length > 0) {
+    await auditUser('user.mfa_reset', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
