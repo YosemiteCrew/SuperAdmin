@@ -50,6 +50,21 @@ describe('sendDiscordMessage', () => {
     await expect(sendDiscordMessage('test')).rejects.toThrow('not configured');
   });
 
+  it('refuses a persisted non-Discord destination before fetch', async () => {
+    mockGet.mockResolvedValue({
+      status: 'OK',
+      metadata: {
+        config: {
+          webhookUrl: 'https://internal.example/api/webhooks/123/abc',
+          channelName: '#ops',
+          notifyOnEvents: true,
+        },
+      },
+    });
+    await expect(sendDiscordMessage('test')).rejects.toThrow('invalid');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   it('throws when webhook returns non-ok status', async () => {
     withWebhook();
     mockFetch.mockResolvedValueOnce({
