@@ -12,6 +12,7 @@ import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { collectAccountData } from '@/app/features/users/dataExport';
 import { setEmailVerified } from '@/app/features/users/emailVerification';
+import { canRevokeSuperAdminRole } from '@/app/features/users/adminRoleRevocation';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 function auditUser(action: AuditAction, actorId: string, userId: string): Promise<void> {
@@ -138,16 +139,7 @@ export async function revokeSuperAdminAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
 
-  // Guard 1: an admin can never strip their own access (self-lockout).
-  if (userId === callerId) return;
-
-  // Guard 2: bootstrap access is configuration-owned, not removable from the UI.
-  if (await isBootstrapAdmin(userId)) return;
-
-  // Guard 3: never remove the final super admin — keep at least one standing.
-  const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
-  const admins = roleHolders.status === 'OK' ? roleHolders.users : [];
-  if (admins.length <= 1) return;
+  if (!(await canRevokeSuperAdminRole(callerId, userId))) return;
 
   await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   await auditUser('role.revoke', callerId, userId);
