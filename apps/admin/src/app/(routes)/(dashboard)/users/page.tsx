@@ -4,6 +4,7 @@ import supertokens from 'supertokens-node';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { DEFAULT_PAGE_SIZE } from '@/app/constants';
 import { canOfferUserDeletion } from '@/app/features/users/bootstrap';
 import {
   DEFAULT_USER_TYPE_FILTER,
@@ -21,7 +22,6 @@ export const metadata: Metadata = {
   title: 'Users',
 };
 
-const PAGE_SIZE = 20;
 const DEFAULT_TENANT = 'public';
 
 type SearchParams = {
@@ -95,7 +95,7 @@ export default async function UsersPage({
 
   const { users, nextPaginationToken } = await supertokens.getUsersNewestFirst({
     tenantId: DEFAULT_TENANT,
-    limit: PAGE_SIZE,
+    limit: DEFAULT_PAGE_SIZE,
     paginationToken: cursor,
     includeRecipeIds: recipeIdsForUserType(typeFilter),
     query: trimmedSearch ? { email: trimmedSearch } : undefined,

@@ -95,6 +95,13 @@ describe('bulkDisableUsersAction', () => {
     expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does nothing when a direct caller exceeds the users-page batch size', async () => {
+    await bulkDisableUsersAction(Array.from({ length: 21 }, (_, index) => `u-${index}`));
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('does nothing when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
@@ -107,6 +114,18 @@ describe('bulkEnableUsersAction', () => {
     await bulkEnableUsersAction(['u-1', 'u-2']);
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-1', { disabledAt: null });
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-2', { disabledAt: null });
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('processes one complete users-page batch', async () => {
+    await bulkEnableUsersAction(Array.from({ length: 20 }, (_, index) => `u-${index}`));
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(20);
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(20);
+  });
+
+  it('processes duplicate ids only once', async () => {
+    await bulkEnableUsersAction(['u-1', 'u-1', 'u-2']);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(2);
     expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
   });
 });

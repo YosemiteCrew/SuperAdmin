@@ -6,13 +6,16 @@ import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { requireSuperAdmin } from '@/app/config/backend';
+import { DEFAULT_PAGE_SIZE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 function cleanIds(userIds: unknown): string[] {
-  if (!Array.isArray(userIds)) return [];
-  return userIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  if (!Array.isArray(userIds) || userIds.length > DEFAULT_PAGE_SIZE) return [];
+  return Array.from(
+    new Set(userIds.filter((id): id is string => typeof id === 'string' && id.length > 0))
+  );
 }
 
 async function auditEach(action: AuditAction, actorId: string, userId: string, label?: string) {
