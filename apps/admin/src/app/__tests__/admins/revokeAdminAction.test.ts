@@ -34,8 +34,9 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
 }
 
 beforeEach(() => {
+  jest.clearAllMocks();
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-self' });
-  removeUserRoleMock.mockReset().mockResolvedValue({ status: 'OK' });
+  removeUserRoleMock.mockReset().mockResolvedValue({ status: 'OK', didUserHaveRole: true });
   getUsersThatHaveRoleMock
     .mockReset()
     .mockResolvedValue({ status: 'OK', users: ['admin-self', 'target-1'] });
@@ -105,11 +106,38 @@ describe('revokeAdminAction', () => {
   it('removes the role and revalidates /admins and /users/[id]', async () => {
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
     await revokeAdminAction(makeForm({ userId: 'target-1' }));
     expect(removeUserRoleMock).toHaveBeenCalledWith('public', 'target-1', 'superadmin');
+    expect(recordAuditEvent).toHaveBeenCalledWith({
+      action: 'role.revoke',
+      actorId: 'admin-self',
+      targetType: 'user',
+      targetId: 'target-1',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admins');
     expect(revalidatePath).toHaveBeenCalledWith('/users/target-1');
   });
+
+  it.each([{ status: 'OK', didUserHaveRole: false }, { status: 'UNKNOWN_ROLE_ERROR' }])(
+    'does not audit a no-op result and refreshes both stale pages',
+    async (result) => {
+      removeUserRoleMock.mockResolvedValueOnce(result);
+      const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+      const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+      const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+        recordAuditEvent: jest.Mock;
+      };
+
+      await revokeAdminAction(makeForm({ userId: 'target-1' }));
+
+      expect(recordAuditEvent).not.toHaveBeenCalled();
+      expect(revalidatePath).toHaveBeenCalledWith('/admins');
+      expect(revalidatePath).toHaveBeenCalledWith('/users/target-1');
+    }
+  );
 
   it('throws when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
