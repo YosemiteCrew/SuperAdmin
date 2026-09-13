@@ -163,10 +163,14 @@ describe('revokeAllSessionsAction', () => {
     const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
       recordAuditEvent: jest.Mock;
     };
+    const { revalidatePath } = jest.requireMock('next/cache') as {
+      revalidatePath: jest.Mock;
+    };
     recordAuditEvent.mockClear();
 
     await revokeAllSessionsAction(makeForm({ userId: 'u-9' }));
 
     expect(recordAuditEvent).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/users/u-9');
   });
 });
