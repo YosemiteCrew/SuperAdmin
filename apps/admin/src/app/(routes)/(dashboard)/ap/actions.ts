@@ -123,14 +123,14 @@ export async function issueLicenseTokenAction(formData: FormData): Promise<Issue
 export async function revokeLicenseTokenAction(formData: FormData): Promise<void> {
   const { userId: callerId } = await requireSuperAdmin();
 
-  const tokenId = String(formData.get('tokenId') ?? '');
-  if (!AP_TOKEN_ID_PATTERN.test(tokenId)) return;
+  const tokenId = formData.get('tokenId');
+  if (typeof tokenId !== 'string' || !AP_TOKEN_ID_PATTERN.test(tokenId)) return;
 
   const existing = await prisma.aPLicenseToken.findUnique({ where: { id: tokenId } });
   if (!existing || existing.revokedAt) return;
 
   const { count } = await prisma.aPLicenseToken.updateMany({
-    where: { id: existing.id, revokedAt: null },
+    where: { id: String(existing.id), revokedAt: null },
     data: { revokedAt: new Date(), revokedBy: callerId },
   });
   if (count === 0) return;

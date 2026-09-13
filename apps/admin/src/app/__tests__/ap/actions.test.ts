@@ -213,5 +213,13 @@ describe('revokeLicenseTokenAction', () => {
       where: { id: tokenId, revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
     });
+    expect(mockRecordAuditEvent).toHaveBeenCalledWith({
+      action: 'ap_token.revoke',
+      actorId: 'admin_1',
+      targetType: 'ap_token',
+      targetId: tokenId,
+      targetLabel: 'pims.example.com (org_1)',
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/ap');
   });
 });
