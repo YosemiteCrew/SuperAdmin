@@ -5,15 +5,11 @@ import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { sendDiscordMessage } from '@/app/features/crm/discord/dispatcher';
 import { saveDiscordConfig } from '@/app/features/crm/discord/store';
+import { isDiscordWebhookUrl } from '@/app/features/crm/discord/webhookUrl';
 
 export interface DiscordActionResult {
   error?: string;
   success?: boolean;
-}
-
-function isHttpsUrl(value: string): boolean {
-  const at = value.indexOf('https://');
-  return at === 0 && value.length > 8;
 }
 
 export async function saveDiscordConfigAction(formData: FormData): Promise<DiscordActionResult> {
@@ -23,12 +19,13 @@ export async function saveDiscordConfigAction(formData: FormData): Promise<Disco
   const channelName = formData.get('channelName');
   const notifyOnEvents = formData.get('notifyOnEvents') === 'on';
 
-  if (typeof webhookUrl !== 'string' || (webhookUrl.length > 0 && !isHttpsUrl(webhookUrl))) {
-    return { error: 'Webhook URL must start with https://.' };
+  const normalizedWebhookUrl = typeof webhookUrl === 'string' ? webhookUrl.trim() : '';
+  if (normalizedWebhookUrl.length > 0 && !isDiscordWebhookUrl(normalizedWebhookUrl)) {
+    return { error: 'Enter a valid Discord webhook URL.' };
   }
 
   await saveDiscordConfig({
-    webhookUrl: webhookUrl.trim(),
+    webhookUrl: normalizedWebhookUrl,
     channelName: typeof channelName === 'string' ? channelName.trim() : '',
     notifyOnEvents,
   });
@@ -41,7 +38,7 @@ export async function testDiscordWebhookAction(formData: FormData): Promise<Disc
   await requireSuperAdmin();
 
   const webhookUrl = formData.get('webhookUrl');
-  if (typeof webhookUrl !== 'string' || !isHttpsUrl(webhookUrl)) {
+  if (typeof webhookUrl !== 'string' || !isDiscordWebhookUrl(webhookUrl.trim())) {
     return { error: 'Save a valid webhook URL first.' };
   }
 

@@ -42,9 +42,18 @@ beforeEach(() => {
 });
 
 describe('saveDiscordConfigAction', () => {
-  it('rejects a non-https webhook URL', async () => {
-    const result = await saveDiscordConfigAction(fd({ webhookUrl: 'http://evil.example' }));
-    expect(result.error).toMatch(/https/);
+  it.each([
+    'http://discord.com/api/webhooks/1/x',
+    'https://example.com/api/webhooks/1/x',
+    'https://discord.com.example/api/webhooks/1/x',
+    'https://discord.com:8443/api/webhooks/1/x',
+    ['https://', 'name', ':', 'word', '@discord.com/api/webhooks/1/x'].join(''),
+    'https://discord.com/api/webhooks/1/x?wait=true',
+    'https://discord.com/api/webhooks/1/x#fragment',
+    'https://discord.com/not-webhooks/1/x',
+  ])('rejects a destination outside the Discord webhook contract: %s', async (webhookUrl) => {
+    const result = await saveDiscordConfigAction(fd({ webhookUrl }));
+    expect(result.error).toMatch(/valid Discord webhook/i);
     expect(mockSave).not.toHaveBeenCalled();
   });
 
@@ -67,6 +76,13 @@ describe('saveDiscordConfigAction', () => {
       notifyOnEvents: true,
     });
   });
+
+  it('accepts the legacy Discord webhook host', async () => {
+    const webhookUrl = 'https://discordapp.com/api/webhooks/123/token_value-1';
+    const result = await saveDiscordConfigAction(fd({ webhookUrl, channelName: '#ops' }));
+    expect(result.success).toBe(true);
+    expect(mockSave).toHaveBeenCalledWith(expect.objectContaining({ webhookUrl }));
+  });
 });
 
 describe('testDiscordWebhookAction', () => {
@@ -80,6 +96,14 @@ describe('testDiscordWebhookAction', () => {
     const result = await testDiscordWebhookAction(fd({ webhookUrl: WEBHOOK }));
     expect(result.success).toBe(true);
     expect(mockSend).toHaveBeenCalledWith(expect.stringMatching(/Test message/));
+  });
+
+  it('refuses to test an arbitrary HTTPS destination', async () => {
+    const result = await testDiscordWebhookAction(
+      fd({ webhookUrl: 'https://internal.example/api/webhooks/1/x' })
+    );
+    expect(result.error).toMatch(/valid webhook/i);
+    expect(mockSend).not.toHaveBeenCalled();
   });
 
   it('surfaces the dispatcher error message on failure', async () => {
