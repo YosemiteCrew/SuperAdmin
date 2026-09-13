@@ -94,13 +94,38 @@ describe('resetMfaAction', () => {
     expect(removeDeviceMock).toHaveBeenCalledWith('u-7', 'device-a');
     expect(removeDeviceMock).toHaveBeenCalledWith('u-7', 'device-b');
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-7');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.mfa_reset', targetId: 'u-7' })
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-7');
   });
 
-  it('still revokes sessions when the user has no devices', async () => {
+  it('audits when sessions are revoked even if the user has no devices', async () => {
+    revokeAllSessionsForUserMock.mockResolvedValueOnce(['sh-1']);
     const { resetMfaAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await resetMfaAction(makeForm({ userId: 'u-9' }));
     expect(removeDeviceMock).not.toHaveBeenCalled();
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-9');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.mfa_reset', targetId: 'u-9' })
+    );
+  });
+
+  it('does not audit when there are no devices or sessions to remove', async () => {
+    const { resetMfaAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    recordAuditEvent.mockClear();
+
+    await resetMfaAction(makeForm({ userId: 'u-9' }));
+
+    expect(recordAuditEvent).not.toHaveBeenCalled();
   });
 });

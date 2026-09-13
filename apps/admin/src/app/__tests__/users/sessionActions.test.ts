@@ -119,7 +119,7 @@ describe('revokeSessionAction', () => {
 
 describe('revokeAllSessionsAction', () => {
   beforeEach(() => {
-    revokeAllSessionsForUserMock.mockReset();
+    revokeAllSessionsForUserMock.mockReset().mockResolvedValue([]);
   });
 
   it('skips when userId missing', async () => {
@@ -148,6 +148,25 @@ describe('revokeAllSessionsAction', () => {
     revokeAllSessionsForUserMock.mockResolvedValueOnce(['sh-a', 'sh-b']);
     await revokeAllSessionsAction(makeForm({ userId: 'u-9' }));
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-9');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    expect(recordAuditEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.session_revoke_all', targetId: 'u-9' })
+    );
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-9');
+  });
+
+  it('does not audit when there are no sessions to revoke', async () => {
+    const { revokeAllSessionsAction } =
+      await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
+    recordAuditEvent.mockClear();
+
+    await revokeAllSessionsAction(makeForm({ userId: 'u-9' }));
+
+    expect(recordAuditEvent).not.toHaveBeenCalled();
   });
 });
