@@ -128,8 +128,10 @@ export async function grantSuperAdminAction(formData: FormData) {
   if (typeof userId !== 'string' || userId.length === 0) return;
 
   await UserRolesNode.createNewRoleOrAddPermissions(SUPERADMIN_ROLE, []);
-  await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
-  await auditUser('role.grant', actorId, userId);
+  const result = await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  if (result.status === 'OK' && !result.didUserAlreadyHaveRole) {
+    await auditUser('role.grant', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
@@ -141,8 +143,10 @@ export async function revokeSuperAdminAction(formData: FormData) {
 
   if (!(await canRevokeSuperAdminRole(callerId, userId))) return;
 
-  await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
-  await auditUser('role.revoke', callerId, userId);
+  const result = await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  if (result.status === 'OK' && result.didUserHaveRole) {
+    await auditUser('role.revoke', callerId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
