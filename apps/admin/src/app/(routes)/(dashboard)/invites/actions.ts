@@ -57,7 +57,9 @@ export async function revokeInviteAction(formData: FormData): Promise<void> {
   const inviteId = formData.get('inviteId');
   if (typeof inviteId !== 'string' || inviteId.trim().length === 0) return;
 
-  await revokeInvite({ inviteId, revokedBy: actorId });
+  const revoked = await revokeInvite({ inviteId, revokedBy: actorId });
+  if (!revoked) return;
+
   await recordAuditEvent({
     action: 'invite.revoke',
     actorId,

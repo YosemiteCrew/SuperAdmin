@@ -100,12 +100,18 @@ export async function markInviteUsed(params: {
   await writeInvites(updated);
 }
 
-export async function revokeInvite(params: { inviteId: string; revokedBy: string }): Promise<void> {
+export async function revokeInvite(params: {
+  inviteId: string;
+  revokedBy: string;
+}): Promise<boolean> {
   const invites = await readInvites();
+  const invite = invites.find((candidate) => candidate.id === params.inviteId);
+  const revokedAt = Date.now();
+  if (!invite || invite.revokedAt || invite.usedAt || revokedAt > invite.expiresAt) return false;
+
   const updated = invites.map((inv) =>
-    inv.id === params.inviteId
-      ? { ...inv, revokedAt: Date.now(), revokedBy: params.revokedBy }
-      : inv
+    inv.id === params.inviteId ? { ...inv, revokedAt, revokedBy: params.revokedBy } : inv
   );
   await writeInvites(updated);
+  return true;
 }

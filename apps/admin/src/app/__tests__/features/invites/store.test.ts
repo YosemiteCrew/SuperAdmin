@@ -149,6 +149,15 @@ describe('markInviteUsed', () => {
             createdAt: 1000,
             expiresAt: 2000,
           },
+          {
+            id: 'i2',
+            token: 'tok2',
+            email: 'c@b.com',
+            createdBy: 'u1',
+            createdByEmail: 'a@b.com',
+            createdAt: 1000,
+            expiresAt: 2000,
+          },
         ],
       },
     });
@@ -159,6 +168,7 @@ describe('markInviteUsed', () => {
     expect(invites[0].usedBy).toBe('u2');
     expect(invites[0].usedByEmail).toBe('b@b.com');
     expect(typeof invites[0].usedAt).toBe('number');
+    expect(invites[1]).not.toHaveProperty('usedAt');
   });
 });
 
@@ -175,16 +185,55 @@ describe('revokeInvite', () => {
             createdBy: 'u1',
             createdByEmail: 'a@b.com',
             createdAt: 1000,
-            expiresAt: 2000,
+            expiresAt: 9999999999999,
+          },
+          {
+            id: 'i2',
+            token: 'tok2',
+            email: 'c@b.com',
+            createdBy: 'u1',
+            createdByEmail: 'a@b.com',
+            createdAt: 1000,
+            expiresAt: 9999999999999,
           },
         ],
       },
     });
-    await revokeInvite({ inviteId: 'i1', revokedBy: 'admin1' });
+    const changed = await revokeInvite({ inviteId: 'i1', revokedBy: 'admin1' });
 
+    expect(changed).toBe(true);
     const [, payload] = mockUpdate.mock.calls[0];
     const invites = (payload as Record<string, unknown>).invites as Record<string, unknown>[];
     expect(typeof invites[0].revokedAt).toBe('number');
     expect(invites[0].revokedBy).toBe('admin1');
+    expect(invites[1]).not.toHaveProperty('revokedAt');
+  });
+
+  it.each([
+    ['unknown', 'missing', {}],
+    ['already revoked', 'i1', { revokedAt: 1500, revokedBy: 'admin0' }],
+    ['used', 'i1', { usedAt: 1500, usedBy: 'u2' }],
+    ['expired', 'i1', { expiresAt: 0 }],
+  ])('does not rewrite an %s invite', async (_caseName, inviteId, state) => {
+    mockGet.mockResolvedValue({
+      status: 'OK',
+      metadata: {
+        invites: [
+          {
+            id: 'i1',
+            token: 'tok1',
+            email: 'a@b.com',
+            createdBy: 'u1',
+            createdByEmail: 'a@b.com',
+            createdAt: 1000,
+            expiresAt: 9999999999999,
+            ...state,
+          },
+        ],
+      },
+    });
+
+    await expect(revokeInvite({ inviteId, revokedBy: 'admin1' })).resolves.toBe(false);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
