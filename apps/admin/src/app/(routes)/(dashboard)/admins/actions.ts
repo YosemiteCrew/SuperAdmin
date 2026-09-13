@@ -16,13 +16,15 @@ export async function revokeAdminAction(formData: FormData) {
 
   if (!(await canRevokeSuperAdminRole(callerId, userId))) return;
 
-  await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
-  await recordAuditEvent({
-    action: 'role.revoke',
-    actorId: callerId,
-    targetType: 'user',
-    targetId: userId,
-  });
+  const result = await UserRolesNode.removeUserRole(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
+  if (result.status === 'OK' && result.didUserHaveRole) {
+    await recordAuditEvent({
+      action: 'role.revoke',
+      actorId: callerId,
+      targetType: 'user',
+      targetId: userId,
+    });
+  }
   revalidatePath('/admins');
   revalidatePath(`/users/${userId}`);
 }
