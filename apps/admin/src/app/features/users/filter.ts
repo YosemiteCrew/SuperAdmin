@@ -14,6 +14,14 @@
  * this process — filtering a page after it was fetched would silently shrink
  * pages and corrupt the cursor.
  */
+/**
+ * The users page fetches this many rows per page, and its bulk Server Actions
+ * (`bulkActions.ts`) reuse it as the selection ceiling: the client's checkbox
+ * selection is not a trust boundary, so a call bearing more distinct IDs than
+ * a single page could ever offer is rejected before any privileged work runs.
+ */
+export const USERS_PAGE_SIZE = 20;
+
 export const USER_TYPE_FILTERS = ['all', 'mobile', 'business'] as const;
 
 export type UserTypeFilter = (typeof USER_TYPE_FILTERS)[number];

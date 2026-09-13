@@ -41,6 +41,7 @@ import {
   bulkDisableUsersAction,
   bulkEnableUsersAction,
 } from '@/app/(routes)/(dashboard)/users/bulkActions';
+import { USERS_PAGE_SIZE } from '@/app/features/users/filter';
 
 beforeEach(() => {
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-1' });
@@ -99,6 +100,35 @@ describe('bulkDisableUsersAction', () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('deduplicates repeated ids so a single id is only processed once', async () => {
+    await bulkDisableUsersAction(['u-1', 'u-1', 'u-1']);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('no-ops the entire call when the distinct selection exceeds the page ceiling', async () => {
+    const oversized = Array.from({ length: USERS_PAGE_SIZE + 1 }, (_, i) => `u-${i}`);
+    await bulkDisableUsersAction(oversized);
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('still processes a selection exactly at the page ceiling', async () => {
+    const atLimit = Array.from({ length: USERS_PAGE_SIZE }, (_, i) => `u-${i}`);
+    await bulkDisableUsersAction(atLimit);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(USERS_PAGE_SIZE);
+  });
+
+  it('bounds against the distinct count, not the raw (duplicate-inflated) length', async () => {
+    // 3 unique ids repeated well past the ceiling should still run - only the
+    // DEDUPED count is bounded, not the raw array length.
+    const raw = Array.from({ length: USERS_PAGE_SIZE * 3 }, (_, i) => `u-${i % 3}`);
+    await bulkDisableUsersAction(raw);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(3);
   });
 });
 

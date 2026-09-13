@@ -9,6 +9,7 @@ import {
   DEFAULT_USER_TYPE_FILTER,
   USER_TYPE_FILTERS,
   USER_TYPE_META,
+  USERS_PAGE_SIZE,
   type UserTypeFilter,
   parseUserTypeFilter,
   recipeIdsForUserType,
@@ -21,7 +22,9 @@ export const metadata: Metadata = {
   title: 'Users',
 };
 
-const PAGE_SIZE = 20;
+// Shared with bulkActions.ts so the Server Actions' selection ceiling can
+// never drift from what a single page of rows can actually offer.
+const PAGE_SIZE = USERS_PAGE_SIZE;
 const DEFAULT_TENANT = 'public';
 
 type SearchParams = {
