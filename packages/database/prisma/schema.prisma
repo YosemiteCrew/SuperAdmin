@@ -23,6 +23,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum CrmCampaignAudience {
+  all
+  admins
+}
+
 // Adding a model here is two steps, not one. Every table the panel owns must
 // also get `ALTER TABLE "<name>" ENABLE ROW LEVEL SECURITY` in a migration:
 // these tables hold marketing leads, the consent ledger and GDPR data-subject
@@ -110,6 +115,20 @@ model ContactRequest {
   @@index([leadId])
   @@index([status])
   @@index([createdAt])
+}
+
+model CrmCampaign {
+  id          String   @id
+  subject     String
+  preview     String
+  audience    CrmCampaignAudience
+  sentCount   Int
+  failedCount Int
+  sentAt      DateTime
+  sentBy      String
+  sentByEmail String
+
+  @@index([sentAt, id])
 }
 
 // A person or device whose consent decisions we hold. Anonymous-first: keyed
