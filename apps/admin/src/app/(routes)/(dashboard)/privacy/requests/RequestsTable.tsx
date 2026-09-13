@@ -113,6 +113,7 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2">
       <input type="hidden" name="id" value={request.id} />
+      <input type="hidden" name="expectedStatus" value={request.status} />
       <label className="sr-only" htmlFor={`status-${request.id}`}>
         Status for {request.subjectEmail}
       </label>
@@ -275,7 +276,11 @@ export function RequestsTable({
                     </td>
                     <td className="px-[18px] py-3">
                       <div className="flex justify-end">
-                        <StatusControl request={request} />
+                        {/* Keyed on status so a rejected stale write - or another
+                            admin's change landing via revalidatePath - remounts
+                            the control: the select's defaultValue and any
+                            leftover error message both reset to the real row. */}
+                        <StatusControl key={`${request.id}:${status}`} request={request} />
                       </div>
                     </td>
                   </tr>

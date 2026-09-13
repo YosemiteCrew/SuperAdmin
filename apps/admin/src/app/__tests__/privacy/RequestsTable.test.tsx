@@ -165,6 +165,44 @@ describe('RequestsTable', () => {
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
 
+  // The store's stale-write guard reads this field, not the value the operator
+  // just picked - it has to carry the status the row was rendered with, so the
+  // write only lands if nobody else changed it since this page loaded.
+  it('submits the row’s loaded status as expectedStatus, not the newly chosen one', async () => {
+    mockUpdate.mockResolvedValue({ ok: true });
+    render(<RequestsTable requests={[makeRequest({ status: 'in_progress' })]} nowMs={NOW_MS} />);
+
+    fireEvent.change(screen.getByLabelText(/Status for person@example.com/i), {
+      target: { value: 'fulfilled' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    const formData = mockUpdate.mock.calls[0][0];
+    expect(formData.get('status')).toBe('fulfilled');
+    expect(formData.get('expectedStatus')).toBe('in_progress');
+  });
+
+  // A stale write from this row must not clear a real fulfilledAt or overwrite
+  // a decision another admin already made; the operator gets the message
+  // instead of a silent success.
+  it('shows a clear message and keeps the row retryable when the write is stale', async () => {
+    mockUpdate.mockResolvedValue({
+      ok: false,
+      error:
+        'Someone else already updated this request. Its current status is shown below - review it and try again.',
+    });
+    render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);
+
+    fireEvent.change(screen.getByLabelText(/Status for person@example.com/i), {
+      target: { value: 'fulfilled' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+    expect(await screen.findByText(/already updated/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Update/i })).toBeEnabled();
+  });
+
   it('shows an inline error when a status update fails', async () => {
     mockUpdate.mockResolvedValue({ ok: false, error: 'Unknown status' });
     render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);

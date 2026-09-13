@@ -33,7 +33,7 @@ export function StatusControl({
       try {
         const result: UpdateStatusResult = await updateRequestStatusAction(formData);
         if (result.error) {
-          setSelectedStatus(status);
+          setSelectedStatus(result.currentStatus ?? status);
           setError(result.error);
         }
       } catch {
@@ -46,6 +46,11 @@ export function StatusControl({
   return (
     <form className="flex items-center gap-2">
       <input type="hidden" name="requestId" value={requestId} />
+      {/* The status this control was loaded with - what the operator actually
+          reviewed - not `selectedStatus`, which already reflects the pick
+          they are submitting. The action only writes when this still matches
+          the persisted row. */}
+      <input type="hidden" name="expectedStatus" value={status} />
       <label className="sr-only" htmlFor={`status-${requestId}`}>
         Update status
       </label>

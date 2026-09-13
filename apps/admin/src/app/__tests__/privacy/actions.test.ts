@@ -15,6 +15,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
 
+import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { createDataRequest, updateDataRequestStatus } from '@/app/features/dataRequests/store';
@@ -27,6 +28,7 @@ const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof re
 const mockCreate = createDataRequest as jest.MockedFunction<typeof createDataRequest>;
 const mockUpdate = updateDataRequestStatus as jest.MockedFunction<typeof updateDataRequestStatus>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockRevalidate = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
 
 function makeFormData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -133,30 +135,41 @@ describe('logDataRequestAction', () => {
 
 describe('updateDataRequestStatusAction', () => {
   it('rejects a missing id', async () => {
-    const result = await updateDataRequestStatusAction(makeFormData({ status: 'fulfilled' }));
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ status: 'fulfilled', expectedStatus: 'in_progress' })
+    );
     expect(result).toEqual({ ok: false, error: 'A request id is required' });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown status', async () => {
     const result = await updateDataRequestStatusAction(
-      makeFormData({ id: 'dr_1', status: 'archived' })
+      makeFormData({ id: 'dr_1', status: 'archived', expectedStatus: 'in_progress' })
+    );
+    expect(result).toEqual({ ok: false, error: 'Unknown status' });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown expected status', async () => {
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'archived' })
     );
     expect(result).toEqual({ ok: false, error: 'Unknown status' });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('updates the status, audits it, and returns ok', async () => {
-    mockUpdate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'a@b.com' } as never);
+    mockUpdate.mockResolvedValue({ ok: true });
 
     const result = await updateDataRequestStatusAction(
-      makeFormData({ id: 'dr_1', status: 'fulfilled' })
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'in_progress' })
     );
 
     expect(result).toEqual({ ok: true });
     expect(mockUpdate).toHaveBeenCalledWith({
       id: 'dr_1',
       status: 'fulfilled',
+      expectedStatus: 'in_progress',
       handledBy: 'admin_1',
     });
     expect(mockAudit).toHaveBeenCalledWith(
@@ -171,11 +184,30 @@ describe('updateDataRequestStatusAction', () => {
   });
 
   it('never writes the subject email into the audit trail on update', async () => {
-    mockUpdate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'subject@person.com' } as never);
-    await updateDataRequestStatusAction(makeFormData({ id: 'dr_1', status: 'fulfilled' }));
+    mockUpdate.mockResolvedValue({ ok: true });
+    await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'in_progress' })
+    );
 
     const [event] = mockAudit.mock.calls[0];
     expect(JSON.stringify(event)).not.toContain('subject@person.com');
     expect(JSON.stringify(event)).not.toContain('@');
+  });
+
+  // Another admin already moved this request between page-load and this
+  // submit. The store made no write (it returns ok:false), so this must not
+  // record an audit event for a change that never happened, and must surface
+  // a message the operator can act on instead of a generic "ok".
+  it('reports a clear error and records no audit event when the write is stale', async () => {
+    mockUpdate.mockResolvedValue({ ok: false, currentStatus: 'fulfilled' });
+
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'in_progress', expectedStatus: 'received' })
+    );
+
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/already updated/i);
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevalidate).toHaveBeenCalledWith('/privacy/requests');
   });
 });

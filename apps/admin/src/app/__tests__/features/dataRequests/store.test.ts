@@ -4,7 +4,7 @@ jest.mock('@superadmin/database', () => ({
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
-      update: jest.fn(),
+      updateMany: jest.fn(),
       count: jest.fn(),
     },
   },
@@ -29,8 +29,8 @@ const mockFindMany = prisma.dataRequest.findMany as jest.MockedFunction<
 const mockFindUnique = prisma.dataRequest.findUnique as jest.MockedFunction<
   typeof prisma.dataRequest.findUnique
 >;
-const mockUpdate = prisma.dataRequest.update as jest.MockedFunction<
-  typeof prisma.dataRequest.update
+const mockUpdateMany = prisma.dataRequest.updateMany as jest.MockedFunction<
+  typeof prisma.dataRequest.updateMany
 >;
 const mockCount = prisma.dataRequest.count as jest.MockedFunction<typeof prisma.dataRequest.count>;
 
@@ -186,42 +186,94 @@ describe('listDataRequests', () => {
 });
 
 describe('updateDataRequestStatus', () => {
-  it('stamps fulfilledAt when fulfilling', async () => {
-    mockUpdate.mockResolvedValue({} as never);
+  it('stamps fulfilledAt when fulfilling, guarded by the expected status', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 1 } as never);
     const now = new Date('2026-07-10T00:00:00.000Z');
 
-    await updateDataRequestStatus({ id: 'dr_1', status: 'fulfilled', handledBy: 'admin_1', now });
+    const result = await updateDataRequestStatus({
+      id: 'dr_1',
+      status: 'fulfilled',
+      expectedStatus: 'in_progress',
+      handledBy: 'admin_1',
+      now,
+    });
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'dr_1' },
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { equals: 'dr_1' }, status: { equals: 'in_progress' } },
       data: { status: 'fulfilled', handledBy: 'admin_1', fulfilledAt: now },
     });
+    expect(result).toEqual({ ok: true });
+    expect(mockFindUnique).not.toHaveBeenCalled();
   });
 
   it('defaults now to the current time when omitted', async () => {
-    mockUpdate.mockResolvedValue({} as never);
+    mockUpdateMany.mockResolvedValue({ count: 1 } as never);
     const before = Date.now();
 
-    await updateDataRequestStatus({ id: 'dr_1', status: 'fulfilled', handledBy: 'admin_1' });
+    await updateDataRequestStatus({
+      id: 'dr_1',
+      status: 'fulfilled',
+      expectedStatus: 'in_progress',
+      handledBy: 'admin_1',
+    });
 
-    const { data } = mockUpdate.mock.calls[0][0] as { data: { fulfilledAt: Date } };
+    const { data } = mockUpdateMany.mock.calls[0][0] as { data: { fulfilledAt: Date } };
     expect(data.fulfilledAt.getTime()).toBeGreaterThanOrEqual(before);
   });
 
   it('clears fulfilledAt when moving to a non-fulfilled status', async () => {
-    mockUpdate.mockResolvedValue({} as never);
+    mockUpdateMany.mockResolvedValue({ count: 1 } as never);
 
     await updateDataRequestStatus({
       id: 'dr_1',
       status: 'in_progress',
+      expectedStatus: 'received',
       handledBy: 'admin_1',
       now: new Date('2026-07-10T00:00:00.000Z'),
     });
 
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'dr_1' },
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { equals: 'dr_1' }, status: { equals: 'received' } },
       data: { status: 'in_progress', handledBy: 'admin_1', fulfilledAt: null },
     });
+  });
+
+  // A second admin fulfilled the request between page-load and this submit,
+  // so the WHERE clause (id AND status=expectedStatus) matches zero rows. The
+  // write - including the fulfilledAt clear this stale "in_progress" submit
+  // would otherwise have applied - must not happen, and the completion
+  // timestamp stays intact.
+  it('makes no write and reports the current status when the row already moved on', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 } as never);
+    mockFindUnique.mockResolvedValue({
+      id: 'dr_1',
+      status: 'fulfilled',
+      fulfilledAt: new Date('2026-07-09T00:00:00.000Z'),
+    } as never);
+
+    const result = await updateDataRequestStatus({
+      id: 'dr_1',
+      status: 'in_progress',
+      expectedStatus: 'received',
+      handledBy: 'admin_1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: 'fulfilled' });
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 'dr_1' } });
+  });
+
+  it('reports a null current status when the row no longer exists', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 } as never);
+    mockFindUnique.mockResolvedValue(null as never);
+
+    const result = await updateDataRequestStatus({
+      id: 'gone',
+      status: 'fulfilled',
+      expectedStatus: 'received',
+      handledBy: 'admin_1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: null });
   });
 });
 

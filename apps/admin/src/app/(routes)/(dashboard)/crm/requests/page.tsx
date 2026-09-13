@@ -103,7 +103,11 @@ function RequestCard({
           >
             {FILTERS.find((f) => f.key === r.status)?.label ?? r.status}
           </span>
-          <StatusControl requestId={r.id} status={r.status} />
+          {/* Keyed on status so a rejected stale write, or another admin's
+              change landing via revalidatePath, remounts the control: its
+              local selection and any leftover error both reset to the real
+              row instead of a stale useState(status) closure. */}
+          <StatusControl key={`${r.id}:${r.status}`} requestId={r.id} status={r.status} />
         </div>
       </div>
 

@@ -1,7 +1,12 @@
 jest.mock('server-only', () => ({}));
 jest.mock('@superadmin/database', () => ({
   prisma: {
-    contactRequest: { findMany: jest.fn(), groupBy: jest.fn(), update: jest.fn() },
+    contactRequest: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      groupBy: jest.fn(),
+      updateMany: jest.fn(),
+    },
   },
 }));
 
@@ -15,8 +20,9 @@ import {
 } from '@/app/features/contact/store';
 
 const mockFind = prisma.contactRequest.findMany as jest.Mock;
+const mockFindUnique = prisma.contactRequest.findUnique as jest.Mock;
 const mockGroup = prisma.contactRequest.groupBy as jest.Mock;
-const mockUpdate = prisma.contactRequest.update as jest.Mock;
+const mockUpdateMany = prisma.contactRequest.updateMany as jest.Mock;
 
 function row(id: string, over: Record<string, unknown> = {}) {
   return {
@@ -42,7 +48,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFind.mockResolvedValue([]);
   mockGroup.mockResolvedValue([]);
-  mockUpdate.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('isRequestStatus', () => {
@@ -164,11 +170,51 @@ describe('countRequestsByStatus', () => {
 });
 
 describe('setRequestStatus', () => {
-  it('writes the status and the acting admin', async () => {
-    await setRequestStatus({ requestId: 'r1', status: 'closed', actorId: 'admin-1' });
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'r1' },
+  it('writes the status and the acting admin only when the expected status still matches', async () => {
+    const result = await setRequestStatus({
+      requestId: 'r1',
+      status: 'closed',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { equals: 'r1' }, status: { equals: 'new' } },
       data: { status: 'closed', handledBy: 'admin-1' },
     });
+    expect(result).toEqual({ ok: true });
+    expect(mockFindUnique).not.toHaveBeenCalled();
+  });
+
+  // Another admin closed the request between page-load and this submit, so the
+  // WHERE clause matches zero rows: the write must not happen, and the caller
+  // needs the real current status to show the operator instead of trusting
+  // the stale one their page still holds.
+  it('makes no write and reports the current status when the row already moved on', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue({ id: 'r1', status: 'closed' });
+
+    const result = await setRequestStatus({
+      requestId: 'r1',
+      status: 'in_progress',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: 'closed' });
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 'r1' } });
+  });
+
+  it('reports a null current status when the row no longer exists', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue(null);
+
+    const result = await setRequestStatus({
+      requestId: 'gone',
+      status: 'closed',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: null });
   });
 });

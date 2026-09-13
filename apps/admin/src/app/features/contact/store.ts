@@ -115,13 +115,29 @@ export async function countRequestsByStatus(): Promise<Record<RequestStatus, num
   return counts;
 }
 
+export type SetStatusResult = { ok: true } | { ok: false; currentStatus: RequestStatus | null };
+
+/**
+ * Applies a status change only when the row's persisted status still matches
+ * `expectedStatus` - the value the operator's page showed before they picked a
+ * new one. Both conditions live in the same `updateMany` WHERE clause, so the
+ * check and the write are one statement: a second admin's change landing
+ * between page-load and submit makes this a no-op instead of a silent
+ * overwrite.
+ */
 export async function setRequestStatus(params: {
   requestId: string;
   status: RequestStatus;
+  expectedStatus: RequestStatus;
   actorId: string;
-}): Promise<void> {
-  await prisma.contactRequest.update({
-    where: { id: params.requestId },
+}): Promise<SetStatusResult> {
+  const { count } = await prisma.contactRequest.updateMany({
+    where: { id: { equals: params.requestId }, status: { equals: params.expectedStatus } },
     data: { status: params.status, handledBy: params.actorId },
   });
+  if (count > 0) return { ok: true };
+
+  const current = await prisma.contactRequest.findUnique({ where: { id: params.requestId } });
+  const currentStatus = current && isRequestStatus(current.status) ? current.status : null;
+  return { ok: false, currentStatus };
 }
