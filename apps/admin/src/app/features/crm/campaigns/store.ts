@@ -1,7 +1,7 @@
 import 'server-only';
 
+import { prisma } from '@superadmin/database';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
-import type { JSONObject } from 'supertokens-node/types';
 
 const STORE_ID = 'superadmin:crm-campaigns';
 const KEY = 'campaigns';
@@ -32,25 +32,39 @@ function isCampaignRecord(v: unknown): v is CampaignRecord {
   );
 }
 
-async function readCampaigns(): Promise<CampaignRecord[]> {
+async function readLegacyCampaigns(): Promise<CampaignRecord[]> {
   const { metadata } = await UserMetadataNode.getUserMetadata(STORE_ID);
   const raw = metadata[KEY];
   return Array.isArray(raw) ? raw.filter(isCampaignRecord) : [];
 }
 
+function toCampaignRecord(row: Omit<CampaignRecord, 'sentAt'> & { sentAt: Date }): CampaignRecord {
+  return { ...row, sentAt: row.sentAt.getTime() };
+}
+
 export async function getCampaigns(): Promise<CampaignRecord[]> {
-  return readCampaigns();
+  const [rows, legacy] = await Promise.all([
+    prisma.crmCampaign.findMany({
+      orderBy: [{ sentAt: 'desc' }, { id: 'desc' }],
+      take: MAX_CAMPAIGNS,
+    }),
+    readLegacyCampaigns(),
+  ]);
+  const campaigns = new Map(
+    [...legacy, ...rows.map(toCampaignRecord)].map((campaign) => [campaign.id, campaign])
+  );
+  return [...campaigns.values()]
+    .sort((a, b) => b.sentAt - a.sentAt || b.id.localeCompare(a.id))
+    .slice(0, MAX_CAMPAIGNS);
 }
 
 export async function recordCampaign(record: Omit<CampaignRecord, 'id'>): Promise<CampaignRecord> {
-  const existing = await readCampaigns();
-  const campaign: CampaignRecord = {
-    ...record,
-    id: globalThis.crypto.randomUUID(),
-  };
-  const updated = [campaign, ...existing].slice(0, MAX_CAMPAIGNS);
-  await UserMetadataNode.updateUserMetadata(STORE_ID, {
-    [KEY]: updated,
-  } as unknown as JSONObject);
-  return campaign;
+  const campaign = await prisma.crmCampaign.create({
+    data: {
+      ...record,
+      id: globalThis.crypto.randomUUID(),
+      sentAt: new Date(record.sentAt),
+    },
+  });
+  return toCampaignRecord(campaign);
 }
