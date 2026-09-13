@@ -23,7 +23,7 @@ interface DisconnectSpec<TConfig> {
   loadConfig: () => TConfig | null;
   /** Read before clearing, so the audit entry can name what was disconnected. */
   read: (config: TConfig) => Promise<{ id: string; handle: string } | null>;
-  clear: () => Promise<void>;
+  clear: () => Promise<boolean>;
 }
 
 async function disconnect<TConfig>(spec: DisconnectSpec<TConfig>): Promise<DisconnectResult> {
@@ -34,7 +34,11 @@ async function disconnect<TConfig>(spec: DisconnectSpec<TConfig>): Promise<Disco
   }
 
   const existing = await spec.read(config);
-  await spec.clear();
+  const cleared = await spec.clear();
+  if (!cleared) {
+    revalidatePath('/social');
+    return { ok: false, message: `${spec.network} is not connected.` };
+  }
   const slug = spec.network.toLowerCase();
   await recordAuditEvent({
     action: 'social.disconnect',
