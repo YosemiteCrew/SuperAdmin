@@ -12,6 +12,7 @@ import type { APTokenClaims, APTokenTier } from '@/app/features/ap/types';
 import { TOKEN_TTL_SECONDS } from '@/app/features/ap/types';
 
 const VALID_TIERS: APTokenTier[] = ['free', 'pro', 'enterprise'];
+const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isValidTier(value: unknown): value is APTokenTier {
   return typeof value === 'string' && (VALID_TIERS as string[]).includes(value);
@@ -122,16 +123,17 @@ export async function issueLicenseTokenAction(formData: FormData): Promise<Issue
 export async function revokeLicenseTokenAction(formData: FormData): Promise<void> {
   const { userId: callerId } = await requireSuperAdmin();
 
-  const tokenId = formData.get('tokenId');
-  if (typeof tokenId !== 'string' || tokenId.length === 0) return;
+  const tokenId = String(formData.get('tokenId') ?? '');
+  if (!UUID_V4_PATTERN.test(tokenId)) return;
 
   const existing = await prisma.aPLicenseToken.findUnique({ where: { id: tokenId } });
   if (!existing || existing.revokedAt) return;
 
-  await prisma.aPLicenseToken.update({
-    where: { id: tokenId },
+  const { count } = await prisma.aPLicenseToken.updateMany({
+    where: { id: { equals: tokenId }, revokedAt: { equals: null } },
     data: { revokedAt: new Date(), revokedBy: callerId },
   });
+  if (count === 0) return;
 
   await recordAuditEvent({
     action: 'ap_token.revoke',
