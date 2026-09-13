@@ -68,7 +68,7 @@ describe('updateRequestStatusAction', () => {
     );
     expect(res.status).toBe('in_progress');
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'r1', status: 'new' },
+      where: { id: { equals: 'r1' }, status: { equals: 'new' } },
       data: { status: 'in_progress', handledBy: 'admin-1' },
     });
     expect(mockAudit).toHaveBeenCalledWith(

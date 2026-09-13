@@ -178,7 +178,7 @@ describe('setRequestStatus', () => {
       actorId: 'admin-1',
     });
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'r1', status: 'new' },
+      where: { id: { equals: 'r1' }, status: { equals: 'new' } },
       data: { status: 'closed', handledBy: 'admin-1' },
     });
     expect(result).toEqual({ ok: true });

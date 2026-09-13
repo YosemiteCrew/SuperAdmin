@@ -199,7 +199,7 @@ describe('updateDataRequestStatus', () => {
     });
 
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'dr_1', status: 'in_progress' },
+      where: { id: { equals: 'dr_1' }, status: { equals: 'in_progress' } },
       data: { status: 'fulfilled', handledBy: 'admin_1', fulfilledAt: now },
     });
     expect(result).toEqual({ ok: true });
@@ -233,7 +233,7 @@ describe('updateDataRequestStatus', () => {
     });
 
     expect(mockUpdateMany).toHaveBeenCalledWith({
-      where: { id: 'dr_1', status: 'received' },
+      where: { id: { equals: 'dr_1' }, status: { equals: 'received' } },
       data: { status: 'in_progress', handledBy: 'admin_1', fulfilledAt: null },
     });
   });

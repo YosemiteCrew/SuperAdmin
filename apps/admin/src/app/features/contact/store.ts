@@ -132,7 +132,7 @@ export async function setRequestStatus(params: {
   actorId: string;
 }): Promise<SetStatusResult> {
   const { count } = await prisma.contactRequest.updateMany({
-    where: { id: params.requestId, status: params.expectedStatus },
+    where: { id: { equals: params.requestId }, status: { equals: params.expectedStatus } },
     data: { status: params.status, handledBy: params.actorId },
   });
   if (count > 0) return { ok: true };

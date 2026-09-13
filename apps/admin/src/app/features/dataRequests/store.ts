@@ -120,7 +120,7 @@ export async function updateDataRequestStatus(
   const now = input.now ?? new Date();
   const fulfilledAt = input.status === 'fulfilled' ? now : null;
   const { count } = await prisma.dataRequest.updateMany({
-    where: { id: input.id, status: input.expectedStatus },
+    where: { id: { equals: input.id }, status: { equals: input.expectedStatus } },
     data: {
       status: input.status,
       handledBy: input.handledBy,
