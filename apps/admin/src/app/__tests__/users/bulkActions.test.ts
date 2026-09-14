@@ -17,9 +17,13 @@ jest.mock('supertokens-node/recipe/session', () => ({
 }));
 
 const updateUserMetadataMock = jest.fn();
+const getUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
   __esModule: true,
-  default: { updateUserMetadata: (...a: unknown[]) => updateUserMetadataMock(...a) },
+  default: {
+    getUserMetadata: (...a: unknown[]) => getUserMetadataMock(...a),
+    updateUserMetadata: (...a: unknown[]) => updateUserMetadataMock(...a),
+  },
 }));
 
 const recordAuditEventMock = jest.fn();
@@ -43,10 +47,13 @@ import {
 } from '@/app/(routes)/(dashboard)/users/bulkActions';
 
 beforeEach(() => {
+  const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+  revalidatePath.mockClear();
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-1' });
   getUserMock.mockReset().mockResolvedValue({ emails: ['victim@x.com'] });
   deleteUserMock.mockReset().mockResolvedValue(undefined);
   revokeAllSessionsForUserMock.mockReset().mockResolvedValue([]);
+  getUserMetadataMock.mockReset().mockResolvedValue({ metadata: { disabledAt: 1 } });
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
 });
@@ -141,6 +148,32 @@ describe('bulkEnableUsersAction', () => {
     await bulkEnableUsersAction(['u-1', 'u-1', 'u-2']);
     expect(updateUserMetadataMock).toHaveBeenCalledTimes(2);
     expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips an already-enabled target and continues with a disabled target', async () => {
+    getUserMetadataMock.mockImplementation((id: string) =>
+      Promise.resolve({ metadata: id === 'u-1' ? {} : { disabledAt: 1 } })
+    );
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+
+    await bulkEnableUsersAction(['u-1', 'u-2']);
+
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith('u-2', { disabledAt: null });
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.enable', targetId: 'u-2' })
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/users');
+  });
+
+  it('does not update or audit when disabled state cannot be read', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('metadata unavailable'));
+
+    await expect(bulkEnableUsersAction(['u-1'])).rejects.toThrow('metadata unavailable');
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 });
 

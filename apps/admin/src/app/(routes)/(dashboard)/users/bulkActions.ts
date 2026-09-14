@@ -43,6 +43,8 @@ export async function bulkDisableUsersAction(userIds: string[]) {
 export async function bulkEnableUsersAction(userIds: string[]) {
   const { userId: actorId } = await requireSuperAdmin();
   for (const id of cleanIds(userIds)) {
+    const { metadata } = await UserMetadataNode.getUserMetadata(id);
+    if (typeof metadata.disabledAt !== 'number') continue;
     await UserMetadataNode.updateUserMetadata(id, { disabledAt: null });
     await auditEach('user.enable', actorId, id);
   }

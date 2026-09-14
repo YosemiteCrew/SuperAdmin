@@ -45,8 +45,11 @@ export async function enableUserAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
 
-  await UserMetadataNode.updateUserMetadata(userId, { disabledAt: null });
-  await auditUser('user.enable', actorId, userId);
+  const { metadata } = await UserMetadataNode.getUserMetadata(userId);
+  if (typeof metadata.disabledAt === 'number') {
+    await UserMetadataNode.updateUserMetadata(userId, { disabledAt: null });
+    await auditUser('user.enable', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
