@@ -78,7 +78,6 @@ pnpm verify         # Full pre-merge gate: lint + type-check + test + build
 consentId reaches Prisma as a `where` value in recordConsent, including an
 
 # apps/admin/src/app/__tests__/consent/store.test.ts
-The injected object is nested under `equals`, so Prisma compares against it
 
 # apps/admin/src/app/__tests__/proxy.test.ts
 script-src must not carry unsafe-inline (style-src retaining it for Tailwind is fine)
