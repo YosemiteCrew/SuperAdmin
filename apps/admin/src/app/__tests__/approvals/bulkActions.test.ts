@@ -18,7 +18,6 @@ jest.mock('supertokens-node/recipe/session', () => ({
 jest.mock('@/app/features/approvals/store', () => ({
   approveAccount: jest.fn(),
   rejectAccount: jest.fn(),
-  getApprovalState: jest.fn(),
 }));
 jest.mock('@/app/features/audit/store', () => ({
   recordAuditEvent: jest.fn(),
@@ -36,7 +35,7 @@ jest.mock('@/app/features/users/bootstrap', () => ({
 import SuperTokens from 'supertokens-node';
 import SessionNode from 'supertokens-node/recipe/session';
 import { requireSuperAdmin } from '@/app/config/backend';
-import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/approvals/store';
+import { approveAccount, rejectAccount } from '@/app/features/approvals/store';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyBulkDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
@@ -53,7 +52,6 @@ const mockRevokeAll = SessionNode.revokeAllSessionsForUser as jest.MockedFunctio
 >;
 const mockApprove = approveAccount as jest.MockedFunction<typeof approveAccount>;
 const mockReject = rejectAccount as jest.MockedFunction<typeof rejectAccount>;
-const mockGetState = getApprovalState as jest.MockedFunction<typeof getApprovalState>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
 const mockSendEmail = sendTransactional as jest.MockedFunction<typeof sendTransactional>;
 const mockNotify = notifyBulkDecision as jest.MockedFunction<typeof notifyBulkDecision>;
@@ -69,9 +67,8 @@ beforeEach(() => {
   mockGetUser.mockImplementation(
     async (id: string) => ({ id, emails: [`${id}@test.com`] }) as unknown as StUser
   );
-  mockGetState.mockResolvedValue({ status: 'pending' });
-  mockApprove.mockResolvedValue({ stillDisabled: false });
-  mockReject.mockResolvedValue(undefined);
+  mockApprove.mockResolvedValue({ applied: true, stillDisabled: false });
+  mockReject.mockResolvedValue(true);
   mockRevokeAll.mockResolvedValue([]);
   mockAudit.mockResolvedValue(undefined);
   mockSendEmail.mockResolvedValue(undefined);
@@ -115,7 +112,7 @@ describe('bulkApproveAccountsAction', () => {
   it('a mid-loop store failure never aborts the sweep', async () => {
     mockApprove
       .mockRejectedValueOnce(new Error('metadata write failed'))
-      .mockResolvedValueOnce({ stillDisabled: false });
+      .mockResolvedValueOnce({ applied: true, stillDisabled: false });
 
     const result = await bulkApproveAccountsAction(['u1', 'u2']);
 
@@ -128,21 +125,21 @@ describe('bulkApproveAccountsAction', () => {
   });
 
   it('skips accounts that are no longer pending', async () => {
-    mockGetState
-      .mockResolvedValueOnce({ status: 'rejected', rejectedAt: 1 })
-      .mockResolvedValueOnce({ status: 'pending' });
+    mockApprove
+      .mockResolvedValueOnce({ applied: false })
+      .mockResolvedValueOnce({ applied: true, stillDisabled: false });
 
     const result = await bulkApproveAccountsAction(['u1', 'u2']);
-    expect(mockApprove).toHaveBeenCalledTimes(1);
+    expect(mockApprove).toHaveBeenCalledTimes(2);
     expect(result.processed).toBe(1);
     expect(result.skipped).toBe(1);
   });
 
-  it('skips accounts whose state cannot be read (fail closed)', async () => {
-    mockGetState.mockRejectedValueOnce(new Error('down'));
+  it('counts an unreadable account state as failed without aborting the batch', async () => {
+    mockApprove.mockRejectedValueOnce(new Error('down'));
     const result = await bulkApproveAccountsAction(['u1']);
-    expect(mockApprove).not.toHaveBeenCalled();
-    expect(result.skipped).toBe(1);
+    expect(result.failed).toBe(1);
+    expect(result.skipped).toBe(0);
   });
 
   it('continues past a failed welcome email and counts it as unsent', async () => {
@@ -154,7 +151,7 @@ describe('bulkApproveAccountsAction', () => {
   });
 
   it('skips the welcome email for accounts still manually disabled', async () => {
-    mockApprove.mockResolvedValue({ stillDisabled: true });
+    mockApprove.mockResolvedValue({ applied: true, stillDisabled: true });
     const result = await bulkApproveAccountsAction(['u1']);
     expect(mockSendEmail).not.toHaveBeenCalled();
     expect(result.emailsSent).toBe(0);
@@ -169,7 +166,7 @@ describe('bulkApproveAccountsAction', () => {
   });
 
   it('skips Discord when nothing was processed', async () => {
-    mockGetState.mockResolvedValue({ status: 'approved', approvedAt: 1 });
+    mockApprove.mockResolvedValue({ applied: false });
     await bulkApproveAccountsAction(['u1']);
     expect(mockNotify).not.toHaveBeenCalled();
   });
@@ -213,7 +210,11 @@ describe('bulkRejectAccountsAction', () => {
   it('never rejects the acting admin in a sweep', async () => {
     const result = await bulkRejectAccountsAction([ACTOR_ID, 'u2']);
     expect(mockReject).toHaveBeenCalledTimes(1);
-    expect(mockReject).toHaveBeenCalledWith({ userId: 'u2', actorId: ACTOR_ID });
+    expect(mockReject).toHaveBeenCalledWith({
+      userId: 'u2',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
     expect(result.skipped).toBe(1);
   });
 
@@ -236,9 +237,7 @@ describe('bulkRejectAccountsAction', () => {
   });
 
   it('a mid-loop store failure never aborts the sweep', async () => {
-    mockReject
-      .mockRejectedValueOnce(new Error('metadata write failed'))
-      .mockResolvedValue(undefined);
+    mockReject.mockRejectedValueOnce(new Error('metadata write failed')).mockResolvedValue(true);
 
     const result = await bulkRejectAccountsAction(['u1', 'u2']);
 
@@ -256,9 +255,13 @@ describe('bulkRejectAccountsAction', () => {
   });
 
   it('skips accounts that are no longer pending', async () => {
-    mockGetState.mockResolvedValueOnce({ status: 'approved', approvedAt: 1 });
+    mockReject.mockResolvedValueOnce(false);
     const result = await bulkRejectAccountsAction(['u1']);
-    expect(mockReject).not.toHaveBeenCalled();
+    expect(mockReject).toHaveBeenCalledWith({
+      userId: 'u1',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
     expect(result.skipped).toBe(1);
   });
 
