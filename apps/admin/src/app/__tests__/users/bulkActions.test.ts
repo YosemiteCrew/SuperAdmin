@@ -158,6 +158,13 @@ describe('bulkDeleteUsersAction', () => {
     );
   });
 
+  it('does not delete or audit users that are already absent', async () => {
+    getUserMock.mockResolvedValue(undefined);
+    await bulkDeleteUsersAction(['missing-user']);
+    expect(deleteUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('skips deletion when bootstrap status cannot be confirmed', async () => {
     getUserMock.mockRejectedValueOnce(new Error('down'));
     await bulkDeleteUsersAction(['u-9']);
