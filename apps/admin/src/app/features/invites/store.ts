@@ -10,6 +10,7 @@ const LEGACY_STORE_ID = 'superadmin:invites';
 const LEGACY_INVITES_KEY = 'invites';
 const IMPORT_MARKER_ID = 'invites';
 const MAX_INVITES = 50;
+const WRITE_LOCK_ID = 141;
 export const INVITE_TTL_MS = 24 * 60 * 60 * 1000;
 
 type InviteRow = {
@@ -147,33 +148,33 @@ export async function createInvite(params: {
   createdByEmail: string;
 }): Promise<InviteRecord> {
   await importLegacyInvites();
-  const now = Date.now();
-  const row = await prisma.invite.create({
-    data: {
-      id: generateId(),
-      token: generateId(),
-      email: params.email,
-      createdBy: params.createdBy,
-      createdByEmail: params.createdByEmail,
-      createdAt: new Date(now),
-      expiresAt: new Date(now + INVITE_TTL_MS),
-    },
-  });
+  const row = await prisma.$transaction(async (tx) => {
+    // Serialize create + retention as one operation. Without the lock, two
+    // creates can both observe no stale tail and commit 51 rows.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(${WRITE_LOCK_ID})`;
+    const now = Date.now();
+    const created = await tx.invite.create({
+      data: {
+        id: generateId(),
+        token: generateId(),
+        email: params.email,
+        createdBy: params.createdBy,
+        createdByEmail: params.createdByEmail,
+        createdAt: new Date(now),
+        expiresAt: new Date(now + INVITE_TTL_MS),
+      },
+    });
 
-  // Trim to the newest MAX_INVITES, same retention the JSON array enforced by
-  // capping itself on every write. A separate delete rather than a bound
-  // baked into the create above: two concurrent creates each trimming off the
-  // tail independently converge on the same newest-N set either way, whereas
-  // making create itself conditional on the current count would reintroduce
-  // the read-then-write race this table exists to remove.
-  const stale = await prisma.invite.findMany({
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    skip: MAX_INVITES,
-    select: { id: true },
+    const stale = await tx.invite.findMany({
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      skip: MAX_INVITES,
+      select: { id: true },
+    });
+    if (stale.length > 0) {
+      await tx.invite.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } });
+    }
+    return created;
   });
-  if (stale.length > 0) {
-    await prisma.invite.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } });
-  }
 
   return toInviteRecord(row);
 }
