@@ -72,6 +72,16 @@ describe('deleteUserAction', () => {
     expect(deleteUserMock).not.toHaveBeenCalled();
   });
 
+  it('does not delete or audit a user that is already absent', async () => {
+    getUserMock.mockResolvedValueOnce(undefined);
+    const { deleteUserAction } = await import('@/app/(routes)/(dashboard)/users/actions');
+    await expect(deleteUserAction(makeForm({ userId: 'missing-user' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+    expect(deleteUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('still deletes when the label lookup throws', async () => {
     getUserMock.mockRejectedValueOnce(new Error('lookup down'));
     deleteUserMock.mockResolvedValueOnce(undefined);

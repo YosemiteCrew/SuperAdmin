@@ -57,7 +57,8 @@ export async function bulkDeleteUsersAction(userIds: string[]) {
     let label: string | undefined;
     try {
       const user = await SuperTokens.getUser(id);
-      label = user?.emails[0];
+      if (!user) continue;
+      label = user.emails[0];
     } catch {
       /* labelling is best-effort */
     }

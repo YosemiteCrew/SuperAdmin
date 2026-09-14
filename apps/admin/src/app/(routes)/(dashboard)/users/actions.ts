@@ -21,11 +21,17 @@ export async function deleteUserAction(formData: FormData) {
   if (userId === actorId || (await isBootstrapAdmin(userId))) return;
 
   let targetLabel: string | undefined;
+  let targetMissing = false;
   try {
     const target = await supertokens.getUser(userId);
+    targetMissing = target === undefined;
     targetLabel = target?.emails[0];
   } catch {
     /* labelling is best-effort */
+  }
+  if (targetMissing) {
+    revalidatePath('/users');
+    redirect('/users');
   }
 
   await supertokens.deleteUser(userId);
