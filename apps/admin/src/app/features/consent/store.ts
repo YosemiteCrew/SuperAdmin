@@ -30,10 +30,9 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
   if (typeof input.consentId !== 'string') {
     throw new TypeError('consentId must be a string');
   }
-  const consentId = String(input.consentId);
-  const userId =
-    typeof input.userId === 'string' && input.userId ? String(input.userId) : undefined;
-  const email = typeof input.email === 'string' && input.email ? String(input.email) : undefined;
+  const consentId = input.consentId;
+  const userId = typeof input.userId === 'string' && input.userId ? input.userId : undefined;
+  const email = typeof input.email === 'string' && input.email ? input.email : undefined;
 
   const subject = await prisma.consentSubject.upsert({
     where: { consentId },
