@@ -57,8 +57,9 @@ export async function verifyEmailAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
 
-  await setEmailVerified(userId, true);
-  await auditUser('user.email_verify', actorId, userId);
+  if (await setEmailVerified(userId, true)) {
+    await auditUser('user.email_verify', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
@@ -69,8 +70,9 @@ export async function unverifyEmailAction(formData: FormData) {
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
 
-  await setEmailVerified(userId, false);
-  await auditUser('user.email_unverify', actorId, userId);
+  if (await setEmailVerified(userId, false)) {
+    await auditUser('user.email_unverify', actorId, userId);
+  }
   revalidatePath(`/users/${userId}`);
 }
 
