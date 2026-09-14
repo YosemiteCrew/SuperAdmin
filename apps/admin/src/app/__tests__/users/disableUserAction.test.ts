@@ -10,9 +10,13 @@ jest.mock('supertokens-node/recipe/session', () => ({
 }));
 
 const updateUserMetadataMock = jest.fn();
+const getUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
   __esModule: true,
-  default: { updateUserMetadata: (...args: unknown[]) => updateUserMetadataMock(...args) },
+  default: {
+    getUserMetadata: (...args: unknown[]) => getUserMetadataMock(...args),
+    updateUserMetadata: (...args: unknown[]) => updateUserMetadataMock(...args),
+  },
 }));
 
 jest.mock('supertokens-node/recipe/totp', () => ({
@@ -55,9 +59,12 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
 }
 
 beforeEach(() => {
+  const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+  revalidatePath.mockClear();
   requireSuperAdminMock.mockReset();
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
   revokeAllSessionsForUserMock.mockReset().mockResolvedValue([]);
+  getUserMetadataMock.mockReset().mockResolvedValue({ metadata: { disabledAt: 1 } });
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
   isBootstrapAdminMock.mockReset().mockResolvedValue(false);
@@ -141,5 +148,29 @@ describe('enableUserAction', () => {
       expect.objectContaining({ action: 'user.enable', targetId: 'u-9' })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-9');
+  });
+
+  it('does not update or audit an account that is already enabled, but revalidates', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: {} });
+    const { enableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+
+    await enableUserAction(makeForm({ userId: 'u-9' }));
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/users/u-9');
+  });
+
+  it('does not update or audit when disabled state cannot be read', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('metadata unavailable'));
+    const { enableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await expect(enableUserAction(makeForm({ userId: 'u-9' }))).rejects.toThrow(
+      'metadata unavailable'
+    );
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 });
