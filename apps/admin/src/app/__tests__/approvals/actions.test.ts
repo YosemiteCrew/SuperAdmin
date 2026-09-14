@@ -19,7 +19,6 @@ jest.mock('supertokens-node/recipe/session', () => ({
 jest.mock('@/app/features/approvals/store', () => ({
   approveAccount: jest.fn(),
   rejectAccount: jest.fn(),
-  getApprovalState: jest.fn(),
 }));
 
 jest.mock('@/app/features/audit/store', () => ({
@@ -41,7 +40,7 @@ jest.mock('@/app/features/users/bootstrap', () => ({
 import SuperTokens from 'supertokens-node';
 import SessionNode from 'supertokens-node/recipe/session';
 import { requireSuperAdmin } from '@/app/config/backend';
-import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/approvals/store';
+import { approveAccount, rejectAccount } from '@/app/features/approvals/store';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyAccountDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
@@ -58,7 +57,6 @@ const mockRevokeAll = SessionNode.revokeAllSessionsForUser as jest.MockedFunctio
 >;
 const mockApprove = approveAccount as jest.MockedFunction<typeof approveAccount>;
 const mockReject = rejectAccount as jest.MockedFunction<typeof rejectAccount>;
-const mockGetState = getApprovalState as jest.MockedFunction<typeof getApprovalState>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
 const mockSendEmail = sendTransactional as jest.MockedFunction<typeof sendTransactional>;
 const mockNotify = notifyAccountDecision as jest.MockedFunction<typeof notifyAccountDecision>;
@@ -81,9 +79,8 @@ beforeEach(() => {
   mockGetUser.mockImplementation(
     async (id: string) => ({ id, emails: [`${id}@test.com`] }) as unknown as StUser
   );
-  mockGetState.mockResolvedValue({ status: 'pending' });
-  mockApprove.mockResolvedValue({ stillDisabled: false });
-  mockReject.mockResolvedValue(undefined);
+  mockApprove.mockResolvedValue({ applied: true, stillDisabled: false });
+  mockReject.mockResolvedValue(true);
   mockRevokeAll.mockResolvedValue([]);
   mockAudit.mockResolvedValue(undefined);
   mockSendEmail.mockResolvedValue(undefined);
@@ -110,10 +107,17 @@ describe('approveAccountAction', () => {
   });
 
   it('refuses when the account state changed since the page loaded', async () => {
-    mockGetState.mockResolvedValue({ status: 'rejected', rejectedAt: 1 });
+    mockApprove.mockResolvedValue({ applied: false });
     const result = await approveAccountAction(fd({ userId: 'u1', expectedStatus: 'pending' }));
     expect(result.error).toMatch(/changed state/);
-    expect(mockApprove).not.toHaveBeenCalled();
+    expect(mockApprove).toHaveBeenCalledWith({
+      userId: 'u1',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('refuses when expectedStatus is missing', async () => {
@@ -125,7 +129,11 @@ describe('approveAccountAction', () => {
   it('approves, audits, and sends the welcome email', async () => {
     const result = await approveAccountAction(fd({ userId: 'u1', expectedStatus: 'pending' }));
 
-    expect(mockApprove).toHaveBeenCalledWith({ userId: 'u1', actorId: ACTOR_ID });
+    expect(mockApprove).toHaveBeenCalledWith({
+      userId: 'u1',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
     expect(mockAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.approve', targetId: 'u1' })
     );
@@ -146,7 +154,7 @@ describe('approveAccountAction', () => {
   });
 
   it('skips the welcome email and warns when the account is still disabled', async () => {
-    mockApprove.mockResolvedValue({ stillDisabled: true });
+    mockApprove.mockResolvedValue({ applied: true, stillDisabled: true });
     const result = await approveAccountAction(fd({ userId: 'u1', expectedStatus: 'pending' }));
 
     expect(mockSendEmail).not.toHaveBeenCalled();
@@ -208,16 +216,27 @@ describe('rejectAccountAction', () => {
   });
 
   it('refuses when the account state changed since the page loaded', async () => {
-    mockGetState.mockResolvedValue({ status: 'approved', approvedAt: 1 });
+    mockReject.mockResolvedValue(false);
     const result = await rejectAccountAction(fd({ userId: 'u2', expectedStatus: 'pending' }));
     expect(result.error).toMatch(/changed state/);
-    expect(mockReject).not.toHaveBeenCalled();
+    expect(mockReject).toHaveBeenCalledWith({
+      userId: 'u2',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevokeAll).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
   });
 
   it('rejects, audits, revokes sessions, and notifies Discord', async () => {
     const result = await rejectAccountAction(fd({ userId: 'u2', expectedStatus: 'pending' }));
 
-    expect(mockReject).toHaveBeenCalledWith({ userId: 'u2', actorId: ACTOR_ID });
+    expect(mockReject).toHaveBeenCalledWith({
+      userId: 'u2',
+      actorId: ACTOR_ID,
+      expectedStatus: 'pending',
+    });
     expect(mockAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.reject', targetId: 'u2' })
     );
