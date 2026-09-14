@@ -156,7 +156,7 @@ export default async function ContactRequestsPage({
   searchParams: Promise<{ status?: string | string[]; cursor?: string | string[] }>;
 }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status, cursor } = await searchParams;
   const filter: Filter = FILTERS.find((f) => f.key === status)?.key ?? 'new';

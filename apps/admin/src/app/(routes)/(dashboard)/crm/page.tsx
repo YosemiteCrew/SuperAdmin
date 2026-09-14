@@ -101,7 +101,7 @@ function QuickLink({
 
 export default async function CrmPage() {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const [campaigns, discordConfig] = await Promise.all([getCampaigns(), getDiscordConfig()]);
 

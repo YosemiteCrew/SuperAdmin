@@ -86,7 +86,7 @@ async function loadTotpLabel(userId: string): Promise<string> {
 }
 
 export default async function SettingsPage() {
-  const { userId } = await requireSuperAdmin();
+  const { userId } = await requireSuperAdmin('page');
   const user = await supertokens.getUser(userId);
   const email = user?.emails[0] ?? '';
 

@@ -12,7 +12,7 @@ export async function getOrganizationMetadataName(
   environment: string | undefined
 ): Promise<string | null> {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
   const cookie = (await headers()).get('cookie') ?? '';
   try {
     const organization = await getOrganization(id, {

@@ -50,7 +50,7 @@ function Stat({
 }
 
 export default async function PrivacyRequestsPage() {
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   // Fix a single "now" so the deadline badges and the overdue count are
   // computed against the same instant (no SSR/client hydration drift).

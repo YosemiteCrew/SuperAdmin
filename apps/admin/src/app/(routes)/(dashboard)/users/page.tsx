@@ -87,7 +87,7 @@ export default async function UsersPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   ensureSuperTokensInit();
-  const { userId: callerId } = await requireSuperAdmin();
+  const { userId: callerId } = await requireSuperAdmin('page');
 
   const { search, cursor, type } = await searchParams;
   const trimmedSearch = search?.trim() ?? '';

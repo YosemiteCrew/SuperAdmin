@@ -54,7 +54,7 @@ export default async function OrgActivityPage({
   searchParams: Promise<{ env?: string }>;
 }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const { env } = await searchParams;

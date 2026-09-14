@@ -107,7 +107,7 @@ export default async function OrganizationDetailPage({
   searchParams: Promise<{ demo?: string; checks?: string; env?: string }>;
 }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const { demo, checks, env } = await searchParams;

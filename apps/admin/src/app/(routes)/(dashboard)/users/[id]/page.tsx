@@ -28,7 +28,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
   const { id } = await params;
   try {
     const user = await supertokens.getUser(id);
@@ -222,7 +222,7 @@ export default async function UserDetailPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   ensureSuperTokensInit();
-  const { userId: callerId } = await requireSuperAdmin();
+  const { userId: callerId } = await requireSuperAdmin('page');
 
   const { id } = await params;
   const user = await supertokens.getUser(id);

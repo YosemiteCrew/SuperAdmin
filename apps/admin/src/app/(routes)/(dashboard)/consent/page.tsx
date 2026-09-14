@@ -60,7 +60,7 @@ export default async function ConsentPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ search?: string; cursor?: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { search, cursor } = await searchParams;
   const trimmed = search?.trim() ?? '';
