@@ -64,7 +64,7 @@ describe('recordConsent', () => {
     expect(rows[1]).toMatchObject({ category: 'marketing', granted: false });
   });
 
-  it('fills identity only when the column is still null (never overwrites)', async () => {
+  it('binds both identity fields in one conditional update', async () => {
     await recordConsent({
       consentId: 'c1',
       source: 'web',
@@ -75,12 +75,49 @@ describe('recordConsent', () => {
     // consentId is matched with an explicit `equals` rather than a bare value:
     // updateMany's where accepts filters, so a bare value that turned out to be
     // an object at runtime would be read as one.
+    expect(mockSubjUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: { equals: 'c1' }, userId: null },
+      where: {
+        consentId: { equals: 'c1' },
+        OR: [{ userId: null }, { userId: 'u1' }],
+        AND: [{ OR: [{ email: null }, { email: 'a@b.com' }] }],
+      },
+      data: { userId: 'u1', email: 'a@b.com' },
+    });
+  });
+
+  it('requires an omitted email to remain null when backfilling only a user ID', async () => {
+    await recordConsent({
+      consentId: 'c1',
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: true }],
+      userId: 'u1',
+    });
+
+    expect(mockSubjUpdateMany).toHaveBeenCalledWith({
+      where: {
+        consentId: { equals: 'c1' },
+        OR: [{ userId: null }, { userId: 'u1' }],
+        AND: [{ email: null }],
+      },
       data: { userId: 'u1' },
     });
+  });
+
+  it('requires an omitted user ID to remain null when backfilling only an email', async () => {
+    await recordConsent({
+      consentId: 'c1',
+      source: 'mobile',
+      decisions: [{ category: 'marketing', granted: false }],
+      email: 'a@b.com',
+    });
+
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: { equals: 'c1' }, email: null },
+      where: {
+        consentId: { equals: 'c1' },
+        OR: [{ userId: null }],
+        AND: [{ OR: [{ email: null }, { email: 'a@b.com' }] }],
+      },
       data: { email: 'a@b.com' },
     });
   });

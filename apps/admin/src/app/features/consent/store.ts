@@ -38,9 +38,11 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
     update: {},
   });
 
-  // Fill identity only when the column is still null. Filtering on null keeps
-  // this atomic (no read-modify-write race) and makes overwriting an existing
-  // identity impossible.
+  // Bind the supplied identity as one unit. Each supplied value may fill a null
+  // or confirm the value already stored; an omitted value must still be null so
+  // a partial identity cannot attach itself to a subject linked by the other
+  // field. One update prevents concurrent submissions from combining a userId
+  // from one caller with an email from another.
   //
   // `consentId: { equals }` for the same reason as the contact intake: updateMany's
   // where accepts FILTERS, so a value that turned out to be an object at runtime
@@ -49,16 +51,17 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
   // parseConsentSubmission already rejects a non-string consentId and is the only
   // path here today, but that makes this function's safety a property of its
   // caller; this makes it a property of the query.
-  if (input.userId) {
+  if (input.userId || input.email) {
     await prisma.consentSubject.updateMany({
-      where: { consentId: { equals: input.consentId }, userId: null },
-      data: { userId: input.userId },
-    });
-  }
-  if (input.email) {
-    await prisma.consentSubject.updateMany({
-      where: { consentId: { equals: input.consentId }, email: null },
-      data: { email: input.email },
+      where: {
+        consentId: { equals: input.consentId },
+        OR: input.userId ? [{ userId: null }, { userId: input.userId }] : [{ userId: null }],
+        AND: input.email ? [{ OR: [{ email: null }, { email: input.email }] }] : [{ email: null }],
+      },
+      data: {
+        ...(input.userId ? { userId: input.userId } : {}),
+        ...(input.email ? { email: input.email } : {}),
+      },
     });
   }
 
