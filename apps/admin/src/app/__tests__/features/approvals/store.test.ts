@@ -2,11 +2,41 @@ jest.mock('server-only', () => ({}));
 
 const statusFindManyMock = jest.fn();
 const statusUpsertMock = jest.fn();
-const executeRawMock = jest.fn();
-const transactionMock = jest.fn();
+const pgConnectMock = jest.fn();
+const pgQueryMock = jest.fn();
+const pgEndMock = jest.fn();
+let pgLockTails = new Map<string, Promise<void>>();
+
+jest.mock('pg', () => ({
+  Client: class {
+    private releaseLock: (() => void) | undefined;
+
+    connect(...args: unknown[]) {
+      return pgConnectMock(...args);
+    }
+
+    async query(...args: unknown[]) {
+      await pgQueryMock(...args);
+      const lockName = String((args[1] as string[])[0]);
+      const previous = pgLockTails.get(lockName) ?? Promise.resolve();
+      pgLockTails.set(
+        lockName,
+        new Promise<void>((resolve) => {
+          this.releaseLock = resolve;
+        })
+      );
+      await previous;
+    }
+
+    async end(...args: unknown[]) {
+      this.releaseLock?.();
+      return pgEndMock(...args);
+    }
+  },
+}));
+
 jest.mock('@superadmin/database', () => ({
   prisma: {
-    $transaction: (...args: unknown[]) => transactionMock(...args),
     approvalStatusIndex: {
       findMany: (...args: unknown[]) => statusFindManyMock(...args),
       upsert: (...args: unknown[]) => statusUpsertMock(...args),
@@ -38,6 +68,20 @@ const mockUpdate = UserMetadataNode.updateUserMetadata as jest.MockedFunction<
   typeof UserMetadataNode.updateUserMetadata
 >;
 
+const originalDatabaseUrl = process.env.DATABASE_URL;
+
+beforeAll(() => {
+  process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+});
+
+afterAll(() => {
+  process.env.DATABASE_URL = originalDatabaseUrl;
+});
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 beforeEach(() => {
   jest.restoreAllMocks();
   jest.resetAllMocks();
@@ -45,31 +89,10 @@ beforeEach(() => {
   mockUpdate.mockResolvedValue({ status: 'OK', metadata: {} });
   statusFindManyMock.mockResolvedValue([]);
   statusUpsertMock.mockResolvedValue({ userId: 'u1' });
-  executeRawMock.mockResolvedValue(0);
-
-  let lockTail = Promise.resolve();
-  transactionMock.mockImplementation(async (run) => {
-    let releaseLock: (() => void) | undefined;
-    const tx = {
-      $executeRaw: async (...args: unknown[]) => {
-        await executeRawMock(...args);
-        const previous = lockTail;
-        lockTail = new Promise<void>((resolve) => {
-          releaseLock = resolve;
-        });
-        await previous;
-      },
-      approvalStatusIndex: {
-        upsert: (...args: unknown[]) => statusUpsertMock(...args),
-      },
-    };
-
-    try {
-      return await run(tx);
-    } finally {
-      releaseLock?.();
-    }
-  });
+  pgConnectMock.mockResolvedValue(undefined);
+  pgQueryMock.mockResolvedValue({ rows: [] });
+  pgEndMock.mockResolvedValue(undefined);
+  pgLockTails = new Map();
 });
 
 describe('deriveApprovalState', () => {
@@ -179,6 +202,7 @@ describe('approveAccount', () => {
       approveAccount({ userId: 'u1', actorId: 'admin-1', expectedStatus: 'pending' })
     ).rejects.toThrow('metadata down');
     expect(statusUpsertMock).not.toHaveBeenCalled();
+    expect(pgEndMock).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the authoritative decision when the derived index write fails', async () => {
@@ -255,7 +279,76 @@ describe('rejectAccount', () => {
     expect(approved).toEqual({ applied: true, stillDisabled: false });
     expect(rejected).toBe(false);
     expect(mockUpdate).toHaveBeenCalledTimes(1);
-    expect(executeRawMock).toHaveBeenCalledTimes(2);
+    expect(pgQueryMock).toHaveBeenNthCalledWith(1, 'SELECT pg_advisory_lock(hashtext($1))', [
+      'approval:u1',
+    ]);
+    expect(pgQueryMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an opposite decision waiting while metadata I/O exceeds five seconds', async () => {
+    jest.useFakeTimers();
+    const metadata: Awaited<ReturnType<typeof UserMetadataNode.getUserMetadata>>['metadata'] = {};
+    let finishUpdate: (() => void) | undefined;
+    let markUpdateStarted: (() => void) | undefined;
+    const updateStarted = new Promise<void>((resolve) => {
+      markUpdateStarted = resolve;
+    });
+    mockGet.mockImplementation(async () => ({ status: 'OK', metadata: { ...metadata } }));
+    mockUpdate.mockImplementationOnce(
+      async (_userId, update) =>
+        new Promise((resolve) => {
+          markUpdateStarted?.();
+          finishUpdate = () => {
+            Object.assign(metadata, update);
+            resolve({ status: 'OK', metadata });
+          };
+        })
+    );
+
+    const approved = approveAccount({
+      userId: 'u1',
+      actorId: 'admin-approve',
+      expectedStatus: 'pending',
+    });
+    await updateStarted;
+    const rejected = rejectAccount({
+      userId: 'u1',
+      actorId: 'admin-reject',
+      expectedStatus: 'pending',
+    });
+
+    await jest.advanceTimersByTimeAsync(5_001);
+    const readsWhileFirstWriteWasPending = mockGet.mock.calls.length;
+    finishUpdate?.();
+    const results = await Promise.all([approved, rejected]);
+
+    expect(readsWhileFirstWriteWasPending).toBe(1);
+    expect(results).toEqual([{ applied: true, stillDisabled: false }, false]);
+    expect(mockUpdate).toHaveBeenCalledTimes(1);
+    jest.useRealTimers();
+  });
+
+  it('logs a connection-close failure without undoing an applied decision', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    pgEndMock.mockRejectedValueOnce(new Error('socket close failed'));
+
+    await expect(
+      approveAccount({ userId: 'u1', actorId: 'admin-1', expectedStatus: 'pending' })
+    ).resolves.toEqual({ applied: true, stillDisabled: false });
+    expect(errorSpy).toHaveBeenCalledWith('Approval decision lock release failed', {
+      error: 'socket close failed',
+    });
+  });
+
+  it('fails closed before opening a lock connection when DATABASE_URL is missing', async () => {
+    delete process.env.DATABASE_URL;
+
+    await expect(
+      approveAccount({ userId: 'u1', actorId: 'admin-1', expectedStatus: 'pending' })
+    ).rejects.toThrow('Missing required server env var: DATABASE_URL.');
+    expect(pgConnectMock).not.toHaveBeenCalled();
+
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
   });
 });
 

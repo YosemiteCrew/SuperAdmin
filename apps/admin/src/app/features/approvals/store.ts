@@ -70,38 +70,50 @@ export async function refreshApprovalStatusIndex(rows: IndexableApprovalRow[]): 
 
 type DecisionOutcome<T> = { applied: false } | { applied: true; value: T };
 
+async function withApprovalDecisionLock<T>(userId: string, run: () => Promise<T>): Promise<T> {
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) throw new Error('Missing required server env var: DATABASE_URL.');
+
+  const { Client } = await import('pg');
+  const client = new Client({ connectionString });
+  await client.connect();
+  try {
+    const lockName = `approval:${userId}`;
+    await client.query('SELECT pg_advisory_lock(hashtext($1))', [lockName]);
+    return await run();
+  } finally {
+    try {
+      await client.end();
+    } catch (error) {
+      logger.error('Approval decision lock release failed', { error: errorMessage(error) });
+    }
+  }
+}
+
 async function applyApprovalDecision<T>(params: {
   userId: string;
   expectedStatus: ApprovalStatus;
   status: ApprovalStatus;
   update: (metadata: Record<string, unknown>) => Promise<T>;
 }): Promise<DecisionOutcome<T>> {
-  let outcome: DecisionOutcome<T> | undefined;
-  try {
-    const matched = await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`approval:${params.userId}`}))`;
+  return withApprovalDecisionLock(params.userId, async () => {
+    const { metadata } = await UserMetadataNode.getUserMetadata(params.userId);
+    if (deriveApprovalState(metadata).status !== params.expectedStatus) return { applied: false };
 
-      const { metadata } = await UserMetadataNode.getUserMetadata(params.userId);
-      if (deriveApprovalState(metadata).status !== params.expectedStatus) return false;
-
-      outcome = { applied: true, value: await params.update(metadata) };
-      await tx.approvalStatusIndex.upsert({
+    const outcome: DecisionOutcome<T> = { applied: true, value: await params.update(metadata) };
+    try {
+      await prisma.approvalStatusIndex.upsert({
         where: { userId: params.userId },
         update: { status: params.status },
         create: { userId: params.userId, status: params.status },
       });
-      return true;
-    });
-
-    return matched && outcome ? outcome : { applied: false };
-  } catch (error) {
-    if (!outcome) throw error;
-
-    // The metadata decision is authoritative and cannot be rolled back if the
-    // derived index write or transaction commit fails. The queue repairs gaps.
-    logger.error('Approval decision index write failed', { error: errorMessage(error) });
+    } catch (error) {
+      // The metadata decision is authoritative and cannot be rolled back if the
+      // derived index write fails. The queue repairs gaps.
+      logger.error('Approval decision index write failed', { error: errorMessage(error) });
+    }
     return outcome;
-  }
+  });
 }
 
 /**
