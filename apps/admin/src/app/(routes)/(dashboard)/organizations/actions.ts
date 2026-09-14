@@ -39,6 +39,14 @@ async function patchOrganization(
     baseUrl: apiBaseUrl(environment),
   };
   const organization = await getOrganization(id, requestConfig);
+  const alreadyApplied =
+    (patch.isVerified === undefined || organization.isVerified === patch.isVerified) &&
+    (patch.isActive === undefined || organization.isActive === patch.isActive);
+  if (alreadyApplied) {
+    revalidatePath('/organizations');
+    revalidatePath(`/organizations/${id}`);
+    return;
+  }
   await updateOrganization(id, patch, requestConfig);
 
   // The audit log must not imply a production change when the action ran against

@@ -86,6 +86,21 @@ describe('verifyOrganizationAction', () => {
     );
     expect(updateOrganizationMock).not.toHaveBeenCalled();
   });
+
+  it('does not update or audit a business that is already verified', async () => {
+    getOrganizationMock.mockResolvedValueOnce({
+      id: 'o1',
+      name: 'Acme Vet',
+      isVerified: true,
+      isActive: true,
+    });
+    const { verifyOrganizationAction } = await import(ACTIONS);
+
+    await verifyOrganizationAction(makeForm({ organizationId: 'o1' }));
+
+    expect(updateOrganizationMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('suspendOrganizationAction', () => {
@@ -101,6 +116,21 @@ describe('suspendOrganizationAction', () => {
       }
     );
   });
+
+  it('does not update or audit a business that is already suspended', async () => {
+    getOrganizationMock.mockResolvedValueOnce({
+      id: 'o2',
+      name: 'Acme Vet',
+      isVerified: true,
+      isActive: false,
+    });
+    const { suspendOrganizationAction } = await import(ACTIONS);
+
+    await suspendOrganizationAction(makeForm({ organizationId: 'o2' }));
+
+    expect(updateOrganizationMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('reactivateOrganizationAction', () => {
@@ -115,6 +145,21 @@ describe('reactivateOrganizationAction', () => {
         baseUrl: 'https://api.example.com',
       }
     );
+  });
+
+  it('does not update or audit a business that is already active', async () => {
+    getOrganizationMock.mockResolvedValueOnce({
+      id: 'o3',
+      name: 'Acme Vet',
+      isVerified: true,
+      isActive: true,
+    });
+    const { reactivateOrganizationAction } = await import(ACTIONS);
+
+    await reactivateOrganizationAction(makeForm({ organizationId: 'o3' }));
+
+    expect(updateOrganizationMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 });
 
