@@ -192,7 +192,7 @@ export async function markInviteUsed(params: {
 }): Promise<void> {
   await importLegacyInvites();
   await prisma.invite.updateMany({
-    where: { token: params.token, usedAt: null, revokedAt: null },
+    where: { token: { equals: params.token }, usedAt: null, revokedAt: null },
     data: { usedAt: new Date(), usedBy: params.usedBy, usedByEmail: params.usedByEmail },
   });
 }
@@ -204,7 +204,7 @@ export async function revokeInvite(params: {
   await importLegacyInvites();
   const result = await prisma.invite.updateMany({
     where: {
-      id: params.inviteId,
+      id: { equals: params.inviteId },
       usedAt: null,
       revokedAt: null,
       expiresAt: { gt: new Date() },

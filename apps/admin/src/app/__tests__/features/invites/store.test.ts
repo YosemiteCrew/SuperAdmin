@@ -323,7 +323,7 @@ describe('markInviteUsed', () => {
   it('conditions the transition on the row still being unused and unrevoked', async () => {
     await markInviteUsed({ token: 'tok1', usedBy: 'u2', usedByEmail: 'b@b.com' });
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { token: 'tok1', usedAt: null, revokedAt: null },
+      where: { token: { equals: 'tok1' }, usedAt: null, revokedAt: null },
       data: {
         usedAt: expect.any(Date),
         usedBy: 'u2',
@@ -354,7 +354,12 @@ describe('revokeInvite', () => {
     const changed = await revokeInvite({ inviteId: 'i1', revokedBy: 'admin1' });
     expect(changed).toBe(true);
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { id: 'i1', usedAt: null, revokedAt: null, expiresAt: { gt: expect.any(Date) } },
+      where: {
+        id: { equals: 'i1' },
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin1' },
     });
   });
