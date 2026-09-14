@@ -27,22 +27,30 @@ import {
  * as a follow-up; today the control is key secrecy plus never-overwrite.
  */
 export async function recordConsent(input: ConsentSubmission): Promise<void> {
+  if (typeof input.consentId !== 'string') {
+    throw new TypeError('consentId must be a string');
+  }
+  const consentId = String(input.consentId);
+  const userId =
+    typeof input.userId === 'string' && input.userId ? String(input.userId) : undefined;
+  const email = typeof input.email === 'string' && input.email ? String(input.email) : undefined;
+
   const subject = await prisma.consentSubject.upsert({
-    where: { consentId: input.consentId },
+    where: { consentId },
     create: {
-      consentId: input.consentId,
-      userId: input.userId ?? null,
-      email: input.email ?? null,
+      consentId,
+      userId: userId ?? null,
+      email: email ?? null,
     },
     // Never touch identity on update — see the fill-only-if-absent writes below.
     update: {},
   });
 
-  // Bind the supplied identity as one unit. Each supplied value may fill a null
-  // or confirm the value already stored; an omitted value must still be null so
-  // a partial identity cannot attach itself to a subject linked by the other
-  // field. One update prevents concurrent submissions from combining a userId
-  // from one caller with an email from another.
+  // Fill identity in one conditional write. Separate userId/email updates can
+  // interleave and combine two concurrent submissions into one false identity.
+  // Each supplied value may fill a null or confirm the same value; an omitted
+  // half requires the stored half to be null so a partial submission cannot be
+  // attached to an identity somebody else already established.
   //
   // `consentId: { equals }` for the same reason as the contact intake: updateMany's
   // where accepts FILTERS, so a value that turned out to be an object at runtime
@@ -51,16 +59,18 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
   // parseConsentSubmission already rejects a non-string consentId and is the only
   // path here today, but that makes this function's safety a property of its
   // caller; this makes it a property of the query.
-  if (input.userId || input.email) {
+  if (userId || email) {
     await prisma.consentSubject.updateMany({
       where: {
-        consentId: { equals: input.consentId },
-        OR: input.userId ? [{ userId: null }, { userId: input.userId }] : [{ userId: null }],
-        AND: input.email ? [{ OR: [{ email: null }, { email: input.email }] }] : [{ email: null }],
+        consentId: { equals: consentId },
+        AND: [
+          userId ? { OR: [{ userId: null }, { userId: { equals: userId } }] } : { userId: null },
+          email ? { OR: [{ email: null }, { email: { equals: email } }] } : { email: null },
+        ],
       },
       data: {
-        ...(input.userId ? { userId: input.userId } : {}),
-        ...(input.email ? { email: input.email } : {}),
+        ...(userId ? { userId } : {}),
+        ...(email ? { email } : {}),
       },
     });
   }

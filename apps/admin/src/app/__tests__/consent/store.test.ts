@@ -64,7 +64,7 @@ describe('recordConsent', () => {
     expect(rows[1]).toMatchObject({ category: 'marketing', granted: false });
   });
 
-  it('binds both identity fields in one conditional update', async () => {
+  it('fills an identity pair in one conditional write so concurrent submissions cannot split it', async () => {
     await recordConsent({
       consentId: 'c1',
       source: 'web',
@@ -72,21 +72,20 @@ describe('recordConsent', () => {
       email: 'a@b.com',
       userId: 'u1',
     });
-    // consentId is matched with an explicit `equals` rather than a bare value:
-    // updateMany's where accepts filters, so a bare value that turned out to be
-    // an object at runtime would be read as one.
     expect(mockSubjUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
       where: {
         consentId: { equals: 'c1' },
-        OR: [{ userId: null }, { userId: 'u1' }],
-        AND: [{ OR: [{ email: null }, { email: 'a@b.com' }] }],
+        AND: [
+          { OR: [{ userId: null }, { userId: { equals: 'u1' } }] },
+          { OR: [{ email: null }, { email: { equals: 'a@b.com' } }] },
+        ],
       },
       data: { userId: 'u1', email: 'a@b.com' },
     });
   });
 
-  it('requires an omitted email to remain null when backfilling only a user ID', async () => {
+  it('does not attach a partial identity to a subject already linked by the other field', async () => {
     await recordConsent({
       consentId: 'c1',
       source: 'web',
@@ -97,50 +96,59 @@ describe('recordConsent', () => {
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
       where: {
         consentId: { equals: 'c1' },
-        OR: [{ userId: null }, { userId: 'u1' }],
-        AND: [{ email: null }],
+        AND: [{ OR: [{ userId: null }, { userId: { equals: 'u1' } }] }, { email: null }],
       },
       data: { userId: 'u1' },
     });
   });
 
-  it('requires an omitted user ID to remain null when backfilling only an email', async () => {
+  it('keeps an email-only backfill away from a subject that already has a user id', async () => {
     await recordConsent({
       consentId: 'c1',
-      source: 'mobile',
-      decisions: [{ category: 'marketing', granted: false }],
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: true }],
       email: 'a@b.com',
     });
 
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
       where: {
         consentId: { equals: 'c1' },
-        OR: [{ userId: null }],
-        AND: [{ OR: [{ email: null }, { email: 'a@b.com' }] }],
+        AND: [{ userId: null }, { OR: [{ email: null }, { email: { equals: 'a@b.com' } }] }],
       },
       data: { email: 'a@b.com' },
     });
   });
 
-  // Defence in depth at the query, not just at the parser. If a future caller
-  // reaches recordConsent without going through parseConsentSubmission, an
-  // object consentId must still be compared rather than interpreted as a filter:
-  // a bare `consentId: { not: 'x' }` would match every OTHER subject and write
-  // the identity onto their rows.
-  it('compares consentId by value even if a non-string reaches it', async () => {
-    await recordConsent({
-      consentId: { not: 'c1' } as unknown as string,
-      source: 'web',
-      decisions: [{ category: 'analytics', granted: true }],
-      userId: 'u1',
-    });
+  it('refuses a non-string consent id before any database query', async () => {
+    await expect(
+      recordConsent({
+        consentId: { not: 'c1' } as unknown as string,
+        source: 'web',
+        decisions: [{ category: 'analytics', granted: true }],
+        userId: 'u1',
+      })
+    ).rejects.toThrow(TypeError);
 
-    const [call] = mockSubjUpdateMany.mock.calls;
-    // The injected object is nested under `equals`, so Prisma compares against it
-    // rather than treating `not` as an operator.
-    expect(call[0].where.consentId).toEqual({ equals: { not: 'c1' } });
-    expect(call[0].where.consentId).not.toHaveProperty('not');
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockSubjUpdateMany).not.toHaveBeenCalled();
   });
+
+  it.each(['userId', 'email'] as const)(
+    'drops a non-string %s before persistence',
+    async (field) => {
+      await recordConsent({
+        consentId: 'c1',
+        source: 'web',
+        decisions: [{ category: 'analytics', granted: true }],
+        [field]: { not: 'x' } as unknown as string,
+      });
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ create: expect.objectContaining({ [field]: null }) })
+      );
+      expect(mockSubjUpdateMany).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not attempt an identity backfill when none is supplied', async () => {
     await recordConsent({
