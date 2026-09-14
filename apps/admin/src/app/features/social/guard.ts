@@ -64,7 +64,7 @@ export function isSameOrigin(request: NextRequest): boolean {
     // browser's real Origin never matched it and every state-changing POST was
     // refused 403 - while an Origin-less request sailed through. That is the
     // protection inverted: it rejected exactly the requests it should allow.
-    return new URL(origin).host === new URL(publicEnv.appOrigin).host;
+    return new URL(origin).origin === new URL(publicEnv.appOrigin).origin;
   } catch {
     return false;
   }

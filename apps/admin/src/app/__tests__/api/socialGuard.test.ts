@@ -114,6 +114,10 @@ describe('isSameOrigin', () => {
     expect(isSameOrigin(request({ origin: 'https://evil.example.com' }))).toBe(false);
   });
 
+  it('rejects the same host over a different scheme', () => {
+    expect(isSameOrigin(request({ origin: 'http://admin.example.com' }))).toBe(false);
+  });
+
   it('rejects an unparseable origin', () => {
     expect(isSameOrigin(request({ origin: 'not a url' }))).toBe(false);
   });
