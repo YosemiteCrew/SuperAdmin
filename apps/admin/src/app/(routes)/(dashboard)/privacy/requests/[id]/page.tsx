@@ -184,7 +184,7 @@ function RequestsBody({
 export default async function SubjectRecordPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const request = await getDataRequest(id);

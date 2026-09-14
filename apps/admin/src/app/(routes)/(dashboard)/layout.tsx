@@ -15,7 +15,7 @@ type SessionResult = {
 };
 
 async function requireSession(): Promise<SessionResult> {
-  const { userId } = await requireSuperAdmin();
+  const { userId } = await requireSuperAdmin('page');
 
   const user = await supertokens.getUser(userId);
   const email = user?.emails[0];

@@ -125,7 +125,7 @@ export default async function ConsentDetailPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const detail = await getSubjectDetail(id);

@@ -157,6 +157,24 @@ function isMfaComplete(payload: Record<string, unknown>): boolean {
   return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
 }
 
+function inviteReturnTo(value?: string): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value, 'https://internal.invalid');
+    const token = parsed.searchParams.get('token');
+    if (
+      parsed.origin !== 'https://internal.invalid' ||
+      parsed.pathname !== '/accept-invite' ||
+      !token
+    ) {
+      return null;
+    }
+    return `/accept-invite?token=${encodeURIComponent(token)}`;
+  } catch {
+    return null;
+  }
+}
+
 export async function getAuthenticatedSession(
   returnTo?: string
 ): Promise<{ userId: string; mfaComplete: boolean }> {
@@ -165,7 +183,10 @@ export async function getAuthenticatedSession(
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
   const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
   if (error || !hasToken || !accessTokenPayload || typeof accessTokenPayload.sub !== 'string') {
-    redirect(returnTo ? `/auth?returnTo=${encodeURIComponent(returnTo)}` : '/auth');
+    const safeReturnTo = inviteReturnTo(returnTo);
+    if (!safeReturnTo) redirect('/auth');
+    const query = new URLSearchParams({ returnTo: safeReturnTo });
+    redirect(`/auth?${query.toString()}`);
   }
   return { userId: accessTokenPayload.sub, mfaComplete: isMfaComplete(accessTokenPayload) };
 }
@@ -212,13 +233,17 @@ export async function isDisabledOrUnknown(userId: string): Promise<boolean> {
   }
 }
 
-export async function requireSuperAdmin(): Promise<{ userId: string }> {
+export async function requireSuperAdmin(
+  access: 'mutation' | 'page' = 'mutation'
+): Promise<{ userId: string }> {
   const { userId, mfaComplete } = await getAuthenticatedSession();
   await assertSuperAdmin(userId);
   if (!mfaComplete) {
     redirect('/auth/mfa/totp');
   }
-  if (await isConfirmedDisabled(userId)) {
+  const disabledOrUnknown =
+    access === 'page' ? await isConfirmedDisabled(userId) : await isDisabledOrUnknown(userId);
+  if (disabledOrUnknown) {
     try {
       await SessionNode.revokeAllSessionsForUser(userId);
     } catch {

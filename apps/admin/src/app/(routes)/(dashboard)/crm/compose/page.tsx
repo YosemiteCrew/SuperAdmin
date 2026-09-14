@@ -12,7 +12,7 @@ const BACK_LINK =
 
 export default async function ComposePage() {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   return (
     <div className="flex flex-col gap-[22px]">

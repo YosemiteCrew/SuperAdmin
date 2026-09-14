@@ -86,7 +86,7 @@ function InviteRow({ invite }: { readonly invite: InviteRecord }) {
 
 export default async function InvitesPage() {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const invites = await getInvites();
 

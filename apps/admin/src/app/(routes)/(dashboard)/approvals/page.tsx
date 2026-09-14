@@ -34,7 +34,7 @@ export default async function ApprovalsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status } = await searchParams;
   const filter: StatusFilter = FILTERS.some((f) => f.key === status)
