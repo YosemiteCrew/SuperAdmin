@@ -34,8 +34,8 @@ export async function bulkDisableUsersAction(userIds: string[]) {
     if (id === actorId) continue; // never disable yourself in a sweep
     if (await isBootstrapAdmin(id)) continue; // never lock out a break-glass admin
     await UserMetadataNode.updateUserMetadata(id, { disabledAt: Date.now() });
-    await SessionNode.revokeAllSessionsForUser(id);
     await auditEach('user.disable', actorId, id);
+    await SessionNode.revokeAllSessionsForUser(id);
   }
   revalidatePath('/users');
 }
