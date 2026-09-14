@@ -33,8 +33,8 @@ export async function disableUserAction(formData: FormData) {
   if (await isBootstrapAdmin(userId)) return; // never lock out a break-glass admin
 
   await UserMetadataNode.updateUserMetadata(userId, { disabledAt: Date.now() });
-  await SessionNode.revokeAllSessionsForUser(userId);
   await auditUser('user.disable', actorId, userId);
+  await SessionNode.revokeAllSessionsForUser(userId);
   revalidatePath(`/users/${userId}`);
 }
 

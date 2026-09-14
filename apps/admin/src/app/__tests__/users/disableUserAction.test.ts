@@ -106,6 +106,23 @@ describe('disableUserAction', () => {
     );
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-7');
   });
+
+  it('audits the durable disablement even when session revocation fails', async () => {
+    revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('session store down'));
+    const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await expect(disableUserAction(makeForm({ userId: 'u-7' }))).rejects.toThrow(
+      'session store down'
+    );
+
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'u-7',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.disable', targetId: 'u-7' })
+    );
+  });
 });
 
 describe('enableUserAction', () => {

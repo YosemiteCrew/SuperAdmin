@@ -107,6 +107,20 @@ describe('bulkDisableUsersAction', () => {
     await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
   });
+
+  it('audits a durable disablement even when session revocation fails', async () => {
+    revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('session store down'));
+
+    await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('session store down');
+
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'u-1',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.disable', targetId: 'u-1' })
+    );
+  });
 });
 
 describe('bulkEnableUsersAction', () => {
