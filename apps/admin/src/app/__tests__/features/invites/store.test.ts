@@ -13,8 +13,11 @@ const deleteManyMock = jest.fn();
 const updateManyMock = jest.fn();
 const findImportMock = jest.fn();
 const upsertImportMock = jest.fn();
+const executeRawMock = jest.fn();
+const transactionMock = jest.fn();
 jest.mock('@superadmin/database', () => ({
   prisma: {
+    $transaction: (...args: unknown[]) => transactionMock(...args),
     invite: {
       findMany: (...args: unknown[]) => findManyMock(...args),
       create: (...args: unknown[]) => createMock(...args),
@@ -64,6 +67,17 @@ beforeEach(() => {
   deleteManyMock.mockResolvedValue({ count: 0 });
   updateManyMock.mockResolvedValue({ count: 0 });
   getUserMetadataMock.mockResolvedValue({ metadata: {}, status: 'OK' });
+  executeRawMock.mockResolvedValue(0);
+  transactionMock.mockImplementation((run) =>
+    run({
+      $executeRaw: executeRawMock,
+      invite: {
+        create: createMock,
+        findMany: findManyMock,
+        deleteMany: deleteManyMock,
+      },
+    })
+  );
 });
 
 describe('getInvites', () => {
@@ -301,6 +315,20 @@ describe('createInvite', () => {
     expect(findManyMock).toHaveBeenCalledTimes(1); // only the retention-trim query
     expect(findManyMock).toHaveBeenCalledWith(
       expect.objectContaining({ skip: 50, select: { id: true } })
+    );
+  });
+
+  it('serializes create and retention in one transaction', async () => {
+    createMock.mockImplementation(({ data }: { data: Record<string, unknown> }) => data);
+    await createInvite({ email: 'a@b.com', createdBy: 'u1', createdByEmail: 'u1@b.com' });
+
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(executeRawMock).toHaveBeenCalledTimes(1);
+    expect(executeRawMock.mock.invocationCallOrder[0]).toBeLessThan(
+      createMock.mock.invocationCallOrder[0]
+    );
+    expect(createMock.mock.invocationCallOrder[0]).toBeLessThan(
+      findManyMock.mock.invocationCallOrder[0]
     );
   });
 
