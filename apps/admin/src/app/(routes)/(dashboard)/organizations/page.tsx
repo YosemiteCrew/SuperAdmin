@@ -12,6 +12,7 @@ import {
   isApiEnvironmentConfigured,
   parseApiEnvironment,
 } from '@/app/config/apiEnvironment';
+import { requireSuperAdmin } from '@/app/config/backend';
 import { DEMO_ORGANIZATIONS } from '@/app/features/organizations/demo';
 import {
   type OrgFilter,
@@ -355,6 +356,7 @@ function SearchForm({
 export default async function OrganizationsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
+  await requireSuperAdmin('page');
   const { status, search, demo: demoRaw, env } = await searchParams;
   const activeFilter = parseOrgFilter(status);
   const searchTerm = (search ?? '').trim();

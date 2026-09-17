@@ -9,7 +9,7 @@ import {
 } from 'react-icons/io5';
 import supertokens from 'supertokens-node';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { getMFAStats } from '@/app/features/analytics';
 import type { DayBucket } from '@/app/features/analytics/types';
 import { getServerTimestamp } from '@/app/lib/serverTime';
@@ -131,6 +131,7 @@ function countSignInMethods(users: readonly SampledUser[]): [string, number][] {
 
 export default async function AnalyticsPage() {
   ensureSuperTokensInit();
+  await requireSuperAdmin('page');
 
   const [totalUsers, newest, mfaStats] = await Promise.all([
     supertokens.getUserCount(),
