@@ -19,6 +19,23 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # react and react-dom are a peer pair that must move in lockstep: react-dom
+      # asserts at runtime that both resolve to the exact same version, and its
+      # peerDependency floor rises with every minor. Ungrouped, they are two
+      # production dependencies, so Dependabot opened one PR each - and each half
+      # regenerated the lockfile for only its own side. Both were red with
+      # "Incompatible React versions" and 60 of 181 suites failing to run, which
+      # is not a fault in either PR: neither can be green alone, and merging one
+      # would have broken `main`. See #496 and #497. The type packages join the
+      # group because @types/react-dom's peer floor tracks @types/react the same
+      # way. Declared BEFORE dev-dependencies so the two devDependency type
+      # packages land here rather than in the weekly dev group.
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
       dev-dependencies:
         dependency-type: development
     ignore:
