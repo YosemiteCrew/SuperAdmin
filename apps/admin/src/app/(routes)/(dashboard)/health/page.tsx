@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { collectSystemHealth, formatUptime } from '@/app/features/health';
 import type { SystemHealth } from '@/app/features/health/types';
 
@@ -103,6 +103,7 @@ function HealthReport({ h }: { readonly h: SystemHealth }) {
 
 export default async function HealthPage() {
   ensureSuperTokensInit();
+  await requireSuperAdmin('page');
   const health = await collectSystemHealth();
 
   const overallOk = health.supertokens.status === 'ok';

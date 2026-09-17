@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import supertokens from 'supertokens-node';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import {
   countPendingApprovalCandidates,
   fetchApprovalCandidates,
@@ -86,6 +86,7 @@ function Stat({ label, value, hint }: Readonly<{ label: string; value: string; h
 
 export default async function DashboardPage() {
   ensureSuperTokensInit();
+  await requireSuperAdmin('page');
 
   const [totalUsers, newest, approvalCandidates, auditEvents] = await Promise.all([
     supertokens.getUserCount(),
