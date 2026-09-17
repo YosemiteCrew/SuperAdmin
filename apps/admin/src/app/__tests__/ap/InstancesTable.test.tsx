@@ -92,7 +92,9 @@ describe('InstancesTable', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Token could not be revoked');
-    expect(screen.getByRole('button', { name: 'Revoke' })).toBeEnabled();
+    // The transition's pending flag can clear in a commit after the one that
+    // rendered the alert (#503) - wait for it rather than asserting same-commit.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Revoke' })).toBeEnabled());
 
     mockRevoke.mockResolvedValue();
     fireEvent.click(screen.getByRole('button', { name: 'Revoke' }));

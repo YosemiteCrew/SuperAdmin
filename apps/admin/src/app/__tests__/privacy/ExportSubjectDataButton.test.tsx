@@ -68,6 +68,13 @@ describe('ExportSubjectDataButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
+    // The transition's pending flag - which drives `disabled` - can clear in a
+    // commit after the one that rendered the alert (#503). A click while the
+    // button is still disabled is a no-op, and exportMock would never get its
+    // second call, so wait for the button to settle before firing it again.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Export subject data/i })).toBeEnabled()
+    );
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
@@ -81,7 +88,9 @@ describe('ExportSubjectDataButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/audit record could not be written/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /audit record could not be written/i
+    );
     expect(URL.createObjectURL).toHaveBeenCalled();
   });
 });
