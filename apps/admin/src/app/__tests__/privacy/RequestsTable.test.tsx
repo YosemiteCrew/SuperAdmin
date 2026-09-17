@@ -200,7 +200,9 @@ describe('RequestsTable', () => {
     fireEvent.click(screen.getByRole('button', { name: /Update/i }));
 
     expect(await screen.findByText(/already updated/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Update/i })).toBeEnabled();
+    // The transition's pending flag can clear in a commit after the one that
+    // rendered the message (#503) - wait for it rather than asserting same-commit.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Update/i })).toBeEnabled());
   });
 
   it('shows an inline error when a status update fails', async () => {

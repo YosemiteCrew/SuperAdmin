@@ -44,7 +44,9 @@ describe('StatusControl', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Invalid status.');
     expect(screen.getByRole('combobox')).toHaveValue('new');
-    expect(screen.getByRole('combobox')).toBeEnabled();
+    // The transition's pending flag can clear in a commit after the one that
+    // rendered the alert (#503) - wait for it rather than asserting same-commit.
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
   });
 
   // A stale write reports the row's real current status. The control must
@@ -74,7 +76,9 @@ describe('StatusControl', () => {
       'Status could not be updated. Try again.'
     );
     expect(screen.getByRole('combobox')).toHaveValue('new');
-    expect(screen.getByRole('combobox')).toBeEnabled();
+    // Same race as above: wait for the transition to settle before asserting
+    // retryable, or React may still be mid-commit on `pending` (#503).
+    await waitFor(() => expect(screen.getByRole('combobox')).toBeEnabled());
 
     updateMock.mockResolvedValueOnce({ status: 'closed' });
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'closed' } });
