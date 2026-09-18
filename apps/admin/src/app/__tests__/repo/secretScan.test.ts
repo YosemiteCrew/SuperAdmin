@@ -85,11 +85,21 @@ function repositoryTracking(envContents: string): string {
   return dir;
 }
 
+// The script is split into argv and run without a shell, so its text is never
+// interpreted as shell syntax. The assertion keeps the split faithful: a script
+// that needs a shell (a pipe, &&, a variable) fails here instead of being run
+// differently from CI.
 const ciScan = (dir: string): Run => {
   const { scripts } = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
     scripts: Record<string, string>;
   };
-  return run(dir, 'sh', ['-c', scripts['check:secrets']]);
+  const script = scripts['check:secrets'];
+  expect(script).not.toMatch(/[|&;<>$`\\]/);
+  const [command, ...args] = Array.from(
+    script.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g),
+    (m) => m[1] ?? m[2] ?? m[3]
+  );
+  return run(dir, command, args);
 };
 
 const preCommitScan = (dir: string): Run =>
