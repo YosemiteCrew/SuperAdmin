@@ -11,11 +11,16 @@ generator client {
   // absent from the Amplify compute bundle - and the whole server chunk then
   // fails to load, taking EVERY route handler down, not just Prisma ones.
   //
-  output = "../src/generated/client"
+  // binaryTargets pins the engines built at generate time. "native" covers
+  // local development; the rhel target covers the Amazon Linux that both the
+  // Amplify build container and its SSR compute run on.
+  output        = "../src/generated/client"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 enum CrmCampaignAudience {

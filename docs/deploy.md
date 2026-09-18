@@ -66,9 +66,9 @@ Four variables stop a build, and they stop it at different points, so fix them i
 order:
 
 1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
-   `next build`, so an absent value halts everything when Prisma loads the
-   datasource from `packages/database/prisma.config.ts`. A build that dies here
-   never even attempted to compile the app.
+   `next build`, so an absent value halts everything with `Validation Error
+Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
+   attempted to compile the app.
 2. **`SUPERTOKENS_CONNECTION_URI`**, **`SUPERTOKENS_API_KEY`**, and
    **`SUPERADMIN_BOOTSTRAP_EMAILS`** fail next, while
    Next collects page data - `env.server.ts` throws on module load. The URI has to
@@ -171,8 +171,8 @@ rather than resetting unless you have accounted for the other consumers.
 
 If the password contains special characters, percent-encode it in the URI.
 
-Run migrations from inside `packages/database`, where Prisma finds the package's
-`prisma.config.ts` and schema.
+Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
+pulls Prisma **7** off the registry against this Prisma **6** project.
 
 ## The panel must own its database
 
