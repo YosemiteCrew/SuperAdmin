@@ -26,10 +26,18 @@ beforeEach(() => {
 
 describe('EraseSubjectDataButton', () => {
   it('does not erase on the first click, only offers the confirmation', () => {
-    openConfirm();
+    const { container } = render(<EraseSubjectDataButton requestId="dr_1" />);
+    const eraseButton = screen.getByRole('button', { name: 'Erase subject data' });
+    expect(eraseButton).toHaveClass('text-[color:var(--danger-text)]');
+    fireEvent.click(eraseButton);
 
     expect(eraseMock).not.toHaveBeenCalled();
-    expect(screen.getByText(/Erase this subject permanently\?/i)).toBeInTheDocument();
+    expect(screen.getByText(/Erase this subject permanently\?/i).closest('div')).toHaveClass(
+      'bg-[var(--danger-bg)]'
+    );
+    expect(container.innerHTML).not.toMatch(
+      /(?:text|bg|border|hover:text|hover:bg)-(?:gray|red|white)/
+    );
   });
 
   it('names what goes and what stays before asking, not after', () => {
@@ -68,6 +76,7 @@ describe('EraseSubjectDataButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Yes, erase permanently/i }));
 
     const status = await screen.findByRole('status');
+    expect(status).toHaveClass('bg-[var(--inset)]');
     expect(status).toHaveTextContent('Erased person@example.com');
     expect(status).toHaveTextContent('Deleted: 1 marketing lead and 2 contact submissions');
     expect(status).toHaveTextContent('1 consent subject and 4 consent events');

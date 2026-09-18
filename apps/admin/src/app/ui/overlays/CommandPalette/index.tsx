@@ -307,7 +307,7 @@ export function CommandPalette() {
   if (!isMounted || !isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1200] bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.25),_rgba(48,47,46,0.45))] p-2 backdrop-blur-[8px] sm:p-6">
+    <div className="fixed inset-0 z-[1200] bg-[var(--glass-93)] p-2 backdrop-blur-[8px] sm:p-6">
       <button
         type="button"
         aria-label="Close command palette"
@@ -318,10 +318,10 @@ export function CommandPalette() {
         open
         aria-modal="true"
         aria-label="Command palette"
-        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-surface/68 shadow-[0_24px_70px_rgba(29,28,27,0.24)] backdrop-blur-xl sm:mt-8"
+        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8"
       >
-        <div className="border-b border-line bg-gradient-to-r from-[var(--color-brand-100)]/60 via-white/65 to-white/55 px-3 py-3 sm:px-4">
-          <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface/72 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-md">
+        <div className="border-b border-line bg-[var(--blue-soft)] px-3 py-3 sm:px-4">
+          <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface/72 px-3 py-2 shadow-[inset_0_1px_0_var(--hairline-soft)] backdrop-blur-md">
             <input
               ref={inputRef}
               value={query}
@@ -355,8 +355,8 @@ export function CommandPalette() {
                       }}
                       className={
                         isActive
-                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--color-brand-950)]/30 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] px-3 py-2.5 text-left shadow-[0_6px_18px_rgba(36,122,237,0.12)] transition-all duration-150'
-                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--color-brand-950)]/25 hover:bg-surface/78'
+                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
+                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150'
                       }
                     >
                       <div className="min-w-0 flex-1">
