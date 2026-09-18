@@ -150,12 +150,6 @@ describe('theme contrast', () => {
     return [colorToken(theme, ink), surface];
   }
 
-  /** `text` rendered at `alpha` opacity over `surface`. */
-  function dimmed(text: string, alpha: number, surface: string): string {
-    const [r, g, b] = text.match(/../g)!.map((channel) => Number.parseInt(channel, 16));
-    return composite([r, g, b, alpha], surface);
-  }
-
   const TONES = [
     { tone: 'broken', ink: 'danger-text', ground: 'danger-bg' },
     { tone: 'partial', ink: 'warn-text', ground: 'warn-bg' },
@@ -409,6 +403,12 @@ function translucent(raw: string | null): [number, number, number, number] | nul
   if (!raw) return null;
   const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)$/i.exec(raw);
   return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
+}
+
+/** `text` rendered at `alpha` opacity over `surface`. */
+function dimmed(text: string, alpha: number, surface: string): string {
+  const [r, g, b] = text.match(/../g)!.map((channel) => Number.parseInt(channel, 16));
+  return composite([r, g, b, alpha], surface);
 }
 
 function composite(rgba: [number, number, number, number], parent: string): string {
@@ -747,4 +747,174 @@ describe('the threshold a pair is held to', () => {
   ])('holds %s to its WCAG 1.4.3 threshold', (_label, px, bold, expected) => {
     expect(requiredFor(px as number | null, bold as boolean)).toBe(expected);
   });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resting `opacity` — the fourth colour neither scan above can read.
+//
+// Both scans take an ink and a ground out of ONE class literal and measure that
+// pair at full strength. `opacity` changes what the ink renders as without
+// naming a token, and it can sit in a different literal from the ink entirely —
+// on the element itself, or on any ancestor between the ink and the ground. So
+// a pairing the gate has already passed still ships under AA. Measured at
+// `df450f5`, light mode, on the ground each site actually sits on:
+//
+//   admins row `opacity-60`   email 4.34, name 2.44, Disabled badge 2.74
+//   filter count `opacity-65` unselected pill 2.78 on --page
+//
+// There is no arithmetic fix from a class literal alone: the ground the dimmed
+// ink lands on is exactly the thing that literal does not state. So this
+// refuses the construct rather than trying to measure it, and exempts the one
+// case WCAG 1.4.3 does — an inactive component, which in this tree is spelled
+// `cursor-not-allowed`. A future decorative dim needs its own shape-keyed rule
+// here, not a filename in a list: an exemption carrying an unchecked claim is
+// the cheapest place for this defect to come back.
+//
+// It reads every quoted or backticked run in the file, with no `var(--` filter,
+// so naming one of these classes inside quotes in a COMMENT is reported as a
+// call site. That is the tolerable direction: the failure names the line and is
+// fixed by rewording, whereas a parser taught to skip prose is a parser that can
+// be talked out of reading a real class.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Every `opacity-<n>` in a class literal, with the variant chain that gates it. */
+const OPACITY = /(?:^|["'`\s])((?:[a-z-]+:)*)opacity-(\d+)/g;
+
+/** Utilities that put the element outside WCAG 1.4.3 for as long as they apply. */
+const INACTIVE = 'cursor-not-allowed';
+
+type Dim = { variant: string; className: string };
+
+function dimsIn(literal: string): Dim[] {
+  return [...` ${literal} `.matchAll(OPACITY)].map((match) => ({
+    variant: match[1],
+    className: `${match[1]}opacity-${match[2]}`,
+  }));
+}
+
+/**
+ * The dims in a literal that apply to the resting render of live content: no
+ * variant chain gating them, and not on an inactive control.
+ */
+function restingDims(literal: string): string[] {
+  if (literal.includes(INACTIVE)) return [];
+  return dimsIn(literal)
+    .filter((dim) => dim.variant === '')
+    .map((dim) => dim.className);
+}
+
+/** Literals from every source file, carrying the file and line they came from. */
+function sourceLiterals(): { file: string; line: number; text: string }[] {
+  return sourceFiles(SRC, /\.tsx?$/).flatMap((file) => {
+    const text = readFileSync(file, 'utf8');
+    return classStrings(text).map((literal) => ({
+      file: file.slice(SRC.length + 1),
+      line: text.slice(0, literal.at).split('\n').length,
+      text: literal.text,
+    }));
+  });
+}
+
+describe('no resting opacity dims text the gate has already measured', () => {
+  let literals: ReturnType<typeof sourceLiterals>;
+
+  beforeAll(() => {
+    literals = sourceLiterals();
+  });
+
+  it('accounts for every opacity utility it can see', () => {
+    // The canary, and it is a partition rather than a floor: `dimsIn` has to
+    // explain every `opacity-<n>` a plain substring search finds, so a regex
+    // that stops matching one spelling fails here instead of going quiet in the
+    // assertion below. The substring count comes from the file text, which is
+    // the one input the regex has no say in.
+    const files = sourceFiles(SRC, /\.tsx?$/);
+    expect(files.length).toBeGreaterThan(50);
+    const occurrences = literals.flatMap((literal) => literal.text.match(/opacity-\d+/g) ?? []);
+    expect(occurrences.length).toBeGreaterThan(30);
+    expect(literals.flatMap((literal) => dimsIn(literal.text)).length).toBe(occurrences.length);
+    // And the variants are the bulk of them, so the filter below is doing work.
+    expect(
+      literals.flatMap((literal) => dimsIn(literal.text)).filter((dim) => dim.variant !== '').length
+    ).toBeGreaterThan(30);
+  });
+
+  it('finds no resting dim outside an inactive control', () => {
+    const offenders = literals.flatMap((literal) =>
+      restingDims(literal.text).map((className) => `${literal.file}:${literal.line} ${className}`)
+    );
+    expect(offenders).toEqual([]);
+  });
+
+  it.each([
+    ['cursor-not-allowed', 'inline-flex cursor-not-allowed text-ink-3 opacity-60', []],
+    ['disabled:', 'rounded-full disabled:opacity-60', []],
+    ['hover:', 'transition-opacity hover:opacity-90', []],
+    ['group-hover:', 'group-hover:opacity-0', []],
+    ['a bare dim', 'tabular-nums opacity-65', ['opacity-65']],
+    ['a dim beside a variant one', 'opacity-80 disabled:opacity-60', ['opacity-80']],
+    ['a dim at the start of the literal', 'opacity-90 text-sm', ['opacity-90']],
+  ])('reads %s correctly', (_label, literal, expected) => {
+    expect(restingDims(literal as string)).toEqual(expected);
+    // `transition-opacity` and `duration-200` are not dims; the partition arm
+    // above depends on this pattern never counting them.
+    expect(dimsIn(literal as string).length).toBe(
+      (literal as string).match(/opacity-\d+/g)!.length
+    );
+  });
+});
+
+// The arithmetic the three removals above rest on. Held as a negative arm, the
+// same shape #526 used for the banner details: each is what the site measured
+// while it was shipping, so a token change that would make the dim survivable
+// has to retire these deliberately rather than quietly.
+describe('the resting dims removed for #525', () => {
+  let themes: Record<'light' | 'dark', string>;
+
+  beforeAll(() => {
+    themes = themeBlocks(readFileSync(GLOBALS, 'utf8'));
+  });
+
+  const ADMIN_ROW = [
+    { cell: 'account email', ink: 'ink' },
+    { cell: 'display name', ink: 'ink-faint' },
+    { cell: 'last sign-in', ink: 'ink-muted' },
+  ];
+
+  it.each(ADMIN_ROW)('the admins $cell clears AA undimmed on the card', ({ ink }) => {
+    for (const name of ['light', 'dark'] as const) {
+      const surface = flat(themes[name], 'screen')!;
+      expect(contrast(flat(themes[name], ink)!, surface)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(ADMIN_ROW)('rejects the admins $cell at the row dim of 0.6', ({ ink }) => {
+    // Light is the binding theme; dark fails on two of the three, and asserting
+    // it here would pin a number that is allowed to move.
+    const surface = flat(themes.light, 'screen')!;
+    const text = dimmed(flat(themes.light, ink)!, 0.6, surface);
+    expect(contrast(text, surface)).toBeLessThan(4.5);
+  });
+
+  it.each(['light', 'dark'] as const)(
+    'rejects the %s filter-pill count at 0.65 on an unselected pill',
+    (name) => {
+      // Unselected, so the count renders in --ink-muted straight onto the page.
+      const surface = flat(themes[name], 'page')!;
+      const ink = flat(themes[name], 'ink-muted')!;
+      expect(contrast(ink, surface)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(dimmed(ink, 0.65, surface), surface)).toBeLessThan(4.5);
+    }
+  );
+
+  it.each(['light', 'dark'] as const)(
+    'the %s selected pill would have survived the same dim',
+    (name) => {
+      // The control arm: the dim is not uniformly fatal, so the removals above
+      // are about the unselected state rather than about opacity as such.
+      const surface = flat(themes[name], 'cta')!;
+      const ink = flat(themes[name], 'cta-text')!;
+      expect(contrast(dimmed(ink, 0.65, surface), surface)).toBeGreaterThanOrEqual(4.5);
+    }
+  );
 });
