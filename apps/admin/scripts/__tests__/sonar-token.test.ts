@@ -310,18 +310,26 @@ describe('the Keychain service name', () => {
     expect(`. ./${UNQUALIFIED_SERVICE}.sh`.match(unqualifiedService())).toBeNull();
   });
 
+  // Two arms rather than one body with two assertions: they catch different
+  // drifts, and a shared name would report whichever fired as the other.
   it.each(KEYCHAIN_FILES)('%s names no unqualified Keychain service', (file) => {
     const source = readFileSync(path.join(REPO_ROOT, file), 'utf8');
     // Canary: proves this is the file git matched, not a path that resolved
     // somewhere empty — an unreadable file would throw, but a wrong-but-real
-    // one would sail through the scan.
+    // one would sail through a scan whose pass value is "no match".
     expect(source).toContain('generic-password');
     // Comments and docs cannot interpolate the shell variable, so the copies
-    // that stay literal are pinned here instead.
+    // that stay literal are pinned here instead. Catches a bare old name in
+    // prose, which sits in neither shape the extractor reads.
     expect(source.match(unqualifiedService())).toBeNull();
-    // And pinned against what the resolver declares TODAY, not against the one
-    // name it used to have. Renaming the service and leaving a doc behind is
-    // the same divergence as never renaming it at all.
+  });
+
+  it.each(KEYCHAIN_FILES)('%s names the service the resolver declares', (file) => {
+    const source = readFileSync(path.join(REPO_ROOT, file), 'utf8');
+    expect(source).toContain('generic-password');
+    // Against what the resolver declares TODAY, not against the one name it
+    // used to have. Renaming the service and leaving a doc behind is the same
+    // divergence as never renaming it at all.
     const literals = serviceNamesIn(source).filter((name) => !name.startsWith('$'));
     expect(literals.filter((name) => name !== DECLARED_SERVICES[0])).toEqual([]);
   });
