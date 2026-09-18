@@ -33,8 +33,11 @@ describe('EraseSubjectDataButton', () => {
 
     expect(eraseMock).not.toHaveBeenCalled();
     expect(screen.getByText(/Erase this subject permanently\?/i).closest('div')).toHaveClass(
-      'bg-[var(--danger-bg)]'
+      'bg-[var(--screen)]'
     );
+    const confirmButton = screen.getByRole('button', { name: /Yes, erase permanently/i });
+    expect(confirmButton).toHaveClass('hover:bg-[var(--danger-bg)]');
+    expect(confirmButton).not.toHaveClass('bg-[var(--danger-bg)]');
     expect(container.innerHTML).not.toMatch(
       /(?:text|bg|border|hover:text|hover:bg)-(?:gray|red|white)/
     );
