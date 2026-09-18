@@ -315,7 +315,9 @@ function PendingBanner({ pending }: Readonly<{ pending: number }>) {
         <span className="font-bold">
           {pending} {pending === 1 ? 'business is' : 'businesses are'} awaiting verification
         </span>
-        <span className="opacity-80">— verify to make them visible to pet parents.</span>
+        {/* Full opacity for the same reason as AuditIntegrityBanner: --warn-text
+            on --warn-bg is 4.87, and 80% takes it to 3.44. */}
+        <span>— verify to make them visible to pet parents.</span>
       </span>
     </div>
   );

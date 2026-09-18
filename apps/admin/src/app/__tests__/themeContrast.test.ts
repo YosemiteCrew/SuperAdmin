@@ -132,6 +132,79 @@ describe('theme contrast', () => {
     const channels = hex.match(/../g)!.map((channel) => Number.parseInt(channel, 16));
     expect(rawToken(theme, 'ink-3-rgb')).toBe(channels.join(', '));
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Status banners: a detail line dimmed with `opacity`.
+  //
+  // `opacity` on the text composites it against its own tint, so it changes the
+  // rendered pair without naming a token. The source scan further down cannot
+  // see it either — that scan reads ink and ground from one class literal, and
+  // a dimmed `<span>` names neither. Each tone's ink sits close to 4.5 on its
+  // own tint, so any resting dim on these surfaces lands under AA in light.
+  // ───────────────────────────────────────────────────────────────────────────
+
+  /** The tone's ink, and the tint it renders on over the page ground. */
+  function bannerPair(theme: string, ink: string, ground: string): [string, string] {
+    const rgba = translucent(rawToken(theme, ground));
+    const surface = rgba ? composite(rgba, colorToken(theme, 'page')) : colorToken(theme, ground);
+    return [colorToken(theme, ink), surface];
+  }
+
+  /** `text` rendered at `alpha` opacity over `surface`. */
+  function dimmed(text: string, alpha: number, surface: string): string {
+    const [r, g, b] = text.match(/../g)!.map((channel) => Number.parseInt(channel, 16));
+    return composite([r, g, b, alpha], surface);
+  }
+
+  const TONES = [
+    { tone: 'broken', ink: 'danger-text', ground: 'danger-bg' },
+    { tone: 'partial', ink: 'warn-text', ground: 'warn-bg' },
+    { tone: 'verified', ink: 'avatar-green-ink', ground: 'avatar-green-bg' },
+  ];
+
+  it.each(['light', 'dark'].flatMap((mode) => TONES.map((entry) => ({ ...entry, mode }))))(
+    '$mode $tone banner detail meets WCAG AA undimmed',
+    ({ mode, ink, ground }) => {
+      const theme = mode === 'light' ? lightTheme : darkTheme;
+      const [text, surface] = bannerPair(theme, ink, ground);
+      expect(contrast(text, surface)).toBeGreaterThanOrEqual(4.5);
+    }
+  );
+
+  // The negative arm: what the removed `opacity-90` and `opacity-80` measured.
+  it.each([
+    { tone: 'broken', ink: 'danger-text', ground: 'danger-bg', alpha: 0.9 },
+    { tone: 'partial', ink: 'warn-text', ground: 'warn-bg', alpha: 0.9 },
+    { tone: 'pending verification', ink: 'warn-text', ground: 'warn-bg', alpha: 0.8 },
+  ])('rejects the light $tone banner detail dimmed to $alpha', ({ ink, ground, alpha }) => {
+    const [text, surface] = bannerPair(lightTheme, ink, ground);
+    expect(contrast(dimmed(text, alpha, surface), surface)).toBeLessThan(4.5);
+  });
+
+  /**
+   * The arithmetic above only holds while nothing dims these two banners again,
+   * and a reintroduced `opacity-90` would be invisible to every other check in
+   * this file. A `disabled:` or `hover:` variant is a different state and is not
+   * what this guards.
+   */
+  it.each([
+    ['AuditIntegrityBanner', 'app/features/audit/AuditIntegrityBanner.tsx', null],
+    ['PendingBanner', 'app/(routes)/(dashboard)/organizations/page.tsx', 'PendingBanner'],
+  ])('%s carries no resting opacity', (_label, relative, fn) => {
+    const source = readFileSync(join(SRC, relative), 'utf8');
+    let scope = source;
+    if (fn) {
+      const start = source.indexOf(`function ${fn}(`);
+      expect(start).toBeGreaterThan(-1);
+      const end = source.indexOf('\n}', start);
+      expect(end).toBeGreaterThan(start);
+      scope = source.slice(start, end);
+    }
+    const resting = [...scope.matchAll(/(?:^|["'`\s])((?:[a-z-]+:)*)(opacity-\d+)/g)]
+      .filter((match) => match[1] === '')
+      .map((match) => match[2]);
+    expect(resting).toEqual([]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
