@@ -126,7 +126,7 @@ function RequestCard({
         </time>
         {/* Green marks a real opt-in; a missing consent stays faint. */}
         {r.newsletterConsent ? (
-          <span className="font-semibold text-[color:var(--success)]">
+          <span className="font-semibold text-[color:var(--success-text)]">
             Newsletter opt-in
             {r.consentAt ? ` (${formatDate(r.consentAt.getTime())})` : ''}
           </span>

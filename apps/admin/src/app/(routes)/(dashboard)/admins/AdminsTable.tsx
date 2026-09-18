@@ -199,7 +199,7 @@ export function AdminsTable({ rows }: { readonly rows: AdminRow[] }) {
 
                 <td className="px-5 py-[15px]">
                   {row.totpEnrolled ? (
-                    <span className="inline-flex items-center gap-1.5 text-[color:var(--success)]">
+                    <span className="inline-flex items-center gap-1.5 text-[color:var(--success-text)]">
                       <IoShieldCheckmarkOutline size={13} />
                       <span className="text-[12px] font-bold">TOTP</span>
                     </span>
