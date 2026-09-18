@@ -610,6 +610,21 @@ describe('a fill colour is never used as a text ink', () => {
     expect(seen.length).toBeGreaterThan(0);
   });
 
+  it.each([
+    ['a tailwind ink', 'inline-flex text-[color:var(--success)]', true],
+    ['a css ink', '  color: var(--success);', true],
+    // The three ways the fill is legitimately used. A pattern that read any of
+    // them would report sites this gate has no measurement for, and the first
+    // one is the reason for the lookbehind: `background-color` ends in `color:`.
+    ['a css background', '  background-color: var(--success);', false],
+    ['a fill utility', 'rounded-full bg-[var(--success)]', false],
+    ['a border', 'border border-[var(--success)]/40', false],
+    // The fix itself must not read as the defect.
+    ['the ink twin', 'font-semibold text-[color:var(--success-text)]', false],
+  ])('reads %s as a use of the fill: %s', (_label, line, expected) => {
+    expect(inkUses('success').test(line as string)).toBe(expected);
+  });
+
   it.each(FILL_ONLY)('--%s is not painted as text anywhere', (token) => {
     const offenders: string[] = [];
     for (const file of sourceFiles(SRC, /\.(tsx?|css)$/)) {
