@@ -163,12 +163,18 @@ describe('SubjectRecordPage', () => {
   });
 
   it('offers the export and a way back to the queue', async () => {
-    await renderPage();
+    const { container } = await renderPage();
 
-    expect(screen.getByRole('button', { name: /Export subject data/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Export subject data/i })).toHaveClass(
+      'yc-primary-button'
+    );
     expect(screen.getByRole('link', { name: /Back to data requests/i })).toHaveAttribute(
       'href',
       '/privacy/requests'
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-[color:var(--ink)]');
+    expect(container.innerHTML).not.toMatch(
+      /(?:text|bg|border|hover:text|hover:bg)-(?:gray|red|emerald|white|blue|amber)/
     );
   });
 

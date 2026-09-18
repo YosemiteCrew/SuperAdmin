@@ -355,7 +355,7 @@ export function CommandPalette() {
                       }}
                       className={
                         isActive
-                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--color-brand-950)]/30 bg-[linear-gradient(135deg,rgba(242,248,255,0.92),rgba(255,255,255,0.88))] px-3 py-2.5 text-left shadow-[0_6px_18px_rgba(36,122,237,0.12)] transition-all duration-150'
+                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
                           : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--color-brand-950)]/25 hover:bg-surface/78'
                       }
                     >

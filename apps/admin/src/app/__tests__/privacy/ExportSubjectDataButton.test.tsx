@@ -28,7 +28,9 @@ describe('ExportSubjectDataButton', () => {
 
   it('renders the export button', () => {
     render(<ExportSubjectDataButton requestId="dr_1" />);
-    expect(screen.getByRole('button', { name: /Export subject data/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Export subject data/i })).toHaveClass(
+      'yc-primary-button'
+    );
   });
 
   it('sends the request id, not an address, and downloads the JSON blob', async () => {
@@ -56,7 +58,9 @@ describe('ExportSubjectDataButton', () => {
     render(<ExportSubjectDataButton requestId="dr_1" />);
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/export could not be produced/i);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/export could not be produced/i);
+    expect(alert).toHaveClass('text-[color:var(--danger-text)]');
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
@@ -88,9 +92,9 @@ describe('ExportSubjectDataButton', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /audit record could not be written/i
-    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/audit record could not be written/i);
+    expect(alert).toHaveClass('text-[color:var(--warn-text)]');
     expect(URL.createObjectURL).toHaveBeenCalled();
   });
 });

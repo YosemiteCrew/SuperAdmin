@@ -222,13 +222,14 @@
   --ink-body: #e6ddd0;
   --ink-muted: #a89e90;
   --ink-soft: #cabfb0;
-  --ink-faint: #9d9285;
-  --ink-faint2: #8b8173;
+  --ink-faint: #a2988b;
+  --ink-faint2: #998e81;
   --ink-6b: #a1968a;
 
   /* Accents — blue lifts for contrast on espresso */
   --blue: #257bed;
   --blue-text: #8fb6f5;
+  --color-text-brand: var(--blue-text);
   --blue-soft: rgba(143, 182, 245, 0.16);
   --nav-active: #8fb6f5;
   --nav-active-bg: rgba(143, 182, 245, 0.13);
@@ -293,7 +294,7 @@
   --surface-rgb: 47, 39, 30;
   --line-rgb: 64, 54, 43;
   --ink-rgb: 244, 239, 230;
-  --ink-3-rgb: 157, 146, 133;
+  --ink-3-rgb: 162, 152, 139;
   --btn-rgb: 242, 236, 225;
   --btn-ink-rgb: 32, 28, 24;
   --auth-bg-1: #2a2216;

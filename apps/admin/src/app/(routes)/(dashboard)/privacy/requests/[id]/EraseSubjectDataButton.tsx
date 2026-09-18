@@ -37,9 +37,12 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
 
   if (report) {
     return (
-      <div role="status" className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
-        <p className="font-medium text-gray-900">Erased {report.subjectEmail}</p>
-        <ul className="mt-1 space-y-0.5 text-gray-700">
+      <div
+        role="status"
+        className="rounded-[11px] border border-[var(--hairline)] bg-[var(--inset)] px-3 py-2 text-sm"
+      >
+        <p className="font-medium text-[color:var(--ink)]">Erased {report.subjectEmail}</p>
+        <ul className="mt-1 space-y-0.5 text-[color:var(--ink-muted)]">
           <li>
             Deleted: {report.deleted.contactLeads} marketing lead
             {report.deleted.contactLeads === 1 ? '' : 's'} and {report.deleted.contactRequests}{' '}
@@ -65,9 +68,11 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
 
   if (confirming) {
     return (
-      <div className="max-w-md rounded border border-red-200 bg-red-50 px-3 py-2 text-sm">
-        <p className="font-medium text-red-900">Erase this subject permanently?</p>
-        <p className="mt-1 text-red-800">
+      <div className="max-w-md rounded-[11px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm">
+        <p className="font-medium text-[color:var(--danger-text)]">
+          Erase this subject permanently?
+        </p>
+        <p className="mt-1 text-[color:var(--ink)]">
           The marketing lead and every contact-form submission under it are deleted. The consent
           ledger and the rights requests are kept as evidence that consent was obtained and that
           this request was answered — but every identifier on them is removed, including the
@@ -79,7 +84,7 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
             type="button"
             onClick={handleErase}
             disabled={pending}
-            className="inline-flex items-center rounded bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            className="inline-flex items-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-1.5 text-sm font-semibold text-[color:var(--danger-text)] disabled:opacity-50"
           >
             {pending ? 'Erasing…' : 'Yes, erase permanently'}
           </button>
@@ -87,7 +92,7 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
             type="button"
             onClick={() => setConfirming(false)}
             disabled={pending}
-            className="inline-flex items-center rounded border border-gray-300 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-white disabled:opacity-50"
+            className="inline-flex items-center rounded-full border border-[var(--divider)] px-3 py-1.5 text-sm font-semibold text-[color:var(--ink)] hover:bg-[var(--surface-soft)] disabled:opacity-50"
           >
             Cancel
           </button>
@@ -101,14 +106,14 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="inline-flex items-center rounded border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+        className="inline-flex items-center rounded-full border border-[var(--danger-border)] px-3 py-1.5 text-sm font-semibold text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]"
       >
         Erase subject data
       </button>
       {failed && (
-        <p role="alert" className="text-xs text-red-600">
-          Nothing was erased. The request may be unavailable, may not be an erasure request, or
-          the required audit record could not be written.
+        <p role="alert" className="text-xs text-[color:var(--danger-text)]">
+          Nothing was erased. The request may be unavailable, may not be an erasure request, or the
+          required audit record could not be written.
         </p>
       )}
     </div>
