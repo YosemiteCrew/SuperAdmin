@@ -68,7 +68,7 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
 
   if (confirming) {
     return (
-      <div className="max-w-md rounded-[11px] border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-2 text-sm">
+      <div className="max-w-md rounded-[11px] border border-[var(--danger-border)] bg-[var(--screen)] px-3 py-2 text-sm">
         <p className="font-medium text-[color:var(--danger-text)]">
           Erase this subject permanently?
         </p>
@@ -84,7 +84,7 @@ export function EraseSubjectDataButton({ requestId }: Readonly<{ requestId: stri
             type="button"
             onClick={handleErase}
             disabled={pending}
-            className="inline-flex items-center rounded-full border border-[var(--danger-border)] bg-[var(--danger-bg)] px-3 py-1.5 text-sm font-semibold text-[color:var(--danger-text)] disabled:opacity-50"
+            className="inline-flex items-center rounded-full border border-[var(--danger-border)] px-3 py-1.5 text-sm font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)] disabled:opacity-50"
           >
             {pending ? 'Erasing…' : 'Yes, erase permanently'}
           </button>

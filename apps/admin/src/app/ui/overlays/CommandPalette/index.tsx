@@ -318,7 +318,7 @@ export function CommandPalette() {
         open
         aria-modal="true"
         aria-label="Command palette"
-        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-line bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8"
+        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8"
       >
         <div className="border-b border-line bg-[var(--blue-soft)] px-3 py-3 sm:px-4">
           <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface/72 px-3 py-2 shadow-[inset_0_1px_0_var(--hairline-soft)] backdrop-blur-md">
@@ -356,7 +356,7 @@ export function CommandPalette() {
                       className={
                         isActive
                           ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
-                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150'
+                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--blue)]/25 hover:bg-surface/78'
                       }
                     >
                       <div className="min-w-0 flex-1">

@@ -101,6 +101,18 @@ describe('theme contrast', () => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  it.each(['light', 'dark'])('%s erase confirmation meets WCAG AA at rest and hover', (name) => {
+    const theme = name === 'light' ? lightTheme : darkTheme;
+    const panel = colorToken(theme, 'screen');
+    const dangerBackground = translucent(rawToken(theme, 'danger-bg'));
+    if (!dangerBackground) throw new Error('--danger-bg is not an rgba color');
+    const buttonHover = composite(dangerBackground, panel);
+    const dangerText = colorToken(theme, 'danger-text');
+
+    expect(contrast(dangerText, panel)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(dangerText, buttonHover)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it.each([
     ['8b8173', '221d17'],
     ['9d9285', '383026'],
