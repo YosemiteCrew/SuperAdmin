@@ -2,6 +2,7 @@ jest.mock('server-only', () => ({}));
 
 const statusFindManyMock = jest.fn();
 const statusUpsertMock = jest.fn();
+const pgClientConfigMock = jest.fn();
 const pgConnectMock = jest.fn();
 const pgQueryMock = jest.fn();
 const pgEndMock = jest.fn();
@@ -10,6 +11,10 @@ let pgLockTails = new Map<string, Promise<void>>();
 jest.mock('pg', () => ({
   Client: class {
     private releaseLock: (() => void) | undefined;
+
+    constructor(config: unknown) {
+      pgClientConfigMock(config);
+    }
 
     connect(...args: unknown[]) {
       return pgConnectMock(...args);
@@ -60,6 +65,7 @@ import {
   rejectAccount,
 } from '@/app/features/approvals/store';
 import { logger } from '@/app/lib/logger';
+import { SUPABASE_ROOT_2021_CA } from '@/app/lib/pgConnectionConfig';
 
 const mockGet = UserMetadataNode.getUserMetadata as jest.MockedFunction<
   typeof UserMetadataNode.getUserMetadata
@@ -338,6 +344,36 @@ describe('rejectAccount', () => {
     expect(errorSpy).toHaveBeenCalledWith('Approval decision lock release failed', {
       error: 'socket close failed',
     });
+  });
+
+  it('opens the lock connection with the URL as given for a local database', async () => {
+    await approveAccount({ userId: 'u1', actorId: 'admin-1', expectedStatus: 'pending' });
+
+    expect(pgClientConfigMock).toHaveBeenCalledWith({
+      connectionString: 'postgresql://test:test@localhost:5432/test',
+    });
+  });
+
+  it('opens the lock connection over verified TLS for the Supabase pooler', async () => {
+    const pooler =
+      'postgresql://USER:PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres';
+    process.env.DATABASE_URL = `${pooler}?schema=superadmin&sslmode=require`;
+
+    try {
+      await rejectAccount({ userId: 'u1', actorId: 'admin-1', expectedStatus: 'pending' });
+    } finally {
+      process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+    }
+
+    expect(pgClientConfigMock).toHaveBeenCalledWith({
+      connectionString: `${pooler}?schema=superadmin`,
+      ssl: {
+        ca: SUPABASE_ROOT_2021_CA,
+        rejectUnauthorized: true,
+        servername: 'aws-1-eu-central-1.pooler.supabase.com',
+      },
+    });
+    expect(pgConnectMock).toHaveBeenCalledTimes(1);
   });
 
   it('fails closed before opening a lock connection when DATABASE_URL is missing', async () => {
