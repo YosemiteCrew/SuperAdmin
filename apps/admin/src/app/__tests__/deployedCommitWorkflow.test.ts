@@ -9,7 +9,9 @@ import { spawnSync } from 'node:child_process';
 
 const EXPECTED_SHA = 'a'.repeat(40);
 const MOVED_SHA = 'b'.repeat(40);
-const WORKFLOW = path.resolve(__dirname, '../../../../../.github/workflows/deployed-commit.yml');
+const REPO_ROOT = path.resolve(__dirname, '../../../../..');
+const WORKFLOW = path.join(REPO_ROOT, '.github/workflows/deployed-commit.yml');
+const SCRIPT = 'scripts/ci/wait-for-deployed-main.sh';
 
 function workflowScript(): string {
   const lines = readFileSync(WORKFLOW, 'utf8').split('\n');
@@ -21,20 +23,30 @@ function workflowScript(): string {
     .join('\n');
 }
 
-describe('deployed-commit workflow exit handling', () => {
+describe('wait-for-deployed-main', () => {
   let stubDirectory: string;
 
   beforeEach(() => {
     stubDirectory = mkdtempSync(path.join(os.tmpdir(), 'deployed-commit-'));
     const nodeStub = path.join(stubDirectory, 'node');
     const ghStub = path.join(stubDirectory, 'gh');
+    // Stands in for assert-deployed.js, and refuses to answer unless it was
+    // asked about the expected commit through the real script path.
     writeFileSync(
       nodeStub,
-      `#!${process.execPath}\nprocess.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n`
+      `#!${process.execPath}\n` +
+        `const [script, ...args] = process.argv.slice(2);\n` +
+        `if (!script.endsWith('/apps/admin/src/ci/assert-deployed.js')) process.exit(9);\n` +
+        `if (args[args.indexOf('--sha') + 1] !== process.env.STUB_SHA) process.exit(9);\n` +
+        `process.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n`
     );
+    // Answers only the lookup of main's tip in this repository.
     writeFileSync(
       ghStub,
-      `#!${process.execPath}\nconst code = Number(process.env.TIP_EXIT);\nif (code) process.exit(code);\nprocess.stdout.write(process.env.TIP_OUTPUT ?? '');\n`
+      `#!${process.execPath}\n` +
+        `if (process.argv[3] !== 'repos/example/repository/commits/main') process.exit(9);\n` +
+        `const code = Number(process.env.TIP_EXIT);\nif (code) process.exit(code);\n` +
+        `process.stdout.write(process.env.TIP_OUTPUT ?? '');\n`
     );
     chmodSync(nodeStub, 0o755);
     chmodSync(ghStub, 0o755);
@@ -44,22 +56,24 @@ describe('deployed-commit workflow exit handling', () => {
     rmSync(stubDirectory, { force: true, recursive: true });
   });
 
-  function runStep(
+  function run(
+    args: string[],
     deployCheckExit: number,
     tipOutput = EXPECTED_SHA,
     tipExit = 0
   ): { status: number | null; stdout: string } {
-    const result = spawnSync('/bin/bash', ['-c', workflowScript()], {
+    const result = spawnSync('/bin/bash', args, {
       encoding: 'utf8',
-      cwd: path.dirname(path.dirname(path.dirname(path.dirname(path.dirname(__dirname))))),
+      cwd: REPO_ROOT,
       env: {
         ...process.env,
         PATH: `${stubDirectory}:${process.env.PATH ?? ''}`,
         HEALTH_URL: 'https://example.test/health',
         EXPECTED_SHA,
+        STUB_SHA: EXPECTED_SHA,
         TIMEOUT_SECONDS: '1',
         INTERVAL_SECONDS: '1',
-        REPO: 'example/repository',
+        GITHUB_REPOSITORY: 'example/repository',
         DEPLOY_CHECK_EXIT: String(deployCheckExit),
         TIP_OUTPUT: tipOutput,
         TIP_EXIT: String(tipExit),
@@ -68,31 +82,72 @@ describe('deployed-commit workflow exit handling', () => {
     return { status: result.status, stdout: result.stdout ?? '' };
   }
 
-  it('passes when the deployed-commit assertion passes', () => {
-    expect(runStep(0, '', 99).status).toBe(0);
+  const runScript = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
+    run([SCRIPT, 'https://example.test/health', EXPECTED_SHA], deployCheckExit, tipOutput, tipExit);
+
+  const runWorkflowStep = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
+    run(['-c', workflowScript()], deployCheckExit, tipOutput, tipExit);
+
+  describe('the script', () => {
+    it('exits 0 when the expected commit is served', () => {
+      expect(runScript(0, '', 99).status).toBe(0);
+    });
+
+    it('fails when main still points at the undeployed commit', () => {
+      const result = runScript(1);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain(`main is still ${EXPECTED_SHA}`);
+    });
+
+    it('exits 3 when a newer main commit superseded the deployment', () => {
+      const result = runScript(1, MOVED_SHA);
+
+      expect(result.status).toBe(3);
+      expect(result.stdout).toContain(`SUPERSEDED: main has moved to ${MOVED_SHA}`);
+    });
+
+    it.each([
+      ['', 2],
+      ['not-an-object-name', 0],
+    ])('fails closed when the current main tip is unreadable (%j, gh exit %i)', (tip, tipExit) => {
+      const result = runScript(1, tip, tipExit);
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain('Supersession is unestablished');
+    });
+
+    it('refuses to run without both a health URL and a sha', () => {
+      expect(run([SCRIPT, 'https://example.test/health'], 0).status).toBe(1);
+    });
   });
 
-  it('fails when main still points at the undeployed commit', () => {
-    const result = runStep(1);
+  describe('the deployed-commit workflow step', () => {
+    it('passes when the expected commit is served', () => {
+      expect(runWorkflowStep(0, '', 99).status).toBe(0);
+    });
 
-    expect(result.status).toBe(1);
-    expect(result.stdout).toContain(`main is still ${EXPECTED_SHA}`);
-  });
+    it('passes when a newer main commit superseded the deployment', () => {
+      const result = runWorkflowStep(1, MOVED_SHA);
 
-  it('passes when a newer main commit superseded the deployment', () => {
-    const result = runStep(1, MOVED_SHA);
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(`SUPERSEDED: main has moved to ${MOVED_SHA}`);
+    });
 
-    expect(result.status).toBe(0);
-    expect(result.stdout).toContain(`SUPERSEDED: main has moved to ${MOVED_SHA}`);
-  });
+    it('fails when main still points at the undeployed commit', () => {
+      expect(runWorkflowStep(1).status).toBe(1);
+    });
 
-  it.each([
-    ['', 2],
-    ['not-an-object-name', 0],
-  ])('fails closed when the current main tip is unreadable', (tipOutput, tipExit) => {
-    const result = runStep(1, tipOutput, tipExit);
+    it('fails when the current main tip is unreadable', () => {
+      expect(runWorkflowStep(1, '', 2).status).toBe(1);
+    });
 
-    expect(result.status).toBe(1);
-    expect(result.stdout).toContain('Supersession is unestablished');
+    it('delegates to the script instead of carrying its own copy of the poll', () => {
+      const step = workflowScript();
+
+      expect(step).toContain(`bash ${SCRIPT} "$HEALTH_URL" "$EXPECTED_SHA"`);
+      expect(step).not.toContain('assert-deployed.js');
+      expect(step).not.toContain('gh api');
+    });
   });
 });

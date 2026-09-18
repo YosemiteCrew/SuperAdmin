@@ -14,7 +14,10 @@ on:
 
 concurrency:
   group: admin-e2e-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded runs on a pull request only, as ci-affected does. On a
+  # branch push the deployed leg waits for its own build, and a newer push
+  # cancelling that wait would leave the earlier commit unverified.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -136,15 +139,19 @@ jobs:
           E2E_WEB_SERVER_COMMAND: pnpm --filter admin run start
         run: pnpm --filter admin exec playwright test --project=chromium
 
-  # Runs only on trusted refs, where secrets resolve. This is the leg that can
+  # Runs only for main, the branch the deployed origin serves, and only on a push
+  # or a manual dispatch, where secrets resolve. This is the leg that can
   # observe the panel real users hit - the deployed origin has been returning 401
   # at the CloudFront edge to every request, including the public /api/health,
   # with the whole suite green, because nothing had ever pointed at it.
+  # `admin-e2e-required` repeats this condition as DEPLOYED_EXPECTED; keep the
+  # two identical.
   deployed:
     name: E2E (deployed panel)
     needs: [changes]
-    if: github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -179,7 +186,30 @@ jobs:
             echo "indistinguishable from a passing one in the summary."
             exit 1
           fi
+      # The origin serves whatever build finished last, which right after a push
+      # is still the previous commit's. Specs run only once the panel reports
+      # this commit. If a newer push replaced this build before it was served,
+      # the specs are skipped here and that push's own run tests the newer
+      # build. A timeout or an unreadable tip of main fails the job.
+      - name: Wait for the deployed panel to serve this commit
+        id: deployed_build
+        shell: bash
+        timeout-minutes: 15
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          status=0
+          bash scripts/ci/wait-for-deployed-main.sh \
+            https://admin.yosemitecrew.com/api/health "$EXPECTED_SHA" || status=$?
+          case "$status" in
+            0) echo "served=true" >> "$GITHUB_OUTPUT" ;;
+            3) echo "Skipping the deployed specs: a newer commit replaced this build." ;;
+            *) exit "$status" ;;
+          esac
       - name: Run specs against the deployed panel
+        if: steps.deployed_build.outputs.served == 'true'
         env:
           E2E_BASE_URL: https://admin.yosemitecrew.com
           SA_EDGE_GATE_CREDENTIALS: ${{ secrets.SA_EDGE_GATE_CREDENTIALS }}
@@ -204,26 +234,37 @@ jobs:
     steps:
       - name: Fail unless every leg actually ran and passed
         env:
+          CHANGES: ${{ needs.changes.result }}
           LOCAL: ${{ needs.local.result }}
           DEPLOYED: ${{ needs.deployed.result }}
           NEEDED: ${{ needs.changes.outputs.admin }}
+          # The `deployed` job's own condition, verbatim.
+          DEPLOYED_EXPECTED: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') }}
         run: |
-          echo "local=$LOCAL deployed=$DEPLOYED needed=$NEEDED"
+          echo "changes=$CHANGES local=$LOCAL deployed=$DEPLOYED needed=$NEEDED deployed_expected=$DEPLOYED_EXPECTED"
+          # Check the change-detection result before deciding nothing needs to
+          # run. The output is only meaningful from a detection job that
+          # succeeded, and it must say true or false outright.
+          if [ "$CHANGES" != "success" ]; then
+            echo "Admin E2E Required: change detection did not succeed ($CHANGES)"; exit 1
+          fi
           # A skipped leg is only acceptable when the filter said the admin app
           # was untouched. Skipped for any other reason is a stage that silently
           # did not run, which is what this aggregate exists to catch.
-          if [ "$NEEDED" != "true" ]; then
-            echo "Admin E2E Required: no admin changes in this pull request, nothing to run"
-            exit 0
-          fi
-          case "$LOCAL" in failure|cancelled|skipped)
-            echo "Admin E2E Required: the local leg failed, was cancelled, or did not run"; exit 1 ;;
+          case "$NEEDED" in
+            true) ;;
+            false)
+              echo "Admin E2E Required: no admin changes in this pull request, nothing to run"
+              exit 0 ;;
+            *)
+              echo "Admin E2E Required: change detection gave no decision ('$NEEDED')"; exit 1 ;;
           esac
-          # The deployed leg is deliberately absent on pull_request, where secrets
-          # are withheld. Anywhere else, absence is a failure.
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            case "$DEPLOYED" in failure|cancelled|skipped)
-              echo "Admin E2E Required: the deployed leg failed, was cancelled, or did not run"; exit 1 ;;
-            esac
+          if [ "$LOCAL" != "success" ]; then
+            echo "Admin E2E Required: the local leg failed, was cancelled, or did not run"; exit 1
+          fi
+          # The deployed leg runs only for main, the branch the deployed origin
+          # serves. There its absence is a failure; elsewhere it is not expected.
+          if [ "$DEPLOYED_EXPECTED" = "true" ] && [ "$DEPLOYED" != "success" ]; then
+            echo "Admin E2E Required: the deployed leg failed, was cancelled, or did not run"; exit 1
           fi
           echo "Admin E2E Required: passed"
