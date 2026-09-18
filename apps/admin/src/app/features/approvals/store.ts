@@ -4,6 +4,7 @@ import { prisma } from '@superadmin/database';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { logger } from '@/app/lib/logger';
+import { pgConnectionConfig } from '@/app/lib/pgConnectionConfig';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
@@ -75,7 +76,7 @@ async function withApprovalDecisionLock<T>(userId: string, run: () => Promise<T>
   if (!connectionString) throw new Error('Missing required server env var: DATABASE_URL.');
 
   const { Client } = await import('pg');
-  const client = new Client({ connectionString });
+  const client = new Client(pgConnectionConfig(connectionString));
   await client.connect();
   try {
     const lockName = `approval:${userId}`;
