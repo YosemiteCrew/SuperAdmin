@@ -232,6 +232,16 @@ describe('eraseSubjectData', () => {
     expect(tx.contactLead.deleteMany).not.toHaveBeenCalled();
   });
 
+  // Every erased subject's request rows share the tombstone, so re-running an
+  // erasure from one of them must not count, or touch, anyone else's rows.
+  it('does nothing for a request that was already erased', async () => {
+    const report = await eraseSubjectData(ERASED_SUBJECT);
+
+    expect(mockTransaction).not.toHaveBeenCalled();
+    expect(report.deleted).toEqual({ contactLeads: 0, contactRequests: 0 });
+    expect(report.retained).toEqual({ consentSubjects: 0, consentEvents: 0, dataRequests: 0 });
+  });
+
   it('lets a failed write reject rather than reporting an erasure that did not happen', async () => {
     tx.contactLead.deleteMany.mockRejectedValue(new Error('deadlock detected'));
 

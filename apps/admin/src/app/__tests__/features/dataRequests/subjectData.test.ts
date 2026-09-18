@@ -8,6 +8,7 @@ jest.mock('@superadmin/database', () => ({
 
 import { prisma } from '@superadmin/database';
 
+import { ERASED_SUBJECT } from '@/app/constants';
 import { collectSubjectData, normalizeSubjectEmail } from '@/app/features/dataRequests/subjectData';
 import { isSectionError } from '@/app/lib/exportSection';
 
@@ -268,5 +269,18 @@ describe('collectSubjectData', () => {
         include: { requests: expect.objectContaining({ take: 500 }) },
       })
     );
+  });
+
+  // After an erasure every subject's request rows carry the same tombstone, so
+  // a lookup by it would list every other erased subject under this request.
+  it('discloses nothing for a request whose subject was already erased', async () => {
+    resolveAll();
+
+    const data = await collectSubjectData(ERASED_SUBJECT);
+
+    expect(mockLead).not.toHaveBeenCalled();
+    expect(mockConsent).not.toHaveBeenCalled();
+    expect(mockRequests).not.toHaveBeenCalled();
+    expect(data).toMatchObject({ lead: null, consent: [], dataRequests: [] });
   });
 });
