@@ -43,6 +43,7 @@ beforeEach(() => {
   requireSuperAdminMock.mockResolvedValue({ userId: 'user-1' });
   getTikTokConfigMock.mockReturnValue({ clientKey: 'ck' });
   readConnectionMock.mockResolvedValue({ openId: 'oid', displayName: 'yosemite_crew' });
+  clearConnectionMock.mockResolvedValue(true);
 });
 
 describe('disconnectTikTokAction', () => {
@@ -66,13 +67,25 @@ describe('disconnectTikTokAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/social');
   });
 
-  it('still clears and audits when no connection could be read', async () => {
+  it('still audits when unreadable stored material was cleared', async () => {
     readConnectionMock.mockResolvedValue(null);
     await disconnectTikTokAction();
     expect(clearConnectionMock).toHaveBeenCalled();
     expect(recordAuditEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ targetId: 'tiktok', targetLabel: 'TikTok' })
     );
+  });
+
+  it('does not audit when no connection material was stored', async () => {
+    readConnectionMock.mockResolvedValue(null);
+    clearConnectionMock.mockResolvedValue(false);
+
+    await expect(disconnectTikTokAction()).resolves.toEqual({
+      ok: false,
+      message: 'TikTok is not connected.',
+    });
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/social');
   });
 
   it('reports an unconfigured host without clearing anything', async () => {
@@ -94,6 +107,7 @@ describe('disconnectInstagramAction', () => {
       userId: '178414',
       username: 'yosemite_crew',
     });
+    clearInstagramConnectionMock.mockResolvedValue(true);
   });
 
   it('requires a super admin before touching anything', async () => {
@@ -115,12 +129,24 @@ describe('disconnectInstagramAction', () => {
     });
   });
 
-  it('still clears and audits when no connection could be read', async () => {
+  it('still audits when unreadable stored material was cleared', async () => {
     readInstagramConnectionMock.mockResolvedValue(null);
     await disconnectInstagramAction();
     expect(recordAuditEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ targetId: 'instagram', targetLabel: 'Instagram' })
     );
+  });
+
+  it('does not audit when no connection material was stored', async () => {
+    readInstagramConnectionMock.mockResolvedValue(null);
+    clearInstagramConnectionMock.mockResolvedValue(false);
+
+    await expect(disconnectInstagramAction()).resolves.toEqual({
+      ok: false,
+      message: 'Instagram is not connected.',
+    });
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/social');
   });
 
   it('reports an unconfigured host without clearing anything', async () => {

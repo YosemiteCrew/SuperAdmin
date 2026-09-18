@@ -20,6 +20,11 @@ function typeEmail(value: string) {
 }
 
 describe('ChangeEmailForm', () => {
+  it('explains that the sign-in address changes before verification', () => {
+    render(<ChangeEmailForm currentEmail="old@x.com" />);
+    expect(screen.getByText(/becomes your sign-in email immediately/i)).toBeInTheDocument();
+  });
+
   it('does not submit when the field is empty', () => {
     render(<ChangeEmailForm currentEmail="old@x.com" />);
     fireEvent.submit(screen.getByRole('button', { name: /change email/i }).closest('form')!);

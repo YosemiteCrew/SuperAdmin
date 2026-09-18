@@ -16,10 +16,6 @@ function resolveDark(theme: Theme): boolean {
   return globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
 }
 
-function applyThemeToDocument(theme: Theme): void {
-  document.documentElement.dataset.theme = resolveDark(theme) ? 'dark' : 'light';
-}
-
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>('system');
 
@@ -30,6 +26,10 @@ export function ThemeToggle() {
     }
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = resolveDark(theme) ? 'dark' : 'light';
+  }, [theme]);
+
   function apply(next: Theme) {
     setTheme(next);
     try {
@@ -37,7 +37,6 @@ export function ThemeToggle() {
     } catch {
       /* storage may be unavailable (private mode) — theme still applies for this session */
     }
-    applyThemeToDocument(next);
   }
 
   return (

@@ -54,7 +54,7 @@ async function loadAdminRow(
 
 export default async function AdminsPage() {
   ensureSuperTokensInit();
-  const { userId: callerId } = await requireSuperAdmin();
+  const { userId: callerId } = await requireSuperAdmin('page');
 
   const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
   const adminIds = roleHolders.status === 'OK' ? roleHolders.users : [];

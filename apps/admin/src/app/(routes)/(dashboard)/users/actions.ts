@@ -6,6 +6,7 @@ import supertokens from 'supertokens-node';
 
 import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 import { usersToCsv, type UserCsvRow } from '@/app/features/users/usersCsv';
 
 const EXPORT_TENANT = 'public';
@@ -17,13 +18,20 @@ export async function deleteUserAction(formData: FormData) {
 
   const userId = formData.get('userId');
   if (typeof userId !== 'string' || userId.length === 0) return;
+  if (userId === actorId || (await isBootstrapAdmin(userId))) return;
 
   let targetLabel: string | undefined;
+  let targetMissing = false;
   try {
     const target = await supertokens.getUser(userId);
+    targetMissing = target === undefined;
     targetLabel = target?.emails[0];
   } catch {
     /* labelling is best-effort */
+  }
+  if (targetMissing) {
+    revalidatePath('/users');
+    redirect('/users');
   }
 
   await supertokens.deleteUser(userId);

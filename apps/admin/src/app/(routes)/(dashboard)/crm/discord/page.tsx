@@ -13,7 +13,7 @@ const BACK_LINK =
 
 export default async function DiscordPage() {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const config = await getDiscordConfig();
 

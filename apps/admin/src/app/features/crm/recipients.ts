@@ -9,6 +9,10 @@ export type RecipientAudience = 'all' | 'admins';
 
 const PAGE_SIZE = 500;
 
+function uniqueEmails(emails: (string | undefined)[]): string[] {
+  return [...new Set(emails.filter((email): email is string => Boolean(email)))];
+}
+
 /**
  * Emails of the accounts actually holding the super-admin role.
  *
@@ -35,7 +39,7 @@ async function fetchAdminEmails(): Promise<string[]> {
       return user?.emails[0];
     })
   );
-  return emails.filter((email): email is string => Boolean(email));
+  return uniqueEmails(emails);
 }
 
 /**
@@ -63,5 +67,5 @@ export async function fetchRecipientEmails(audience: RecipientAudience): Promise
     paginationToken = page.nextPaginationToken;
   } while (paginationToken);
 
-  return emails;
+  return uniqueEmails(emails);
 }

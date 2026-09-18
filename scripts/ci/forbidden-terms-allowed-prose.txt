@@ -26,7 +26,6 @@ Please do **not** open a public GitHub issue for security vulnerabilities.
 Removes only the cache slices that can poison Turbopack's incremental graph.
 
 # apps/admin/src/app/__tests__/invites/InviteForm.test.tsx
-`<form action={...}>`, and React resets such a form once the action settles.
 
 # apps/admin/src/app/__tests__/lib/clientIp.test.ts
 The bypass this exists to close. CloudFront appends the viewer address to
@@ -79,7 +78,6 @@ pnpm verify         # Full pre-merge gate: lint + type-check + test + build
 consentId reaches Prisma as a `where` value in recordConsent, including an
 
 # apps/admin/src/app/__tests__/consent/store.test.ts
-The injected object is nested under `equals`, so Prisma compares against it
 
 # apps/admin/src/app/__tests__/proxy.test.ts
 script-src must not carry unsafe-inline (style-src retaining it for Tailwind is fine)

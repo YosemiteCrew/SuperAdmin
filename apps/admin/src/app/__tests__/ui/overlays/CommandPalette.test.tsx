@@ -43,7 +43,13 @@ describe('CommandPalette', () => {
   it('opens via the custom event', () => {
     render(<CommandPalette />);
     openPalette();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    const input = screen.getByLabelText(/command palette input/i);
+    expect(dialog).toHaveClass('shadow-[0_28px_70px_var(--sh12)]');
+    expect(dialog).toHaveClass('border-[var(--ink-faint)]/80');
+    expect(dialog.parentElement).toHaveClass('bg-[var(--glass-93)]');
+    expect(input.parentElement).toHaveClass('shadow-[inset_0_1px_0_var(--hairline-soft)]');
+    expect(input.parentElement?.parentElement).toHaveClass('bg-[var(--blue-soft)]');
   });
 
   it('opens via ⌘K keyboard shortcut', () => {
@@ -95,15 +101,14 @@ describe('CommandPalette', () => {
     render(<CommandPalette />);
     openPalette();
     // First quick link is active by default.
-    expect(screen.getByRole('button', { name: /Open Dashboard/i })).toHaveAttribute(
-      'aria-current',
-      'true'
-    );
+    const dashboard = screen.getByRole('button', { name: /Open Dashboard/i });
+    expect(dashboard).toHaveAttribute('aria-current', 'true');
+    expect(dashboard).toHaveClass('bg-[var(--blue-soft)]');
+    expect(dashboard.className).not.toContain('linear-gradient');
     press('ArrowDown');
-    expect(screen.getByRole('button', { name: /Open Users/i })).toHaveAttribute(
-      'aria-current',
-      'true'
-    );
+    const users = screen.getByRole('button', { name: /Open Users/i });
+    expect(users).toHaveAttribute('aria-current', 'true');
+    expect(dashboard).toHaveClass('hover:border-[var(--blue)]/25', 'hover:bg-surface/78');
     // From the first row, ArrowUp wraps to the last quick link.
     press('ArrowUp');
     press('ArrowUp');

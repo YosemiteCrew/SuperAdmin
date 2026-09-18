@@ -21,6 +21,20 @@ describe('Header', () => {
     expect(screen.getByText('Users')).toBeInTheDocument();
   });
 
+  it.each([
+    ['/approvals', 'Approvals'],
+    ['/admins', 'Admins'],
+    ['/crm/requests', 'Contact requests'],
+    ['/privacy/requests/request-1', 'Data requests'],
+    ['/audit', 'Audit log'],
+    ['/ap', 'Federation'],
+    ['/social', 'Social'],
+  ])('shows the correct title for %s', (pathname, title) => {
+    (usePathname as jest.Mock).mockReturnValue(pathname);
+    render(<Header email="x@x.com" firstName={null} lastName={null} />);
+    expect(screen.getByText(title)).toBeInTheDocument();
+  });
+
   it('falls back to Overview for unknown paths', () => {
     (usePathname as jest.Mock).mockReturnValue('/something-else');
     render(<Header email="x@x.com" firstName={null} lastName={null} />);

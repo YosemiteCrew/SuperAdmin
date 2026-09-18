@@ -71,7 +71,7 @@ function renderInstagram(state: Awaited<ReturnType<typeof loadInstagram>>) {
 export default async function SocialPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
   const params = await searchParams;
   const rawError = params.error;
   const errorKey = Array.isArray(rawError) ? rawError[0] : rawError;

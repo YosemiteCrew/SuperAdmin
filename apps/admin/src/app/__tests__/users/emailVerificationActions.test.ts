@@ -26,6 +26,9 @@ const setEmailVerifiedMock = jest.fn();
 jest.mock('@/app/features/users/emailVerification', () => ({
   setEmailVerified: (...a: unknown[]) => setEmailVerifiedMock(...a),
 }));
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn().mockResolvedValue(false),
+}));
 
 const recordAuditEventMock = jest.fn();
 jest.mock('@/app/features/audit/store', () => ({
@@ -47,8 +50,10 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
 }
 
 beforeEach(() => {
+  const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+  revalidatePath.mockClear();
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-1' });
-  setEmailVerifiedMock.mockReset().mockResolvedValue(undefined);
+  setEmailVerifiedMock.mockReset().mockResolvedValue(true);
   recordAuditEventMock.mockReset();
 });
 
@@ -70,6 +75,15 @@ describe('verifyEmailAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-1');
   });
 
+  it('does not audit when verification changes no email', async () => {
+    setEmailVerifiedMock.mockResolvedValueOnce(false);
+    const { verifyEmailAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+    await verifyEmailAction(makeForm({ userId: 'u-1' }));
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(revalidatePath).toHaveBeenCalledWith('/users/u-1');
+  });
+
   it('does nothing when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     const { verifyEmailAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
@@ -87,6 +101,15 @@ describe('unverifyEmailAction', () => {
     expect(recordAuditEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.email_unverify', targetId: 'u-2' })
     );
+    expect(revalidatePath).toHaveBeenCalledWith('/users/u-2');
+  });
+
+  it('does not audit when unverification changes no email', async () => {
+    setEmailVerifiedMock.mockResolvedValueOnce(false);
+    const { unverifyEmailAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+    await unverifyEmailAction(makeForm({ userId: 'u-2' }));
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith('/users/u-2');
   });
 });

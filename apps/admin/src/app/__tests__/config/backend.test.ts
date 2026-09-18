@@ -229,9 +229,15 @@ describe('requireSuperAdmin', () => {
     expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('admin-1');
   });
 
-  it('still allows access when the disabled-status read fails (fails open)', async () => {
+  it('denies mutations when the disabled-status read fails', async () => {
     getUserMetadataMock.mockRejectedValueOnce(new Error('down'));
-    await expect(requireSuperAdmin()).resolves.toEqual({ userId: 'admin-1' });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('admin-1');
+  });
+
+  it('still allows read-only page access when the disabled-status read fails', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('down'));
+    await expect(requireSuperAdmin('page')).resolves.toEqual({ userId: 'admin-1' });
     expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
   });
 
@@ -252,6 +258,41 @@ describe('getAuthenticatedSession', () => {
     await expect(getAuthenticatedSession('/accept-invite?token=tok-1')).rejects.toThrow(
       'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1'
     );
+  });
+
+  it('rejects an off-origin invitation destination', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
+    await expect(
+      getAuthenticatedSession('https://example.org/accept-invite?token=tok-1')
+    ).rejects.toMatchObject({ message: 'NEXT_REDIRECT:/auth' });
+  });
+
+  it('rejects a same-origin destination outside the invitation route', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
+    await expect(getAuthenticatedSession('/dashboard?token=tok-1')).rejects.toMatchObject({
+      message: 'NEXT_REDIRECT:/auth',
+    });
+  });
+
+  it('reconstructs the invitation destination without unrelated parameters', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: null,
+      hasToken: false,
+      error: null,
+    });
+    await expect(
+      getAuthenticatedSession('/accept-invite?token=tok-1&next=https://example.org')
+    ).rejects.toMatchObject({
+      message: 'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1',
+    });
   });
 });
 

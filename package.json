@@ -39,15 +39,14 @@
       "picomatch@>=4.0.0 <4.0.4": ">=4.0.4 <5",
       "@babel/core@<7.29.6": ">=7.29.6",
       "sharp@<=0.35.0": "0.35.0",
-      "nodemailer@8": "10.0.2",
+      "nodemailer@<10.0.2": ">=10.0.2 <11",
       "jose@<=6.2.5": "6.2.5",
       "js-yaml@<4.3.1": ">=4.3.1 <5",
       "postcss@<8.5.23": ">=8.5.23 <9",
       "fast-uri@>=3.0.0 <3.1.5": ">=3.1.5 <4",
       "deepmerge-ts@<8.0.0": ">=8.0.0 <9",
       "adm-zip@<0.6.0": ">=0.6.0 <0.7",
-      "qs@<6.16.0": ">=6.16.0 <7",
-      "mysql2@<3.22.0": ">=3.22.0 <4"
+      "qs@<6.16.0": ">=6.16.0 <7"
     }
   },
   "overrideReasons": {
@@ -57,7 +56,7 @@
     "minimatch@>=10.0.0 <10.2.3": "Security floor added in 06fe464.",
     "minimatch@>=9.0.0 <9.0.7": "Security floor added in 4b6479e.",
     "minimatch@<3.1.4": "Security floor added in 4b6479e.",
-    "axios@<=1.18.0": "Compatibility pin added in 68128ba; keep distinct from the older axios security floor until resolution proves otherwise.",
+    "axios@1": "Security floor from the axios 1.18.0 -> 1.20.0 hardening update in 56c5b56; it replaced the 68128ba compatibility pin, and a range selector reaches every axios 1.x consumer (twilio, sonarqube-scanner).",
     "ajv@>=4.0.0 <6.14.0": "Security floor added in 4b6479e.",
     "flatted@<3.4.2": "Security floor added in 4b6479e.",
     "brace-expansion@<1.1.13": "Security floor added in 4b6479e.",
@@ -66,15 +65,14 @@
     "picomatch@>=4.0.0 <4.0.4": "Security floor added in 4b6479e.",
     "@babel/core@<7.29.6": "Security floor added by the dependency remediation in 98912cd.",
     "sharp@<=0.35.0": "Security pin added by the dependency remediation in 98912cd.",
-    "nodemailer@8": "AIKIDO-2026-645479: supertokens-node@24.0.3 declares nodemailer@^8.0.2 and no published release bumps to >=10.0.2; override forces the patched floor.",
+    "nodemailer@<10.0.2": "AIKIDO-2026-645479: supertokens-node@24.0.3 declares nodemailer@^8.0.2 and no published release bumps to >=10.0.2; override forces the patched floor.",
     "jose@<=6.2.5": "Security pin added in 78b1752.",
     "js-yaml@<4.3.1": "Security floor added in 78b1752.",
     "postcss@<8.5.23": "Security floor added in 78b1752.",
     "fast-uri@>=3.0.0 <3.1.5": "Security floor added in 78b1752.",
     "deepmerge-ts@<8.0.0": "Security floor added in 6fe3907.",
     "adm-zip@<0.6.0": "GHSA-xcpc-8h2w-3j85 remediation added in 698d6d9; GHSA-vwc7-r8mq-g2x9 has no patched release as of 2026-09-09.",
-    "qs@<6.16.0": "Security floor added in 698d6d9.",
-    "mysql2@<3.22.0": "GHSA-3f6p-5ww8-9rcr remediation (dependency-review blocked PR #380): @prisma/dev - Prisma 7's local dev-database CLI, pulled in by the Prisma 7 migration - bundles a MySQL driver alongside its Postgres one even though this repo only ever connects via @prisma/adapter-pg. The vulnerable auth downgrade path is unreachable here, but the package still ships in the tree at the pinned version, which is what dependency-review checks."
+    "qs@<6.16.0": "Security floor added in 698d6d9."
   },
   "overrideResolutionEffects": {
     "axios@>=1.0.0 <1.16.0": false,
@@ -83,7 +81,7 @@
     "minimatch@>=10.0.0 <10.2.3": false,
     "minimatch@>=9.0.0 <9.0.7": false,
     "minimatch@<3.1.4": false,
-    "axios@<=1.18.0": false,
+    "axios@1": true,
     "ajv@>=4.0.0 <6.14.0": false,
     "flatted@<3.4.2": false,
     "brace-expansion@<1.1.13": false,
@@ -92,15 +90,14 @@
     "picomatch@>=4.0.0 <4.0.4": true,
     "@babel/core@<7.29.6": true,
     "sharp@<=0.35.0": false,
-    "nodemailer@8": true,
+    "nodemailer@<10.0.2": true,
     "jose@<=6.2.5": true,
     "js-yaml@<4.3.1": true,
     "postcss@<8.5.23": false,
     "fast-uri@>=3.0.0 <3.1.5": false,
     "deepmerge-ts@<8.0.0": true,
     "adm-zip@<0.6.0": false,
-    "qs@<6.16.0": false,
-    "mysql2@<3.22.0": true
+    "qs@<6.16.0": false
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
@@ -109,10 +106,10 @@
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
-    "lint-staged": "^17.4.1",
+    "lint-staged": "^17.5.1",
     "prettier": "^3.9.6",
     "secretlint": "^13.0.5",
     "sonarqube-scanner": "^5.0.0",
-    "turbo": "^2.10.12"
+    "turbo": "^2.10.13"
   }
 }

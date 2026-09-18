@@ -14,6 +14,11 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({ recordAuditEvent: jest.fn() }));
 
+const canRevokeSuperAdminRoleMock = jest.fn();
+jest.mock('@/app/features/users/adminRoleRevocation', () => ({
+  canRevokeSuperAdminRole: (...args: unknown[]) => canRevokeSuperAdminRoleMock(...args),
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -29,11 +34,13 @@ function makeForm(entries: Record<string, string | undefined>): FormData {
 }
 
 beforeEach(() => {
+  jest.clearAllMocks();
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-self' });
-  removeUserRoleMock.mockReset().mockResolvedValue({ status: 'OK' });
+  removeUserRoleMock.mockReset().mockResolvedValue({ status: 'OK', didUserHaveRole: true });
   getUsersThatHaveRoleMock
     .mockReset()
     .mockResolvedValue({ status: 'OK', users: ['admin-self', 'target-1'] });
+  canRevokeSuperAdminRoleMock.mockReset().mockResolvedValue(true);
 });
 
 describe('revokeAdminAction', () => {
@@ -44,33 +51,93 @@ describe('revokeAdminAction', () => {
   });
 
   it('skips when userId is the caller (self-lockout guard)', async () => {
+    canRevokeSuperAdminRoleMock.mockResolvedValueOnce(false);
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     await revokeAdminAction(makeForm({ userId: 'admin-self' }));
     expect(removeUserRoleMock).not.toHaveBeenCalled();
   });
 
   it('skips when this would remove the last admin', async () => {
-    getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'OK', users: ['target-1'] });
+    canRevokeSuperAdminRoleMock.mockResolvedValueOnce(false);
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     await revokeAdminAction(makeForm({ userId: 'target-1' }));
     expect(removeUserRoleMock).not.toHaveBeenCalled();
   });
 
+  it('skips bootstrap admins whose access is configuration-owned', async () => {
+    canRevokeSuperAdminRoleMock.mockResolvedValueOnce(false);
+    const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+    await revokeAdminAction(makeForm({ userId: 'bootstrap-1' }));
+    expect(removeUserRoleMock).not.toHaveBeenCalled();
+  });
+
   it('skips when getUsersThatHaveRole returns UNKNOWN_ROLE_ERROR', async () => {
-    getUsersThatHaveRoleMock.mockResolvedValueOnce({ status: 'UNKNOWN_ROLE_ERROR' });
+    canRevokeSuperAdminRoleMock.mockResolvedValueOnce(false);
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     await revokeAdminAction(makeForm({ userId: 'target-1' }));
     expect(removeUserRoleMock).not.toHaveBeenCalled();
+  });
+
+  it('skips when no current role holder is a protected bootstrap admin', async () => {
+    canRevokeSuperAdminRoleMock.mockResolvedValue(false);
+    const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+    await revokeAdminAction(makeForm({ userId: 'target-1' }));
+    expect(removeUserRoleMock).not.toHaveBeenCalled();
+  });
+
+  it('preserves a bootstrap role holder across opposing concurrent revocations', async () => {
+    requireSuperAdminMock
+      .mockResolvedValueOnce({ userId: 'admin-a' })
+      .mockResolvedValueOnce({ userId: 'admin-b' });
+
+    const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+    await Promise.all([
+      revokeAdminAction(makeForm({ userId: 'admin-b' })),
+      revokeAdminAction(makeForm({ userId: 'admin-a' })),
+    ]);
+
+    expect(removeUserRoleMock).toHaveBeenCalledTimes(2);
+    expect(removeUserRoleMock).toHaveBeenCalledWith('public', 'admin-a', 'superadmin');
+    expect(removeUserRoleMock).toHaveBeenCalledWith('public', 'admin-b', 'superadmin');
+    expect(canRevokeSuperAdminRoleMock).toHaveBeenCalledWith('admin-a', 'admin-b');
+    expect(canRevokeSuperAdminRoleMock).toHaveBeenCalledWith('admin-b', 'admin-a');
   });
 
   it('removes the role and revalidates /admins and /users/[id]', async () => {
     const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
     const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+    const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+      recordAuditEvent: jest.Mock;
+    };
     await revokeAdminAction(makeForm({ userId: 'target-1' }));
     expect(removeUserRoleMock).toHaveBeenCalledWith('public', 'target-1', 'superadmin');
+    expect(recordAuditEvent).toHaveBeenCalledWith({
+      action: 'role.revoke',
+      actorId: 'admin-self',
+      targetType: 'user',
+      targetId: 'target-1',
+    });
     expect(revalidatePath).toHaveBeenCalledWith('/admins');
     expect(revalidatePath).toHaveBeenCalledWith('/users/target-1');
   });
+
+  it.each([{ status: 'OK', didUserHaveRole: false }, { status: 'UNKNOWN_ROLE_ERROR' }])(
+    'does not audit a no-op result and refreshes both stale pages',
+    async (result) => {
+      removeUserRoleMock.mockResolvedValueOnce(result);
+      const { revokeAdminAction } = await import('@/app/(routes)/(dashboard)/admins/actions');
+      const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+      const { recordAuditEvent } = jest.requireMock('@/app/features/audit/store') as {
+        recordAuditEvent: jest.Mock;
+      };
+
+      await revokeAdminAction(makeForm({ userId: 'target-1' }));
+
+      expect(recordAuditEvent).not.toHaveBeenCalled();
+      expect(revalidatePath).toHaveBeenCalledWith('/admins');
+      expect(revalidatePath).toHaveBeenCalledWith('/users/target-1');
+    }
+  );
 
   it('throws when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));

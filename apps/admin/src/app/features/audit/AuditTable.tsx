@@ -30,8 +30,8 @@ export function AuditTable({
   }
 
   return (
-    <section className="overflow-hidden rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-      <table className="w-full border-collapse text-[13px]">
+    <section className="overflow-x-auto rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+      <table className="min-w-[680px] border-collapse text-[13px]">
         <thead>
           <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
             <th className="px-5 py-3">When</th>

@@ -1,8 +1,9 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
+const mockAddNote = jest.fn();
 jest.mock('@/app/(routes)/(dashboard)/organizations/[id]/noteActions', () => ({
-  addNoteAction: jest.fn().mockResolvedValue({}),
+  addNoteAction: (...args: unknown[]) => mockAddNote(...args),
 }));
 
 import { OrgNotes } from '@/app/\(routes\)/\(dashboard\)/organizations/[id]/OrgNotes';
@@ -20,6 +21,11 @@ function makeNote(overrides: Partial<OrgNote> = {}): OrgNote {
 }
 
 describe('OrgNotes', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockAddNote.mockResolvedValue({});
+  });
+
   it('shows empty state when no notes', () => {
     render(<OrgNotes orgId="org-1" notes={[]} />);
     expect(screen.getByText('No notes yet.')).toBeInTheDocument();
@@ -53,5 +59,29 @@ describe('OrgNotes', () => {
   it('renders the Add note submit button', () => {
     render(<OrgNotes orgId="org-1" notes={[]} />);
     expect(screen.getByRole('button', { name: /Add note/i })).toBeInTheDocument();
+  });
+
+  it('keeps a note available for retry when saving fails', async () => {
+    mockAddNote.mockResolvedValue({ error: 'Could not save note' });
+    render(<OrgNotes orgId="org-1" notes={[]} />);
+    const textarea = screen.getByPlaceholderText(/Add an internal note/i);
+
+    fireEvent.change(textarea, { target: { value: 'Call the clinic back tomorrow' } });
+    fireEvent.click(screen.getByRole('button', { name: /Add note/i }));
+
+    const error = await screen.findByText('Could not save note');
+    expect(textarea).toHaveValue('Call the clinic back tomorrow');
+    expect(error).toHaveAttribute('role', 'alert');
+  });
+
+  it('clears a note after saving succeeds', async () => {
+    render(<OrgNotes orgId="org-1" notes={[]} />);
+    const textarea = screen.getByPlaceholderText(/Add an internal note/i);
+
+    fireEvent.change(textarea, { target: { value: 'Saved note' } });
+    fireEvent.click(screen.getByRole('button', { name: /Add note/i }));
+
+    await waitFor(() => expect(mockAddNote).toHaveBeenCalled());
+    await waitFor(() => expect(textarea).toHaveValue(''));
   });
 });

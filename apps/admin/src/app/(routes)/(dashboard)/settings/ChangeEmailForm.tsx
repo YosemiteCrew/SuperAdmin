@@ -50,7 +50,7 @@ export function ChangeEmailForm({ currentEmail }: Readonly<{ currentEmail: strin
         </Button>
       </div>
       <span className="text-[11.5px] text-[color:var(--ink-faint)]">
-        The new address must be verified before it becomes the sign-in email.
+        The new address becomes your sign-in email immediately. Verify it after the change.
       </span>
       {result ? (
         <output

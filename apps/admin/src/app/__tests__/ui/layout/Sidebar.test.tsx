@@ -85,6 +85,31 @@ describe('Sidebar', () => {
     ).toBeInTheDocument();
   });
 
+  it('opens and closes the phone navigation', () => {
+    render(<Sidebar />);
+    const openButton = screen.getByRole('button', { name: 'Open navigation' });
+    expect(openButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(openButton);
+    const closeButtons = screen.getAllByRole('button', { name: 'Close navigation' });
+    expect(closeButtons[0]).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(closeButtons[1]);
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
+  it('closes the phone navigation after choosing a route', () => {
+    render(<Sidebar />);
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Users' }));
+    expect(screen.getByRole('button', { name: 'Open navigation' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+  });
+
   it('renders without an active route when the pathname is null', () => {
     (usePathname as jest.Mock).mockReturnValue(null);
     render(<Sidebar />);

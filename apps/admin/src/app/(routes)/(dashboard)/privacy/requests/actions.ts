@@ -16,6 +16,21 @@ const REQUESTS_PATH = '/privacy/requests';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+function parseReceivedOn(value: FormDataEntryValue | null): Date | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const receivedAt = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(receivedAt.getTime()) || receivedAt.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
+
+  const latestReceivedAt = new Date();
+  latestReceivedAt.setUTCHours(24, 0, 0, 0);
+  if (receivedAt > latestReceivedAt) return null;
+
+  return receivedAt;
+}
+
 /**
  * Logs a new data-subject request received by email/support and starts the
  * statutory response clock. Audited as privacy.request_create.
@@ -26,6 +41,7 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
   const subjectEmail = formData.get('subjectEmail');
   const type = formData.get('type');
   const notesRaw = formData.get('notes');
+  const receivedAt = parseReceivedOn(formData.get('receivedOn'));
 
   if (typeof subjectEmail !== 'string' || !isValidEmail(subjectEmail)) {
     return { ok: false, error: 'A valid subject email is required' };
@@ -33,12 +49,16 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
   if (!isRequestType(type)) {
     return { ok: false, error: `type must be one of: ${REQUEST_TYPES.join(', ')}` };
   }
+  if (!receivedAt) {
+    return { ok: false, error: 'Enter the date the request was received' };
+  }
   const notes = typeof notesRaw === 'string' ? notesRaw : undefined;
 
   const request = await createDataRequest({
     subjectEmail: subjectEmail.trim(),
     type,
     notes,
+    receivedAt,
   });
 
   // The subject's email is deliberately NOT recorded here. It lives on the
@@ -61,21 +81,35 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
 /**
  * Moves a request to a new status (in_progress / fulfilled / rejected).
  * Audited as privacy.request_update.
+ *
+ * `expectedStatus` is the status the operator's page showed them, submitted
+ * alongside the chosen one. The store only writes when that still matches the
+ * persisted row, so a stale page can never overwrite a decision made after it
+ * loaded - it gets a clear message and the refreshed row instead.
  */
 export async function updateDataRequestStatusAction(formData: FormData): Promise<ActionResult> {
   const { userId: callerId } = await requireSuperAdmin();
 
   const id = formData.get('id');
   const status = formData.get('status');
+  const expectedStatus = formData.get('expectedStatus');
 
   if (typeof id !== 'string' || id.length === 0) {
     return { ok: false, error: 'A request id is required' };
   }
-  if (!isDataRequestStatus(status)) {
+  if (!isDataRequestStatus(status) || !isDataRequestStatus(expectedStatus)) {
     return { ok: false, error: 'Unknown status' };
   }
 
-  await updateDataRequestStatus({ id, status, handledBy: callerId });
+  const result = await updateDataRequestStatus({ id, status, expectedStatus, handledBy: callerId });
+  if (!result.ok) {
+    revalidatePath(REQUESTS_PATH);
+    return {
+      ok: false,
+      error:
+        'Someone else already updated this request. Its current status is shown below - review it and try again.',
+    };
+  }
 
   // Status only, for the same reason as the create path above: the row behind
   // targetId carries the subject, and it is the thing erasure deletes.

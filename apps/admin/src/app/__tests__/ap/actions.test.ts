@@ -6,8 +6,7 @@ jest.mock('@superadmin/database', () => ({
   prisma: {
     aPLicenseToken: {
       create: jest.fn(),
-      findUnique: jest.fn(),
-      update: jest.fn(),
+      updateManyAndReturn: jest.fn(),
     },
   },
 }));
@@ -39,8 +38,10 @@ jest.mock('next/cache', () => ({
 
 import { generateKeyPairSync } from 'node:crypto';
 import { prisma } from '@superadmin/database';
+import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { serverEnv } from '@/app/config/env.server';
+import { recordAuditEvent } from '@/app/features/audit/store';
 
 const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 const TEST_PRIVATE_KEY = privateKey.export({ type: 'pkcs8', format: 'pem' }) as string;
@@ -49,12 +50,11 @@ const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof re
 const mockCreate = prisma.aPLicenseToken.create as jest.MockedFunction<
   typeof prisma.aPLicenseToken.create
 >;
-const mockFindUnique = prisma.aPLicenseToken.findUnique as jest.MockedFunction<
-  typeof prisma.aPLicenseToken.findUnique
+const mockUpdateManyAndReturn = prisma.aPLicenseToken.updateManyAndReturn as jest.MockedFunction<
+  typeof prisma.aPLicenseToken.updateManyAndReturn
 >;
-const mockUpdate = prisma.aPLicenseToken.update as jest.MockedFunction<
-  typeof prisma.aPLicenseToken.update
->;
+const mockRecordAuditEvent = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
 
 function makeFormData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -142,44 +142,85 @@ describe('issueLicenseTokenAction', () => {
 });
 
 describe('revokeLicenseTokenAction', () => {
+  const tokenId = '00000000-0000-4000-8000-000000000001';
+  const cuidTokenId = 'c'.padEnd(25, 'a');
+
   async function revoke(fields: Record<string, string>): Promise<void> {
     const { revokeLicenseTokenAction } = await import('@/app/(routes)/(dashboard)/ap/actions');
     return revokeLicenseTokenAction(makeFormData(fields));
   }
 
-  it('does nothing when tokenId is empty', async () => {
-    await revoke({ tokenId: '' });
-    expect(mockFindUnique).not.toHaveBeenCalled();
+  it('does nothing when tokenId is missing', async () => {
+    await revoke({});
+    expect(mockUpdateManyAndReturn).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when tokenId is not a string', async () => {
+    const file = new File(['token'], 'token.txt');
+    file.toString = () => tokenId;
+    const formData = new FormData();
+    formData.append('tokenId', file);
+    const { revokeLicenseTokenAction } = await import('@/app/(routes)/(dashboard)/ap/actions');
+
+    await revokeLicenseTokenAction(formData);
+
+    expect(mockUpdateManyAndReturn).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when tokenId has an invalid format', async () => {
+    await revoke({ tokenId: 'tok_invalid' });
+    expect(mockUpdateManyAndReturn).not.toHaveBeenCalled();
   });
 
   it('does nothing when token not found', async () => {
-    mockFindUnique.mockResolvedValue(null);
-    await revoke({ tokenId: 'tok_missing' });
-    expect(mockUpdate).not.toHaveBeenCalled();
+    mockUpdateManyAndReturn.mockResolvedValue([]);
+    await revoke({ tokenId: cuidTokenId });
+    expect(mockUpdateManyAndReturn).toHaveBeenCalledWith({
+      where: { id: cuidTokenId, revokedAt: null },
+      data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
+    });
   });
 
   it('does nothing when token already revoked', async () => {
-    mockFindUnique.mockResolvedValue({
-      revokedAt: new Date(),
-      orgId: 'org_1',
-      instanceDomain: 'd',
-    } as never);
-    await revoke({ tokenId: 'tok_already' });
-    expect(mockUpdate).not.toHaveBeenCalled();
+    mockUpdateManyAndReturn.mockResolvedValue([]);
+    await revoke({ tokenId });
+    expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it('does not audit when another request revokes the token first', async () => {
+    mockUpdateManyAndReturn.mockResolvedValue([]);
+
+    await revoke({ tokenId });
+
+    expect(mockUpdateManyAndReturn).toHaveBeenCalledWith({
+      where: { id: tokenId, revokedAt: null },
+      data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
+    });
+    expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
   it('updates revokedAt and revokedBy on success', async () => {
-    mockFindUnique.mockResolvedValue({
-      id: 'tok_1',
-      revokedAt: null,
-      orgId: 'org_1',
-      instanceDomain: 'pims.example.com',
-    } as never);
-    mockUpdate.mockResolvedValue({} as never);
-    await revoke({ tokenId: 'tok_1' });
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'tok_1' },
+    mockUpdateManyAndReturn.mockResolvedValue([
+      {
+        id: tokenId,
+        orgId: 'org_1',
+        instanceDomain: 'pims.example.com',
+      } as never,
+    ]);
+    await revoke({ tokenId });
+    expect(mockUpdateManyAndReturn).toHaveBeenCalledWith({
+      where: { id: tokenId, revokedAt: null },
       data: { revokedAt: expect.any(Date), revokedBy: 'admin_1' },
     });
+    expect(mockRecordAuditEvent).toHaveBeenCalledWith({
+      action: 'ap_token.revoke',
+      actorId: 'admin_1',
+      targetType: 'ap_token',
+      targetId: tokenId,
+      targetLabel: 'pims.example.com (org_1)',
+    });
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/ap');
   });
 });

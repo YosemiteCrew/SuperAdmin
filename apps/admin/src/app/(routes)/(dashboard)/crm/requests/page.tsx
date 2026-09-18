@@ -103,7 +103,11 @@ function RequestCard({
           >
             {FILTERS.find((f) => f.key === r.status)?.label ?? r.status}
           </span>
-          <StatusControl requestId={r.id} status={r.status} />
+          {/* Keyed on status so a rejected stale write, or another admin's
+              change landing via revalidatePath, remounts the control: its
+              local selection and any leftover error both reset to the real
+              row instead of a stale useState(status) closure. */}
+          <StatusControl key={`${r.id}:${r.status}`} requestId={r.id} status={r.status} />
         </div>
       </div>
 
@@ -152,7 +156,7 @@ export default async function ContactRequestsPage({
   searchParams: Promise<{ status?: string | string[]; cursor?: string | string[] }>;
 }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status, cursor } = await searchParams;
   const filter: Filter = FILTERS.find((f) => f.key === status)?.key ?? 'new';
@@ -196,7 +200,8 @@ export default async function ContactRequestsPage({
               }`}
             >
               {f.label}
-              {count ? <span className="opacity-65 tabular-nums">{count}</span> : null}
+              {/* Weight, not opacity: see the same count on /approvals. */}
+              {count ? <span className="font-normal tabular-nums">{count}</span> : null}
             </Link>
           );
         })}

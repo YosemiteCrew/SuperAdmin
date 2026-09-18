@@ -6,7 +6,7 @@ import SessionNode from 'supertokens-node/recipe/session';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { MAX_BULK } from '@/app/features/approvals/constants';
-import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/approvals/store';
+import { approveAccount, rejectAccount } from '@/app/features/approvals/store';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyBulkDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
@@ -65,23 +65,8 @@ async function resolveActorEmail(actorId: string): Promise<string> {
   }
 }
 
-/**
- * Only accounts still pending at execution time are acted on — every id is
- * re-checked against the store, so a stale selection can never overturn a
- * decision another admin made after the page rendered.
- */
-async function isStillPending(userId: string): Promise<boolean> {
-  try {
-    return (await getApprovalState(userId)).status === 'pending';
-  } catch {
-    // Fail closed: unknown state is never acted on in a sweep.
-    return false;
-  }
-}
-
-/** Freshness + existence gate; null means skip this id in the sweep. */
+/** Existence gate; null means skip this id in the sweep. */
 async function resolvePendingTarget(userId: string): Promise<string | null> {
-  if (!(await isStillPending(userId))) return null;
   const target = await SuperTokens.getUser(userId).catch(() => undefined);
   if (!target) return null;
   return target.emails[0] ?? userId;
@@ -108,12 +93,16 @@ export async function bulkApproveAccountsAction(userIds: string[]): Promise<Bulk
 
     // One failing account must never abort the sweep: the rest of the batch
     // still runs, and the summary/revalidation tail below always executes.
-    let stillDisabled: boolean;
+    let approval: Awaited<ReturnType<typeof approveAccount>>;
     try {
-      ({ stillDisabled } = await approveAccount({ userId, actorId }));
+      approval = await approveAccount({ userId, actorId, expectedStatus: 'pending' });
     } catch (err) {
       console.error('[approvals] bulk approve failed', { userId, err });
       failed++;
+      continue;
+    }
+    if (!approval.applied) {
+      skipped++;
       continue;
     }
     await recordAuditEvent({
@@ -125,7 +114,7 @@ export async function bulkApproveAccountsAction(userIds: string[]): Promise<Bulk
     });
     processed++;
 
-    if (targetEmail.includes('@') && !stillDisabled) {
+    if (targetEmail.includes('@') && !approval.stillDisabled) {
       try {
         await sendTransactional({ to: targetEmail, subject: WELCOME_SUBJECT, body: WELCOME_BODY });
         emailsSent++;
@@ -167,7 +156,10 @@ export async function bulkRejectAccountsAction(userIds: string[]): Promise<BulkA
     }
 
     try {
-      await rejectAccount({ userId, actorId });
+      if (!(await rejectAccount({ userId, actorId, expectedStatus: 'pending' }))) {
+        skipped++;
+        continue;
+      }
     } catch (err) {
       console.error('[approvals] bulk reject failed', { userId, err });
       failed++;

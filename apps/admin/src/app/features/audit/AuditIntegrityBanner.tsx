@@ -38,7 +38,10 @@ function Banner({ tone, title, detail }: Readonly<{ tone: Tone; title: string; d
       />
       <span className="flex flex-col gap-0.5">
         <span className="font-medium">{title}</span>
-        <span className="opacity-90">{detail}</span>
+        {/* No resting opacity: each tone's ink already sits near 4.5 on its own
+            tint, so dimming it drops the detail line under AA in light. The
+            weight on the title carries the hierarchy instead. */}
+        <span>{detail}</span>
       </span>
     </div>
   );

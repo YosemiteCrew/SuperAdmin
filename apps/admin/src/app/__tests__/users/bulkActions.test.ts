@@ -17,9 +17,13 @@ jest.mock('supertokens-node/recipe/session', () => ({
 }));
 
 const updateUserMetadataMock = jest.fn();
+const getUserMetadataMock = jest.fn();
 jest.mock('supertokens-node/recipe/usermetadata', () => ({
   __esModule: true,
-  default: { updateUserMetadata: (...a: unknown[]) => updateUserMetadataMock(...a) },
+  default: {
+    getUserMetadata: (...a: unknown[]) => getUserMetadataMock(...a),
+    updateUserMetadata: (...a: unknown[]) => updateUserMetadataMock(...a),
+  },
 }));
 
 const recordAuditEventMock = jest.fn();
@@ -43,10 +47,13 @@ import {
 } from '@/app/(routes)/(dashboard)/users/bulkActions';
 
 beforeEach(() => {
+  const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+  revalidatePath.mockClear();
   requireSuperAdminMock.mockReset().mockResolvedValue({ userId: 'admin-1' });
   getUserMock.mockReset().mockResolvedValue({ emails: ['victim@x.com'] });
   deleteUserMock.mockReset().mockResolvedValue(undefined);
   revokeAllSessionsForUserMock.mockReset().mockResolvedValue([]);
+  getUserMetadataMock.mockReset().mockResolvedValue({ metadata: { disabledAt: 1 } });
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
 });
@@ -95,10 +102,31 @@ describe('bulkDisableUsersAction', () => {
     expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
   });
 
+  it('does nothing when a direct caller exceeds the users-page batch size', async () => {
+    await bulkDisableUsersAction(Array.from({ length: 21 }, (_, index) => `u-${index}`));
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsForUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('does nothing when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('audits a durable disablement even when session revocation fails', async () => {
+    revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('session store down'));
+
+    await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('session store down');
+
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'u-1',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.disable', targetId: 'u-1' })
+    );
   });
 });
 
@@ -108,6 +136,44 @@ describe('bulkEnableUsersAction', () => {
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-1', { disabledAt: null });
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-2', { disabledAt: null });
     expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('processes one complete users-page batch', async () => {
+    await bulkEnableUsersAction(Array.from({ length: 20 }, (_, index) => `u-${index}`));
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(20);
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(20);
+  });
+
+  it('processes duplicate ids only once', async () => {
+    await bulkEnableUsersAction(['u-1', 'u-1', 'u-2']);
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(2);
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips an already-enabled target and continues with a disabled target', async () => {
+    getUserMetadataMock.mockImplementation((id: string) =>
+      Promise.resolve({ metadata: id === 'u-1' ? {} : { disabledAt: 1 } })
+    );
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+
+    await bulkEnableUsersAction(['u-1', 'u-2']);
+
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith('u-2', { disabledAt: null });
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.enable', targetId: 'u-2' })
+    );
+    expect(revalidatePath).toHaveBeenCalledWith('/users');
+  });
+
+  it('does not update or audit when disabled state cannot be read', async () => {
+    getUserMetadataMock.mockRejectedValueOnce(new Error('metadata unavailable'));
+
+    await expect(bulkEnableUsersAction(['u-1'])).rejects.toThrow('metadata unavailable');
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
   });
 });
 
@@ -125,9 +191,22 @@ describe('bulkDeleteUsersAction', () => {
     );
   });
 
-  it('still deletes when the label lookup throws', async () => {
+  it('does not delete or audit users that are already absent', async () => {
+    getUserMock.mockResolvedValue(undefined);
+    await bulkDeleteUsersAction(['missing-user']);
+    expect(deleteUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('skips deletion when bootstrap status cannot be confirmed', async () => {
     getUserMock.mockRejectedValueOnce(new Error('down'));
     await bulkDeleteUsersAction(['u-9']);
-    expect(deleteUserMock).toHaveBeenCalledWith('u-9');
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('skips bootstrap-allowlisted admins', async () => {
+    getUserMock.mockResolvedValue({ emails: ['boot@x.com'] });
+    await bulkDeleteUsersAction(['boot-1']);
+    expect(deleteUserMock).not.toHaveBeenCalled();
   });
 });

@@ -94,6 +94,9 @@ jobs:
       SUPERTOKENS_CONNECTION_URI: http://localhost:3567
       SUPERTOKENS_API_KEY: ci-core-key-not-a-secret
       NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
+      # Build-blocking on main since the bootstrap-admin guard: without it `next build`
+      # fails collecting page data for /api/approvals/reconcile. Same placeholder as ci-affected.
+      SUPERADMIN_BOOTSTRAP_EMAILS: admin@example.com
       # main's application-level gate fails closed in production builds. The
       # local Playwright client must present the same synthetic credential or
       # its webServer readiness probe sees 503 until the 60-second timeout.

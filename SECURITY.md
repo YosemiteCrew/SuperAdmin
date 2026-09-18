@@ -4,7 +4,7 @@
 
 Please do **not** open a public GitHub issue for security vulnerabilities.
 
-Report security issues privately to the maintainers. You will receive a response within 48 hours. If the issue is confirmed, a patch will be released as soon as possible.
+Report security issues privately via [GitHub Security Advisories](https://github.com/YosemiteCrew/SuperAdmin/security/advisories/new). You will receive a response within 48 hours. If the issue is confirmed, a patch will be released as soon as possible.
 
 ## Supported Versions
 

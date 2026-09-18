@@ -19,6 +19,23 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # react and react-dom are a peer pair that must move in lockstep: react-dom
+      # asserts at runtime that both resolve to the exact same version, and its
+      # peerDependency floor rises with every minor. Ungrouped, they are two
+      # production dependencies, so Dependabot opened one PR each - and each half
+      # regenerated the lockfile for only its own side. Both were red with
+      # "Incompatible React versions" and 60 of 181 suites failing to run, which
+      # is not a fault in either PR: neither can be green alone, and merging one
+      # would have broken `main`. See #496 and #497. The type packages join the
+      # group because @types/react-dom's peer floor tracks @types/react the same
+      # way. Declared BEFORE dev-dependencies so the two devDependency type
+      # packages land here rather than in the weekly dev group.
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
       dev-dependencies:
         dependency-type: development
     ignore:
@@ -33,6 +50,19 @@ updates:
       # ts-node were removed from apps/admin (jest.config is plain ESM,
       # check-pnpm-overrides is plain ESM), so they no longer bind this hold.
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # prisma 7 + @prisma/client 7 drop `url` from the schema's datasource
+      # block: connection URLs move to a prisma.config.ts for Migrate, and the
+      # client takes an `adapter` (or accelerateUrl) instead. packages/database
+      # still declares `url = env("DATABASE_URL")`, so v7 fails schema validation
+      # (P1012) inside `prisma generate` — which runs in that package's
+      # postinstall, so `pnpm install` itself dies and EVERY job goes red, not
+      # just the database ones. That is what happened in #143 and #144.
+      # The two must move together, and only once the migration is done.
+      # Lift both rules in the same PR.
+      - dependency-name: 'prisma'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@prisma/client'
         update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: '/'

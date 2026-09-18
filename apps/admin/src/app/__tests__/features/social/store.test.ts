@@ -133,9 +133,15 @@ describe('writeConnection / clearConnection', () => {
     expect(mockUpdate.mock.calls[0][0]).toBe('superadmin:social-poster');
   });
 
-  it('clears by writing null to just that key', async () => {
-    await clearConnection();
+  it('clears stored material by writing null to just that key', async () => {
+    mockGet.mockResolvedValue({ status: 'OK' as const, metadata: { tiktok: 42 } });
+    await expect(clearConnection()).resolves.toBe(true);
     expect(mockUpdate).toHaveBeenCalledWith('superadmin:social-poster', { tiktok: null });
+  });
+
+  it('does not write when no TikTok material is stored', async () => {
+    await expect(clearConnection()).resolves.toBe(false);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
 
@@ -259,9 +265,15 @@ describe('Instagram connection storage', () => {
     expect(written.instagram).not.toContain('accessToken');
   });
 
-  it('clears only its own key', async () => {
-    await clearInstagramConnection();
+  it('clears stored material only from its own key', async () => {
+    mockGet.mockResolvedValue({ status: 'OK' as const, metadata: { instagram: 42 } });
+    await expect(clearInstagramConnection()).resolves.toBe(true);
     expect(mockUpdate).toHaveBeenCalledWith('superadmin:social-poster', { instagram: null });
+  });
+
+  it('does not write when no Instagram material is stored', async () => {
+    await expect(clearInstagramConnection()).resolves.toBe(false);
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('round-trips a stored connection', async () => {
