@@ -58,6 +58,24 @@ function runWith(
 ): RunResult {
   const dir = mkdtempSync(join(tmpdir(), 'build-sha-'));
   try {
+    // On macOS /usr/bin/git is an xcrun shim. With DEVELOPER_DIR unset it
+    // resolves the developer dir the way xcode-select does, and runtimes that
+    // drop DEVELOPER_DIR (jest workers among them) hit the resolution that
+    // rejects the process outright ("You have not agreed to the Xcode license
+    // agreements", exit 69) before the stanza even runs. Keep the shim on the
+    // command line tools the git binary ships with — which is also why the
+    // fallback must not DERIVE from xcode-select, since that reports the very
+    // path that fails. Git on other platforms ignores the variable, so this is
+    // inert there — and pinning it in the fixture env is the same isolation as
+    // the per-command identity flags: the test measures the stanza, not the
+    // runner's shell profile.
+    const env = { ...process.env };
+    if (process.platform === 'darwin' && !env.DEVELOPER_DIR) {
+      env.DEVELOPER_DIR = '/Library/Developer/CommandLineTools';
+    }
+    delete env.AWS_COMMIT_ID;
+    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
+
     // The fallback reads the checkout, so a case that exercises it needs a real
     // one. Identity is passed per-command: a machine with no global git config
     // must not change what this test measures.
@@ -65,16 +83,13 @@ function runWith(
       const git = (...args: string[]): void => {
         execFileSync('git', ['-c', 'user.email=t@t.test', '-c', 'user.name=t', ...args], {
           cwd: dir,
+          env,
           stdio: 'ignore',
         });
       };
       git('init', '-q');
       if (!options.unborn) git('commit', '-q', '--allow-empty', '-m', 'fixture');
     }
-
-    const env = { ...process.env };
-    delete env.AWS_COMMIT_ID;
-    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
 
     const stdout = execFileSync('sh', ['-c', extractBuildShaStanza()], {
       cwd: dir,
