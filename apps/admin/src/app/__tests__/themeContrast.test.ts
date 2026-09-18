@@ -786,32 +786,49 @@ describe('the threshold a pair is held to', () => {
  * the suite green at `8db6486`. A partition can only partition what its
  * alphabet admits, so the alphabet is the thing that has to be shared.
  *
- * `sample` is not documentation. Every spelling is driven through both patterns
+ * `samples` are not documentation. Every sample is driven through both patterns
  * by the arm below, so a widening that lands without a working sample fails
- * there rather than going quiet.
+ * there rather than going quiet. It is a LIST because the review of #533 found
+ * two more spellings that multiply rather than add: the alpha can be numeric or
+ * arbitrary, and it can sit on a bracketed literal or a plain token. One sample
+ * per row would have left three of those four combinations unread — the arm has
+ * to be per sample, not per row.
  *
- * The third spelling is deliberately narrower than `]/<n>`: `text-[13px]/5` is
- * a line-height modifier, not an alpha, and `border-[var(--success)]/40` and
- * `bg-surface/72` make a GROUND translucent rather than an ink. Grounds are a
- * different defect with a different fix and are not claimed here.
+ * Deliberately narrow, each pinned by a negative fixture below:
+ *   `text-[13px]/5`, `text-sm/6`   line-height modifiers, not alphas
+ *   `border-[var(--success)]/40`   a GROUND, not an ink
+ *   `bg-surface/72`                the same, in the plain-token spelling
+ * Grounds are a different defect with a different fix and are not claimed here.
  */
+
+/** `65` or `[0.65]` — Tailwind takes either after the slash. */
+const ALPHA = '(?:\\d+|\\[[^\\]]+\\])';
+
+/** The bare type scale, where `/<n>` is a line height and not an alpha at all. */
+const TYPE_SCALE = '(?:xs|sm|base|lg|\\d*xl)';
+
 const DIM_SPELLINGS = [
   {
-    label: 'a numeric opacity utility',
-    source: 'opacity-\\d+',
-    sample: 'opacity-65',
+    label: 'an opacity utility',
+    source: `opacity-${ALPHA}`,
+    samples: ['opacity-65', 'opacity-[0.6]'],
   },
   {
-    label: 'an arbitrary-value opacity utility',
-    source: 'opacity-\\[[^\\]]+\\]',
-    sample: 'opacity-[0.6]',
+    label: 'an alpha modifier on a bracketed colour literal',
+    source: `text-\\[(?:color:|var\\()[^\\]]*\\]/${ALPHA}`,
+    samples: ['text-[color:var(--btn-ink)]/65', 'text-[var(--ink)]/[0.65]'],
   },
   {
-    label: 'an alpha modifier on a colour literal',
-    source: 'text-\\[(?:color:|var\\()[^\\]]*\\]/\\d+',
-    sample: 'text-[color:var(--btn-ink)]/65',
+    label: 'an alpha modifier on a plain colour token',
+    source: `text-(?!${TYPE_SCALE}/)[a-z\\d-]+/${ALPHA}`,
+    samples: ['text-white/70', 'text-ink-3/[0.65]'],
   },
 ] as const;
+
+/** One arm per SAMPLE. A row whose `samples` is empty would vanish silently. */
+const DIM_SAMPLES = DIM_SPELLINGS.flatMap((spelling) =>
+  spelling.samples.map((sample) => ({ label: spelling.label, spelling, sample }))
+);
 
 const DIM = `(?:${DIM_SPELLINGS.map((spelling) => spelling.source).join('|')})`;
 
@@ -887,22 +904,29 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ).toBeGreaterThan(30);
   });
 
-  it.each(DIM_SPELLINGS)('reads $label through both patterns', (spelling) => {
+  it('drives every spelling in the alphabet through the arm below', () => {
+    // `flatMap` over `samples` means a row with an empty list contributes no
+    // arms and fails nothing — the row would be in the gate and out of the
+    // tests at the same time. So the arms have to account for every row.
+    expect(new Set(DIM_SAMPLES.map((entry) => entry.label)).size).toBe(DIM_SPELLINGS.length);
+  });
+
+  it.each(DIM_SAMPLES)('reads $sample as $label through both patterns', (entry) => {
     // The divergence arm. A widening that reaches one pattern and not the other
     // is the whole defect of #530, and both patterns are built from `source`,
     // so this reads the alphabet entry rather than a copy of it.
-    expect(restingDims(`tabular-nums ${spelling.sample}`)).toEqual([spelling.sample]);
-    expect(`tabular-nums ${spelling.sample}`.match(ANY_DIM)).toEqual([spelling.sample]);
+    expect(restingDims(`tabular-nums ${entry.sample}`)).toEqual([entry.sample]);
+    expect(`tabular-nums ${entry.sample}`.match(ANY_DIM)).toEqual([entry.sample]);
     // And the variant chain has to parse this spelling too, or a new entry
     // arrives refusing `disabled:` states the gate is supposed to allow.
-    expect(restingDims(`rounded-full disabled:${spelling.sample}`)).toEqual([]);
+    expect(restingDims(`rounded-full disabled:${entry.sample}`)).toEqual([]);
     // The sample has to exercise ITS OWN spelling. Without this a lazy sample
     // caught by an earlier entry gives a passing arm that never reads the new
     // pattern at all — an arm per spelling that is not an arm per spelling.
     const matched = DIM_SPELLINGS.filter((other) =>
-      new RegExp(`^(?:${other.source})$`).test(spelling.sample)
+      new RegExp(`^(?:${other.source})$`).test(entry.sample)
     );
-    expect(matched).toEqual([spelling]);
+    expect(matched).toEqual([entry.spelling]);
   });
 
   it('finds no resting dim outside an inactive control', () => {
@@ -930,13 +954,28 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ],
     ['an alpha on a bare var colour literal', 'text-[var(--ink)]/60', ['text-[var(--ink)]/60']],
     ['a variant alpha on a colour literal', 'hover:text-[color:var(--ink)]/60', []],
-    // `text-[13px]/5` is a line-height modifier and `border-…/40`, `bg-surface/72`
-    // dim a GROUND, not an ink. Reading either as a dim would report lines this
-    // gate has no measurement for, so the `color:`/`var(` discriminator and the
-    // `text-` prefix are both pinned here.
+    // The two spellings the review of #533 found, both green against a red
+    // `opacity-[0.6]` control before this: a plain-token alpha, and an
+    // arbitrary alpha value that `/\d+` could not reach.
+    ['an alpha on a plain colour token', 'tabular-nums text-white/70', ['text-white/70']],
+    ['a variant alpha on a plain colour token', 'hover:text-white/70', []],
+    [
+      'an arbitrary alpha on a colour literal',
+      'tabular-nums text-[color:var(--ink)]/[0.65]',
+      ['text-[color:var(--ink)]/[0.65]'],
+    ],
+    ['an arbitrary alpha on a plain colour token', 'text-ink-3/[0.65]', ['text-ink-3/[0.65]']],
+    // `text-[13px]/5` and `text-sm/6` are line-height modifiers and `border-…/40`,
+    // `bg-surface/72` dim a GROUND, not an ink. Reading either as a dim would
+    // report lines this gate has no measurement for, so the `color:`/`var(`
+    // discriminator, the type-scale exclusion and the `text-` prefix are all
+    // pinned here.
     ['a line-height modifier on a bracketed size', 'text-[13px]/5 font-semibold', []],
+    ['a line-height modifier on the type scale', 'text-sm/6 font-semibold', []],
+    ['a line-height modifier on a numbered type scale', 'text-2xl/8 tracking-tight', []],
     ['an alpha on a border literal', 'border border-[var(--success)]/40 px-4', []],
     ['an alpha on a bare ground utility', 'rounded-2xl bg-surface/72 backdrop-blur-md', []],
+    ['an arbitrary alpha on a bare ground utility', 'bg-surface/[0.72] px-3', []],
   ])('reads %s correctly', (_label, literal, expected) => {
     expect(restingDims(literal as string)).toEqual(expected);
     // `transition-opacity` and `duration-200` are not dims; the partition arm
