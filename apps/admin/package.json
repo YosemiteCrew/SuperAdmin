@@ -16,7 +16,8 @@
     "test:coverage": "jest --coverage",
     "backfill:contact": "node scripts/import-contact-backfill.mjs",
     "sonar": "node ./scripts/sonar.mjs",
-    "sonar:full": "pnpm test:coverage && pnpm sonar"
+    "sonar:full": "pnpm test:coverage && pnpm sonar",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@superadmin/database": "workspace:^",
@@ -31,6 +32,8 @@
     "supertokens-web-js": "^0.16.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.62.1",
     "@superadmin/types": "workspace:^",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/dom": "^10.4.2",
