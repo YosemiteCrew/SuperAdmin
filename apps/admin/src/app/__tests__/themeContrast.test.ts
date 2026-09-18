@@ -514,6 +514,116 @@ describe('rendered ink/ground pairs meet WCAG AA', () => {
   });
 });
 
+/**
+ * Block colours that have an ink twin. Each is a fill — a badge background, a
+ * status dot, a `/40` border — and none of them clears AA as small text on this
+ * palette: light `--success` is 3.15 against `--band`, `--danger` is 3.14 on
+ * dark, `--warn` is 1.64 on light. Each therefore has a `-text` variant that
+ * does, and the twin's only reason for existing is that the fill must not be
+ * used as an ink.
+ *
+ * That reason is checked here rather than left to review, because the pair scan
+ * above cannot see these sites at all. `text-[color:var(--success)]` names no
+ * ground of its own — the ground comes from an ancestor — so `pairsInLiteral`
+ * builds no pair and measures nothing. Five such sites shipped under a green
+ * suite until #529.
+ */
+const FILL_ONLY = ['success', 'danger', 'warn'] as const;
+
+/**
+ * Every way a token can be named as a text colour. Held as a map so the canary
+ * below can require each spelling to be SEEN in the tree — a half that stops
+ * matching takes its sites out of the negative arm and out of the count at the
+ * same time, which is the shape #530 was about.
+ */
+const INK_SPELLINGS = {
+  tailwind: (token: string) => `text-\\[color:var\\(--${token}\\)\\]`,
+  // `(?<!-)` so `background-color:` is not read as an ink.
+  css: (token: string) => `(?<!-)color:\\s*var\\(--${token}\\)`,
+} as const;
+
+const inkUses = (token: string) =>
+  new RegExp(
+    Object.values(INK_SPELLINGS)
+      .map((spelling) => spelling(token))
+      .join('|')
+  );
+
+describe('a fill colour is never used as a text ink', () => {
+  let themes: Record<'light' | 'dark', string>;
+
+  beforeAll(() => {
+    themes = themeBlocks(readFileSync(GLOBALS, 'utf8'));
+  });
+
+  /**
+   * The worst ratio `name` can reach as text on this theme's surfaces. `null`
+   * when the token or any surface does not resolve, so a rename is reported by
+   * the arms below instead of quietly shrinking the set being minimised over.
+   */
+  const worstAsText = (theme: string, name: string): number | null => {
+    const ink = flat(theme, name);
+    if (ink === null) return null;
+    const grounds = SURFACES.map((surface) => flat(theme, surface));
+    if (grounds.some((ground) => ground === null)) return null;
+    return Math.min(...(grounds as string[]).map((ground) => contrast(ink, ground)));
+  };
+
+  const CASES = FILL_ONLY.flatMap((token) =>
+    (['light', 'dark'] as const).map((theme) => ({ token, theme }))
+  );
+
+  it.each(CASES)('--$token-text carries small text on every $theme surface', ({ token, theme }) => {
+    const ratio = worstAsText(themes[theme], `${token}-text`);
+    expect(ratio).not.toBeNull();
+    // 4.5, not 3: every site these tokens are used at is under 18.66px.
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(CASES)('--$token-text is no lighter than --$token on $theme', ({ token, theme }) => {
+    // The twin exists to be MORE readable than the fill. Stated as `>=` rather
+    // than `>` because dark `--success` already clears AA at 5.39 and its twin
+    // keeps that value; a twin that drifted lighter than its fill would be the
+    // defect this catches, and it would not show up in the arm above.
+    const fill = worstAsText(themes[theme], token);
+    const twin = worstAsText(themes[theme], `${token}-text`);
+    expect(fill).not.toBeNull();
+    expect(twin).not.toBeNull();
+    expect(twin!).toBeGreaterThanOrEqual(fill!);
+  });
+
+  it('reads enough of the tree for the arms below to be able to fail', () => {
+    // The negative below passes just as cleanly over an empty file list.
+    expect(sourceFiles(SRC, /\.(tsx?|css)$/).length).toBeGreaterThan(50);
+  });
+
+  it.each(Object.keys(INK_SPELLINGS))('sees an ink twin written in the %s spelling', (spelling) => {
+    // The positive control, one per spelling: the twins are written in both,
+    // so each half of the pattern is shown to find something in this tree
+    // before the negative is believed. Without this, a half that stops matching
+    // removes its sites from the negative arm silently.
+    const pattern = INK_SPELLINGS[spelling as keyof typeof INK_SPELLINGS];
+    const seen = sourceFiles(SRC, /\.(tsx?|css)$/).filter((file) => {
+      const text = readFileSync(file, 'utf8');
+      return FILL_ONLY.some((token) => new RegExp(pattern(`${token}-text`)).test(text));
+    });
+    expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it.each(FILL_ONLY)('--%s is not painted as text anywhere', (token) => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC, /\.(tsx?|css)$/)) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, index) => {
+          if (inkUses(token).test(line))
+            offenders.push(`${file.slice(SRC.length + 1)}:${index + 1}`);
+        });
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 // The two rules the scan applies before it measures anything. Neither is
 // exercised by the tree as it stands — every pairing at this head passes either
 // way — so without these they are branches whose mutation goes unnoticed.

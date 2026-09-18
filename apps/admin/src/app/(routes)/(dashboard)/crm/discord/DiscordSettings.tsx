@@ -25,7 +25,7 @@ const PRIMARY_BTN =
 /** Inline status copy sitting beside its button, per the design: green when the
  *  action succeeded, danger when it failed. Green reads as "good status" here,
  *  which is what the mockup shows — it is not decoration. */
-const OK_TEXT = 'text-[12px] font-semibold text-[color:var(--success)]';
+const OK_TEXT = 'text-[12px] font-semibold text-[color:var(--success-text)]';
 const ERROR_TEXT = 'text-[12px] font-semibold text-[color:var(--danger-text)]';
 
 export function DiscordSettings({ config }: Readonly<{ config: DiscordConfig }>) {

@@ -40,7 +40,7 @@ function InviteReadyCard({
         </button>
       </div>
       {copyStatus === 'copied' ? (
-        <p role="status" className="text-[11.5px] font-semibold text-[color:var(--success)]">
+        <p role="status" className="text-[11.5px] font-semibold text-[color:var(--success-text)]">
           Copied to clipboard.
         </p>
       ) : null}

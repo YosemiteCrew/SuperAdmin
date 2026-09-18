@@ -37,7 +37,7 @@ export function SyncContactsButton() {
         <p
           role={totalFailure ? 'alert' : 'status'}
           className={`text-[11px] font-semibold ${
-            totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--success)]'
+            totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--success-text)]'
           }`}
         >
           {syncResult}
