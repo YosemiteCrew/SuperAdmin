@@ -132,7 +132,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
                 type="button"
                 disabled={pending}
                 onClick={() => setDeleteOpen(true)}
-                className={`${BULK_BTN} border-[color:var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
+                className={`${BULK_BTN} border-[color:var(--danger-border)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
               >
                 Delete
               </button>
