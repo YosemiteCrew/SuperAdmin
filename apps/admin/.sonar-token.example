@@ -2,8 +2,7 @@ How apps/admin finds your SonarCloud token. sonar-local.sh and
 fetch-sonar-issues.command both resolve it through sonar-token.sh, in this order:
 
   1. the SONAR_TOKEN environment variable
-  2. the macOS login Keychain, generic password, service name
-     "sonar-token-superadmin"
+  2. the login Keychain, service name "sonar-token-superadmin"
   3. a gitignored ".sonar-token" file in this folder (legacy)
 
 Generate a token at: https://sonarcloud.io/account/security
