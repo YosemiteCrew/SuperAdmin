@@ -12,8 +12,14 @@ export interface MemorySnapshot {
   heapTotalMb: number;
 }
 
+export interface ContactIntakeHealth {
+  keyConfigured: boolean;
+  newestSubmissionAt: Date | null | 'unavailable';
+}
+
 export interface SystemHealth {
   supertokens: HealthCheck;
+  contactIntake: ContactIntakeHealth;
   totalUsers: number;
   adminCount: number;
   memory: MemorySnapshot;
