@@ -62,6 +62,28 @@ describe('RequestsTable', () => {
     expect(typeCells).toHaveLength(1);
   });
 
+  it('renders the received calendar day in UTC', () => {
+    const formatDate = jest
+      .spyOn(Date.prototype, 'toLocaleDateString')
+      .mockImplementation((_locales, options) =>
+        options?.timeZone === 'UTC' ? '3/1/2026' : '2/28/2026'
+      );
+
+    try {
+      render(
+        <RequestsTable
+          requests={[makeRequest({ receivedAt: new Date('2026-03-01T00:00:00.000Z') })]}
+          nowMs={NOW_MS}
+        />
+      );
+      expect(screen.getByText('3/1/2026')).toBeInTheDocument();
+      expect(screen.queryByText('2/28/2026')).not.toBeInTheDocument();
+      expect(formatDate).toHaveBeenCalledWith(undefined, { timeZone: 'UTC' });
+    } finally {
+      formatDate.mockRestore();
+    }
+  });
+
   it('links the subject to that request\u2019s record, so the panel record is one click away', () => {
     render(<RequestsTable requests={[makeRequest({ id: 'dr_42' })]} nowMs={NOW_MS} />);
     const link = screen.getByRole('link', { name: 'person@example.com' });
@@ -109,6 +131,7 @@ describe('RequestsTable', () => {
     render(<RequestsTable requests={[]} nowMs={NOW_MS} />);
     expect(screen.getByLabelText(/Subject email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('type', 'date');
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('max', '2026-07-05');
     expect(screen.getByLabelText(/Received on/i)).toBeRequired();
     expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();

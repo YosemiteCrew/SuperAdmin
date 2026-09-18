@@ -145,7 +145,7 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
   );
 }
 
-function LogForm() {
+function LogForm({ nowMs }: { readonly nowMs: number }) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -196,7 +196,14 @@ function LogForm() {
           <label htmlFor="dr-received-on" className={FIELD_LABEL}>
             Received on
           </label>
-          <input id="dr-received-on" name="receivedOn" type="date" required className={FIELD} />
+          <input
+            id="dr-received-on"
+            name="receivedOn"
+            type="date"
+            max={new Date(nowMs + 86_400_000).toISOString().slice(0, 10)}
+            required
+            className={FIELD}
+          />
         </div>
         <div className="flex min-w-[200px] flex-1 flex-col gap-1">
           <label htmlFor="dr-notes" className={FIELD_LABEL}>
@@ -240,7 +247,7 @@ export function RequestsTable({
 }) {
   return (
     <div className="flex flex-col gap-[22px]">
-      <LogForm />
+      <LogForm nowMs={nowMs} />
 
       <div className={`${CARD} overflow-x-auto`}>
         {requests.length === 0 ? (
@@ -273,7 +280,9 @@ export function RequestsTable({
                       </Link>
                     </td>
                     <td className={TD}>{TYPE_LABELS[request.type] ?? request.type}</td>
-                    <td className={TD}>{request.receivedAt.toLocaleDateString()}</td>
+                    <td className={TD}>
+                      {request.receivedAt.toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                    </td>
                     <td className="px-[18px] py-3">
                       <DeadlineBadge dueAt={request.dueAt} status={status} nowMs={nowMs} />
                     </td>

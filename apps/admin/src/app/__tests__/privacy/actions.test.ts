@@ -122,6 +122,29 @@ describe('logDataRequestAction', () => {
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
+  it('accepts UTC tomorrow but rejects later received dates', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-18T12:00:00.000Z'));
+    mockCreate.mockResolvedValue({ id: 'dr_2', subjectEmail: 'a@b.com' } as never);
+
+    try {
+      const tomorrow = await logDataRequestAction(
+        makeFormData({ subjectEmail: 'a@b.com', type: 'access', receivedOn: '2026-09-19' })
+      );
+      const future = await logDataRequestAction(
+        makeFormData({ subjectEmail: 'a@b.com', type: 'access', receivedOn: '2099-01-01' })
+      );
+
+      expect(tomorrow).toEqual({ ok: true });
+      expect(future).toEqual({ ok: false, error: 'Enter the date the request was received' });
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ receivedAt: new Date('2026-09-19T00:00:00.000Z') })
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   // The subject's email must not be denormalised into the audit log: the log has
   // no erasure workflow, so honouring an erasure request would otherwise leave
   // the requester's address behind in it. The DataRequest row behind targetId is

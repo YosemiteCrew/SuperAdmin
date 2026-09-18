@@ -23,6 +23,11 @@ function parseReceivedOn(value: FormDataEntryValue | null): Date | null {
   if (Number.isNaN(receivedAt.getTime()) || receivedAt.toISOString().slice(0, 10) !== value) {
     return null;
   }
+
+  const latestReceivedAt = new Date();
+  latestReceivedAt.setUTCHours(24, 0, 0, 0);
+  if (receivedAt > latestReceivedAt) return null;
+
   return receivedAt;
 }
 
