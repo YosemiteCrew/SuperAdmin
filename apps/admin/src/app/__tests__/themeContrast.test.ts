@@ -199,6 +199,10 @@ describe('theme contrast', () => {
       const end = source.indexOf('\n}', start);
       expect(end).toBeGreaterThan(start);
       scope = source.slice(start, end);
+      // Cutting at the first column-0 brace can narrow past the span this
+      // guards, and a scope that no longer contains it passes for the wrong
+      // reason. Anchor on the detail copy so the narrowing fails instead.
+      expect(scope).toContain('verify to make them visible to pet parents');
     }
     const resting = [...scope.matchAll(/(?:^|["'`\s])((?:[a-z-]+:)*)(opacity-\d+)/g)]
       .filter((match) => match[1] === '')
