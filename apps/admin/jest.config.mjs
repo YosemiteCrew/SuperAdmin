@@ -28,6 +28,7 @@ const config = {
     '!<rootDir>/src/app/components/supertokensProvider.tsx',
     // Trivial barrel re-exports
     '!<rootDir>/src/app/features/**/index.ts',
+    '<rootDir>/src/app/features/health/index.ts',
     '!<rootDir>/src/app/ui/components/index.ts',
   ],
   // Server-rendered pages and layouts under (routes) are evaluated by Next at
