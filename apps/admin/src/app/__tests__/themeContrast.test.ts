@@ -20,26 +20,30 @@ function contrast(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe('dark theme contrast', () => {
+describe('theme contrast', () => {
+  let lightTheme: string;
   let darkTheme: string;
 
   beforeAll(() => {
     const source = readFileSync(GLOBALS, 'utf8');
-    const match = /\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/.exec(source);
-    if (!match) throw new Error('Dark theme token block not found');
-    darkTheme = match[1];
+    const lightMatch = /:root\s*\{([\s\S]*?)\n\}/.exec(source);
+    const darkMatch = /\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/.exec(source);
+    if (!lightMatch) throw new Error('Light theme token block not found');
+    if (!darkMatch) throw new Error('Dark theme token block not found');
+    lightTheme = lightMatch[1];
+    darkTheme = darkMatch[1];
   });
 
-  function rawToken(name: string): string {
-    const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(darkTheme);
-    if (!match) throw new Error(`Dark theme token --${name} not found`);
+  function rawToken(theme: string, name: string): string {
+    const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(theme);
+    if (!match) throw new Error(`Theme token --${name} not found`);
     return match[1].trim();
   }
 
-  function colorToken(name: string): string {
-    const value = rawToken(name);
+  function colorToken(theme: string, name: string): string {
+    const value = rawToken(theme, name);
     const reference = /^var\(--([^)]+)\)$/.exec(value);
-    if (reference) return colorToken(reference[1]);
+    if (reference) return colorToken(theme, reference[1]);
     if (!/^#[\da-f]{6}$/i.test(value)) throw new Error(`--${name} is not a six-digit color`);
     return value.slice(1);
   }
@@ -49,7 +53,18 @@ describe('dark theme contrast', () => {
     ['search shortcut hint', 'ink-faint', 'pill-raised'],
     ['brand action links', 'color-text-brand', 'screen'],
   ])('%s meets WCAG AA', (_label, foreground, background) => {
-    expect(contrast(colorToken(foreground), colorToken(background))).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(colorToken(darkTheme, foreground), colorToken(darkTheme, background))
+    ).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([
+    ['screen', 'screen'],
+    ['page', 'page'],
+  ])('light ink-faint on %s meets WCAG AA', (_label, background) => {
+    expect(
+      contrast(colorToken(lightTheme, 'ink-faint'), colorToken(lightTheme, background))
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   it.each([
@@ -60,9 +75,10 @@ describe('dark theme contrast', () => {
     expect(contrast(foreground, background)).toBeLessThan(4.5);
   });
 
-  it('keeps the SuperTokens tertiary triplet aligned with ink-faint', () => {
-    const hex = colorToken('ink-faint');
+  it.each(['light', 'dark'])('keeps the %s SuperTokens tertiary triplet aligned', (name) => {
+    const theme = name === 'light' ? lightTheme : darkTheme;
+    const hex = colorToken(theme, 'ink-faint');
     const channels = hex.match(/../g)!.map((channel) => Number.parseInt(channel, 16));
-    expect(rawToken('ink-3-rgb')).toBe(channels.join(', '));
+    expect(rawToken(theme, 'ink-3-rgb')).toBe(channels.join(', '));
   });
 });

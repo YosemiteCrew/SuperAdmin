@@ -43,7 +43,12 @@ describe('CommandPalette', () => {
   it('opens via the custom event', () => {
     render(<CommandPalette />);
     openPalette();
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    const input = screen.getByLabelText(/command palette input/i);
+    expect(dialog).toHaveClass('shadow-[0_28px_70px_var(--sh12)]');
+    expect(dialog.parentElement).toHaveClass('bg-[var(--glass-93)]');
+    expect(input.parentElement).toHaveClass('shadow-[inset_0_1px_0_var(--hairline-soft)]');
+    expect(input.parentElement?.parentElement).toHaveClass('bg-[var(--blue-soft)]');
   });
 
   it('opens via ⌘K keyboard shortcut', () => {
