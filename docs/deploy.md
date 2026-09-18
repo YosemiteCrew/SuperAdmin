@@ -98,7 +98,8 @@ character for character, or the callback fails:
 
 Set `PANEL_BASIC_AUTH_CREDENTIALS` to a distinct `username:password` credential.
 The application proxy requires it for every panel page and API route except the
-nine exact machine-facing method/path pairs declared in `src/proxy.ts`. Those
+exact machine-facing method/path pairs declared in `BASIC_AUTH_EXEMPTIONS` in
+`apps/admin/src/proxy.ts`. Those
 routes retain their own bearer token, shared-key, rate-limit, and validation
 controls. SuperTokens role enforcement and TOTP remain required behind this
 additional layer.
