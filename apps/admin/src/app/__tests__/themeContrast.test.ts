@@ -1036,6 +1036,11 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ['an alpha on a bare ground utility', 'rounded-2xl bg-surface/72 backdrop-blur-md', []],
     ['an arbitrary alpha on a bare ground utility', 'bg-surface/[0.72] px-3', []],
     ['a line-height modifier on a var-shorthand size', 'text-(length:--s)/6 font-bold', []],
+    // Tailwind's shorthand always names a CSS variable, so the `--` is the
+    // discriminator in the alpha position too. Without it `ALPHA` reads any
+    // parenthesised text as an alpha and this fixture is the only thing that
+    // tells you — every legal sample stays green either way.
+    ['a parenthesised non-variable alpha', 'text-white/(foo) font-bold', []],
     ['an alpha on a var-shorthand ground', 'rounded-2xl bg-(--surface)/72 px-3', []],
     ['an alpha on a var-shorthand border', 'border border-(--success)/40 px-4', []],
   ])('reads %s correctly', (_label, literal, expected) => {
