@@ -265,7 +265,11 @@ Two consequences worth knowing before changing anything here:
   normally auto-enables RLS is scoped to the `public` schema and has never fired
   for the panel's tables. `apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts`
   is what catches it: add a model without an `ALTER TABLE ... ENABLE ROW LEVEL
-SECURITY` in a migration and it fails, naming the table.
+SECURITY` in a migration and it fails, naming the table. It reads the
+  migrations in the order Prisma applies them, so a later `DISABLE` counts, and
+  it fails on any `CREATE POLICY` or `ALTER POLICY`. The required CI check also
+  migrates a throwaway database and runs `packages/database/scripts/assert-rls.sql`
+  against it.
 
 ### Until then: the schema requirement, and why
 

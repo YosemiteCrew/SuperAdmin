@@ -14,6 +14,7 @@ import { collectAccountData } from '@/app/features/users/dataExport';
 import { setEmailVerified } from '@/app/features/users/emailVerification';
 import { canRevokeSuperAdminRole } from '@/app/features/users/adminRoleRevocation';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
+import { disableAccount } from '@/app/features/users/disable';
 
 function auditUser(action: AuditAction, actorId: string, userId: string): Promise<void> {
   return recordAuditEvent({ action, actorId, targetType: 'user', targetId: userId });
@@ -32,8 +33,9 @@ export async function disableUserAction(formData: FormData) {
   if (userId === actorId) return; // never lock yourself out
   if (await isBootstrapAdmin(userId)) return; // never lock out a break-glass admin
 
-  await UserMetadataNode.updateUserMetadata(userId, { disabledAt: Date.now() });
-  await auditUser('user.disable', actorId, userId);
+  if (await disableAccount(userId)) await auditUser('user.disable', actorId, userId);
+  // Revoke even when already disabled: pressing Disable again is the retry for
+  // a revocation that failed after the durable disable landed.
   await SessionNode.revokeAllSessionsForUser(userId);
   revalidatePath(`/users/${userId}`);
 }

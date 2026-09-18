@@ -2,7 +2,7 @@ import 'server-only';
 
 import { prisma } from '@superadmin/database';
 
-import { ERASED_SUBJECT } from '@/app/constants';
+import { ERASED_SUBJECT, isErasedSubjectKey } from '@/app/constants';
 
 import { normalizeSubjectEmail } from './subjectData';
 
@@ -69,6 +69,18 @@ export interface SubjectErasureReport {
  */
 export async function eraseSubjectData(rawEmail: string): Promise<SubjectErasureReport> {
   const subjectEmail = normalizeSubjectEmail(rawEmail);
+
+  // Re-running an erasure on a row that already went through one: the
+  // tombstone is shared by every erased subject, so it has nothing left to
+  // erase and must not count other subjects' rows as this one's.
+  if (isErasedSubjectKey(subjectEmail)) {
+    return {
+      erasedAt: new Date().toISOString(),
+      subjectEmail,
+      deleted: { contactLeads: 0, contactRequests: 0 },
+      retained: { consentSubjects: 0, consentEvents: 0, dataRequests: 0 },
+    };
+  }
 
   const { deleted, retained } = await prisma.$transaction(async (tx) => {
     // Counted before the delete and before the nulling, because both make the

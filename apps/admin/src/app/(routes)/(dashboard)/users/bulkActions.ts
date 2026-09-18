@@ -10,6 +10,7 @@ import { DEFAULT_PAGE_SIZE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
+import { disableAccount } from '@/app/features/users/disable';
 
 function cleanIds(userIds: unknown): string[] {
   if (!Array.isArray(userIds) || userIds.length > DEFAULT_PAGE_SIZE) return [];
@@ -33,8 +34,9 @@ export async function bulkDisableUsersAction(userIds: string[]) {
   for (const id of cleanIds(userIds)) {
     if (id === actorId) continue; // never disable yourself in a sweep
     if (await isBootstrapAdmin(id)) continue; // never lock out a break-glass admin
-    await UserMetadataNode.updateUserMetadata(id, { disabledAt: Date.now() });
-    await auditEach('user.disable', actorId, id);
+    if (await disableAccount(id)) await auditEach('user.disable', actorId, id);
+    // Revoke even when already disabled: pressing Disable again is the retry for
+    // a revocation that failed after the durable disable landed.
     await SessionNode.revokeAllSessionsForUser(id);
   }
   revalidatePath('/users');

@@ -45,7 +45,9 @@ module.exports = {
   '**/*.{json,md,css,scss,html,yml,yaml}': (files) => [
     `prettier --write ${files.map(quote).join(' ')}`,
   ],
-  '**/*.{js,jsx,ts,tsx,mjs,cjs,json,md,yml,yaml,env,txt,sh,properties}': (files) => [
-    `secretlint --maskSecrets ${files.map(quoteGlob).join(' ')}`,
-  ],
+  // Every staged file, dotfiles included, so an env file such as `.env.production`
+  // is scanned like any other. `--no-gitignore` because a staged file is tracked
+  // whatever `.gitignore` says about its name. Binaries are skipped by the
+  // ignorePatterns in `.secretlintrc.cjs`.
+  '**/*': (files) => [`secretlint --no-gitignore --maskSecrets ${files.map(quoteGlob).join(' ')}`],
 };
