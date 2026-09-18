@@ -114,7 +114,7 @@ function RevokeButton({ row }: { readonly row: AdminRow }) {
       <button
         type="submit"
         disabled={pending}
-        className={`${ACTION_BTN} border-[var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
+        className={`${ACTION_BTN} border-[var(--danger-border)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
       >
         {pending ? 'Removing…' : 'Revoke'}
       </button>
