@@ -200,7 +200,8 @@ export default async function ContactRequestsPage({
               }`}
             >
               {f.label}
-              {count ? <span className="opacity-65 tabular-nums">{count}</span> : null}
+              {/* Weight, not opacity: see the same count on /approvals. */}
+              {count ? <span className="font-normal tabular-nums">{count}</span> : null}
             </Link>
           );
         })}

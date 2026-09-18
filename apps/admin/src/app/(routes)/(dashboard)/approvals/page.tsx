@@ -71,7 +71,10 @@ export default async function ApprovalsPage({
           >
             {f.label}
             {f.key === 'pending' && pendingCount > 0 ? (
-              <span className="tabular-nums opacity-65">{pendingCount}</span>
+              // Weight, not opacity, carries the step down from the label: a
+              // resting opacity-65 dropped this count to 2.78 in light and
+              // 3.51 in dark against every surface the nav sits on.
+              <span className="tabular-nums font-normal">{pendingCount}</span>
             ) : null}
           </Link>
         ))}

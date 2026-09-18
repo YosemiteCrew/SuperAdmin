@@ -153,11 +153,14 @@ export function AdminsTable({ rows }: { readonly rows: AdminRow[] }) {
           </thead>
           <tbody>
             {rows.map((row) => (
+              // A disabled account's email, name and last sign-in are still
+              // information, so WCAG 1.4.3's inactive-component exemption does
+              // not reach them. A resting opacity-60 on the row put every cell under AA
+              // in light (email 4.34, name 2.44, the Disabled badge 2.74); the
+              // Status column already carries the state as a danger-tone badge.
               <tr
                 key={row.id}
-                className={`border-b border-[var(--hairline)] transition-colors last:border-0 hover:bg-[var(--surface-soft)] ${
-                  row.disabled ? 'opacity-60' : ''
-                }`}
+                className="border-b border-[var(--hairline)] transition-colors last:border-0 hover:bg-[var(--surface-soft)]"
               >
                 <td className="px-5 py-[15px]">
                   <div className="flex items-center gap-[10px]">
