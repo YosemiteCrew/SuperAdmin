@@ -100,6 +100,7 @@ describe('disableUserAction', () => {
   });
 
   it('flags the account, revokes sessions, audits, and revalidates', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: {} });
     const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
     await disableUserAction(makeForm({ userId: 'u-7' }));
@@ -116,6 +117,7 @@ describe('disableUserAction', () => {
 
   it('audits the durable disablement even when session revocation fails', async () => {
     revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('session store down'));
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: {} });
     const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
 
     await expect(disableUserAction(makeForm({ userId: 'u-7' }))).rejects.toThrow(
@@ -129,6 +131,48 @@ describe('disableUserAction', () => {
     expect(recordAuditEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.disable', targetId: 'u-7' })
     );
+  });
+
+  it('neither rewrites nor audits an account that is already disabled, but still revokes and revalidates', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({ metadata: { disabledAt: 1 } });
+    const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+
+    await disableUserAction(makeForm({ userId: 'u-7' }));
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-7');
+    expect(revalidatePath).toHaveBeenCalledWith('/users/u-7');
+  });
+
+  it('treats a stale detail page (another admin disabled it since) as a no-op', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({
+      metadata: { disabledAt: 1_700_000_000_000, rejectionDisabled: null },
+    });
+    const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await disableUserAction(makeForm({ userId: 'u-7' }));
+
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('takes over a rejection-owned disable: clears the flag, keeps disabledAt, audits once', async () => {
+    getUserMetadataMock.mockResolvedValueOnce({
+      metadata: { disabledAt: 1_700_000_000_000, rejectionDisabled: true },
+    });
+    const { disableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await disableUserAction(makeForm({ userId: 'u-7' }));
+
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith('u-7', { rejectionDisabled: null });
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(1);
+    expect(recordAuditEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'user.disable', targetId: 'u-7' })
+    );
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-7');
   });
 });
 
