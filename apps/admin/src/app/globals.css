@@ -129,6 +129,7 @@
   --nav-active-bg: rgba(37, 123, 237, 0.11);
   --pink: #ff90d4;
   --success: #008f5d;
+  --success-text: #006b45;
   --warn: #f59e0b;
   --warn-text: #9b4708;
   --warn-bg: rgba(245, 158, 11, 0.12);
@@ -239,6 +240,7 @@
   --nav-active-bg: rgba(143, 182, 245, 0.13);
   --pink: #ff90d4;
   --success: #2bbd86;
+  --success-text: #2bbd86;
   --warn: #f5a83c;
   --warn-text: #f2b56b;
   --warn-bg: rgba(245, 158, 11, 0.16);

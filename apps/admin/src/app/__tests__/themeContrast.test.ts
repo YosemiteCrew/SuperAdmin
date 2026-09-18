@@ -514,6 +514,149 @@ describe('rendered ink/ground pairs meet WCAG AA', () => {
   });
 });
 
+/**
+ * Block colours that have an ink twin. Each is a fill — a badge background, a
+ * status dot, a `/40` border — and none of them clears AA as small text on this
+ * palette: light `--success` is 3.15 against `--band`, `--danger` is 3.14 on
+ * dark, `--warn` is 1.64 on light. Each therefore has a `-text` variant that
+ * does, and the twin's only reason for existing is that the fill must not be
+ * used as an ink.
+ *
+ * That reason is checked here rather than left to review, because the pair scan
+ * above cannot see these sites at all. `text-[color:var(--success)]` names no
+ * ground of its own — the ground comes from an ancestor — so `pairsInLiteral`
+ * builds no pair and measures nothing. Five such sites shipped under a green
+ * suite until #529.
+ */
+const FILL_ONLY = ['success', 'danger', 'warn'] as const;
+
+/**
+ * Every way a token can be named as a text colour. Held as a map so the canary
+ * below can require each spelling to be SEEN in the tree — a half that stops
+ * matching takes its sites out of the negative arm and out of the count at the
+ * same time, which is the shape #530 was about.
+ */
+const INK_SPELLINGS = [
+  {
+    label: 'tailwind',
+    source: (token: string) => `text-\\[color:var\\(--${token}\\)\\]`,
+    sample: 'inline-flex text-[color:var(--success)]',
+  },
+  {
+    // `[` as well as `-` in the lookbehind: without the `[` this also matches
+    // the Tailwind literal above, which subsumes the other spelling and makes
+    // its arm pass without ever reading it. Without the `-`, `background-color`
+    // reads as an ink.
+    label: 'css',
+    source: (token: string) => `(?<![-\\[])color:\\s*var\\(--${token}\\)`,
+    sample: '  color: var(--success);',
+  },
+] as const;
+
+const inkUses = (token: string) =>
+  new RegExp(INK_SPELLINGS.map((spelling) => spelling.source(token)).join('|'));
+
+describe('a fill colour is never used as a text ink', () => {
+  let themes: Record<'light' | 'dark', string>;
+
+  beforeAll(() => {
+    themes = themeBlocks(readFileSync(GLOBALS, 'utf8'));
+  });
+
+  /**
+   * The worst ratio `name` can reach as text on this theme's surfaces. `null`
+   * when the token or any surface does not resolve, so a rename is reported by
+   * the arms below instead of quietly shrinking the set being minimised over.
+   */
+  const worstAsText = (theme: string, name: string): number | null => {
+    const ink = flat(theme, name);
+    if (ink === null) return null;
+    const grounds = SURFACES.map((surface) => flat(theme, surface));
+    if (grounds.some((ground) => ground === null)) return null;
+    return Math.min(...(grounds as string[]).map((ground) => contrast(ink, ground)));
+  };
+
+  const CASES = FILL_ONLY.flatMap((token) =>
+    (['light', 'dark'] as const).map((theme) => ({ token, theme }))
+  );
+
+  it.each(CASES)('--$token-text carries small text on every $theme surface', ({ token, theme }) => {
+    const ratio = worstAsText(themes[theme], `${token}-text`);
+    expect(ratio).not.toBeNull();
+    // 4.5, not 3: every site these tokens are used at is under 18.66px.
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each(CASES)('--$token-text is no lighter than --$token on $theme', ({ token, theme }) => {
+    // The twin exists to be MORE readable than the fill. Stated as `>=` rather
+    // than `>` because dark `--success` already clears AA at 5.39 and its twin
+    // keeps that value; a twin that drifted lighter than its fill would be the
+    // defect this catches, and it would not show up in the arm above.
+    const fill = worstAsText(themes[theme], token);
+    const twin = worstAsText(themes[theme], `${token}-text`);
+    expect(fill).not.toBeNull();
+    expect(twin).not.toBeNull();
+    expect(twin!).toBeGreaterThanOrEqual(fill!);
+  });
+
+  it('reads enough of the tree for the arms below to be able to fail', () => {
+    // The negative below passes just as cleanly over an empty file list.
+    expect(sourceFiles(SRC, /\.(tsx?|css)$/).length).toBeGreaterThan(50);
+  });
+
+  it.each(INK_SPELLINGS)('sees an ink twin written in the $label spelling', (spelling) => {
+    // The positive control, one per spelling: the twins are written in both,
+    // so each half of the pattern is shown to find something in this tree
+    // before the negative is believed. Without this, a half that stops matching
+    // removes its sites from the negative arm silently.
+    const seen = sourceFiles(SRC, /\.(tsx?|css)$/).filter((file) => {
+      const text = readFileSync(file, 'utf8');
+      return FILL_ONLY.some((token) => new RegExp(spelling.source(`${token}-text`)).test(text));
+    });
+    expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it.each(INK_SPELLINGS)('reads the $label sample through that spelling alone', (spelling) => {
+    // The clause that caught the first version of this map: the CSS half was
+    // written without `[` in its lookbehind, so it matched the Tailwind sample
+    // too. Both halves then agreed on everything, the tailwind arm passed
+    // without reading the tailwind pattern, and breaking that pattern failed
+    // nothing but the canary above.
+    const matched = INK_SPELLINGS.filter((other) =>
+      new RegExp(other.source('success')).test(spelling.sample)
+    );
+    expect(matched.map((entry) => entry.label)).toEqual([spelling.label]);
+  });
+
+  it.each([
+    ['a tailwind ink', 'inline-flex text-[color:var(--success)]', true],
+    ['a css ink', '  color: var(--success);', true],
+    // The three ways the fill is legitimately used. A pattern that read any of
+    // them would report sites this gate has no measurement for, and the first
+    // one is the reason for the lookbehind: `background-color` ends in `color:`.
+    ['a css background', '  background-color: var(--success);', false],
+    ['a fill utility', 'rounded-full bg-[var(--success)]', false],
+    ['a border', 'border border-[var(--success)]/40', false],
+    // The fix itself must not read as the defect.
+    ['the ink twin', 'font-semibold text-[color:var(--success-text)]', false],
+  ])('reads %s as a use of the fill: %s', (_label, line, expected) => {
+    expect(inkUses('success').test(line as string)).toBe(expected);
+  });
+
+  it.each(FILL_ONLY)('--%s is not painted as text anywhere', (token) => {
+    const offenders: string[] = [];
+    for (const file of sourceFiles(SRC, /\.(tsx?|css)$/)) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, index) => {
+          if (inkUses(token).test(line))
+            offenders.push(`${file.slice(SRC.length + 1)}:${index + 1}`);
+        });
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
 // The two rules the scan applies before it measures anything. Neither is
 // exercised by the tree as it stands — every pairing at this head passes either
 // way — so without these they are branches whose mutation goes unnoticed.
@@ -777,8 +920,94 @@ describe('the threshold a pair is held to', () => {
 // be talked out of reading a real class.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Every `opacity-<n>` in a class literal, with the variant chain that gates it. */
-const OPACITY = /(?:^|["'`\s])((?:[a-z-]+:)*)opacity-(\d+)/g;
+/**
+ * The spellings a resting dim can be written in — ONE alphabet, read twice.
+ * The gate below prefixes it with a variant chain; the canary searches it
+ * plainly. Until #530 the two patterns each spelled `opacity-<n>` themselves,
+ * so a construct outside that spelling was missing from BOTH at once: they
+ * agreed with each other and said nothing, and a planted `opacity-[0.6]` left
+ * the suite green at `8db6486`. A partition can only partition what its
+ * alphabet admits, so the alphabet is the thing that has to be shared.
+ *
+ * `samples` are not documentation. Every sample is driven through both patterns
+ * by the arm below, so a widening that lands without a working sample fails
+ * there rather than going quiet. It is a LIST because the review of #533 found
+ * two more spellings that multiply rather than add: the alpha can be numeric or
+ * arbitrary, and it can sit on a bracketed literal or a plain token. One sample
+ * per row would have left three of those four combinations unread — the arm has
+ * to be per sample, not per row.
+ *
+ * Deliberately narrow, each pinned by a negative fixture below:
+ *   `text-[13px]/5`, `text-sm/6`   line-height modifiers, not alphas
+ *   `text-(length:--s)/6`          the same, in the var-shorthand spelling
+ *   `border-[var(--success)]/40`   a GROUND, not an ink
+ *   `bg-surface/72`, `bg-(--s)/72` the same, in the plain and shorthand spellings
+ * Grounds are a different defect with a different fix and are not claimed here.
+ */
+
+/**
+ * The forms an alpha value can take: `65`, `[0.65]`, or the v4 CSS-variable
+ * shorthand `(--fade)`. Held as a list so the arm below can require every form
+ * to reach a sample — a form nothing is written in is a widening that no arm
+ * reads, which is how `(--fade)` sat unread in BOTH positions at `a2a989c`.
+ */
+const ALPHA_FORMS = ['\\d+', '\\[[^\\]]+\\]', '\\(--[\\w-]+\\)'] as const;
+
+const ALPHA = `(?:${ALPHA_FORMS.join('|')})`;
+
+/** The bare type scale, where `/<n>` is a line height and not an alpha at all. */
+const TYPE_SCALE = '(?:xs|sm|base|lg|\\d*xl)';
+
+const DIM_SPELLINGS = [
+  {
+    label: 'an opacity utility',
+    source: `opacity-${ALPHA}`,
+    samples: ['opacity-65', 'opacity-[0.6]', 'opacity-(--fade)'],
+  },
+  {
+    label: 'an alpha modifier on a bracketed colour literal',
+    source: `text-\\[(?:color:|var\\()[^\\]]*\\]/${ALPHA}`,
+    samples: [
+      'text-[color:var(--btn-ink)]/65',
+      'text-[var(--ink)]/[0.65]',
+      'text-[color:var(--ink)]/(--fade)',
+    ],
+  },
+  {
+    label: 'an alpha modifier on a plain colour token',
+    source: `text-(?!${TYPE_SCALE}/)[a-z\\d-]+/${ALPHA}`,
+    samples: ['text-white/70', 'text-ink-3/[0.65]', 'text-white/(--fade)'],
+  },
+  {
+    // `color:` or a bare `--`, never `length:` — `text-(length:--s)/6` is a
+    // line height in the shorthand spelling, the same construct `TYPE_SCALE`
+    // already excludes on the plain token.
+    label: 'an alpha modifier on a var-shorthand colour',
+    source: `text-\\((?:color:)?--[\\w-]+\\)/${ALPHA}`,
+    samples: [
+      'text-(--ink)/60',
+      'text-(--ink)/[0.6]',
+      'text-(color:--ink)/65',
+      'text-(--ink)/(--fade)',
+    ],
+  },
+] as const;
+
+/** One arm per SAMPLE. A row whose `samples` is empty would vanish silently. */
+const DIM_SAMPLES = DIM_SPELLINGS.flatMap((spelling) =>
+  spelling.samples.map((sample) => ({ label: spelling.label, spelling, sample }))
+);
+
+const DIM = `(?:${DIM_SPELLINGS.map((spelling) => spelling.source).join('|')})`;
+
+/** A class literal starts at the quote or after whitespace, never mid-token. */
+const BOUNDARY = '(?:^|["\'`\\s])';
+
+/** Every dim in a class literal, with the variant chain that gates it. */
+const OPACITY = new RegExp(`${BOUNDARY}((?:[a-z-]+:)*)(${DIM})`, 'g');
+
+/** The same alphabet with no variant parsing: the canary's independent read. */
+const ANY_DIM = new RegExp(DIM, 'g');
 
 /** Utilities that put the element outside WCAG 1.4.3 for as long as they apply. */
 const INACTIVE = 'cursor-not-allowed';
@@ -788,7 +1017,7 @@ type Dim = { variant: string; className: string };
 function dimsIn(literal: string): Dim[] {
   return [...` ${literal} `.matchAll(OPACITY)].map((match) => ({
     variant: match[1],
-    className: `${match[1]}opacity-${match[2]}`,
+    className: `${match[1]}${match[2]}`,
   }));
 }
 
@@ -822,21 +1051,59 @@ describe('no resting opacity dims text the gate has already measured', () => {
     literals = sourceLiterals();
   });
 
-  it('accounts for every opacity utility it can see', () => {
+  it('accounts for every dim it can see', () => {
     // The canary, and it is a partition rather than a floor: `dimsIn` has to
-    // explain every `opacity-<n>` a plain substring search finds, so a regex
-    // that stops matching one spelling fails here instead of going quiet in the
-    // assertion below. The substring count comes from the file text, which is
-    // the one input the regex has no say in.
+    // explain every dim a plain substring search finds, so a pattern that stops
+    // matching one spelling fails here instead of going quiet in the assertion
+    // below. The substring count comes from the file text, which is the one
+    // input the pattern has no say in.
+    //
+    // It is independent of how the gate PARSES — drop the variant group and this
+    // fails by name — but not of what the gate can SPELL, which is why both now
+    // read `DIM_SPELLINGS` and the arm below drives every entry through each.
     const files = sourceFiles(SRC, /\.tsx?$/);
     expect(files.length).toBeGreaterThan(50);
-    const occurrences = literals.flatMap((literal) => literal.text.match(/opacity-\d+/g) ?? []);
+    const occurrences = literals.flatMap((literal) => literal.text.match(ANY_DIM) ?? []);
     expect(occurrences.length).toBeGreaterThan(30);
     expect(literals.flatMap((literal) => dimsIn(literal.text)).length).toBe(occurrences.length);
     // And the variants are the bulk of them, so the filter below is doing work.
     expect(
       literals.flatMap((literal) => dimsIn(literal.text)).filter((dim) => dim.variant !== '').length
     ).toBeGreaterThan(30);
+  });
+
+  it('drives every spelling in the alphabet through the arm below', () => {
+    // `flatMap` over `samples` means a row with an empty list contributes no
+    // arms and fails nothing — the row would be in the gate and out of the
+    // tests at the same time. So the arms have to account for every row.
+    expect(new Set(DIM_SAMPLES.map((entry) => entry.label)).size).toBe(DIM_SPELLINGS.length);
+  });
+
+  it.each(ALPHA_FORMS)('writes an alpha in the %s form somewhere in the samples', (form) => {
+    // The other half of the same hazard, and the one `a2a989c` was missing:
+    // `ALPHA` is shared by every row, so a form added to it with no sample is
+    // in all four patterns and read by none of them. The alpha is the tail of
+    // the sample — after the slash, or after `opacity-`.
+    const tail = new RegExp(`[/-](?:${form})$`);
+    expect(DIM_SAMPLES.filter((entry) => tail.test(entry.sample)).length).toBeGreaterThan(0);
+  });
+
+  it.each(DIM_SAMPLES)('reads $sample as $label through both patterns', (entry) => {
+    // The divergence arm. A widening that reaches one pattern and not the other
+    // is the whole defect of #530, and both patterns are built from `source`,
+    // so this reads the alphabet entry rather than a copy of it.
+    expect(restingDims(`tabular-nums ${entry.sample}`)).toEqual([entry.sample]);
+    expect(`tabular-nums ${entry.sample}`.match(ANY_DIM)).toEqual([entry.sample]);
+    // And the variant chain has to parse this spelling too, or a new entry
+    // arrives refusing `disabled:` states the gate is supposed to allow.
+    expect(restingDims(`rounded-full disabled:${entry.sample}`)).toEqual([]);
+    // The sample has to exercise ITS OWN spelling. Without this a lazy sample
+    // caught by an earlier entry gives a passing arm that never reads the new
+    // pattern at all — an arm per spelling that is not an arm per spelling.
+    const matched = DIM_SPELLINGS.filter((other) =>
+      new RegExp(`^(?:${other.source})$`).test(entry.sample)
+    );
+    expect(matched).toEqual([entry.spelling]);
   });
 
   it('finds no resting dim outside an inactive control', () => {
@@ -854,12 +1121,79 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ['a bare dim', 'tabular-nums opacity-65', ['opacity-65']],
     ['a dim beside a variant one', 'opacity-80 disabled:opacity-60', ['opacity-80']],
     ['a dim at the start of the literal', 'opacity-90 text-sm', ['opacity-90']],
+    // The spellings #530 added, and the constructs they must not swallow.
+    ['an arbitrary-value dim', 'tabular-nums opacity-[0.6]', ['opacity-[0.6]']],
+    ['a variant arbitrary-value dim', 'rounded-full disabled:opacity-[0.6]', []],
+    [
+      'an alpha on a colour literal',
+      'tabular-nums text-[color:var(--btn-ink)]/65',
+      ['text-[color:var(--btn-ink)]/65'],
+    ],
+    ['an alpha on a bare var colour literal', 'text-[var(--ink)]/60', ['text-[var(--ink)]/60']],
+    ['a variant alpha on a colour literal', 'hover:text-[color:var(--ink)]/60', []],
+    // The two spellings the review of #533 found, both green against a red
+    // `opacity-[0.6]` control before this: a plain-token alpha, and an
+    // arbitrary alpha value that `/\d+` could not reach.
+    ['an alpha on a plain colour token', 'tabular-nums text-white/70', ['text-white/70']],
+    ['a variant alpha on a plain colour token', 'hover:text-white/70', []],
+    [
+      'an arbitrary alpha on a colour literal',
+      'tabular-nums text-[color:var(--ink)]/[0.65]',
+      ['text-[color:var(--ink)]/[0.65]'],
+    ],
+    ['an arbitrary alpha on a plain colour token', 'text-ink-3/[0.65]', ['text-ink-3/[0.65]']],
+    // The residual the review of #535 found, measured wider here: the v4
+    // CSS-variable shorthand `(--x)` was missing from the alphabet in BOTH
+    // positions — as the colour the utility takes, and as the alpha itself.
+    // All six were green at `a2a989c` against a red `opacity-[0.6]` control.
+    ['an alpha on a var-shorthand colour', 'tabular-nums text-(--ink)/60', ['text-(--ink)/60']],
+    [
+      'a typed alpha on a var-shorthand colour',
+      'text-(color:--ink)/65 font-normal',
+      ['text-(color:--ink)/65'],
+    ],
+    [
+      'an arbitrary alpha on a var-shorthand colour',
+      'text-(--ink)/[0.6] tabular-nums',
+      ['text-(--ink)/[0.6]'],
+    ],
+    ['a variant alpha on a var-shorthand colour', 'hover:text-(--ink)/60', []],
+    ['a var alpha on an opacity utility', 'tabular-nums opacity-(--fade)', ['opacity-(--fade)']],
+    ['a var alpha on a plain colour token', 'text-white/(--fade)', ['text-white/(--fade)']],
+    [
+      'a var alpha on a colour literal',
+      'text-[color:var(--ink)]/(--fade)',
+      ['text-[color:var(--ink)]/(--fade)'],
+    ],
+    ['a var alpha on a var-shorthand colour', 'text-(--ink)/(--fade)', ['text-(--ink)/(--fade)']],
+    ['a variant var alpha', 'disabled:opacity-(--fade)', []],
+    // `text-[13px]/5` and `text-sm/6` are line-height modifiers and `border-…/40`,
+    // `bg-surface/72` dim a GROUND, not an ink. Reading either as a dim would
+    // report lines this gate has no measurement for, so the `color:`/`var(`
+    // discriminator, the type-scale exclusion and the `text-` prefix are all
+    // pinned here.
+    ['a line-height modifier on a bracketed size', 'text-[13px]/5 font-semibold', []],
+    ['a line-height modifier on the type scale', 'text-sm/6 font-semibold', []],
+    ['a line-height modifier on a numbered type scale', 'text-2xl/8 tracking-tight', []],
+    ['an alpha on a border literal', 'border border-[var(--success)]/40 px-4', []],
+    ['an alpha on a bare ground utility', 'rounded-2xl bg-surface/72 backdrop-blur-md', []],
+    ['an arbitrary alpha on a bare ground utility', 'bg-surface/[0.72] px-3', []],
+    ['a line-height modifier on a var-shorthand size', 'text-(length:--s)/6 font-bold', []],
+    // Tailwind's shorthand always names a CSS variable, so the `--` is the
+    // discriminator in the alpha position too. Without it `ALPHA` reads any
+    // parenthesised text as an alpha and this fixture is the only thing that
+    // tells you — every legal sample stays green either way.
+    ['a parenthesised non-variable alpha', 'text-white/(foo) font-bold', []],
+    ['an alpha on a var-shorthand ground', 'rounded-2xl bg-(--surface)/72 px-3', []],
+    ['an alpha on a var-shorthand border', 'border border-(--success)/40 px-4', []],
   ])('reads %s correctly', (_label, literal, expected) => {
     expect(restingDims(literal as string)).toEqual(expected);
     // `transition-opacity` and `duration-200` are not dims; the partition arm
-    // above depends on this pattern never counting them.
+    // above depends on the gate never counting them. Read through `ANY_DIM` so
+    // this stays the canary's question — do both patterns see the same thing —
+    // rather than a second hand-written copy of the alphabet.
     expect(dimsIn(literal as string).length).toBe(
-      (literal as string).match(/opacity-\d+/g)!.length
+      ((literal as string).match(ANY_DIM) ?? []).length
     );
   });
 });

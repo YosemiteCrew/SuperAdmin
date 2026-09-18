@@ -135,8 +135,14 @@ function FilterTabs({
             }
           >
             {tab.label}
+            {/* Weight, not opacity: see the same count on /approvals. This one
+                cleared AA at its dim (6.60 light, 4.93 dark on --btn), so the
+                change is about the construct rather than the arithmetic — an
+                alpha on the ink is a colour no scan in themeContrast can read,
+                and it is only survivable here because the pill ground happens
+                to be the highest-contrast one in the theme. */}
             <span
-              className={`tabular-nums ${isActive ? 'text-[color:var(--btn-ink)]/65' : 'text-[color:var(--ink-faint)]'}`}
+              className={`tabular-nums font-normal ${isActive ? 'text-[color:var(--btn-ink)]' : 'text-[color:var(--ink-faint)]'}`}
             >
               {counts[tab.key]}
             </span>
