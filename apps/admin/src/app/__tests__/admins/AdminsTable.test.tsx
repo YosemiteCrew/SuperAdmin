@@ -79,7 +79,9 @@ describe('AdminsTable', () => {
 
   it('shows the Revoke button for a revocable admin', () => {
     render(<AdminsTable rows={[base]} />);
-    expect(screen.getByRole('button', { name: /Revoke/i })).toBeInTheDocument();
+    const revokeButton = screen.getByRole('button', { name: /Revoke/i });
+    expect(revokeButton).toHaveClass('hover:bg-[var(--danger-bg)]');
+    expect(revokeButton).not.toHaveClass('bg-[var(--danger-bg)]');
   });
 
   it('blocks revoke when confirm is dismissed', () => {

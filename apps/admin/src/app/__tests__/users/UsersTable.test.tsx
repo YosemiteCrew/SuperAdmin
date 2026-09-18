@@ -138,7 +138,10 @@ describe('UsersTable', () => {
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    const deleteButton = within(bar).getByRole('button', { name: /delete/i });
+    expect(deleteButton).toHaveClass('hover:bg-[var(--danger-bg)]');
+    expect(deleteButton).not.toHaveClass('bg-[var(--danger-bg)]');
+    fireEvent.click(deleteButton);
     expect(screen.getByTestId('confirm-delete')).toBeInTheDocument();
     expect(screen.getByText('count 2')).toBeInTheDocument();
     expect(bulkDeleteMock).not.toHaveBeenCalled();
