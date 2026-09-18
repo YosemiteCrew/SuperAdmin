@@ -62,44 +62,16 @@ jobs:
         env:
           HEALTH_URL: https://admin.yosemitecrew.com/api/health
           EXPECTED_SHA: ${{ github.sha }}
-          # Observed builds on this app run 3m11s-3m29s from start to VERIFY.
-          # 12 minutes is roughly 3.5x that, plus room for queueing.
-          TIMEOUT_SECONDS: '720'
-          INTERVAL_SECONDS: '15'
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
         run: |
           set -uo pipefail
-
-          if node apps/admin/src/ci/assert-deployed.js \
-               --url "$HEALTH_URL" \
-               --sha "$EXPECTED_SHA" \
-               --timeout "$TIMEOUT_SECONDS" \
-               --interval "$INTERVAL_SECONDS"; then
+          # The poll, its window and the supersession rule live in the script,
+          # which admin-e2e.yml shares. Exit 3 is SUPERSEDED: a newer merge
+          # replaced this deploy and its own run asserts that one, so it is not
+          # a failure of this commit. Every other non-zero exit is.
+          status=0
+          bash scripts/ci/wait-for-deployed-main.sh "$HEALTH_URL" "$EXPECTED_SHA" || status=$?
+          if [ "$status" -eq 3 ]; then
             exit 0
           fi
-
-          # A newer merge landed while this one was building. Amplify deploys the
-          # branch, not the commit, so the newer build legitimately replaces this
-          # one and this commit will never be served. Its own run makes the
-          # assertion - the last commit in a burst is the one that has to pass.
-          # Fail closed. Without `-e` a failed `gh` leaves TIP empty, and an empty
-          # TIP is "not equal to the expected sha" - which would report SUPERSEDED
-          # and exit 0 on a deploy that really is broken. An unreadable tip means
-          # supersession could not be established, not that it happened.
-          TIP="$(gh api "repos/$REPO/commits/main" --jq .sha || true)"
-          if ! printf '%s' "$TIP" | grep -Eq '^[0-9a-f]{40}$'; then
-            echo "Could not read the current tip of main (got: '${TIP}')."
-            echo "Supersession is unestablished, so this stays a failure."
-            exit 1
-          fi
-
-          if [ "$TIP" != "$EXPECTED_SHA" ]; then
-            echo "SUPERSEDED: main has moved to $TIP since this run started."
-            echo "The deploy for that commit is what should be serving, and its own"
-            echo "run asserts it. Not failing on a commit that was replaced."
-            exit 0
-          fi
-
-          echo "main is still $EXPECTED_SHA, so nothing superseded this deploy."
-          exit 1
+          exit "$status"
