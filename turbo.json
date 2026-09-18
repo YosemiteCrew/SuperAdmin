@@ -29,10 +29,12 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "passThroughEnv": ["DEVELOPER_DIR"],
       "cache": false
     },
     "test:ci": {
       "dependsOn": ["^build"],
+      "passThroughEnv": ["DEVELOPER_DIR"],
       "cache": false
     },
     "lint": {
