@@ -18,7 +18,7 @@ cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SONAR_TOKEN="$(sonar_token)"
 [ -n "$SONAR_TOKEN" ] || {
   echo "SONAR_TOKEN is empty. Set it, or add it to the login Keychain with:" >&2
-  echo "  security add-generic-password -a \"$USER\" -s sonar-token -w <your-token> -U" >&2
+  echo "  security add-generic-password -a \"$USER\" -s $SONAR_KEYCHAIN_SERVICE -w <your-token> -U" >&2
   exit 1
 }
 export SONAR_TOKEN
