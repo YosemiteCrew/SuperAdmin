@@ -108,6 +108,8 @@ describe('RequestsTable', () => {
   it('renders the log form fields', () => {
     render(<RequestsTable requests={[]} nowMs={NOW_MS} />);
     expect(screen.getByLabelText(/Subject email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('type', 'date');
+    expect(screen.getByLabelText(/Received on/i)).toBeRequired();
     expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
   });
@@ -119,13 +121,18 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'new@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
+    });
     fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
     fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Verified by support' } });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
+    expect(mockLog.mock.calls[0][0].get('receivedOn')).toBe('2026-06-20');
     const success = await screen.findByText(/one-month response clock/i);
     expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Received on/i)).toHaveValue('');
     expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
     expect(screen.getByLabelText(/Notes/i)).toHaveValue('');
     expect(success.tagName).toBe('OUTPUT');
@@ -139,6 +146,9 @@ describe('RequestsTable', () => {
     // server action returns, not native constraint validation.
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'someone@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
     });
     fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
     fireEvent.change(screen.getByLabelText(/Notes/i), {

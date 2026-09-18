@@ -192,6 +192,12 @@ function LogForm() {
             ))}
           </select>
         </div>
+        <div className="flex w-[155px] flex-col gap-1">
+          <label htmlFor="dr-received-on" className={FIELD_LABEL}>
+            Received on
+          </label>
+          <input id="dr-received-on" name="receivedOn" type="date" required className={FIELD} />
+        </div>
         <div className="flex min-w-[200px] flex-1 flex-col gap-1">
           <label htmlFor="dr-notes" className={FIELD_LABEL}>
             Notes (optional)
@@ -218,7 +224,7 @@ function LogForm() {
       )}
       {result?.ok && (
         <output className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
-          Request logged. The one-month response clock has started.
+          Request logged. The one-month response clock uses the recorded received date.
         </output>
       )}
     </div>
