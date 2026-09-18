@@ -536,18 +536,25 @@ const FILL_ONLY = ['success', 'danger', 'warn'] as const;
  * matching takes its sites out of the negative arm and out of the count at the
  * same time, which is the shape #530 was about.
  */
-const INK_SPELLINGS = {
-  tailwind: (token: string) => `text-\\[color:var\\(--${token}\\)\\]`,
-  // `(?<!-)` so `background-color:` is not read as an ink.
-  css: (token: string) => `(?<!-)color:\\s*var\\(--${token}\\)`,
-} as const;
+const INK_SPELLINGS = [
+  {
+    label: 'tailwind',
+    source: (token: string) => `text-\\[color:var\\(--${token}\\)\\]`,
+    sample: 'inline-flex text-[color:var(--success)]',
+  },
+  {
+    // `[` as well as `-` in the lookbehind: without the `[` this also matches
+    // the Tailwind literal above, which subsumes the other spelling and makes
+    // its arm pass without ever reading it. Without the `-`, `background-color`
+    // reads as an ink.
+    label: 'css',
+    source: (token: string) => `(?<![-\\[])color:\\s*var\\(--${token}\\)`,
+    sample: '  color: var(--success);',
+  },
+] as const;
 
 const inkUses = (token: string) =>
-  new RegExp(
-    Object.values(INK_SPELLINGS)
-      .map((spelling) => spelling(token))
-      .join('|')
-  );
+  new RegExp(INK_SPELLINGS.map((spelling) => spelling.source(token)).join('|'));
 
 describe('a fill colour is never used as a text ink', () => {
   let themes: Record<'light' | 'dark', string>;
@@ -597,17 +604,28 @@ describe('a fill colour is never used as a text ink', () => {
     expect(sourceFiles(SRC, /\.(tsx?|css)$/).length).toBeGreaterThan(50);
   });
 
-  it.each(Object.keys(INK_SPELLINGS))('sees an ink twin written in the %s spelling', (spelling) => {
+  it.each(INK_SPELLINGS)('sees an ink twin written in the $label spelling', (spelling) => {
     // The positive control, one per spelling: the twins are written in both,
     // so each half of the pattern is shown to find something in this tree
     // before the negative is believed. Without this, a half that stops matching
     // removes its sites from the negative arm silently.
-    const pattern = INK_SPELLINGS[spelling as keyof typeof INK_SPELLINGS];
     const seen = sourceFiles(SRC, /\.(tsx?|css)$/).filter((file) => {
       const text = readFileSync(file, 'utf8');
-      return FILL_ONLY.some((token) => new RegExp(pattern(`${token}-text`)).test(text));
+      return FILL_ONLY.some((token) => new RegExp(spelling.source(`${token}-text`)).test(text));
     });
     expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it.each(INK_SPELLINGS)('reads the $label sample through that spelling alone', (spelling) => {
+    // The clause that caught the first version of this map: the CSS half was
+    // written without `[` in its lookbehind, so it matched the Tailwind sample
+    // too. Both halves then agreed on everything, the tailwind arm passed
+    // without reading the tailwind pattern, and breaking that pattern failed
+    // nothing but the canary above.
+    const matched = INK_SPELLINGS.filter((other) =>
+      new RegExp(other.source('success')).test(spelling.sample)
+    );
+    expect(matched.map((entry) => entry.label)).toEqual([spelling.label]);
   });
 
   it.each([
