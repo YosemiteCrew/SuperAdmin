@@ -77,14 +77,27 @@ function redactAsTarget(event: AuditEvent): SubjectAuditEntry {
  * this metadata write, which is why this is a deny rule and not an allow-list.
  */
 function reduceActorsToRole(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(reduceActorsToRole);
-  if (typeof value !== 'object' || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, inner]) => [
-      key,
-      key.endsWith('By') && inner !== null ? ADMIN_ROLE : reduceActorsToRole(inner),
-    ])
-  );
+  // A work list instead of recursion, so metadata of any depth cannot exhaust
+  // the call stack. Each container is copied before it is rewritten; the
+  // stored metadata is never mutated.
+  type Slot = Record<string, unknown>;
+  const root: Slot = { value };
+  const pending: Array<[Slot, string]> = [[root, 'value']];
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    const [parent, key] = next;
+    const inner = parent[key];
+    if (typeof inner !== 'object' || inner === null) continue;
+    const copy: Slot = Array.isArray(inner) ? ([...inner] as unknown as Slot) : { ...inner };
+    parent[key] = copy;
+    for (const [childKey, child] of Object.entries(copy)) {
+      if (!Array.isArray(copy) && childKey.endsWith('By') && child !== null) {
+        copy[childKey] = ADMIN_ROLE;
+      } else {
+        pending.push([copy, childKey]);
+      }
+    }
+  }
+  return root.value;
 }
 
 function redactAsActor(event: AuditEvent): SubjectAuditEntry {

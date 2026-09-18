@@ -213,6 +213,38 @@ describe('collectAccountData', () => {
         clearedBy: null,
       });
     });
+
+    it('handles metadata nested deeper than the call stack', async () => {
+      // Built and read back with loops: recursion (and JSON.stringify) would
+      // overflow at this depth, which is the point of the case.
+      const DEPTH = 50_000;
+      const stored: Record<string, unknown> = {};
+      let node = stored;
+      for (let i = 0; i < DEPTH; i++) node = (node.child = {}) as Record<string, unknown>;
+      node.approvedBy = ADMIN_ID;
+      mockMeta.mockResolvedValue({ status: 'OK', metadata: stored });
+
+      const data = await collectAccountData('u1');
+
+      let out = data?.metadata as Record<string, unknown>;
+      for (let i = 0; i < DEPTH; i++) out = out.child as Record<string, unknown>;
+      expect(out).toEqual({ approvedBy: 'super-admin' });
+      expect(node.approvedBy).toBe(ADMIN_ID);
+    });
+
+    it('leaves the stored metadata untouched', async () => {
+      const stored = {
+        approvedBy: ADMIN_ID,
+        nested: { disabledBy: ADMIN_ID },
+        list: [{ rejectedBy: ADMIN_ID }],
+      };
+      const snapshot = JSON.parse(JSON.stringify(stored)) as typeof stored;
+      mockMeta.mockResolvedValue({ status: 'OK', metadata: stored });
+
+      await collectAccountData('u1');
+
+      expect(stored).toEqual(snapshot);
+    });
   });
 
   it('degrades a failed section to an error string without sinking the export', async () => {
