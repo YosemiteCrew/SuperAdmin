@@ -18,7 +18,7 @@
     "verify": "pnpm run lint && pnpm run type-check && pnpm run test:ci && pnpm run build",
     "lint-staged": "lint-staged",
     "commitlint": "commitlint --edit",
-    "check:secrets": "secretlint \"**/*\" --maskSecrets",
+    "check:secrets": "secretlint \"**/*\" --no-gitignore --maskSecrets",
     "check:staged-secrets": "node scripts/check-staged-secrets.js",
     "check:overrides": "pnpm --filter admin exec node scripts/check-pnpm-overrides.mjs"
   },
