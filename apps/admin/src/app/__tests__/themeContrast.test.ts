@@ -796,13 +796,21 @@ describe('the threshold a pair is held to', () => {
  *
  * Deliberately narrow, each pinned by a negative fixture below:
  *   `text-[13px]/5`, `text-sm/6`   line-height modifiers, not alphas
+ *   `text-(length:--s)/6`          the same, in the var-shorthand spelling
  *   `border-[var(--success)]/40`   a GROUND, not an ink
- *   `bg-surface/72`                the same, in the plain-token spelling
+ *   `bg-surface/72`, `bg-(--s)/72` the same, in the plain and shorthand spellings
  * Grounds are a different defect with a different fix and are not claimed here.
  */
 
-/** `65` or `[0.65]` — Tailwind takes either after the slash. */
-const ALPHA = '(?:\\d+|\\[[^\\]]+\\])';
+/**
+ * The forms an alpha value can take: `65`, `[0.65]`, or the v4 CSS-variable
+ * shorthand `(--fade)`. Held as a list so the arm below can require every form
+ * to reach a sample — a form nothing is written in is a widening that no arm
+ * reads, which is how `(--fade)` sat unread in BOTH positions at `a2a989c`.
+ */
+const ALPHA_FORMS = ['\\d+', '\\[[^\\]]+\\]', '\\(--[\\w-]+\\)'] as const;
+
+const ALPHA = `(?:${ALPHA_FORMS.join('|')})`;
 
 /** The bare type scale, where `/<n>` is a line height and not an alpha at all. */
 const TYPE_SCALE = '(?:xs|sm|base|lg|\\d*xl)';
@@ -811,17 +819,34 @@ const DIM_SPELLINGS = [
   {
     label: 'an opacity utility',
     source: `opacity-${ALPHA}`,
-    samples: ['opacity-65', 'opacity-[0.6]'],
+    samples: ['opacity-65', 'opacity-[0.6]', 'opacity-(--fade)'],
   },
   {
     label: 'an alpha modifier on a bracketed colour literal',
     source: `text-\\[(?:color:|var\\()[^\\]]*\\]/${ALPHA}`,
-    samples: ['text-[color:var(--btn-ink)]/65', 'text-[var(--ink)]/[0.65]'],
+    samples: [
+      'text-[color:var(--btn-ink)]/65',
+      'text-[var(--ink)]/[0.65]',
+      'text-[color:var(--ink)]/(--fade)',
+    ],
   },
   {
     label: 'an alpha modifier on a plain colour token',
     source: `text-(?!${TYPE_SCALE}/)[a-z\\d-]+/${ALPHA}`,
-    samples: ['text-white/70', 'text-ink-3/[0.65]'],
+    samples: ['text-white/70', 'text-ink-3/[0.65]', 'text-white/(--fade)'],
+  },
+  {
+    // `color:` or a bare `--`, never `length:` — `text-(length:--s)/6` is a
+    // line height in the shorthand spelling, the same construct `TYPE_SCALE`
+    // already excludes on the plain token.
+    label: 'an alpha modifier on a var-shorthand colour',
+    source: `text-\\((?:color:)?--[\\w-]+\\)/${ALPHA}`,
+    samples: [
+      'text-(--ink)/60',
+      'text-(--ink)/[0.6]',
+      'text-(color:--ink)/65',
+      'text-(--ink)/(--fade)',
+    ],
   },
 ] as const;
 
@@ -911,6 +936,15 @@ describe('no resting opacity dims text the gate has already measured', () => {
     expect(new Set(DIM_SAMPLES.map((entry) => entry.label)).size).toBe(DIM_SPELLINGS.length);
   });
 
+  it.each(ALPHA_FORMS)('writes an alpha in the %s form somewhere in the samples', (form) => {
+    // The other half of the same hazard, and the one `a2a989c` was missing:
+    // `ALPHA` is shared by every row, so a form added to it with no sample is
+    // in all four patterns and read by none of them. The alpha is the tail of
+    // the sample — after the slash, or after `opacity-`.
+    const tail = new RegExp(`[/-](?:${form})$`);
+    expect(DIM_SAMPLES.filter((entry) => tail.test(entry.sample)).length).toBeGreaterThan(0);
+  });
+
   it.each(DIM_SAMPLES)('reads $sample as $label through both patterns', (entry) => {
     // The divergence arm. A widening that reaches one pattern and not the other
     // is the whole defect of #530, and both patterns are built from `source`,
@@ -965,6 +999,31 @@ describe('no resting opacity dims text the gate has already measured', () => {
       ['text-[color:var(--ink)]/[0.65]'],
     ],
     ['an arbitrary alpha on a plain colour token', 'text-ink-3/[0.65]', ['text-ink-3/[0.65]']],
+    // The residual the review of #535 found, measured wider here: the v4
+    // CSS-variable shorthand `(--x)` was missing from the alphabet in BOTH
+    // positions — as the colour the utility takes, and as the alpha itself.
+    // All six were green at `a2a989c` against a red `opacity-[0.6]` control.
+    ['an alpha on a var-shorthand colour', 'tabular-nums text-(--ink)/60', ['text-(--ink)/60']],
+    [
+      'a typed alpha on a var-shorthand colour',
+      'text-(color:--ink)/65 font-normal',
+      ['text-(color:--ink)/65'],
+    ],
+    [
+      'an arbitrary alpha on a var-shorthand colour',
+      'text-(--ink)/[0.6] tabular-nums',
+      ['text-(--ink)/[0.6]'],
+    ],
+    ['a variant alpha on a var-shorthand colour', 'hover:text-(--ink)/60', []],
+    ['a var alpha on an opacity utility', 'tabular-nums opacity-(--fade)', ['opacity-(--fade)']],
+    ['a var alpha on a plain colour token', 'text-white/(--fade)', ['text-white/(--fade)']],
+    [
+      'a var alpha on a colour literal',
+      'text-[color:var(--ink)]/(--fade)',
+      ['text-[color:var(--ink)]/(--fade)'],
+    ],
+    ['a var alpha on a var-shorthand colour', 'text-(--ink)/(--fade)', ['text-(--ink)/(--fade)']],
+    ['a variant var alpha', 'disabled:opacity-(--fade)', []],
     // `text-[13px]/5` and `text-sm/6` are line-height modifiers and `border-…/40`,
     // `bg-surface/72` dim a GROUND, not an ink. Reading either as a dim would
     // report lines this gate has no measurement for, so the `color:`/`var(`
@@ -976,6 +1035,14 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ['an alpha on a border literal', 'border border-[var(--success)]/40 px-4', []],
     ['an alpha on a bare ground utility', 'rounded-2xl bg-surface/72 backdrop-blur-md', []],
     ['an arbitrary alpha on a bare ground utility', 'bg-surface/[0.72] px-3', []],
+    ['a line-height modifier on a var-shorthand size', 'text-(length:--s)/6 font-bold', []],
+    // Tailwind's shorthand always names a CSS variable, so the `--` is the
+    // discriminator in the alpha position too. Without it `ALPHA` reads any
+    // parenthesised text as an alpha and this fixture is the only thing that
+    // tells you — every legal sample stays green either way.
+    ['a parenthesised non-variable alpha', 'text-white/(foo) font-bold', []],
+    ['an alpha on a var-shorthand ground', 'rounded-2xl bg-(--surface)/72 px-3', []],
+    ['an alpha on a var-shorthand border', 'border border-(--success)/40 px-4', []],
   ])('reads %s correctly', (_label, literal, expected) => {
     expect(restingDims(literal as string)).toEqual(expected);
     // `transition-opacity` and `duration-200` are not dims; the partition arm
