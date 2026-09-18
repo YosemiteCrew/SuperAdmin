@@ -35,7 +35,11 @@ function themeBlocks(source: string): { light: string; dark: string } {
   if (!theme) throw new Error('@theme token block not found');
   if (!root) throw new Error('Light theme token block not found');
   if (!dark) throw new Error('Dark theme token block not found');
-  return { light: `${root[1]}\n${theme[1]}`, dark: dark[1] };
+  const light = `${root[1]}\n${theme[1]}`;
+  // A token the dark block does not redeclare still resolves — it falls through
+  // to `:root`. Reading dark as the dark block alone makes every ramp value look
+  // undefined there, which a scan then skips instead of measuring.
+  return { light, dark: `${dark[1]}\n${light}` };
 }
 
 describe('theme contrast', () => {
@@ -290,6 +294,75 @@ function renderedPairs(): Pair[] {
  */
 const SURFACES = ['screen', 'page', 'inset', 'screen-2', 'band', 'pill-raised'] as const;
 
+/**
+ * Surfaces an auth-shell rule can sit on, on top of the app surfaces. The
+ * sign-in screen has its own backdrop, so a translucent ground declared there
+ * composites over these as well.
+ */
+const CSS_SURFACES = [...SURFACES, 'auth-bg-1', 'auth-bg-2', 'field-bg'] as const;
+
+function value(theme: string, name: string, seen = new Set<string>()): string | null {
+  if (seen.has(name)) return null;
+  seen.add(name);
+  const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(theme);
+  if (!match) return null;
+  const raw = match[1].trim();
+  const reference = /^var\(--([^)]+)\)$/.exec(raw);
+  return reference ? value(theme, reference[1], seen) : raw;
+}
+
+function flat(theme: string, name: string): string | null {
+  const raw = value(theme, name);
+  return raw && /^#[\da-f]{6}$/i.test(raw) ? raw.slice(1) : null;
+}
+
+function translucent(raw: string | null): [number, number, number, number] | null {
+  if (!raw) return null;
+  const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)$/i.exec(raw);
+  return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
+}
+
+function composite(rgba: [number, number, number, number], parent: string): string {
+  const base = parent.match(/../g)!.map((c) => Number.parseInt(c, 16));
+  return rgba
+    .slice(0, 3)
+    .map((channel, index) => Math.round(channel * rgba[3] + base[index] * (1 - rgba[3])))
+    .map((channel) => channel.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/**
+ * The lowest ratio `ink` can render at over `groundRaw`, or null when the
+ * ground resolves to neither a hex nor an rgba. A translucent ground is tried
+ * over every surface and the worst result is the one returned.
+ */
+function worstOver(
+  theme: string,
+  ink: string,
+  groundRaw: string | null,
+  surfaces: readonly string[] = SURFACES
+): number | null {
+  if (!groundRaw) return null;
+  if (/^#[\da-f]{6}$/i.test(groundRaw)) return contrast(ink, groundRaw.slice(1));
+  const rgba = translucent(groundRaw);
+  if (!rgba) return null;
+  const over = surfaces
+    .map((surface) => flat(theme, surface))
+    .filter((surface): surface is string => surface !== null);
+  return over.length ? Math.min(...over.map((s) => contrast(ink, composite(rgba, s)))) : null;
+}
+
+// WCAG 1.4.3: 3:1 for text at 24px, or 18.66px when bold. Everything else 4.5.
+function requiredFor(px: number | null, bold: boolean): number {
+  return px !== null && (px >= 24 || (px >= 18.66 && bold)) ? 3 : 4.5;
+}
+
+/** The lowest ratio this pair can render at, or null when it cannot be read. */
+function worstRatio(theme: string, pair: Pair): number | null {
+  const ink = flat(theme, pair.ink);
+  return ink === null ? null : worstOver(theme, ink, value(theme, pair.ground));
+}
+
 describe('rendered ink/ground pairs meet WCAG AA', () => {
   let themes: Record<'light' | 'dark', string>;
   let pairs: Pair[];
@@ -299,57 +372,7 @@ describe('rendered ink/ground pairs meet WCAG AA', () => {
     pairs = renderedPairs();
   });
 
-  function value(theme: string, name: string, seen = new Set<string>()): string | null {
-    if (seen.has(name)) return null;
-    seen.add(name);
-    const match = new RegExp(`--${name}:\\s*([^;]+);`).exec(theme);
-    if (!match) return null;
-    const raw = match[1].trim();
-    const reference = /^var\(--([^)]+)\)$/.exec(raw);
-    return reference ? value(theme, reference[1], seen) : raw;
-  }
-
-  function flat(theme: string, name: string): string | null {
-    const raw = value(theme, name);
-    return raw && /^#[\da-f]{6}$/i.test(raw) ? raw.slice(1) : null;
-  }
-
-  function translucent(theme: string, name: string): [number, number, number, number] | null {
-    const raw = value(theme, name);
-    if (!raw) return null;
-    const m = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,/\s]+([\d.]+))?\s*\)$/i.exec(
-      raw
-    );
-    return m ? [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]] : null;
-  }
-
-  function composite(rgba: [number, number, number, number], parent: string): string {
-    const base = parent.match(/../g)!.map((c) => Number.parseInt(c, 16));
-    return rgba
-      .slice(0, 3)
-      .map((channel, index) => Math.round(channel * rgba[3] + base[index] * (1 - rgba[3])))
-      .map((channel) => channel.toString(16).padStart(2, '0'))
-      .join('');
-  }
-
-  /** The lowest ratio this pair can render at, or null when it cannot be read. */
-  function worstRatio(theme: string, pair: Pair): number | null {
-    const ink = flat(theme, pair.ink);
-    if (!ink) return null;
-    const ground = flat(theme, pair.ground);
-    if (ground) return contrast(ink, ground);
-    const rgba = translucent(theme, pair.ground);
-    if (!rgba) return null;
-    const over = SURFACES.map((surface) => flat(theme, surface)).filter(
-      (surface): surface is string => surface !== null
-    );
-    if (!over.length) return null;
-    return Math.min(...over.map((surface) => contrast(ink, composite(rgba, surface))));
-  }
-
-  // WCAG 1.4.3: 3:1 for text at 24px, or 18.66px when bold. Everything else 4.5.
-  const required = (pair: Pair): number =>
-    pair.px !== null && (pair.px >= 24 || (pair.px >= 18.66 && pair.bold)) ? 3 : 4.5;
+  const required = (pair: Pair): number => requiredFor(pair.px, pair.bold);
 
   it('reads enough pairs for the assertions below to be able to fail', () => {
     // Without this the suite passes just as cleanly when the scan finds nothing,
@@ -436,5 +459,203 @@ describe('how the scan reads a class string', () => {
           "'bg-[var(--inset)] text-[color:var(--ink-muted)]'}`"
       )
     ).toEqual(['btn-ink on btn', 'ink-muted on inset']);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CSS rules that name their own ground.
+//
+// The scan above reads class strings, so a pairing written as a CSS rule is
+// invisible to it — which is how the sign-in stylesheet kept three sub-AA inks
+// after every Tailwind site had been raised. A rule declaring `color:` and
+// `background:` together names its own pair with no ancestor lookup needed, so
+// it is measurable on exactly the same terms. A rule whose ground sits on an
+// ancestor is NOT in scope: that needs class-composition analysis across files,
+// and `can read every rule it found` below refuses to paper over the gap.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type CssPair = {
+  file: string;
+  line: number;
+  selector: string;
+  ink: string;
+  ground: string;
+  px: number | null;
+  bold: boolean;
+};
+
+// `(?<!-)` keeps `background-color:`, `border-color:` and a `--…-color:` custom
+// property declaration out of the ink pattern.
+const CSS_INK = /(?<!-)\bcolor:\s*var\(--([a-z\d-]+)\)\s*;/g;
+const CSS_BG = /\bbackground(?:-color)?:\s*(var\(--[a-z\d-]+\)|rgba?\([^)]*\))\s*;/;
+const CSS_SIZE = /font-size:\s*([\d.]+)(rem|px)\s*;/;
+const CSS_BOLD = /font-weight:\s*(?:700|800|900|bold)\s*;/;
+
+/**
+ * Grounds for rules that paint text without declaring a background. The ground
+ * is the one thing a rule cannot always state about itself, so it is named here
+ * — but the INK still comes from the source, which is what keeps the rule under
+ * the gate when somebody changes the colour it uses. `every declared ground
+ * still matches a rule` below fails if one of these selectors is renamed away.
+ */
+const DECLARED_GROUNDS: ReadonlyArray<{ selector: string; grounds: string[] }> = [
+  // The floating label sits on the input, and overhangs onto the card behind it.
+  { selector: '.yc-auth-field-label', grounds: ['field-bg', 'auth-bg-2'] },
+];
+
+/** The grounds a rule renders on: its own background, else a declared one. */
+function groundsOf(body: string, selector: string): string[] {
+  const own = CSS_BG.exec(body);
+  if (own) return [own[1]];
+  return DECLARED_GROUNDS.filter((entry) => selector.includes(entry.selector)).flatMap((entry) =>
+    entry.grounds.map((ground) => `var(--${ground})`)
+  );
+}
+
+function pairsInRule(rule: RegExpExecArray, file: string, text: string): CssPair[] {
+  const body = rule[2];
+  const selector = rule[1].trim();
+  const grounds = groundsOf(body, selector);
+  const inks = [...body.matchAll(CSS_INK)];
+  if (!grounds.length || !inks.length) return [];
+  const size = CSS_SIZE.exec(body);
+  let px: number | null = null;
+  if (size) px = Number(size[1]) * (size[2] === 'rem' ? 16 : 1);
+  const shape = {
+    file: file.slice(SRC.length + 1),
+    line: text.slice(0, rule.index).split('\n').length,
+    selector: selector.split('\n').pop()!.trim(),
+    px,
+    bold: CSS_BOLD.test(body),
+  };
+  return grounds.flatMap((ground) => inks.map((ink) => ({ ...shape, ground, ink: ink[1] })));
+}
+
+/** Declaration blocks carrying both an ink and a ground, one entry per ink. */
+function cssPairs(): CssPair[] {
+  return sourceFiles(SRC, /\.css$/).flatMap((file) => {
+    const text = readFileSync(file, 'utf8');
+    // `[^{}]*` cannot span a brace, so an at-rule wrapper is skipped and the
+    // rules nested inside it are read on their own.
+    return [...text.matchAll(/([^{}]*)\{([^{}]*)\}/g)].flatMap((rule) =>
+      pairsInRule(rule as unknown as RegExpExecArray, file, text)
+    );
+  });
+}
+
+function cssRatio(theme: string, pair: CssPair): number | null {
+  const ink = flat(theme, pair.ink);
+  if (ink === null) return null;
+  const reference = /^var\(--([a-z\d-]+)\)$/.exec(pair.ground);
+  const ground = reference ? value(theme, reference[1]) : pair.ground;
+  return worstOver(theme, ink, ground, CSS_SURFACES);
+}
+
+describe('CSS rules that name their own ground meet WCAG AA', () => {
+  let themes: Record<'light' | 'dark', string>;
+  let pairs: CssPair[];
+
+  beforeAll(() => {
+    themes = themeBlocks(readFileSync(GLOBALS, 'utf8'));
+    pairs = cssPairs();
+  });
+
+  it('reads enough rules for the assertions below to be able to fail', () => {
+    // A stylesheet root that stops resolving, or a block splitter that stops
+    // splitting, both look exactly like a clean sweep without this.
+    expect(pairs.length).toBeGreaterThan(10);
+    expect(pairs.some((pair) => pair.ground.startsWith('rgb'))).toBe(true);
+    expect(pairs.some((pair) => cssRatio(themes.light, pair) !== null)).toBe(true);
+    expect(pairs.some((pair) => cssRatio(themes.dark, pair) !== null)).toBe(true);
+  });
+
+  it.each(['light', 'dark'] as const)('no %s CSS rule is below its threshold', (name) => {
+    const theme = themes[name];
+    const failures = pairs
+      .map((pair) => ({ pair, ratio: cssRatio(theme, pair) }))
+      .filter(({ pair, ratio }) => ratio !== null && ratio < requiredFor(pair.px, pair.bold))
+      .map(
+        ({ pair, ratio }) =>
+          `${pair.file}:${pair.line} ${pair.selector} --${pair.ink} on ${pair.ground} ` +
+          `${ratio!.toFixed(2)} < ${requiredFor(pair.px, pair.bold)}`
+      );
+    expect(failures).toEqual([]);
+  });
+
+  it('keeps the floating auth label under the gate', () => {
+    // DECLARED_GROUNDS is the only thing putting this rule in the scan: it
+    // paints text without declaring a background, so emptying or renaming the
+    // list takes it out silently. Asserted on the pairs rather than on the list,
+    // because a guard that maps over the list passes vacuously when it is empty.
+    const label = pairs.filter((pair) => pair.selector.includes('.yc-auth-field-label'));
+    // `--surface` is the resting label's own background, so that rule is in the
+    // scan on its own terms; the other two are the ones the list supplies.
+    expect([...new Set(label.map((pair) => pair.ground))].sort()).toEqual([
+      'var(--auth-bg-2)',
+      'var(--field-bg)',
+      'var(--surface)',
+    ]);
+  });
+
+  it('every declared ground still matches a rule', () => {
+    // The general form of the arm above, for entries added later. Reported as
+    // the selectors that matched nothing.
+    expect(DECLARED_GROUNDS.length).toBeGreaterThan(0);
+    const orphaned = DECLARED_GROUNDS.map((entry) => entry.selector).filter(
+      (selector) => !pairs.some((pair) => pair.selector.includes(selector))
+    );
+    expect(orphaned).toEqual([]);
+  });
+
+  it('reads a dark override ahead of the light value it shadows', () => {
+    // The dark theme is the dark block followed by the light one, and `value`
+    // takes the first match — so the concatenation ORDER is what decides whether
+    // dark is measured with dark values. Reversed, dark silently becomes a
+    // second copy of light and every dark assertion above passes for free.
+    const source = readFileSync(GLOBALS, 'utf8');
+    const block = /\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/.exec(source)![1];
+    const overridden = [...block.matchAll(/--([a-z\d-]+):\s*(#[\da-f]{6});/gi)];
+    expect(overridden.length).toBeGreaterThan(10);
+    const shadowed = overridden
+      .filter(([, name, hex]) => value(themes.dark, name) !== hex)
+      .map(([, name]) => name);
+    expect(shadowed).toEqual([]);
+
+    // And the other direction: a token the dark block does not redeclare still
+    // resolves there, which is what the cascade does and what stops a ramp
+    // colour being skipped instead of measured.
+    const names = [...themes.light.matchAll(/--([a-z\d-]+):\s*#[\da-f]{6};/gi)].map((m) => m[1]);
+    const inherited = names.filter((name) => !new RegExp(`--${name}:`).test(block));
+    expect(inherited.length).toBeGreaterThan(0);
+    const lost = inherited.filter((name) => value(themes.dark, name) !== value(themes.light, name));
+    expect(lost).toEqual([]);
+  });
+
+  it('can read every rule it found', () => {
+    const unreadable = new Set<string>();
+    for (const name of ['light', 'dark'] as const) {
+      for (const pair of pairs) {
+        if (cssRatio(themes[name], pair) === null) {
+          unreadable.add(`${name} ${pair.file}:${pair.line} --${pair.ink} on ${pair.ground}`);
+        }
+      }
+    }
+    expect([...unreadable].sort()).toEqual([]);
+  });
+});
+
+// `required` decides what every assertion above is compared against, and until
+// this block existed nothing in the tree depended on its large-text branch:
+// widening `? 3 : 4.5` to `? 4.5 : 4.5` left the whole file green.
+describe('the threshold a pair is held to', () => {
+  it.each([
+    ['body text', 13, false, 4.5],
+    ['text with no declared size', null, false, 4.5],
+    ['24px text', 24, false, 3],
+    ['bold text at 18.66px', 18.66, true, 3],
+    ['unbold text at 18.66px', 18.66, false, 4.5],
+    ['bold text just under 18.66px', 18, true, 4.5],
+  ])('holds %s to its WCAG 1.4.3 threshold', (_label, px, bold, expected) => {
+    expect(requiredFor(px as number | null, bold as boolean)).toBe(expected);
   });
 });
