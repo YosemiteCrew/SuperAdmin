@@ -582,14 +582,53 @@ describe('CSS rules that name their own ground meet WCAG AA', () => {
     expect(failures).toEqual([]);
   });
 
+  it('keeps the floating auth label under the gate', () => {
+    // DECLARED_GROUNDS is the only thing putting this rule in the scan: it
+    // paints text without declaring a background, so emptying or renaming the
+    // list takes it out silently. Asserted on the pairs rather than on the list,
+    // because a guard that maps over the list passes vacuously when it is empty.
+    const label = pairs.filter((pair) => pair.selector.includes('.yc-auth-field-label'));
+    // `--surface` is the resting label's own background, so that rule is in the
+    // scan on its own terms; the other two are the ones the list supplies.
+    expect([...new Set(label.map((pair) => pair.ground))].sort()).toEqual([
+      'var(--auth-bg-2)',
+      'var(--field-bg)',
+      'var(--surface)',
+    ]);
+  });
+
   it('every declared ground still matches a rule', () => {
-    // A selector renamed out from under this list would drop its rule from the
-    // scan and read as a clean sweep, which is the failure this whole file is
-    // about. Reported as the selectors that matched nothing.
+    // The general form of the arm above, for entries added later. Reported as
+    // the selectors that matched nothing.
+    expect(DECLARED_GROUNDS.length).toBeGreaterThan(0);
     const orphaned = DECLARED_GROUNDS.map((entry) => entry.selector).filter(
       (selector) => !pairs.some((pair) => pair.selector.includes(selector))
     );
     expect(orphaned).toEqual([]);
+  });
+
+  it('reads a dark override ahead of the light value it shadows', () => {
+    // The dark theme is the dark block followed by the light one, and `value`
+    // takes the first match — so the concatenation ORDER is what decides whether
+    // dark is measured with dark values. Reversed, dark silently becomes a
+    // second copy of light and every dark assertion above passes for free.
+    const source = readFileSync(GLOBALS, 'utf8');
+    const block = /\[data-theme='dark'\]\s*\{([\s\S]*?)\n\}/.exec(source)![1];
+    const overridden = [...block.matchAll(/--([a-z\d-]+):\s*(#[\da-f]{6});/gi)];
+    expect(overridden.length).toBeGreaterThan(10);
+    const shadowed = overridden
+      .filter(([, name, hex]) => value(themes.dark, name) !== hex)
+      .map(([, name]) => name);
+    expect(shadowed).toEqual([]);
+
+    // And the other direction: a token the dark block does not redeclare still
+    // resolves there, which is what the cascade does and what stops a ramp
+    // colour being skipped instead of measured.
+    const names = [...themes.light.matchAll(/--([a-z\d-]+):\s*#[\da-f]{6};/gi)].map((m) => m[1]);
+    const inherited = names.filter((name) => !new RegExp(`--${name}:`).test(block));
+    expect(inherited.length).toBeGreaterThan(0);
+    const lost = inherited.filter((name) => value(themes.dark, name) !== value(themes.light, name));
+    expect(lost).toEqual([]);
   });
 
   it('can read every rule it found', () => {

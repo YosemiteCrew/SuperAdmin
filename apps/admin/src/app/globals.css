@@ -614,8 +614,10 @@ textarea:focus-visible {
   transform: translateY(-50%);
   font-size: 0.8125rem;
   padding: 0 0.4rem;
-  /* The active border colour is a 3:1 UI boundary; as text on the field it is
-     3.87:1. --blue-text is the theme-aware text weight of the same hue. */
+  /* The active border colour is a 3:1 UI boundary; as text it is 3.87:1 on the
+     field and 3.08:1 where the label overhangs the card, which is the worst of
+     the two. --blue-text is the theme-aware text weight of the same hue, and on
+     the card it clears by 0.02 — that pair is the binding one for both tokens. */
   color: var(--blue-text);
 }
 
