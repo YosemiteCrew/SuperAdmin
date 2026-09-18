@@ -140,6 +140,81 @@ describe('collectAccountData', () => {
     expect(serialized).not.toContain('other@person.com');
   });
 
+  describe('approval metadata', () => {
+    const ADMIN_ID = 'acting-admin-id';
+    // Written to the same metadata by the subject (profile) and by other apps.
+    const OWN = { firstName: 'Pat', first_name: 'Pat', role: 'owner', lastSignInAt: 123 };
+
+    const AT = 1_700_000_200_000;
+    const EARLIER = 1_700_000_100_000;
+
+    it.each([
+      [
+        'approved',
+        { approvedAt: AT, approvedBy: ADMIN_ID },
+        { approvedAt: AT, approvedBy: 'super-admin' },
+      ],
+      // Rejected over a manual disable: the disable carries no actor.
+      [
+        'rejected',
+        { rejectedAt: AT, rejectedBy: ADMIN_ID, disabledAt: EARLIER },
+        { rejectedAt: AT, rejectedBy: 'super-admin', disabledAt: EARLIER },
+      ],
+      // Rejected and disabled by the same decision.
+      [
+        'disabled',
+        {
+          rejectedAt: AT,
+          rejectedBy: ADMIN_ID,
+          disabledAt: AT,
+          disabledBy: ADMIN_ID,
+          rejectionDisabled: true,
+        },
+        {
+          rejectedAt: AT,
+          rejectedBy: 'super-admin',
+          disabledAt: AT,
+          disabledBy: 'super-admin',
+          rejectionDisabled: true,
+        },
+      ],
+    ])(
+      'names no admin anywhere in a %s subject export and keeps the subject data',
+      async (_label, stored, exported) => {
+        mockMeta.mockResolvedValue({ status: 'OK', metadata: { ...OWN, ...stored } });
+        mockAudit.mockResolvedValue({
+          asTarget: [event({ actorId: ADMIN_ID, actorEmail: 'admin@yc.com' })],
+          asActor: [],
+        });
+
+        const data = await collectAccountData('u1');
+
+        expect(JSON.stringify(data)).not.toContain(ADMIN_ID);
+        expect(data?.metadata).toEqual({ ...OWN, ...exported });
+      }
+    );
+
+    it('reduces actor keys at any depth and leaves empty ones empty', async () => {
+      mockMeta.mockResolvedValue({
+        status: 'OK',
+        metadata: {
+          preferences: { reviewedBy: ADMIN_ID, theme: 'dark' },
+          history: [{ changedBy: { id: ADMIN_ID }, at: 1 }, 'kept'],
+          clearedBy: null,
+        },
+      });
+
+      const data = await collectAccountData('u1');
+
+      expect(JSON.stringify(data)).not.toContain(ADMIN_ID);
+      expect(data?.metadata).toEqual({
+        preferences: { reviewedBy: 'super-admin', theme: 'dark' },
+        history: [{ changedBy: 'super-admin', at: 1 }, 'kept'],
+        clearedBy: null,
+      });
+    });
+  });
+
   it('degrades a failed section to an error string without sinking the export', async () => {
     mockMeta.mockRejectedValue(new Error('core down'));
     mockRoles.mockRejectedValue(new Error('core down'));

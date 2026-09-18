@@ -10,11 +10,15 @@ import { section } from '@/app/lib/exportSection';
 import { readAuditEventsInvolving } from '@/app/features/audit/store';
 import type { AuditEvent } from '@/app/features/audit/types';
 
+/** The role that stands in for an admin identity anywhere in the export. */
+const ADMIN_ROLE = 'super-admin';
+
 /**
  * An audit entry as disclosed to the data subject. Third-party identifiers are
  * redacted per GDPR Art. 15(4): events ON the subject name no admin (reduced
  * to a role), and events BY the subject name no other user (target identity
- * stripped, keeping only the action and target kind).
+ * stripped, keeping only the action and target kind). The account metadata
+ * follows the same rule: see `reduceActorsToRole`.
  */
 export interface SubjectAuditEntry {
   id: string;
@@ -24,7 +28,7 @@ export interface SubjectAuditEntry {
   /** Only on asTarget entries — the subject's own label at record time. */
   subjectLabel?: string;
   /** Only on asTarget entries — always the role, never an identity. */
-  performedBy?: 'super-admin';
+  performedBy?: typeof ADMIN_ROLE;
 }
 
 /**
@@ -61,8 +65,26 @@ function redactAsTarget(event: AuditEvent): SubjectAuditEntry {
     at: new Date(event.at).toISOString(),
     targetType: event.targetType,
     subjectLabel: event.targetLabel,
-    performedBy: 'super-admin',
+    performedBy: ADMIN_ROLE,
   };
+}
+
+/**
+ * Reduces every actor reference in the account metadata to the role. Admin
+ * actions record who acted under a key ending in `By` (`approvedBy`,
+ * `rejectedBy`, `disabledBy`), at any depth. Every other key is the subject's
+ * own data and passes through unchanged, including keys other apps sharing
+ * this metadata write, which is why this is a deny rule and not an allow-list.
+ */
+function reduceActorsToRole(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(reduceActorsToRole);
+  if (typeof value !== 'object' || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, inner]) => [
+      key,
+      key.endsWith('By') && inner !== null ? ADMIN_ROLE : reduceActorsToRole(inner),
+    ])
+  );
 }
 
 function redactAsActor(event: AuditEvent): SubjectAuditEntry {
@@ -83,7 +105,7 @@ export async function collectAccountData(userId: string): Promise<AccountDataExp
   const [metadata, roles, activeSessionCount, auditTrail] = await Promise.all([
     section(async () => {
       const { metadata: m } = await UserMetadataNode.getUserMetadata(userId);
-      return m;
+      return reduceActorsToRole(m) as Record<string, unknown>;
     }),
     section(async () => {
       const { roles: r } = await UserRolesNode.getRolesForUser(DEFAULT_TENANT_ID, userId);
