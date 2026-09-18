@@ -40,10 +40,14 @@ function isConnection(value: unknown): value is TikTokConnection {
   );
 }
 
-async function readSealed(key: string): Promise<string | null> {
+async function readStored(key: string): Promise<unknown> {
   ensureSuperTokensInit();
   const { metadata } = await UserMetadataNode.getUserMetadata(SOCIAL_STORE_ID);
-  const raw = metadata[key];
+  return metadata[key];
+}
+
+async function readSealed(key: string): Promise<string | null> {
+  const raw = await readStored(key);
   return typeof raw === 'string' && raw.length > 0 ? raw : null;
 }
 
@@ -86,8 +90,14 @@ export async function writeConnection(
   await writeSealed(TIKTOK_KEY, seal(JSON.stringify(connection), config.tokenKey));
 }
 
-export async function clearConnection(): Promise<void> {
-  await writeSealed(TIKTOK_KEY, null);
+async function clearSealed(key: string): Promise<boolean> {
+  if ((await readStored(key)) == null) return false;
+  await writeSealed(key, null);
+  return true;
+}
+
+export async function clearConnection(): Promise<boolean> {
+  return clearSealed(TIKTOK_KEY);
 }
 
 /**
@@ -194,8 +204,8 @@ export async function writeInstagramConnection(
   await writeSealed(INSTAGRAM_KEY, seal(JSON.stringify(connection), config.tokenKey));
 }
 
-export async function clearInstagramConnection(): Promise<void> {
-  await writeSealed(INSTAGRAM_KEY, null);
+export async function clearInstagramConnection(): Promise<boolean> {
+  return clearSealed(INSTAGRAM_KEY);
 }
 
 /** Built field-by-field so a new secret cannot reach the browser by accident. */

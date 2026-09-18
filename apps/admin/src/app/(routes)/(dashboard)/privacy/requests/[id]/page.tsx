@@ -37,19 +37,21 @@ function Section({
   children,
 }: Readonly<{ title: string; count?: number; children: React.ReactNode }>) {
   return (
-    <section className="rounded-lg border border-gray-200 bg-white">
-      <header className="flex items-baseline gap-2 border-b border-gray-100 px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-900">{title}</h2>
-        {count !== undefined && <span className="text-xs text-gray-500">{count}</span>}
+    <section className="rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)]">
+      <header className="flex items-baseline gap-2 border-b border-[var(--hairline)] px-4 py-3">
+        <h2 className="text-sm font-semibold text-[color:var(--ink)]">{title}</h2>
+        {count !== undefined && (
+          <span className="text-xs text-[color:var(--ink-muted)]">{count}</span>
+        )}
       </header>
-      <div className="px-4 py-3 text-sm text-gray-700">{children}</div>
+      <div className="px-4 py-3 text-sm text-[color:var(--ink-muted)]">{children}</div>
     </section>
   );
 }
 
 function SectionError() {
   return (
-    <p className="text-sm text-red-700">
+    <p className="text-sm text-[color:var(--danger-text)]">
       This section could not be read. The rest of the record below is still complete — re-run the
       export before answering, so nothing held is left out of the reply.
     </p>
@@ -57,14 +59,14 @@ function SectionError() {
 }
 
 function Empty({ what }: Readonly<{ what: string }>) {
-  return <p className="text-sm text-gray-500">Nothing held: {what}.</p>;
+  return <p className="text-sm text-[color:var(--ink-muted)]">Nothing held: {what}.</p>;
 }
 
 function Field({ label, value }: Readonly<{ label: string; value: string | null }>) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wide text-gray-500">{label}</dt>
-      <dd className="text-sm text-gray-900">{value ?? '—'}</dd>
+      <dt className="text-xs uppercase tracking-wide text-[color:var(--ink-faint)]">{label}</dt>
+      <dd className="text-sm text-[color:var(--ink)]">{value ?? '—'}</dd>
     </div>
   );
 }
@@ -86,7 +88,7 @@ function LeadSection({ lead }: Readonly<{ lead: SubjectLead }>) {
       </dl>
 
       <div>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--ink-faint)]">
           Contact submissions ({lead.requests.length})
         </h3>
         {lead.requests.length === 0 ? (
@@ -94,13 +96,20 @@ function LeadSection({ lead }: Readonly<{ lead: SubjectLead }>) {
         ) : (
           <ul className="space-y-3">
             {lead.requests.map((r) => (
-              <li key={r.id} className="rounded border border-gray-100 bg-gray-50 px-3 py-2">
-                <p className="text-xs text-gray-500">
+              <li
+                key={r.id}
+                className="rounded-[11px] border border-[var(--hairline)] bg-[var(--inset)] px-3 py-2"
+              >
+                <p className="text-xs text-[color:var(--ink-muted)]">
                   {formatDate(r.createdAt)} · {r.status}
                   {r.sourceUrl ? ` · ${r.sourceUrl}` : ''}
                 </p>
-                {r.subject && <p className="text-sm font-medium text-gray-900">{r.subject}</p>}
-                <p className="whitespace-pre-wrap text-sm text-gray-700">{r.message}</p>
+                {r.subject && (
+                  <p className="text-sm font-medium text-[color:var(--ink)]">{r.subject}</p>
+                )}
+                <p className="whitespace-pre-wrap text-sm text-[color:var(--ink-muted)]">
+                  {r.message}
+                </p>
               </li>
             ))}
           </ul>
@@ -115,15 +124,21 @@ function ConsentSection({ records }: Readonly<{ records: SubjectConsentRecord[] 
     <ul className="space-y-4">
       {records.map((s) => (
         <li key={s.id}>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-[color:var(--ink-muted)]">
             Consent id {s.consentId} · first seen {formatDate(s.createdAt)}
             {s.userId ? ` · linked account ${s.userId}` : ''}
           </p>
           <ul className="mt-1 space-y-1">
             {s.events.map((e, i) => (
-              <li key={`${s.id}-${i}`} className="text-sm text-gray-700">
+              <li key={`${s.id}-${i}`} className="text-sm text-[color:var(--ink-muted)]">
                 {formatDate(e.at)} · {e.category} ·{' '}
-                <span className={e.granted ? 'text-emerald-700' : 'text-red-700'}>
+                <span
+                  className={
+                    e.granted
+                      ? 'text-[color:var(--avatar-green-ink)]'
+                      : 'text-[color:var(--danger-text)]'
+                  }
+                >
                   {e.granted ? 'granted' : 'withdrawn'}
                 </span>{' '}
                 · {e.source}
@@ -144,10 +159,12 @@ function RequestsSection({
   return (
     <ul className="space-y-2">
       {requests.map((r) => (
-        <li key={r.id} className="text-sm text-gray-700">
+        <li key={r.id} className="text-sm text-[color:var(--ink-muted)]">
           {formatDate(r.receivedAt)} · {r.type} · {r.status} · due {formatDate(r.dueAt)}
-          {r.id === currentId && <span className="ml-2 text-xs text-gray-500">(this request)</span>}
-          {r.notes && <p className="text-xs text-gray-500">{r.notes}</p>}
+          {r.id === currentId && (
+            <span className="ml-2 text-xs text-[color:var(--ink-faint)]">(this request)</span>
+          )}
+          {r.notes && <p className="text-xs text-[color:var(--ink-muted)]">{r.notes}</p>}
         </li>
       ))}
     </ul>
@@ -184,7 +201,7 @@ function RequestsBody({
 export default async function SubjectRecordPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const request = await getDataRequest(id);
@@ -195,15 +212,18 @@ export default async function SubjectRecordPage({
   return (
     <div className="space-y-6 p-6">
       <div>
-        <Link href="/privacy/requests" className="text-sm text-gray-500 hover:text-gray-900">
+        <Link
+          href="/privacy/requests"
+          className="text-sm text-[color:var(--ink-muted)] hover:text-[color:var(--ink)]"
+        >
           ← Back to data requests
         </Link>
       </div>
 
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{data.subjectEmail}</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-xl font-semibold text-[color:var(--ink)]">{data.subjectEmail}</h1>
+          <p className="mt-1 text-sm text-[color:var(--ink-muted)]">
             Everything this panel holds about the address, for the {request.type} request received{' '}
             {formatDate(request.receivedAt.toISOString())}. Data held elsewhere in the platform is
             not covered here.

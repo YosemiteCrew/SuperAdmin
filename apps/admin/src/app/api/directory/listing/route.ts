@@ -116,13 +116,53 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  await prisma.aPDirectoryListing.upsert({
-    where: { orgId },
-    create: { orgId, instanceHost: instanceDomain, actorUri, orgName, handle, listed: true },
-    update: { instanceHost: instanceDomain, actorUri, orgName, handle, listed: true },
-  });
+  return persistListing({ orgId, instanceDomain, actorUri, orgName, handle });
+}
+
+async function persistListing({
+  orgId,
+  instanceDomain,
+  actorUri,
+  orgName,
+  handle,
+}: {
+  orgId: string;
+  instanceDomain: string;
+  actorUri: string;
+  orgName: string;
+  handle: string;
+}): Promise<NextResponse> {
+  try {
+    await prisma.aPDirectoryListing.upsert({
+      where: { orgId },
+      create: { orgId, instanceHost: instanceDomain, actorUri, orgName, handle, listed: true },
+      update: { instanceHost: instanceDomain, actorUri, orgName, handle, listed: true },
+    });
+  } catch (error) {
+    // Another organisation can claim the globally unique URI after the lookup
+    // above but before this write. Preserve the public conflict contract for
+    // that losing race while allowing unrelated database failures to surface.
+    if (isUniqueConstraintError(error)) {
+      return NextResponse.json(
+        { error: '`actorUri` is already registered to another organisation' },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
 
   return NextResponse.json({ listed: true });
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error) || error.code !== 'P2002') {
+    return false;
+  }
+
+  const meta =
+    'meta' in error && typeof error.meta === 'object' && error.meta !== null ? error.meta : null;
+  const target = meta && 'target' in meta ? meta.target : null;
+  return Array.isArray(target) && target.includes('actorUri');
 }
 
 /**

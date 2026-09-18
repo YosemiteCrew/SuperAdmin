@@ -39,7 +39,7 @@ function CountPill({
 }
 
 export default async function APFederationPage() {
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   // Select the rendered columns only. An unselected `findMany` returns `token`
   // - the complete signed license JWT, stored so it can be re-served - and

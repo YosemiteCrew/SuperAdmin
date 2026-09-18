@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { IoCalendarClearOutline, IoSearchOutline } from 'react-icons/io5';
 
+import { requireSuperAdmin } from '@/app/config/backend';
 import { AUDIT_LOG_LIMIT, AUDIT_META } from '@/app/features/audit/audit';
 import { AuditIntegrityBanner } from '@/app/features/audit/AuditIntegrityBanner';
 import { AuditTable } from '@/app/features/audit/AuditTable';
@@ -87,6 +88,7 @@ function Pagination({
 export default async function AuditLogPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
+  await requireSuperAdmin('page');
   const { action, q, from, to, page } = await searchParams;
   const activeAction = parseAuditActionFilter(action);
   const searchTerm = (q ?? '').trim();

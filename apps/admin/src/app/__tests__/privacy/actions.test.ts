@@ -15,6 +15,7 @@ jest.mock('next/cache', () => ({
   revalidatePath: jest.fn(),
 }));
 
+import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { createDataRequest, updateDataRequestStatus } from '@/app/features/dataRequests/store';
@@ -27,6 +28,7 @@ const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof re
 const mockCreate = createDataRequest as jest.MockedFunction<typeof createDataRequest>;
 const mockUpdate = updateDataRequestStatus as jest.MockedFunction<typeof updateDataRequestStatus>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockRevalidate = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
 
 function makeFormData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -80,7 +82,12 @@ describe('logDataRequestAction', () => {
     mockCreate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'a@b.com' } as never);
 
     const result = await logDataRequestAction(
-      makeFormData({ subjectEmail: 'a@b.com', type: 'access', notes: 'hi' })
+      makeFormData({
+        subjectEmail: 'a@b.com',
+        type: 'access',
+        notes: 'hi',
+        receivedOn: '2026-03-01',
+      })
     );
 
     expect(result).toEqual({ ok: true });
@@ -88,6 +95,7 @@ describe('logDataRequestAction', () => {
       subjectEmail: 'a@b.com',
       type: 'access',
       notes: 'hi',
+      receivedAt: new Date('2026-03-01T00:00:00.000Z'),
     });
     expect(mockAudit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -100,6 +108,43 @@ describe('logDataRequestAction', () => {
     );
   });
 
+  it.each([
+    ['missing', undefined],
+    ['not ISO', '03/01/2026'],
+    ['not a real calendar date', '2026-02-30'],
+  ])('rejects a %s received date', async (_label, receivedOn) => {
+    const fields: Record<string, string> = { subjectEmail: 'a@b.com', type: 'access' };
+    if (receivedOn) fields.receivedOn = receivedOn;
+
+    const result = await logDataRequestAction(makeFormData(fields));
+
+    expect(result).toEqual({ ok: false, error: 'Enter the date the request was received' });
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('accepts UTC tomorrow but rejects later received dates', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-18T12:00:00.000Z'));
+    mockCreate.mockResolvedValue({ id: 'dr_2', subjectEmail: 'a@b.com' } as never);
+
+    try {
+      const tomorrow = await logDataRequestAction(
+        makeFormData({ subjectEmail: 'a@b.com', type: 'access', receivedOn: '2026-09-19' })
+      );
+      const future = await logDataRequestAction(
+        makeFormData({ subjectEmail: 'a@b.com', type: 'access', receivedOn: '2099-01-01' })
+      );
+
+      expect(tomorrow).toEqual({ ok: true });
+      expect(future).toEqual({ ok: false, error: 'Enter the date the request was received' });
+      expect(mockCreate).toHaveBeenCalledTimes(1);
+      expect(mockCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ receivedAt: new Date('2026-09-19T00:00:00.000Z') })
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   // The subject's email must not be denormalised into the audit log: the log has
   // no erasure workflow, so honouring an erasure request would otherwise leave
   // the requester's address behind in it. The DataRequest row behind targetId is
@@ -107,7 +152,11 @@ describe('logDataRequestAction', () => {
   it('never writes the subject email into the audit trail', async () => {
     mockCreate.mockResolvedValue({ id: 'dr_9', subjectEmail: 'subject@person.com' } as never);
     await logDataRequestAction(
-      makeFormData({ subjectEmail: 'subject@person.com', type: 'erasure' })
+      makeFormData({
+        subjectEmail: 'subject@person.com',
+        type: 'erasure',
+        receivedOn: '2026-03-01',
+      })
     );
 
     const [event] = mockAudit.mock.calls[0];
@@ -118,7 +167,9 @@ describe('logDataRequestAction', () => {
 
   it('passes undefined notes when the field is absent', async () => {
     mockCreate.mockResolvedValue({ id: 'dr_2', subjectEmail: 'a@b.com' } as never);
-    await logDataRequestAction(makeFormData({ subjectEmail: 'a@b.com', type: 'erasure' }));
+    await logDataRequestAction(
+      makeFormData({ subjectEmail: 'a@b.com', type: 'erasure', receivedOn: '2026-03-01' })
+    );
     expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({ notes: undefined }));
   });
 
@@ -133,30 +184,41 @@ describe('logDataRequestAction', () => {
 
 describe('updateDataRequestStatusAction', () => {
   it('rejects a missing id', async () => {
-    const result = await updateDataRequestStatusAction(makeFormData({ status: 'fulfilled' }));
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ status: 'fulfilled', expectedStatus: 'in_progress' })
+    );
     expect(result).toEqual({ ok: false, error: 'A request id is required' });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('rejects an unknown status', async () => {
     const result = await updateDataRequestStatusAction(
-      makeFormData({ id: 'dr_1', status: 'archived' })
+      makeFormData({ id: 'dr_1', status: 'archived', expectedStatus: 'in_progress' })
+    );
+    expect(result).toEqual({ ok: false, error: 'Unknown status' });
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown expected status', async () => {
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'archived' })
     );
     expect(result).toEqual({ ok: false, error: 'Unknown status' });
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
   it('updates the status, audits it, and returns ok', async () => {
-    mockUpdate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'a@b.com' } as never);
+    mockUpdate.mockResolvedValue({ ok: true });
 
     const result = await updateDataRequestStatusAction(
-      makeFormData({ id: 'dr_1', status: 'fulfilled' })
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'in_progress' })
     );
 
     expect(result).toEqual({ ok: true });
     expect(mockUpdate).toHaveBeenCalledWith({
       id: 'dr_1',
       status: 'fulfilled',
+      expectedStatus: 'in_progress',
       handledBy: 'admin_1',
     });
     expect(mockAudit).toHaveBeenCalledWith(
@@ -171,11 +233,30 @@ describe('updateDataRequestStatusAction', () => {
   });
 
   it('never writes the subject email into the audit trail on update', async () => {
-    mockUpdate.mockResolvedValue({ id: 'dr_1', subjectEmail: 'subject@person.com' } as never);
-    await updateDataRequestStatusAction(makeFormData({ id: 'dr_1', status: 'fulfilled' }));
+    mockUpdate.mockResolvedValue({ ok: true });
+    await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'in_progress' })
+    );
 
     const [event] = mockAudit.mock.calls[0];
     expect(JSON.stringify(event)).not.toContain('subject@person.com');
     expect(JSON.stringify(event)).not.toContain('@');
+  });
+
+  // Another admin already moved this request between page-load and this
+  // submit. The store made no write (it returns ok:false), so this must not
+  // record an audit event for a change that never happened, and must surface
+  // a message the operator can act on instead of a generic "ok".
+  it('reports a clear error and records no audit event when the write is stale', async () => {
+    mockUpdate.mockResolvedValue({ ok: false, currentStatus: 'fulfilled' });
+
+    const result = await updateDataRequestStatusAction(
+      makeFormData({ id: 'dr_1', status: 'in_progress', expectedStatus: 'received' })
+    );
+
+    expect(result.ok).toBe(false);
+    expect((result as { error: string }).error).toMatch(/already updated/i);
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevalidate).toHaveBeenCalledWith('/privacy/requests');
   });
 });

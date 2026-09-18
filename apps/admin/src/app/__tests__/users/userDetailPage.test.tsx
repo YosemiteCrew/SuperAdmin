@@ -123,6 +123,7 @@ describe('UserDetailPage', () => {
     expect(screen.getByText('No verified TOTP device')).toBeInTheDocument();
     expect(screen.getByText('No sign-in recorded since tracking was enabled')).toBeInTheDocument();
     expect(screen.getByTestId('role-button')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-user')).toBeInTheDocument();
   });
 
   it('renders a role-based super admin with the Role badge and TOTP status', async () => {
@@ -167,6 +168,7 @@ describe('UserDetailPage', () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
   });
 
   it('blocks self-management when the caller views their own account', async () => {
@@ -174,6 +176,7 @@ describe('UserDetailPage', () => {
     await renderPage();
     expect(screen.getByText('You cannot change your own access.')).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
   });
 
   it('still renders when every data loader fails (catch paths)', async () => {
@@ -203,6 +206,15 @@ describe('UserDetailPage', () => {
 });
 
 describe('generateMetadata', () => {
+  it('does not read a private user record before authorization', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const mod = await import('@/app/(routes)/(dashboard)/users/[id]/page');
+    await expect(mod.generateMetadata({ params: Promise.resolve({ id: 'u-1' }) })).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
+
   it('uses the user email as the title', async () => {
     getUserMock.mockResolvedValueOnce(makeUser({ emails: ['meta@example.com'] }));
     const mod = await import('@/app/(routes)/(dashboard)/users/[id]/page');

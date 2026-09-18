@@ -6,13 +6,16 @@ import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { requireSuperAdmin } from '@/app/config/backend';
+import { DEFAULT_PAGE_SIZE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 function cleanIds(userIds: unknown): string[] {
-  if (!Array.isArray(userIds)) return [];
-  return userIds.filter((id): id is string => typeof id === 'string' && id.length > 0);
+  if (!Array.isArray(userIds) || userIds.length > DEFAULT_PAGE_SIZE) return [];
+  return Array.from(
+    new Set(userIds.filter((id): id is string => typeof id === 'string' && id.length > 0))
+  );
 }
 
 async function auditEach(action: AuditAction, actorId: string, userId: string, label?: string) {
@@ -31,8 +34,8 @@ export async function bulkDisableUsersAction(userIds: string[]) {
     if (id === actorId) continue; // never disable yourself in a sweep
     if (await isBootstrapAdmin(id)) continue; // never lock out a break-glass admin
     await UserMetadataNode.updateUserMetadata(id, { disabledAt: Date.now() });
-    await SessionNode.revokeAllSessionsForUser(id);
     await auditEach('user.disable', actorId, id);
+    await SessionNode.revokeAllSessionsForUser(id);
   }
   revalidatePath('/users');
 }
@@ -40,6 +43,8 @@ export async function bulkDisableUsersAction(userIds: string[]) {
 export async function bulkEnableUsersAction(userIds: string[]) {
   const { userId: actorId } = await requireSuperAdmin();
   for (const id of cleanIds(userIds)) {
+    const { metadata } = await UserMetadataNode.getUserMetadata(id);
+    if (typeof metadata.disabledAt !== 'number') continue;
     await UserMetadataNode.updateUserMetadata(id, { disabledAt: null });
     await auditEach('user.enable', actorId, id);
   }
@@ -50,10 +55,12 @@ export async function bulkDeleteUsersAction(userIds: string[]) {
   const { userId: actorId } = await requireSuperAdmin();
   for (const id of cleanIds(userIds)) {
     if (id === actorId) continue; // never delete yourself in a sweep
+    if (await isBootstrapAdmin(id)) continue; // never delete a break-glass admin
     let label: string | undefined;
     try {
       const user = await SuperTokens.getUser(id);
-      label = user?.emails[0];
+      if (!user) continue;
+      label = user.emails[0];
     } catch {
       /* labelling is best-effort */
     }

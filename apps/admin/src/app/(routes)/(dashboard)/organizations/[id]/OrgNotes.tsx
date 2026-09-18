@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useRef } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 
 import { MAX_NOTE_CHARS, type OrgNote } from '@/app/features/organizations/notesShared';
 
@@ -19,24 +19,22 @@ function formatNoteDate(at: number): string {
 const INITIAL: NoteActionResult = {};
 
 export function OrgNotes({ orgId, notes }: { readonly orgId: string; readonly notes: OrgNote[] }) {
-  const formRef = useRef<HTMLFormElement>(null);
+  const [state, setState] = useState(INITIAL);
+  const [pending, startTransition] = useTransition();
 
-  const [state, formAction, pending] = useActionState(
-    async (_prev: NoteActionResult, fd: FormData): Promise<NoteActionResult> => {
-      const result = await addNoteAction(fd);
-      if (!result.error) formRef.current?.reset();
-      return result;
-    },
-    INITIAL
-  );
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      const result = await addNoteAction(new FormData(form));
+      setState(result);
+      if (!result.error) form.reset();
+    });
+  }
 
   return (
     <div>
-      <form
-        ref={formRef}
-        action={formAction}
-        className="border-b border-[var(--hairline)] p-[18px]"
-      >
+      <form onSubmit={handleSubmit} className="border-b border-[var(--hairline)] p-[18px]">
         <input type="hidden" name="orgId" value={orgId} />
         <textarea
           name="content"
@@ -47,7 +45,9 @@ export function OrgNotes({ orgId, notes }: { readonly orgId: string; readonly no
           required
         />
         {state.error ? (
-          <p className="mt-1 text-[12px] text-[color:var(--danger-text)]">{state.error}</p>
+          <p role="alert" className="mt-1 text-[12px] text-[color:var(--danger-text)]">
+            {state.error}
+          </p>
         ) : null}
         <div className="mt-2 flex justify-end">
           <button

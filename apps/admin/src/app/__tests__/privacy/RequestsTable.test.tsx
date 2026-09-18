@@ -62,6 +62,28 @@ describe('RequestsTable', () => {
     expect(typeCells).toHaveLength(1);
   });
 
+  it('renders the received calendar day in UTC', () => {
+    const formatDate = jest
+      .spyOn(Date.prototype, 'toLocaleDateString')
+      .mockImplementation((_locales, options) =>
+        options?.timeZone === 'UTC' ? '3/1/2026' : '2/28/2026'
+      );
+
+    try {
+      render(
+        <RequestsTable
+          requests={[makeRequest({ receivedAt: new Date('2026-03-01T00:00:00.000Z') })]}
+          nowMs={NOW_MS}
+        />
+      );
+      expect(screen.getByText('3/1/2026')).toBeInTheDocument();
+      expect(screen.queryByText('2/28/2026')).not.toBeInTheDocument();
+      expect(formatDate).toHaveBeenCalledWith(undefined, { timeZone: 'UTC' });
+    } finally {
+      formatDate.mockRestore();
+    }
+  });
+
   it('links the subject to that request\u2019s record, so the panel record is one click away', () => {
     render(<RequestsTable requests={[makeRequest({ id: 'dr_42' })]} nowMs={NOW_MS} />);
     const link = screen.getByRole('link', { name: 'person@example.com' });
@@ -108,6 +130,9 @@ describe('RequestsTable', () => {
   it('renders the log form fields', () => {
     render(<RequestsTable requests={[]} nowMs={NOW_MS} />);
     expect(screen.getByLabelText(/Subject email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('type', 'date');
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('max', '2026-07-05');
+    expect(screen.getByLabelText(/Received on/i)).toBeRequired();
     expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
   });
@@ -119,10 +144,21 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'new@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
+    fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Verified by support' } });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
-    expect(await screen.findByText(/one-month response clock has started/)).toBeInTheDocument();
+    expect(mockLog.mock.calls[0][0].get('receivedOn')).toBe('2026-06-20');
+    const success = await screen.findByText(/one-month response clock/i);
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Received on/i)).toHaveValue('');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
+    expect(screen.getByLabelText(/Notes/i)).toHaveValue('');
+    expect(success.tagName).toBe('OUTPUT');
   });
 
   it('shows the error message when the action reports a failure', async () => {
@@ -134,9 +170,20 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'someone@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
+    });
+    fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
+    fireEvent.change(screen.getByLabelText(/Notes/i), {
+      target: { value: 'Needs identity check' },
+    });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
-    expect(await screen.findByText('A valid subject email is required')).toBeInTheDocument();
+    const error = await screen.findByText('A valid subject email is required');
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('someone@example.com');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('erasure');
+    expect(screen.getByLabelText(/Notes/i)).toHaveValue('Needs identity check');
+    expect(error).toHaveAttribute('role', 'alert');
   });
 
   it('submits a status update for a row', async () => {
@@ -151,13 +198,56 @@ describe('RequestsTable', () => {
     await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
 
+  // The store's stale-write guard reads this field, not the value the operator
+  // just picked - it has to carry the status the row was rendered with, so the
+  // write only lands if nobody else changed it since this page loaded.
+  it('submits the row’s loaded status as expectedStatus, not the newly chosen one', async () => {
+    mockUpdate.mockResolvedValue({ ok: true });
+    render(<RequestsTable requests={[makeRequest({ status: 'in_progress' })]} nowMs={NOW_MS} />);
+
+    fireEvent.change(screen.getByLabelText(/Status for person@example.com/i), {
+      target: { value: 'fulfilled' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
+    const formData = mockUpdate.mock.calls[0][0];
+    expect(formData.get('status')).toBe('fulfilled');
+    expect(formData.get('expectedStatus')).toBe('in_progress');
+  });
+
+  // A stale write from this row must not clear a real fulfilledAt or overwrite
+  // a decision another admin already made; the operator gets the message
+  // instead of a silent success.
+  it('shows a clear message and keeps the row retryable when the write is stale', async () => {
+    mockUpdate.mockResolvedValue({
+      ok: false,
+      error:
+        'Someone else already updated this request. Its current status is shown below - review it and try again.',
+    });
+    render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);
+
+    fireEvent.change(screen.getByLabelText(/Status for person@example.com/i), {
+      target: { value: 'fulfilled' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Update/i }));
+
+    expect(await screen.findByText(/already updated/i)).toBeInTheDocument();
+    // The transition's pending flag can clear in a commit after the one that
+    // rendered the message (#503) - wait for it rather than asserting same-commit.
+    await waitFor(() => expect(screen.getByRole('button', { name: /Update/i })).toBeEnabled());
+  });
+
   it('shows an inline error when a status update fails', async () => {
     mockUpdate.mockResolvedValue({ ok: false, error: 'Unknown status' });
     render(<RequestsTable requests={[makeRequest()]} nowMs={NOW_MS} />);
 
+    const status = screen.getByLabelText(/Status for person@example.com/i);
+    fireEvent.change(status, { target: { value: 'fulfilled' } });
     fireEvent.click(screen.getByRole('button', { name: /Update/i }));
 
     expect(await screen.findByText('Unknown status')).toBeInTheDocument();
+    expect(status).toHaveValue('fulfilled');
   });
 
   it('renders the current status badge for a row', () => {

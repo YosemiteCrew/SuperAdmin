@@ -2,7 +2,7 @@
  * @jest-environment node
  */
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -61,20 +61,54 @@ function runWith(
     // The fallback reads the checkout, so a case that exercises it needs a real
     // one. Identity is passed per-command: a machine with no global git config
     // must not change what this test measures.
+    //
+    // Built once and handed to every spawn below, mirroring how `AWS_COMMIT_ID`
+    // is isolated per case. On macOS /usr/bin/git is an xcrun shim: with
+    // DEVELOPER_DIR unset it resolves the developer dir like xcode-select does,
+    // and runtimes that strip the variable (turbo in strict env mode, jest
+    // workers) hit the resolution that rejects the process outright ("You have
+    // not agreed to the Xcode license agreements", exit 69) before the stanza
+    // under test runs. Pin it to the command line tools the shim ships with
+    // when it is absent — not DERIVED from xcode-select, which reports the very
+    // path that fails. Git on other platforms ignores the variable, so this is
+    // inert there, and it composes with the passThroughEnv in turbo.json: a
+    // value that exists in the ambient env survives turbo, and this covers the
+    // shell that never set it.
+    const env = { ...process.env };
+    if (process.platform === 'darwin' && !env.DEVELOPER_DIR) {
+      env.DEVELOPER_DIR = '/Library/Developer/CommandLineTools';
+    }
+    delete env.AWS_COMMIT_ID;
+    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
+
     if (options.gitRepo) {
       const git = (...args: string[]): void => {
-        execFileSync('git', ['-c', 'user.email=t@t.test', '-c', 'user.name=t', ...args], {
-          cwd: dir,
-          stdio: 'ignore',
-        });
+        try {
+          execFileSync('git', ['-c', 'user.email=t@t.test', '-c', 'user.name=t', ...args], {
+            cwd: dir,
+            // Passed explicitly, as the `sh` call below already does. Jest gives
+            // the test file its own `process.env`, and a child started without
+            // an `env` option inherits the worker's real one instead — so the
+            // two subprocesses in this helper would otherwise run in different
+            // environments, and neither the test nor a reader could tell which.
+            env,
+            // stderr is captured rather than discarded. `stdio: 'ignore'` threw
+            // a bare `Command failed: git … init -q`, which names the command
+            // and not one thing about why it refused — a git that cannot run at
+            // all reads exactly like a bug in the stanza under test.
+            stdio: ['ignore', 'ignore', 'pipe'],
+          });
+        } catch (error) {
+          const { status, stderr } = error as { status?: number; stderr?: Buffer | string };
+          const said = stderr?.toString().trim();
+          throw new Error(
+            `git ${args.join(' ')} exited ${status ?? '?'}: ${said || '(git printed nothing)'}`
+          );
+        }
       };
       git('init', '-q');
       if (!options.unborn) git('commit', '-q', '--allow-empty', '-m', 'fixture');
     }
-
-    const env = { ...process.env };
-    delete env.AWS_COMMIT_ID;
-    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
 
     const stdout = execFileSync('sh', ['-c', extractBuildShaStanza()], {
       cwd: dir,
@@ -154,6 +188,67 @@ describe('buildSha is written only for something shaped like a commit', () => {
 
   it('names the offending value in the warning, so a build log says which', () => {
     expect(runWith('HEAD').stdout).toContain("got 'HEAD'");
+  });
+});
+
+describe('the environment the test task is given', () => {
+  // turbo 2 runs every task in strict env mode, so a variable it is not told
+  // about is not passed down. On macOS `/usr/bin/git` is a shim that resolves a
+  // toolchain through `DEVELOPER_DIR`; with the variable stripped it exits 69
+  // refusing the Xcode licence, and every case below that needs a real checkout
+  // fails. `pnpm --filter admin …` and a bare `jest` keep the ambient value, so
+  // the four cases pass by hand and fail under the root `turbo run test` — which
+  // reads as a concurrency flake and was filed as one (#506).
+  //
+  // Asserted against `turbo.json` as it is written, not against a copy, because
+  // the declaration is the whole fix and nothing else in the suite goes red when
+  // it is dropped — on Linux CI there is no shim and the variable is not used.
+  const turboConfig = JSON.parse(readFileSync(join(REPO_ROOT, 'turbo.json'), 'utf8')) as {
+    tasks: Record<string, { passThroughEnv?: string[] }>;
+  };
+
+  it.each(['test', 'test:ci'])('passes DEVELOPER_DIR through to the `%s` task', (task) => {
+    expect(turboConfig.tasks[task]?.passThroughEnv).toContain('DEVELOPER_DIR');
+  });
+
+  it('keeps it out of the cache key, where a machine-local path does not belong', () => {
+    // `passThroughEnv` is forwarded without being hashed; `env` would hash it and
+    // split the cache per toolchain location. Both tasks are uncached today, so
+    // this pins the choice rather than an observable effect.
+    const hashed = turboConfig.tasks.test as { env?: string[] };
+    expect(hashed.env ?? []).not.toContain('DEVELOPER_DIR');
+  });
+});
+
+describe('a git that refuses to run', () => {
+  // The four cases above all start `git init`, and a `git` that exits non-zero
+  // before doing anything is indistinguishable from a broken stanza unless the
+  // reason survives. It did not: `stdio: 'ignore'` discarded stderr and the
+  // failure read `Command failed: git -c user.email=t@t.test -c user.name=t
+  // init -q`, which is why #506 cost a full investigation to attribute.
+  it("puts git's own reason in the failure, not just the command that failed", () => {
+    const stubDirectory = mkdtempSync(join(tmpdir(), 'git-stub-'));
+    const originalPath = process.env.PATH;
+    try {
+      const stub = join(stubDirectory, 'git');
+      writeFileSync(
+        stub,
+        `#!${process.execPath}\nprocess.stderr.write('the toolchain is unusable\\n');\nprocess.exit(69);\n`
+      );
+      chmodSync(stub, 0o755);
+      process.env.PATH = `${stubDirectory}:${originalPath ?? ''}`;
+
+      expect(() => runWith('HEAD', { gitRepo: true })).toThrow(
+        /git init -q exited 69: the toolchain is unusable/
+      );
+    } finally {
+      // Restoring PATH is not tidiness. Jest reuses a worker process across test
+      // files, so a leaked stub directory would be on PATH for every file that
+      // ran after this one in the same worker.
+      if (originalPath === undefined) delete process.env.PATH;
+      else process.env.PATH = originalPath;
+      rmSync(stubDirectory, { recursive: true, force: true });
+    }
   });
 });
 

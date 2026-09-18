@@ -9,7 +9,7 @@ const config = {
   clearMocks: true,
   collectCoverage: false,
   collectCoverageFrom: [
-    '<rootDir>/src/**/*.{ts,tsx}',
+    '<rootDir>/src/**/*.{js,ts,tsx}',
     '!<rootDir>/src/**/*.d.ts',
     '!<rootDir>/src/**/*.test.ts',
     '!<rootDir>/src/**/*.test.tsx',

@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { IoLockClosedOutline } from 'react-icons/io5';
 
 export default function ForbiddenPage() {
+  const router = useRouter();
   const [signingOut, setSigningOut] = useState(false);
 
   async function handleSignOut() {
@@ -13,7 +15,7 @@ export default function ForbiddenPage() {
     } catch {
       /* proceed to /auth regardless */
     }
-    globalThis.location.href = '/auth';
+    router.replace('/auth');
   }
 
   return (

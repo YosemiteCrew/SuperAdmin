@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
@@ -37,7 +37,7 @@ const TD = 'px-[18px] py-3 text-[13.5px] text-[color:var(--ink-muted)]';
 const BADGE =
   'inline-flex items-center rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em]';
 const FIELD =
-  'h-[38px] rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+  'h-[38px] rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]';
 const FIELD_LABEL = 'text-[11px] font-semibold text-[color:var(--ink-soft)]';
 const FOOTER_NOTE =
   'border-t border-[var(--hairline)] px-5 py-3 text-[12px] text-[color:var(--ink-faint)]';
@@ -99,13 +99,21 @@ function DeadlineBadge({
 }
 
 function StatusControl({ request }: { readonly request: DataRequest }) {
-  const [result, action, isPending] = useActionState<ActionResult | null, FormData>(
-    async (_prev, formData) => updateDataRequestStatusAction(formData),
-    null
-  );
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      setResult(await updateDataRequestStatusAction(new FormData(form)));
+    });
+  }
+
   return (
-    <form action={action} className="flex items-center gap-2">
+    <form onSubmit={handleSubmit} className="flex items-center gap-2">
       <input type="hidden" name="id" value={request.id} />
+      <input type="hidden" name="expectedStatus" value={request.status} />
       <label className="sr-only" htmlFor={`status-${request.id}`}>
         Status for {request.subjectEmail}
       </label>
@@ -129,20 +137,31 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
         {isPending ? 'Saving...' : 'Update'}
       </button>
       {result && !result.ok && (
-        <span className="text-[11.5px] text-[color:var(--danger-text)]">{result.error}</span>
+        <span role="alert" className="text-[11.5px] text-[color:var(--danger-text)]">
+          {result.error}
+        </span>
       )}
     </form>
   );
 }
 
-function LogForm() {
-  const [result, action, isPending] = useActionState<ActionResult | null, FormData>(
-    async (_prev, formData) => logDataRequestAction(formData),
-    null
-  );
+function LogForm({ nowMs }: { readonly nowMs: number }) {
+  const [result, setResult] = useState<ActionResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      const nextResult = await logDataRequestAction(new FormData(form));
+      setResult(nextResult);
+      if (nextResult.ok) form.reset();
+    });
+  }
+
   return (
     <div className={`${CARD} px-5 py-[14px]`}>
-      <form action={action} className="flex flex-wrap items-end gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
         <div className="flex w-[250px] flex-col gap-1">
           {/* The design puts the card title where this field's label would sit.
               The visible label is kept for screen readers rather than dropped. */}
@@ -173,6 +192,19 @@ function LogForm() {
             ))}
           </select>
         </div>
+        <div className="flex w-[155px] flex-col gap-1">
+          <label htmlFor="dr-received-on" className={FIELD_LABEL}>
+            Received on
+          </label>
+          <input
+            id="dr-received-on"
+            name="receivedOn"
+            type="date"
+            max={new Date(nowMs + 86_400_000).toISOString().slice(0, 10)}
+            required
+            className={FIELD}
+          />
+        </div>
         <div className="flex min-w-[200px] flex-1 flex-col gap-1">
           <label htmlFor="dr-notes" className={FIELD_LABEL}>
             Notes (optional)
@@ -193,12 +225,14 @@ function LogForm() {
         </button>
       </form>
       {result && !result.ok && (
-        <p className="mt-2 text-[13px] text-[color:var(--danger-text)]">{result.error}</p>
+        <p role="alert" className="mt-2 text-[13px] text-[color:var(--danger-text)]">
+          {result.error}
+        </p>
       )}
       {result?.ok && (
-        <p className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
-          Request logged. The one-month response clock has started.
-        </p>
+        <output className="mt-2 text-[13px] text-[color:var(--avatar-green-ink)]">
+          Request logged. The one-month response clock uses the recorded received date.
+        </output>
       )}
     </div>
   );
@@ -213,7 +247,7 @@ export function RequestsTable({
 }) {
   return (
     <div className="flex flex-col gap-[22px]">
-      <LogForm />
+      <LogForm nowMs={nowMs} />
 
       <div className={`${CARD} overflow-x-auto`}>
         {requests.length === 0 ? (
@@ -221,7 +255,7 @@ export function RequestsTable({
             No data-subject requests logged yet.
           </p>
         ) : (
-          <table className="min-w-full border-collapse">
+          <table className="min-w-[900px] border-collapse">
             <thead>
               <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
                 <th className={TH}>Subject</th>
@@ -246,7 +280,9 @@ export function RequestsTable({
                       </Link>
                     </td>
                     <td className={TD}>{TYPE_LABELS[request.type] ?? request.type}</td>
-                    <td className={TD}>{request.receivedAt.toLocaleDateString()}</td>
+                    <td className={TD}>
+                      {request.receivedAt.toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                    </td>
                     <td className="px-[18px] py-3">
                       <DeadlineBadge dueAt={request.dueAt} status={status} nowMs={nowMs} />
                     </td>
@@ -255,7 +291,11 @@ export function RequestsTable({
                     </td>
                     <td className="px-[18px] py-3">
                       <div className="flex justify-end">
-                        <StatusControl request={request} />
+                        {/* Keyed on status so a rejected stale write - or another
+                            admin's change landing via revalidatePath - remounts
+                            the control: the select's defaultValue and any
+                            leftover error message both reset to the real row. */}
+                        <StatusControl key={`${request.id}:${status}`} request={request} />
                       </div>
                     </td>
                   </tr>

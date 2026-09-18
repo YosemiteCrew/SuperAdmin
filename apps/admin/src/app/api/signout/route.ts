@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+import { isSameOrigin } from '@/app/features/social/guard';
+
 const isProd = process.env.NODE_ENV === 'production';
 
 type CookieSpec = { name: string; path: string };
@@ -32,5 +34,8 @@ function buildSignedOutResponse(request: NextRequest): NextResponse {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: 'Cross-origin request refused' }, { status: 403 });
+  }
   return buildSignedOutResponse(request);
 }

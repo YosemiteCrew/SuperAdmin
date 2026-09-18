@@ -93,6 +93,16 @@ describe('fetchRecipientEmails admins audience', () => {
     );
     expect(await fetchRecipientEmails('admins')).toEqual(['admin@yc.com']);
   });
+
+  it('returns a shared admin email only once', async () => {
+    mockGetRoleUsers.mockResolvedValue({
+      status: 'OK',
+      users: ['admin-1', 'admin-2'],
+    } as unknown as RoleResult);
+    mockGetUser.mockResolvedValue({ emails: ['shared@yc.com'] } as unknown as StUser);
+
+    expect(await fetchRecipientEmails('admins')).toEqual(['shared@yc.com']);
+  });
 });
 
 describe('fetchRecipientEmails', () => {
@@ -115,5 +125,13 @@ describe('fetchRecipientEmails', () => {
     mockGetUsers.mockResolvedValue(usersPage(['a@b.com', undefined, 'c@d.com']));
     const emails = await fetchRecipientEmails('all');
     expect(emails).toEqual(['a@b.com', 'c@d.com']);
+  });
+
+  it('returns an email found on multiple pages only once', async () => {
+    mockGetUsers
+      .mockResolvedValueOnce(usersPage(['a@b.com', 'shared@yc.com'], 'p2'))
+      .mockResolvedValueOnce(usersPage(['shared@yc.com', 'c@d.com']));
+
+    expect(await fetchRecipientEmails('all')).toEqual(['a@b.com', 'shared@yc.com', 'c@d.com']);
   });
 });

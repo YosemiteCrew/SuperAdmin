@@ -1,4 +1,16 @@
 jest.mock('server-only', () => ({}));
+
+const statusFindManyMock = jest.fn();
+const statusUpsertMock = jest.fn();
+jest.mock('@superadmin/database', () => ({
+  prisma: {
+    approvalStatusIndex: {
+      findMany: (...args: unknown[]) => statusFindManyMock(...args),
+      upsert: (...args: unknown[]) => statusUpsertMock(...args),
+    },
+  },
+}));
+
 jest.mock('supertokens-node', () => ({
   __esModule: true,
   default: { getUsersNewestFirst: jest.fn() },
@@ -15,8 +27,11 @@ import {
   APPROVAL_USER_TYPE,
   annotateApprovalStatuses,
   countPending,
+  countPendingApprovalCandidates,
   fetchApprovalCandidates,
+  scanApprovalStatuses,
 } from '@/app/features/approvals/queue';
+import { logger } from '@/app/lib/logger';
 import { recipeIdsForUserType } from '@/app/features/users/filter';
 
 const mockGet = UserMetadataNode.getUserMetadata as jest.MockedFunction<
@@ -33,8 +48,11 @@ const USERS = [
 ];
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  jest.restoreAllMocks();
+  jest.resetAllMocks();
   mockGet.mockResolvedValue({ status: 'OK', metadata: {} });
+  statusFindManyMock.mockResolvedValue([]);
+  statusUpsertMock.mockResolvedValue({ userId: 'u1' });
 });
 
 describe('annotateApprovalStatuses', () => {
@@ -50,7 +68,11 @@ describe('annotateApprovalStatuses', () => {
       status: 'approved',
       decidedAt: 500,
     });
-    expect(rows[1]).toMatchObject({ id: 'u2', email: 'u2', status: 'pending' });
+    expect(rows[1]).toMatchObject({
+      id: 'u2',
+      email: 'u2',
+      status: 'pending',
+    });
   });
 
   it('treats a failed metadata read as pending instead of throwing', async () => {
@@ -58,6 +80,18 @@ describe('annotateApprovalStatuses', () => {
     const rows = await annotateApprovalStatuses(USERS);
     expect(rows).toHaveLength(2);
     expect(rows.every((r) => r.status === 'pending')).toBe(true);
+  });
+});
+
+describe('scanApprovalStatuses', () => {
+  it('excludes failed metadata reads from the rows eligible for indexing', async () => {
+    mockGet
+      .mockResolvedValueOnce({ status: 'OK', metadata: { approvedAt: 500 } })
+      .mockRejectedValueOnce(new Error('core down'));
+
+    const scan = await scanApprovalStatuses(USERS);
+    expect(scan.rows.map((row) => row.status)).toEqual(['approved', 'pending']);
+    expect(scan.indexableRows.map((row) => row.id)).toEqual(['u1']);
   });
 });
 
@@ -96,5 +130,77 @@ describe('fetchApprovalCandidates', () => {
     expect(ids).toEqual(['emailpassword']);
     expect(ids).not.toContain('passwordless');
     expect(ids).not.toContain('thirdparty');
+  });
+});
+
+describe('countPendingApprovalCandidates', () => {
+  it('uses complete indexed statuses without reading per-user metadata', async () => {
+    statusFindManyMock.mockResolvedValue([
+      { userId: 'u1', status: 'approved' },
+      { userId: 'u2', status: 'pending' },
+    ]);
+
+    await expect(countPendingApprovalCandidates(USERS)).resolves.toBe(1);
+    expect(mockGet).not.toHaveBeenCalled();
+    expect(statusUpsertMock).not.toHaveBeenCalled();
+  });
+
+  it('reads metadata only for candidate ids missing from the index', async () => {
+    statusFindManyMock.mockResolvedValue([{ userId: 'u1', status: 'approved' }]);
+    mockGet.mockResolvedValueOnce({ status: 'OK', metadata: {} });
+
+    await expect(countPendingApprovalCandidates(USERS)).resolves.toBe(1);
+    expect(mockGet).toHaveBeenCalledWith('u2');
+    expect(statusUpsertMock).toHaveBeenCalledWith({
+      where: { userId: 'u2' },
+      update: { status: 'pending' },
+      create: { userId: 'u2', status: 'pending' },
+    });
+  });
+
+  it('falls back to the metadata recount when the database read fails', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    statusFindManyMock.mockRejectedValue(new Error('database down'));
+    mockGet
+      .mockResolvedValueOnce({ status: 'OK', metadata: { rejectedAt: 500 } })
+      .mockResolvedValueOnce({ status: 'OK', metadata: {} });
+
+    await expect(countPendingApprovalCandidates(USERS)).resolves.toBe(1);
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Approval decision index read failed; recounting from metadata',
+      { error: 'database down' }
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('stringifies a non-Error database read failure', async () => {
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    statusFindManyMock.mockRejectedValue('database down');
+
+    await expect(countPendingApprovalCandidates(USERS)).resolves.toBe(2);
+    expect(errorSpy).toHaveBeenCalledWith(
+      'Approval decision index read failed; recounting from metadata',
+      { error: 'database down' }
+    );
+    errorSpy.mockRestore();
+  });
+
+  it('does not persist a failed metadata read as pending', async () => {
+    mockGet
+      .mockResolvedValueOnce({ status: 'OK', metadata: { approvedAt: 500 } })
+      .mockRejectedValueOnce(new Error('core down'));
+
+    await expect(countPendingApprovalCandidates(USERS)).resolves.toBe(1);
+    expect(statusUpsertMock).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      update: { status: 'approved' },
+      create: { userId: 'u1', status: 'approved' },
+    });
+    expect(statusUpsertMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'u2' },
+      })
+    );
   });
 });

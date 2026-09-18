@@ -5,10 +5,11 @@ import SuperTokens from 'supertokens-node';
 import SessionNode from 'supertokens-node/recipe/session';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import { approveAccount, getApprovalState, rejectAccount } from '@/app/features/approvals/store';
+import { approveAccount, rejectAccount, type ApprovalStatus } from '@/app/features/approvals/store';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { notifyAccountDecision } from '@/app/features/crm/discord/dispatcher';
 import { sendTransactional } from '@/app/features/crm/plunk';
+import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 
 export interface ApprovalActionResult {
   error?: string;
@@ -36,6 +37,7 @@ async function resolveActorEmail(actorId: string): Promise<string> {
 interface ValidatedTarget {
   userId: string;
   targetEmail: string;
+  expectedStatus: ApprovalStatus;
   error?: never;
 }
 
@@ -48,15 +50,12 @@ async function validateTarget(formData: FormData): Promise<ValidatedTarget | { e
   const target = await SuperTokens.getUser(userId);
   if (!target) return { error: 'Account not found.' };
 
-  // Compare-and-set guard: the decision only applies if the account is still
-  // in the state the admin was looking at when they clicked.
   const expected = formData.get('expectedStatus');
-  const current = await getApprovalState(userId);
-  if (typeof expected !== 'string' || expected !== current.status) {
+  if (expected !== 'pending' && expected !== 'approved' && expected !== 'rejected') {
     return { error: STALE_STATE_ERROR };
   }
 
-  return { userId, targetEmail: target.emails[0] ?? userId };
+  return { userId, targetEmail: target.emails[0] ?? userId, expectedStatus: expected };
 }
 
 export async function approveAccountAction(formData: FormData): Promise<ApprovalActionResult> {
@@ -65,12 +64,14 @@ export async function approveAccountAction(formData: FormData): Promise<Approval
 
   const validated = await validateTarget(formData);
   if ('error' in validated) return { error: validated.error };
-  const { userId, targetEmail } = validated;
+  const { userId, targetEmail, expectedStatus } = validated;
 
   // Order matters: state change → audit → side effects. The audit write is
   // internally fail-open (it logs, never throws), so nothing separates the
   // applied decision from its audit record.
-  const { stillDisabled } = await approveAccount({ userId, actorId });
+  const approval = await approveAccount({ userId, actorId, expectedStatus });
+  if (!approval.applied) return { error: STALE_STATE_ERROR };
+  const { stillDisabled } = approval;
   await recordAuditEvent({
     action: 'user.approve',
     actorId,
@@ -120,9 +121,14 @@ export async function rejectAccountAction(formData: FormData): Promise<ApprovalA
 
   const validated = await validateTarget(formData);
   if ('error' in validated) return { error: validated.error };
-  const { userId, targetEmail } = validated;
+  const { userId, targetEmail, expectedStatus } = validated;
+  if (await isBootstrapAdmin(userId)) {
+    return { error: 'You cannot reject a bootstrap admin.' };
+  }
 
-  await rejectAccount({ userId, actorId });
+  if (!(await rejectAccount({ userId, actorId, expectedStatus }))) {
+    return { error: STALE_STATE_ERROR };
+  }
   await recordAuditEvent({
     action: 'user.reject',
     actorId,

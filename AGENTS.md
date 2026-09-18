@@ -2,7 +2,7 @@
 
 ## Workspaces
 
-- `apps/admin` — Next.js 15 superadmin dashboard
+- `apps/admin` — Next.js 16 superadmin dashboard
 - `packages/types` — Shared TypeScript types
 
 ## Per-App Instructions

@@ -1,19 +1,22 @@
 #!/bin/bash
 # Double-click (or run) to fetch unresolved SonarCloud issues into sonar-issues.json.
 #
-# The token is NEVER hardcoded here. It is read from a gitignored .sonar-token
-# file in this folder, or from the SONAR_TOKEN environment variable.
+# The token is NEVER hardcoded here. sonar-token.sh resolves it from the
+# SONAR_TOKEN environment variable, then the login Keychain.
 # Generate a token at https://sonarcloud.io/account/security and either:
-#   echo "<your-token>" > apps/admin/.sonar-token
+#   security add-generic-password -a "$USER" -s sonar-token -w <your-token> -U
 # or:
 #   export SONAR_TOKEN=<your-token>
 
 cd "$(dirname "$0")" || exit 1
 
-TOKEN="${SONAR_TOKEN:-$(cat .sonar-token 2>/dev/null)}"
+# shellcheck source=./sonar-token.sh
+. "$(dirname "$0")/sonar-token.sh"
+TOKEN="$(sonar_token)"
 if [ -z "$TOKEN" ]; then
   echo "ERROR: No SonarCloud token found."
-  echo "Create apps/admin/.sonar-token containing just your token, or export SONAR_TOKEN."
+  echo "Add it to the login Keychain, or export SONAR_TOKEN:"
+  echo "  security add-generic-password -a \"$USER\" -s sonar-token -w <your-token> -U"
   echo
   echo "Press any key to close."
   read -r -n 1

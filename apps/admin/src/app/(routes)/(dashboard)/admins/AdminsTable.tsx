@@ -133,100 +133,102 @@ export function AdminsTable({ rows }: { readonly rows: AdminRow[] }) {
 
   return (
     <div className={CARD}>
-      <table className="w-full table-fixed border-collapse">
-        <colgroup>
-          <col className="w-[2.2fr]" />
-          <col className="w-[0.9fr]" />
-          <col className="w-[0.9fr]" />
-          <col className="w-[1.3fr]" />
-          <col className="w-[200px]" />
-        </colgroup>
-        <thead>
-          <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
-            <th className={TH}>Account</th>
-            <th className={TH}>Status</th>
-            <th className={TH}>MFA</th>
-            <th className={TH}>Last sign-in</th>
-            <th className={`${TH} text-right`}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.id}
-              className={`border-b border-[var(--hairline)] transition-colors last:border-0 hover:bg-[var(--surface-soft)] ${
-                row.disabled ? 'opacity-60' : ''
-              }`}
-            >
-              <td className="px-5 py-[15px]">
-                <div className="flex items-center gap-[10px]">
-                  <Initials name={row.displayName} email={row.email} />
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[13.5px] font-bold text-[color:var(--ink)]">
-                        {row.email}
-                      </span>
-                      {row.isSelf ? (
-                        <span className="shrink-0 rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] px-2 py-[2px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[color:var(--ink-faint)]">
-                          You
+      <div className="overflow-x-auto">
+        <table className="min-w-[760px] table-fixed border-collapse">
+          <colgroup>
+            <col className="w-[2.2fr]" />
+            <col className="w-[0.9fr]" />
+            <col className="w-[0.9fr]" />
+            <col className="w-[1.3fr]" />
+            <col className="w-[200px]" />
+          </colgroup>
+          <thead>
+            <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)] text-left">
+              <th className={TH}>Account</th>
+              <th className={TH}>Status</th>
+              <th className={TH}>MFA</th>
+              <th className={TH}>Last sign-in</th>
+              <th className={`${TH} text-right`}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr
+                key={row.id}
+                className={`border-b border-[var(--hairline)] transition-colors last:border-0 hover:bg-[var(--surface-soft)] ${
+                  row.disabled ? 'opacity-60' : ''
+                }`}
+              >
+                <td className="px-5 py-[15px]">
+                  <div className="flex items-center gap-[10px]">
+                    <Initials name={row.displayName} email={row.email} />
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-[13.5px] font-bold text-[color:var(--ink)]">
+                          {row.email}
                         </span>
-                      ) : null}
-                      {row.isBootstrap ? (
-                        <span
-                          title="Bootstrap admin, protected from revocation"
-                          className="shrink-0 text-[color:var(--warn-text)]"
-                        >
-                          <IoShieldHalfOutline size={14} />
+                        {row.isSelf ? (
+                          <span className="shrink-0 rounded-full border border-[var(--hairline)] bg-[var(--pill-raised)] px-2 py-[2px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[color:var(--ink-faint)]">
+                            You
+                          </span>
+                        ) : null}
+                        {row.isBootstrap ? (
+                          <span
+                            title="Bootstrap admin, protected from revocation"
+                            className="shrink-0 text-[color:var(--warn-text)]"
+                          >
+                            <IoShieldHalfOutline size={14} />
+                          </span>
+                        ) : null}
+                      </div>
+                      {row.displayName ? (
+                        <span className="truncate text-[11.5px] text-[color:var(--ink-faint)]">
+                          {row.displayName}
                         </span>
                       ) : null}
                     </div>
-                    {row.displayName ? (
-                      <span className="truncate text-[11.5px] text-[color:var(--ink-faint)]">
-                        {row.displayName}
-                      </span>
-                    ) : null}
                   </div>
-                </div>
-              </td>
+                </td>
 
-              <td className="px-5 py-[15px]">
-                <StatusCell disabled={row.disabled} />
-              </td>
+                <td className="px-5 py-[15px]">
+                  <StatusCell disabled={row.disabled} />
+                </td>
 
-              <td className="px-5 py-[15px]">
-                {row.totpEnrolled ? (
-                  <span className="inline-flex items-center gap-1.5 text-[color:var(--success)]">
-                    <IoShieldCheckmarkOutline size={13} />
-                    <span className="text-[12px] font-bold">TOTP</span>
-                  </span>
-                ) : (
-                  <span className="text-[12px] text-[color:var(--ink-faint)]">Not enrolled</span>
-                )}
-              </td>
+                <td className="px-5 py-[15px]">
+                  {row.totpEnrolled ? (
+                    <span className="inline-flex items-center gap-1.5 text-[color:var(--success)]">
+                      <IoShieldCheckmarkOutline size={13} />
+                      <span className="text-[12px] font-bold">TOTP</span>
+                    </span>
+                  ) : (
+                    <span className="text-[12px] text-[color:var(--ink-faint)]">Not enrolled</span>
+                  )}
+                </td>
 
-              <td className="px-5 py-[15px] text-[13.5px] text-[color:var(--ink-muted)]">
-                {row.lastSignInAt ? (
-                  formatDateTime(row.lastSignInAt)
-                ) : (
-                  <span className="text-[color:var(--ink-faint)]">Never</span>
-                )}
-              </td>
+                <td className="px-5 py-[15px] text-[13.5px] text-[color:var(--ink-muted)]">
+                  {row.lastSignInAt ? (
+                    formatDateTime(row.lastSignInAt)
+                  ) : (
+                    <span className="text-[color:var(--ink-faint)]">Never</span>
+                  )}
+                </td>
 
-              <td className="px-5 py-[15px]">
-                <div className="flex items-center justify-end gap-2">
-                  <RevokeButton row={row} />
-                  <Link
-                    href={`/users/${row.id}`}
-                    className={`${ACTION_BTN} border-[var(--divider)] text-[color:var(--ink)] hover:bg-[var(--surface-soft)]`}
-                  >
-                    Manage
-                  </Link>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <td className="px-5 py-[15px]">
+                  <div className="flex items-center justify-end gap-2">
+                    <RevokeButton row={row} />
+                    <Link
+                      href={`/users/${row.id}`}
+                      className={`${ACTION_BTN} border-[var(--divider)] text-[color:var(--ink)] hover:bg-[var(--surface-soft)]`}
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className={CARD_FOOT}>
         You cannot revoke yourself, a bootstrap admin, or the last remaining admin.
       </p>

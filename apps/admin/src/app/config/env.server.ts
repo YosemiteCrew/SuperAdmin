@@ -31,14 +31,15 @@ function optionalPem(value: string | undefined): string | null {
   return trimmed.length > 0 ? `${trimmed}\n` : null;
 }
 
-function optionalEmailList(value: string | undefined): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
+function requiredEmailList(name: string, value: string | undefined): string[] {
+  const emails = requiredServer(name, value)
     .split(',')
     .map((entry) => entry.trim().toLowerCase())
     .filter((entry) => entry.length > 0);
+  if (emails.length === 0) {
+    throw new Error(`Missing required server env var: ${name}. Configure at least one email.`);
+  }
+  return emails;
 }
 
 export const serverEnv = {
@@ -56,7 +57,12 @@ export const serverEnv = {
   // behind a digest, so the panel looks selectively broken rather than
   // misconfigured.
   databaseUrl: requiredServer('DATABASE_URL', process.env.DATABASE_URL),
-  superadminBootstrapEmails: optionalEmailList(process.env.SUPERADMIN_BOOTSTRAP_EMAILS),
+  // At least one configuration-owned admin is the serialization anchor that
+  // prevents concurrent revocations from removing every admin role.
+  superadminBootstrapEmails: requiredEmailList(
+    'SUPERADMIN_BOOTSTRAP_EMAILS',
+    process.env.SUPERADMIN_BOOTSTRAP_EMAILS
+  ),
   plunkApiKey: process.env.PLUNK_API_KEY ?? '',
   plunkApiEndpoint: process.env.PLUNK_API_ENDPOINT ?? 'https://api.useplunk.com',
   // ActivityPub federation: RSA private key PEM used to sign license JWTs.
@@ -68,8 +74,12 @@ export const serverEnv = {
   // consent can never be recorded unauthenticated.
   consentIntakeKey: process.env.CONSENT_INTAKE_KEY ?? null,
   // Shared secret the marketing site presents when POSTing contact-us
-  // submissions to /api/contact. Optional — the intake endpoint refuses all
-  // requests when absent, so the form cannot silently start dropping leads.
+  // submissions to /api/contact. Optional: the intake refuses all requests
+  // when absent, so writes fail closed against unauthenticated callers. That
+  // does not stop loss while absent - the product write still succeeds and the
+  // visitor still gets 201, while the CRM mirror never receives the submission.
+  // Those rows stay missing from /crm/requests until the contact backfill
+  // import restores them (see apps/admin/README.md).
   contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
   // Social poster (TikTok) credentials. Optional on purpose: the panel must
   // still boot on a host where the poster was never provisioned — the Social

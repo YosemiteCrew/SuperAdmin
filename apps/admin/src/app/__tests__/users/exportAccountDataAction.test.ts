@@ -29,6 +29,9 @@ jest.mock('@/app/features/audit/store', () => ({
 jest.mock('@/app/features/users/emailVerification', () => ({
   setEmailVerified: jest.fn(),
 }));
+jest.mock('@/app/features/users/bootstrap', () => ({
+  isBootstrapAdmin: jest.fn().mockResolvedValue(false),
+}));
 
 jest.mock('@/app/features/users/dataExport', () => ({
   collectAccountData: jest.fn(),

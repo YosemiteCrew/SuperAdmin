@@ -3,11 +3,11 @@ import Link from 'next/link';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import {
-  annotateApprovalStatuses,
   countPending,
   fetchApprovalCandidates,
+  scanApprovalStatuses,
 } from '@/app/features/approvals/queue';
-import type { ApprovalStatus } from '@/app/features/approvals/store';
+import { refreshApprovalStatusIndex, type ApprovalStatus } from '@/app/features/approvals/store';
 
 import { ApprovalsTable } from './ApprovalsTable';
 
@@ -34,7 +34,7 @@ export default async function ApprovalsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status } = await searchParams;
   const filter: StatusFilter = FILTERS.some((f) => f.key === status)
@@ -42,7 +42,8 @@ export default async function ApprovalsPage({
     : 'pending';
 
   const users = await fetchApprovalCandidates(SCAN_LIMIT);
-  const rows = await annotateApprovalStatuses(users);
+  const { rows, indexableRows } = await scanApprovalStatuses(users);
+  await refreshApprovalStatusIndex(indexableRows);
 
   const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
   const pendingCount = countPending(rows);
