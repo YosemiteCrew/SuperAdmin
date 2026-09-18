@@ -20,12 +20,81 @@
 // The resolver is copied into a temp dir for every run. It locates the legacy
 // file relative to its own `BASH_SOURCE`, so a copy keeps the `.sonar-token` arm
 // from ever writing a token-shaped file into the real apps/admin.
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 const RESOLVER = path.join(__dirname, '..', '..', 'sonar-token.sh');
+const REPO_ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
+  cwd: __dirname,
+  encoding: 'utf8',
+}).trim();
+
+// Assembled from parts rather than written out, because this file is inside the
+// population the scan below walks: a literal here would be a hit in the guard's
+// own source and the guard would have to exempt itself to stay green.
+const UNQUALIFIED_SERVICE = ['sonar', 'token'].join('-');
+const SERVICE = `${UNQUALIFIED_SERVICE}-superadmin`;
+
+/**
+ * Matches the unqualified service name as a whole word. A fresh instance per
+ * call: the `g` flag carries `lastIndex` between uses.
+ *
+ * The namespaced name is not a hit (the `-` fails the trailing lookahead), and
+ * neither is the legacy dotfile or the resolver's own filename (the `.` fails a
+ * lookaround on either side) — so the pattern separates "names the old Keychain
+ * service" from "mentions one of the files".
+ */
+const unqualifiedService = (): RegExp =>
+  new RegExp(`(?<![-.\\w])${UNQUALIFIED_SERVICE}(?![-.\\w])`, 'g');
+
+/**
+ * The service the resolver actually declares. Parsed rather than assumed: the
+ * scan below asks whether every written-out name agrees with THIS, so a rename
+ * to a third name is caught by the same arm that catches the old one. A list,
+ * not a string, so the count is assertable — two declarations would mean the
+ * later one silently wins.
+ */
+const DECLARED_SERVICES = [
+  ...readFileSync(RESOLVER, 'utf8').matchAll(/^SONAR_KEYCHAIN_SERVICE="([^"]*)"$/gm),
+].map((match) => match[1]);
+
+/**
+ * Every service name written out as a literal or a variable, keyed on the two
+ * shapes one can be written in: the `-s` argument of a `security` call, and the
+ * prose that names it. Keyed on the SYNTAX, not on any particular name — a scan
+ * that looks for the old name can only ever catch a drift back to the old name.
+ *
+ * `-s` is only read on a line that is about a generic password, so an unrelated
+ * `-s` flag elsewhere is not mistaken for a service.
+ */
+function serviceNamesIn(source: string): string[] {
+  const names: string[] = [];
+  for (const line of source.split('\n')) {
+    if (!line.includes('generic-password')) continue;
+    for (const match of line.matchAll(/-s\s+("[^"]*"|'[^']*'|\S+)/g)) names.push(match[1]);
+  }
+  for (const match of source.matchAll(/service name\s+"([^"]*)"/g)) names.push(match[1]);
+  return names.map((name) => name.replace(/^["']|["']$/g, ''));
+}
+
+/**
+ * Every tracked file that talks about a generic password, repo-root-relative.
+ *
+ * Derived from git rather than listed here, and keyed on a string the guarded
+ * pattern does not contain, so a new file that documents the Keychain item
+ * joins the population on its own. `git grep` exits 1 with no matches, which
+ * throws here and fails the suite to run rather than scanning an empty set.
+ */
+const KEYCHAIN_FILES = execFileSync(
+  'git',
+  ['grep', '--files-with-matches', '--fixed-strings', '--no-color', 'generic-password'],
+  { cwd: REPO_ROOT, encoding: 'utf8' }
+)
+  .split('\n')
+  .filter(Boolean)
+  .sort();
 const CONSUMERS = ['sonar-local.sh', 'fetch-sonar-issues.command'].map((name) =>
   path.join(__dirname, '..', '..', name)
 );
@@ -103,13 +172,13 @@ describe('sonar-token.sh', () => {
     expect(resolve().stdout).toBe(KEYCHAIN_TOKEN);
   });
 
-  it('asks the Keychain for the sonar-token service by name', () => {
+  it('asks the Keychain for the namespaced service by name', () => {
     // Pins the lookup key. A resolver that read some other service would still
     // satisfy the arm above, because the stub answers every question.
     stubSecurity(`printf '%s' "$*"`);
-    // Whole argument list, not a substring: `-s sonar-token-other` contains
-    // `-s sonar-token`, so a containment check survives a renamed service.
-    expect(resolve().stdout).toBe('find-generic-password -s sonar-token -w');
+    // Whole argument list, not a substring: any longer service name contains
+    // the shorter one, so a containment check survives a renamed service.
+    expect(resolve().stdout).toBe(`find-generic-password -s ${SERVICE} -w`);
   });
 
   it('falls back to the legacy file when the Keychain has no item', () => {
@@ -156,8 +225,112 @@ describe('the scripts that consume it', () => {
     expect(source).toContain('#!/');
     expect(source).toContain('sonar-token.sh"');
     expect(source).toContain('sonar_token)');
+    // And the service name comes from the resolver too. Both of these scripts
+    // print a "create the Keychain item like this" hint when no token resolves,
+    // which is exactly the moment a hint naming a different service misleads.
+    expect(source).toContain('$SONAR_KEYCHAIN_SERVICE');
     // The precedence must live in one place. A second reader of the legacy file
     // is how one of these two scripts got left behind by the migration before.
     expect(source).not.toMatch(/cat\s+"?\.?\/?\.sonar-token/);
+  });
+});
+
+describe('the Keychain service name', () => {
+  it('is declared exactly once in the resolver, and read from there', () => {
+    // Pins the value against a literal this file owns, so a rename cannot be
+    // made by editing the resolver alone — and pins the count, because the scan
+    // below compares every written-out name against DECLARED_SERVICES[0].
+    expect(DECLARED_SERVICES).toEqual([SERVICE]);
+    expect(readFileSync(RESOLVER, 'utf8')).toContain(
+      'find-generic-password -s "$SONAR_KEYCHAIN_SERVICE" -w'
+    );
+  });
+
+  it('is extracted from both shapes it can be written in', () => {
+    // Drives the extractor before trusting it. The fixtures interpolate their
+    // name rather than spelling one out: this file is inside the population the
+    // scan walks, and a literal here would be a finding in the guard's own
+    // source — which is how a guard ends up exempting itself.
+    const other = 'some-other-service';
+    expect(serviceNamesIn(`security add-generic-password -a "$USER" -s ${other} -w x -U`)).toEqual([
+      other,
+    ]);
+    expect(serviceNamesIn(`  security find-generic-password -s "${other}" -w`)).toEqual([other]);
+    expect(serviceNamesIn(`# with service name "${other}"), then a file`)).toEqual([other]);
+    // A variable reference is not a literal, and must read as one name, not two.
+    expect(
+      serviceNamesIn('security find-generic-password -s "$SONAR_KEYCHAIN_SERVICE" -w')
+    ).toEqual(['$SONAR_KEYCHAIN_SERVICE']);
+    // An unrelated -s flag is not a service name.
+    expect(serviceNamesIn('ls -s /tmp && echo no generic password here')).toEqual([]);
+  });
+
+  it('is written out in as many places as this guard believes', () => {
+    // Segmentation report. The scan's pass value is "nothing disagreed", which
+    // is also what an extractor that stopped seeing a site produces.
+    const counts = Object.fromEntries(
+      KEYCHAIN_FILES.map((file) => [
+        file,
+        serviceNamesIn(readFileSync(path.join(REPO_ROOT, file), 'utf8')).length,
+      ])
+    );
+    expect(counts).toEqual({
+      'apps/admin/.sonar-token.example': 2,
+      'apps/admin/fetch-sonar-issues.command': 2,
+      // This file's own six are all variable references — its fixtures
+      // interpolate their names — so the scan below finds no literal here.
+      'apps/admin/scripts/__tests__/sonar-token.test.ts': 6,
+      'apps/admin/sonar-local.sh': 1,
+      'apps/admin/sonar-token.sh': 3,
+    });
+  });
+
+  it('scans the files that document the Keychain item, and no others', () => {
+    // Canary and review gate in one. An equality rather than a containment: if
+    // git returned nothing, or a new file starts documenting the item, this is
+    // the arm that says so instead of the scan below passing over a short list.
+    expect(KEYCHAIN_FILES).toEqual([
+      'apps/admin/.sonar-token.example',
+      'apps/admin/fetch-sonar-issues.command',
+      'apps/admin/scripts/__tests__/sonar-token.test.ts',
+      'apps/admin/sonar-local.sh',
+      'apps/admin/sonar-token.sh',
+    ]);
+  });
+
+  it('is detected as a whole word, in every shape the old name was written in', () => {
+    // Drives the scan's pattern both ways before trusting a clean sweep: a
+    // lookaround typo that matched nothing would leave the scan silently green.
+    expect(`-s ${UNQUALIFIED_SERVICE} -w`.match(unqualifiedService())).toHaveLength(1);
+    expect(`-s "${UNQUALIFIED_SERVICE}" -w`.match(unqualifiedService())).toHaveLength(1);
+    expect(`service name '${UNQUALIFIED_SERVICE}'`.match(unqualifiedService())).toHaveLength(1);
+    // The three things that are not the old service and must not be flagged.
+    expect(`-s ${SERVICE} -w`.match(unqualifiedService())).toBeNull();
+    expect(`cat .${UNQUALIFIED_SERVICE}`.match(unqualifiedService())).toBeNull();
+    expect(`. ./${UNQUALIFIED_SERVICE}.sh`.match(unqualifiedService())).toBeNull();
+  });
+
+  // Two arms rather than one body with two assertions: they catch different
+  // drifts, and a shared name would report whichever fired as the other.
+  it.each(KEYCHAIN_FILES)('%s names no unqualified Keychain service', (file) => {
+    const source = readFileSync(path.join(REPO_ROOT, file), 'utf8');
+    // Canary: proves this is the file git matched, not a path that resolved
+    // somewhere empty — an unreadable file would throw, but a wrong-but-real
+    // one would sail through a scan whose pass value is "no match".
+    expect(source).toContain('generic-password');
+    // Comments and docs cannot interpolate the shell variable, so the copies
+    // that stay literal are pinned here instead. Catches a bare old name in
+    // prose, which sits in neither shape the extractor reads.
+    expect(source.match(unqualifiedService())).toBeNull();
+  });
+
+  it.each(KEYCHAIN_FILES)('%s names the service the resolver declares', (file) => {
+    const source = readFileSync(path.join(REPO_ROOT, file), 'utf8');
+    expect(source).toContain('generic-password');
+    // Against what the resolver declares TODAY, not against the one name it
+    // used to have. Renaming the service and leaving a doc behind is the same
+    // divergence as never renaming it at all.
+    const literals = serviceNamesIn(source).filter((name) => !name.startsWith('$'));
+    expect(literals.filter((name) => name !== DECLARED_SERVICES[0])).toEqual([]);
   });
 });
