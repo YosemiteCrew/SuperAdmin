@@ -62,6 +62,28 @@ describe('RequestsTable', () => {
     expect(typeCells).toHaveLength(1);
   });
 
+  it('renders the received calendar day in UTC', () => {
+    const formatDate = jest
+      .spyOn(Date.prototype, 'toLocaleDateString')
+      .mockImplementation((_locales, options) =>
+        options?.timeZone === 'UTC' ? '3/1/2026' : '2/28/2026'
+      );
+
+    try {
+      render(
+        <RequestsTable
+          requests={[makeRequest({ receivedAt: new Date('2026-03-01T00:00:00.000Z') })]}
+          nowMs={NOW_MS}
+        />
+      );
+      expect(screen.getByText('3/1/2026')).toBeInTheDocument();
+      expect(screen.queryByText('2/28/2026')).not.toBeInTheDocument();
+      expect(formatDate).toHaveBeenCalledWith(undefined, { timeZone: 'UTC' });
+    } finally {
+      formatDate.mockRestore();
+    }
+  });
+
   it('links the subject to that request\u2019s record, so the panel record is one click away', () => {
     render(<RequestsTable requests={[makeRequest({ id: 'dr_42' })]} nowMs={NOW_MS} />);
     const link = screen.getByRole('link', { name: 'person@example.com' });
@@ -108,6 +130,9 @@ describe('RequestsTable', () => {
   it('renders the log form fields', () => {
     render(<RequestsTable requests={[]} nowMs={NOW_MS} />);
     expect(screen.getByLabelText(/Subject email/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('type', 'date');
+    expect(screen.getByLabelText(/Received on/i)).toHaveAttribute('max', '2026-07-05');
+    expect(screen.getByLabelText(/Received on/i)).toBeRequired();
     expect(screen.getByLabelText(/^Type$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
   });
@@ -119,13 +144,18 @@ describe('RequestsTable', () => {
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'new@example.com' },
     });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
+    });
     fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
     fireEvent.change(screen.getByLabelText(/Notes/i), { target: { value: 'Verified by support' } });
     fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
 
     await waitFor(() => expect(mockLog).toHaveBeenCalled());
+    expect(mockLog.mock.calls[0][0].get('receivedOn')).toBe('2026-06-20');
     const success = await screen.findByText(/one-month response clock/i);
     expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
+    expect(screen.getByLabelText(/Received on/i)).toHaveValue('');
     expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
     expect(screen.getByLabelText(/Notes/i)).toHaveValue('');
     expect(success.tagName).toBe('OUTPUT');
@@ -139,6 +169,9 @@ describe('RequestsTable', () => {
     // server action returns, not native constraint validation.
     fireEvent.change(screen.getByLabelText(/Subject email/i), {
       target: { value: 'someone@example.com' },
+    });
+    fireEvent.change(screen.getByLabelText(/Received on/i), {
+      target: { value: '2026-06-20' },
     });
     fireEvent.change(screen.getByLabelText(/^Type$/i), { target: { value: 'erasure' } });
     fireEvent.change(screen.getByLabelText(/Notes/i), {

@@ -16,6 +16,21 @@ const REQUESTS_PATH = '/privacy/requests';
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
+function parseReceivedOn(value: FormDataEntryValue | null): Date | null {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+
+  const receivedAt = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(receivedAt.getTime()) || receivedAt.toISOString().slice(0, 10) !== value) {
+    return null;
+  }
+
+  const latestReceivedAt = new Date();
+  latestReceivedAt.setUTCHours(24, 0, 0, 0);
+  if (receivedAt > latestReceivedAt) return null;
+
+  return receivedAt;
+}
+
 /**
  * Logs a new data-subject request received by email/support and starts the
  * statutory response clock. Audited as privacy.request_create.
@@ -26,6 +41,7 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
   const subjectEmail = formData.get('subjectEmail');
   const type = formData.get('type');
   const notesRaw = formData.get('notes');
+  const receivedAt = parseReceivedOn(formData.get('receivedOn'));
 
   if (typeof subjectEmail !== 'string' || !isValidEmail(subjectEmail)) {
     return { ok: false, error: 'A valid subject email is required' };
@@ -33,12 +49,16 @@ export async function logDataRequestAction(formData: FormData): Promise<ActionRe
   if (!isRequestType(type)) {
     return { ok: false, error: `type must be one of: ${REQUEST_TYPES.join(', ')}` };
   }
+  if (!receivedAt) {
+    return { ok: false, error: 'Enter the date the request was received' };
+  }
   const notes = typeof notesRaw === 'string' ? notesRaw : undefined;
 
   const request = await createDataRequest({
     subjectEmail: subjectEmail.trim(),
     type,
     notes,
+    receivedAt,
   });
 
   // The subject's email is deliberately NOT recorded here. It lives on the
