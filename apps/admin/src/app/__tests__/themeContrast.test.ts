@@ -777,8 +777,52 @@ describe('the threshold a pair is held to', () => {
 // be talked out of reading a real class.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Every `opacity-<n>` in a class literal, with the variant chain that gates it. */
-const OPACITY = /(?:^|["'`\s])((?:[a-z-]+:)*)opacity-(\d+)/g;
+/**
+ * The spellings a resting dim can be written in — ONE alphabet, read twice.
+ * The gate below prefixes it with a variant chain; the canary searches it
+ * plainly. Until #530 the two patterns each spelled `opacity-<n>` themselves,
+ * so a construct outside that spelling was missing from BOTH at once: they
+ * agreed with each other and said nothing, and a planted `opacity-[0.6]` left
+ * the suite green at `8db6486`. A partition can only partition what its
+ * alphabet admits, so the alphabet is the thing that has to be shared.
+ *
+ * `sample` is not documentation. Every spelling is driven through both patterns
+ * by the arm below, so a widening that lands without a working sample fails
+ * there rather than going quiet.
+ *
+ * The third spelling is deliberately narrower than `]/<n>`: `text-[13px]/5` is
+ * a line-height modifier, not an alpha, and `border-[var(--success)]/40` and
+ * `bg-surface/72` make a GROUND translucent rather than an ink. Grounds are a
+ * different defect with a different fix and are not claimed here.
+ */
+const DIM_SPELLINGS = [
+  {
+    label: 'a numeric opacity utility',
+    source: 'opacity-\\d+',
+    sample: 'opacity-65',
+  },
+  {
+    label: 'an arbitrary-value opacity utility',
+    source: 'opacity-\\[[^\\]]+\\]',
+    sample: 'opacity-[0.6]',
+  },
+  {
+    label: 'an alpha modifier on a colour literal',
+    source: 'text-\\[(?:color:|var\\()[^\\]]*\\]/\\d+',
+    sample: 'text-[color:var(--btn-ink)]/65',
+  },
+] as const;
+
+const DIM = `(?:${DIM_SPELLINGS.map((spelling) => spelling.source).join('|')})`;
+
+/** A class literal starts at the quote or after whitespace, never mid-token. */
+const BOUNDARY = '(?:^|["\'`\\s])';
+
+/** Every dim in a class literal, with the variant chain that gates it. */
+const OPACITY = new RegExp(`${BOUNDARY}((?:[a-z-]+:)*)(${DIM})`, 'g');
+
+/** The same alphabet with no variant parsing: the canary's independent read. */
+const ANY_DIM = new RegExp(DIM, 'g');
 
 /** Utilities that put the element outside WCAG 1.4.3 for as long as they apply. */
 const INACTIVE = 'cursor-not-allowed';
@@ -788,7 +832,7 @@ type Dim = { variant: string; className: string };
 function dimsIn(literal: string): Dim[] {
   return [...` ${literal} `.matchAll(OPACITY)].map((match) => ({
     variant: match[1],
-    className: `${match[1]}opacity-${match[2]}`,
+    className: `${match[1]}${match[2]}`,
   }));
 }
 
@@ -822,21 +866,43 @@ describe('no resting opacity dims text the gate has already measured', () => {
     literals = sourceLiterals();
   });
 
-  it('accounts for every opacity utility it can see', () => {
+  it('accounts for every dim it can see', () => {
     // The canary, and it is a partition rather than a floor: `dimsIn` has to
-    // explain every `opacity-<n>` a plain substring search finds, so a regex
-    // that stops matching one spelling fails here instead of going quiet in the
-    // assertion below. The substring count comes from the file text, which is
-    // the one input the regex has no say in.
+    // explain every dim a plain substring search finds, so a pattern that stops
+    // matching one spelling fails here instead of going quiet in the assertion
+    // below. The substring count comes from the file text, which is the one
+    // input the pattern has no say in.
+    //
+    // It is independent of how the gate PARSES — drop the variant group and this
+    // fails by name — but not of what the gate can SPELL, which is why both now
+    // read `DIM_SPELLINGS` and the arm below drives every entry through each.
     const files = sourceFiles(SRC, /\.tsx?$/);
     expect(files.length).toBeGreaterThan(50);
-    const occurrences = literals.flatMap((literal) => literal.text.match(/opacity-\d+/g) ?? []);
+    const occurrences = literals.flatMap((literal) => literal.text.match(ANY_DIM) ?? []);
     expect(occurrences.length).toBeGreaterThan(30);
     expect(literals.flatMap((literal) => dimsIn(literal.text)).length).toBe(occurrences.length);
     // And the variants are the bulk of them, so the filter below is doing work.
     expect(
       literals.flatMap((literal) => dimsIn(literal.text)).filter((dim) => dim.variant !== '').length
     ).toBeGreaterThan(30);
+  });
+
+  it.each(DIM_SPELLINGS)('reads $label through both patterns', (spelling) => {
+    // The divergence arm. A widening that reaches one pattern and not the other
+    // is the whole defect of #530, and both patterns are built from `source`,
+    // so this reads the alphabet entry rather than a copy of it.
+    expect(restingDims(`tabular-nums ${spelling.sample}`)).toEqual([spelling.sample]);
+    expect(`tabular-nums ${spelling.sample}`.match(ANY_DIM)).toEqual([spelling.sample]);
+    // And the variant chain has to parse this spelling too, or a new entry
+    // arrives refusing `disabled:` states the gate is supposed to allow.
+    expect(restingDims(`rounded-full disabled:${spelling.sample}`)).toEqual([]);
+    // The sample has to exercise ITS OWN spelling. Without this a lazy sample
+    // caught by an earlier entry gives a passing arm that never reads the new
+    // pattern at all — an arm per spelling that is not an arm per spelling.
+    const matched = DIM_SPELLINGS.filter((other) =>
+      new RegExp(`^(?:${other.source})$`).test(spelling.sample)
+    );
+    expect(matched).toEqual([spelling]);
   });
 
   it('finds no resting dim outside an inactive control', () => {
@@ -854,12 +920,31 @@ describe('no resting opacity dims text the gate has already measured', () => {
     ['a bare dim', 'tabular-nums opacity-65', ['opacity-65']],
     ['a dim beside a variant one', 'opacity-80 disabled:opacity-60', ['opacity-80']],
     ['a dim at the start of the literal', 'opacity-90 text-sm', ['opacity-90']],
+    // The spellings #530 added, and the constructs they must not swallow.
+    ['an arbitrary-value dim', 'tabular-nums opacity-[0.6]', ['opacity-[0.6]']],
+    ['a variant arbitrary-value dim', 'rounded-full disabled:opacity-[0.6]', []],
+    [
+      'an alpha on a colour literal',
+      'tabular-nums text-[color:var(--btn-ink)]/65',
+      ['text-[color:var(--btn-ink)]/65'],
+    ],
+    ['an alpha on a bare var colour literal', 'text-[var(--ink)]/60', ['text-[var(--ink)]/60']],
+    ['a variant alpha on a colour literal', 'hover:text-[color:var(--ink)]/60', []],
+    // `text-[13px]/5` is a line-height modifier and `border-…/40`, `bg-surface/72`
+    // dim a GROUND, not an ink. Reading either as a dim would report lines this
+    // gate has no measurement for, so the `color:`/`var(` discriminator and the
+    // `text-` prefix are both pinned here.
+    ['a line-height modifier on a bracketed size', 'text-[13px]/5 font-semibold', []],
+    ['an alpha on a border literal', 'border border-[var(--success)]/40 px-4', []],
+    ['an alpha on a bare ground utility', 'rounded-2xl bg-surface/72 backdrop-blur-md', []],
   ])('reads %s correctly', (_label, literal, expected) => {
     expect(restingDims(literal as string)).toEqual(expected);
     // `transition-opacity` and `duration-200` are not dims; the partition arm
-    // above depends on this pattern never counting them.
+    // above depends on the gate never counting them. Read through `ANY_DIM` so
+    // this stays the canary's question — do both patterns see the same thing —
+    // rather than a second hand-written copy of the alphabet.
     expect(dimsIn(literal as string).length).toBe(
-      (literal as string).match(/opacity-\d+/g)!.length
+      ((literal as string).match(ANY_DIM) ?? []).length
     );
   });
 });
