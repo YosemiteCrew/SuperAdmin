@@ -37,7 +37,7 @@ const TD = 'px-[18px] py-3 text-[13.5px] text-[color:var(--ink-muted)]';
 const BADGE =
   'inline-flex items-center rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em]';
 const FIELD =
-  'h-[38px] rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+  'h-[38px] rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]';
 const FIELD_LABEL = 'text-[11px] font-semibold text-[color:var(--ink-soft)]';
 const FOOTER_NOTE =
   'border-t border-[var(--hairline)] px-5 py-3 text-[12px] text-[color:var(--ink-faint)]';

@@ -142,7 +142,7 @@
 }
 
 .routeGroupLabel {
-  color: var(--ink-faint2);
+  color: var(--ink-faint);
   font-family: var(--font-satoshi);
   font-size: 9.5px;
   font-weight: 700;

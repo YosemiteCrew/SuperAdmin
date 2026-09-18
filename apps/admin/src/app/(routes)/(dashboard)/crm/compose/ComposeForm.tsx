@@ -8,7 +8,7 @@ const INITIAL: SendCampaignResult = {};
 
 const LABEL = 'mb-[5px] block text-[12px] font-semibold text-[color:var(--ink-soft)]';
 const FIELD =
-  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]';
 const HINT = 'mt-[5px] text-[11.5px] text-[color:var(--ink-faint)]';
 
 function CampaignResult({ result }: Readonly<{ result: SendCampaignResult }>) {

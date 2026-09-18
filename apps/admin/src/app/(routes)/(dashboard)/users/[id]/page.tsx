@@ -129,7 +129,7 @@ const SECTION_BODY =
   'flex flex-col gap-[14px] p-[18px] sm:flex-row sm:items-center sm:justify-between';
 const SECTION_STATE = 'text-[13.5px] font-semibold text-[color:var(--ink)]';
 const SECTION_HINT = 'text-[12px] leading-[1.5] text-[color:var(--ink-faint)] text-pretty';
-const DT_CLASS = 'text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]';
+const DT_CLASS = 'text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 const DD_CLASS = 'mt-[3px] text-[13.5px] font-medium text-[color:var(--ink)]';
 
 function AccessSection({
