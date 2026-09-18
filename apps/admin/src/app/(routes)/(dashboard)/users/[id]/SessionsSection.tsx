@@ -3,7 +3,7 @@ import type { SessionInformation } from 'supertokens-node/recipe/session/types';
 import { revokeAllSessionsAction, revokeSessionAction } from './actions';
 
 const SESSION_TH =
-  'px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]';
+  'px-[18px] py-[9px] text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 const SESSION_TD = 'px-[18px] py-3 text-[13px] text-[color:var(--ink-muted)]';
 
 function formatDateTime(ms: number): string {

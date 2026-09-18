@@ -10,7 +10,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 // the element falls back to the UA default: no border, no background and a
 // fixed ~155px width that ignores its container.
 const FIELD =
-  'h-[38px] w-full rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+  'h-[38px] w-full rounded-[11px] border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-3 text-[13px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]';
 const FIELD_LABEL = 'text-[11px] font-semibold text-[color:var(--ink-soft)]';
 
 export function Input({ label, error, id, className, ...props }: Readonly<InputProps>) {

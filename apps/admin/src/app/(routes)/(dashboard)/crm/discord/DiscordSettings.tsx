@@ -19,7 +19,7 @@ const CARD_TITLE = 'text-[15.5px] font-bold text-[color:var(--ink)]';
 const CARD_SUB = 'text-[12.5px] text-[color:var(--ink-faint)]';
 const LABEL = 'mb-[5px] block text-[12px] font-semibold text-[color:var(--ink-soft)]';
 const FIELD =
-  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint2)] focus:border-[color:var(--blue)]';
+  'w-full rounded-xl border-[1.5px] border-[color:var(--hairline)] bg-[var(--field-bg)] px-[14px] text-[13.5px] text-[color:var(--ink)] outline-none transition-colors placeholder:text-[color:var(--ink-faint)] focus:border-[color:var(--blue)]';
 const PRIMARY_BTN =
   'yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13px] font-semibold text-[color:var(--btn-ink)] disabled:opacity-50';
 /** Inline status copy sitting beside its button, per the design: green when the

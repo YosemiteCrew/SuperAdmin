@@ -80,7 +80,7 @@ function ratingLabel(org: SuperAdminOrganizationDetail): string {
 function Field({ label, value }: Readonly<{ label: string; value?: string }>) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]">
+      <dt className="text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]">
         {label}
       </dt>
       <dd className="text-[13px] font-medium text-[color:var(--ink)]">
