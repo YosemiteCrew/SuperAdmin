@@ -61,6 +61,26 @@ function runWith(
     // The fallback reads the checkout, so a case that exercises it needs a real
     // one. Identity is passed per-command: a machine with no global git config
     // must not change what this test measures.
+    //
+    // Built once and handed to every spawn below, mirroring how `AWS_COMMIT_ID`
+    // is isolated per case. On macOS /usr/bin/git is an xcrun shim: with
+    // DEVELOPER_DIR unset it resolves the developer dir like xcode-select does,
+    // and runtimes that strip the variable (turbo in strict env mode, jest
+    // workers) hit the resolution that rejects the process outright ("You have
+    // not agreed to the Xcode license agreements", exit 69) before the stanza
+    // under test runs. Pin it to the command line tools the shim ships with
+    // when it is absent — not DERIVED from xcode-select, which reports the very
+    // path that fails. Git on other platforms ignores the variable, so this is
+    // inert there, and it composes with the passThroughEnv in turbo.json: a
+    // value that exists in the ambient env survives turbo, and this covers the
+    // shell that never set it.
+    const env = { ...process.env };
+    if (process.platform === 'darwin' && !env.DEVELOPER_DIR) {
+      env.DEVELOPER_DIR = '/Library/Developer/CommandLineTools';
+    }
+    delete env.AWS_COMMIT_ID;
+    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
+
     if (options.gitRepo) {
       const git = (...args: string[]): void => {
         try {
@@ -71,7 +91,7 @@ function runWith(
             // an `env` option inherits the worker's real one instead — so the
             // two subprocesses in this helper would otherwise run in different
             // environments, and neither the test nor a reader could tell which.
-            env: process.env,
+            env,
             // stderr is captured rather than discarded. `stdio: 'ignore'` threw
             // a bare `Command failed: git … init -q`, which names the command
             // and not one thing about why it refused — a git that cannot run at
@@ -89,10 +109,6 @@ function runWith(
       git('init', '-q');
       if (!options.unborn) git('commit', '-q', '--allow-empty', '-m', 'fixture');
     }
-
-    const env = { ...process.env };
-    delete env.AWS_COMMIT_ID;
-    if (commitId !== undefined) env.AWS_COMMIT_ID = commitId;
 
     const stdout = execFileSync('sh', ['-c', extractBuildShaStanza()], {
       cwd: dir,
