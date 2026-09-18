@@ -59,6 +59,37 @@ beforeEach(() => {
 });
 
 describe('bulkDisableUsersAction', () => {
+  beforeEach(() => {
+    getUserMetadataMock.mockResolvedValue({ metadata: {} });
+  });
+
+  it('writes and audits only real changes in a mixed selection, and revokes every target', async () => {
+    const metadataById: Record<string, Record<string, unknown>> = {
+      'u-off': { disabledAt: 1_700_000_000_000 },
+      'u-on': {},
+      'u-rej': { disabledAt: 1_700_000_000_000, rejectionDisabled: true },
+    };
+    getUserMetadataMock.mockImplementation((id: string) =>
+      Promise.resolve({ metadata: metadataById[id] })
+    );
+
+    await bulkDisableUsersAction(['u-off', 'u-on', 'u-rej']);
+
+    expect(updateUserMetadataMock).toHaveBeenCalledTimes(2);
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'u-on',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(updateUserMetadataMock).toHaveBeenCalledWith('u-rej', { rejectionDisabled: null });
+    expect(recordAuditEventMock).toHaveBeenCalledTimes(2);
+    expect(recordAuditEventMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ targetId: 'u-off' })
+    );
+    for (const id of ['u-off', 'u-on', 'u-rej']) {
+      expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith(id);
+    }
+  });
+
   it('disables each id (except the caller) and audits', async () => {
     await bulkDisableUsersAction(['u-1', 'admin-1', 'u-2']);
     expect(updateUserMetadataMock).toHaveBeenCalledTimes(2);
