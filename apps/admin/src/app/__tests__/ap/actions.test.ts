@@ -150,6 +150,16 @@ describe('revokeLicenseTokenAction', () => {
     return revokeLicenseTokenAction(makeFormData(fields));
   }
 
+  it('does not revoke or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(revoke({ tokenId })).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockUpdateManyAndReturn).not.toHaveBeenCalled();
+    expect(mockRecordAuditEvent).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
   it('does nothing when tokenId is missing', async () => {
     await revoke({});
     expect(mockUpdateManyAndReturn).not.toHaveBeenCalled();

@@ -177,6 +177,17 @@ describe('disableUserAction', () => {
 });
 
 describe('enableUserAction', () => {
+  it('does not read, update, or audit when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const { enableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await expect(enableUserAction(makeForm({ userId: 'u-9' }))).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('skips when userId is missing', async () => {
     const { enableUserAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     await enableUserAction(makeForm({}));

@@ -162,6 +162,16 @@ describe('bulkDisableUsersAction', () => {
 });
 
 describe('bulkEnableUsersAction', () => {
+  it('does not read, update, or audit when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkEnableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('clears the disabled flag for each id and audits', async () => {
     await bulkEnableUsersAction(['u-1', 'u-2']);
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-1', { disabledAt: null });
@@ -209,6 +219,16 @@ describe('bulkEnableUsersAction', () => {
 });
 
 describe('bulkDeleteUsersAction', () => {
+  it('does not read, delete, or audit when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkDeleteUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(getUserMock).not.toHaveBeenCalled();
+    expect(deleteUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('deletes each id (except the caller), labelling from the user record', async () => {
     await bulkDeleteUsersAction(['u-1', 'admin-1']);
     expect(deleteUserMock).toHaveBeenCalledWith('u-1');

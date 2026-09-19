@@ -42,6 +42,16 @@ beforeEach(() => {
 });
 
 describe('saveDiscordConfigAction', () => {
+  it('does not save when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(
+      saveDiscordConfigAction(fd({ webhookUrl: WEBHOOK, channelName: '#ops' }))
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
   it.each([
     'http://discord.com/api/webhooks/1/x',
     'https://example.com/api/webhooks/1/x',
@@ -86,6 +96,16 @@ describe('saveDiscordConfigAction', () => {
 });
 
 describe('testDiscordWebhookAction', () => {
+  it('does not send when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(testDiscordWebhookAction(fd({ webhookUrl: WEBHOOK }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
   it('refuses without a saved valid URL', async () => {
     const result = await testDiscordWebhookAction(fd({ webhookUrl: '' }));
     expect(result.error).toMatch(/valid webhook/i);
@@ -114,6 +134,16 @@ describe('testDiscordWebhookAction', () => {
 });
 
 describe('broadcastDiscordAction', () => {
+  it('does not broadcast when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(broadcastDiscordAction(fd({ message: 'Hello team' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
   it('rejects an empty message', async () => {
     const result = await broadcastDiscordAction(fd({ message: ' ' }));
     expect(result.error).toMatch(/empty/i);

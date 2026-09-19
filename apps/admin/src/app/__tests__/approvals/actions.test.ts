@@ -93,6 +93,20 @@ afterEach(() => {
 });
 
 describe('approveAccountAction', () => {
+  it('does not read, approve, audit, or notify when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(
+      approveAccountAction(fd({ userId: 'u1', expectedStatus: 'pending' }))
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockApprove).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing userId', async () => {
     const result = await approveAccountAction(fd({ userId: '', expectedStatus: 'pending' }));
     expect(result.error).toBeTruthy();
@@ -188,6 +202,21 @@ describe('approveAccountAction', () => {
 });
 
 describe('rejectAccountAction', () => {
+  it('does not read, reject, audit, or notify when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(
+      rejectAccountAction(fd({ userId: 'u2', expectedStatus: 'pending' }))
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockBootstrap).not.toHaveBeenCalled();
+    expect(mockReject).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevokeAll).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing userId', async () => {
     const result = await rejectAccountAction(fd({ userId: '', expectedStatus: 'pending' }));
     expect(result.error).toBeTruthy();
