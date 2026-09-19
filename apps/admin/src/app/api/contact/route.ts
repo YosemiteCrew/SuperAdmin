@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { serverEnv } from '@/app/config/env.server';
 import {
+  ContactIntakeConflictError,
   isHoneypotTripped,
   parseSubmission,
   recordContactSubmission,
@@ -40,6 +41,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  await recordContactSubmission(submission);
+  try {
+    await recordContactSubmission(submission);
+  } catch (error) {
+    if (error instanceof ContactIntakeConflictError) {
+      return NextResponse.json(
+        { message: 'This submission id is already recorded with different content' },
+        { status: 409 }
+      );
+    }
+    throw error;
+  }
   return NextResponse.json({ ok: true });
 }
