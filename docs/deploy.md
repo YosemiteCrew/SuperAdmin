@@ -212,6 +212,61 @@ Two things follow once the panel has its own project:
 The API to panel contact mirror is HTTP (`/api/contact` with `x-contact-key`),
 not a shared database, so separating the projects costs no coupling.
 
+### Schema selection with the Prisma driver adapter
+
+Under the Prisma 7 driver adapter (`@prisma/adapter-pg`), the runtime schema is
+configured via the adapter option `{ schema: 'superadmin' }` in
+`packages/database/src/client.ts`. The `?schema=superadmin` query parameter in
+`DATABASE_URL` remains required for two reasons:
+
+1. **Migrations**: `prisma migrate deploy` reads the schema from the datasource
+   URL in `prisma.config.ts`, not from the adapter option. The parameter must be
+   present for migrations to target the correct schema.
+
+2. **Schema assertion**: `scripts/assert-schema.js` validates that the live
+   database matches the expected schema by querying `information_schema`, and it
+   constructs its connection from `DATABASE_URL` directly.
+
+The adapter option and the URL parameter must agree. A mismatch would cause
+migrations to apply to one schema while the application reads from another.
+
+**Target architecture: SuperAdmin runs against its own Supabase project** - not
+`yosemitecrew-production`, and not `yosemitecrew-dev`. Decided 2026-08-21.
+
+The reasoning is worth keeping, because the obvious middle option is the wrong
+one. A Postgres schema gives **namespace** isolation, not **permission**
+isolation: `?schema=superadmin` prevents the migration collision described
+below, but the connection still authenticates as a role that can read `public`
+anyway. This repository is public and the panel is the highest-privilege surface
+in the estate, so "a compromise of the panel must not reach production data" is
+a requirement a schema cannot satisfy.
+
+Nor is the dev database a home for it. These tables are not scratch data:
+`ContactLead`/`ContactRequest` are leads from the live marketing site,
+`ConsentSubject`/`ConsentEvent` are the consent ledger, and `DataRequest`
+carries a statutory one-month deadline. A dev database is somewhere people
+reset, reseed and restore from snapshots.
+
+Two things follow once the panel has its own project:
+
+- `?schema=superadmin` **stays required, for a different reason than it was added
+  for.** The collision it was introduced to prevent is gone - there is no foreign
+  `public` to land in any more - but the migrations have since been applied
+  through that parameter, so the panel's tables and every row in them physically
+  live in the `superadmin` schema and `public` holds nothing. Dropping the
+  parameter now does not restore a default, it re-points Prisma at an empty
+  schema: `migrate deploy` re-applies all of them into `public`, comes up
+  reporting success, and the panel then looks freshly installed with every lead,
+  consent record and data-subject request invisible. Verify it before assuming a
+  clean database is a fresh one - the query is under "Which schema holds the
+  data" below.
+- The **session pooler** requirement does NOT go away. `prisma migrate deploy`
+  takes a session-level advisory lock, so the transaction pooler still breaks it
+  regardless of which project you are pointed at.
+
+The API to panel contact mirror is HTTP (`/api/contact` with `x-contact-key`),
+not a shared database, so separating the projects costs no coupling.
+
 ### Which schema holds the data
 
 An empty panel and a mis-pointed one look identical from the UI. This tells them

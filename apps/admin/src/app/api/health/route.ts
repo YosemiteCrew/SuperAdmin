@@ -21,6 +21,12 @@ export const revalidate = 0;
  *   PrismaClientInitializationError with no code   -> client initialization
  *                                                     failed before a query
  *
+ * NOTE: With the Prisma 7 driver adapter (@prisma/adapter-pg), connection
+ * errors originate from node-postgres (pg) but are wrapped by the adapter and
+ * surfaced as Prisma error codes (P1001, P1000, etc.). The class name is
+ * PrismaClientInitializationError for startup failures. This classification
+ * remains correct for the adapter path.
+ *
  * The full error still goes to the server log, where it is not public.
  */
 function describe(error: unknown): { name: string; code: string | null } {

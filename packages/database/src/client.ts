@@ -1,12 +1,20 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from './generated/client';
 
+import { pgConnectionConfig } from './pgConnectionConfig';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error('DATABASE_URL is not set');
+}
+
+// The driver adapter takes its connection settings from the single builder.
+// max: 5 is set explicitly because each Amplify SSR instance holds its own
+// pool against the session pooler, and the adapter's default is larger.
 const adapter = new PrismaPg(
   {
-    connectionString: process.env.DATABASE_URL,
-    // Prisma 6 timed out connection attempts after five seconds. node-postgres
-    // otherwise waits indefinitely, which can pin a serverless invocation.
-    connectionTimeoutMillis: 5_000,
+    ...pgConnectionConfig(databaseUrl),
+    max: 5,
   },
   // The adapter does not infer Prisma's schema query parameter. Keep model
   // queries in the schema enforced by scripts/assert-schema.js.

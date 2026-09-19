@@ -8,6 +8,9 @@ if (typeof globalThis.TextEncoder === 'undefined') {
   Object.defineProperty(globalThis, 'TextEncoder', { value: TextEncoder });
 }
 
+// Mock DATABASE_URL so @superadmin/database client.ts doesn't throw at import time
+process.env.DATABASE_URL ??= 'postgres://user:pass@localhost:5432/test';
+
 configureAxe({
   rules: {
     region: { enabled: false },

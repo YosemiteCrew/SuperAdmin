@@ -54,6 +54,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@superadmin/types$': '<rootDir>/../../packages/types/src',
+    '^@superadmin/database$': '<rootDir>/../../packages/database/src',
     '^next/navigation$': '<rootDir>/src/app/jest.mocks/nextNavigation.ts',
   },
   transformIgnorePatterns: [

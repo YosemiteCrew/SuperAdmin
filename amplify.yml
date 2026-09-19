@@ -150,6 +150,38 @@ applications:
                 echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
               fi
             - (cd ../.. && pnpm run build --filter admin)
+            # Post-build health check: start the built app and verify /api/health
+            # returns 200 with database:up. This catches connection/config issues
+            # that would otherwise only surface at runtime.
+            - |
+              if [ "$AWS_BRANCH" != "main" ]; then
+                echo "Running post-build health check on preview branch..."
+                # Start the built app in the background on a random port
+                PORT=3173 NODE_ENV=production npx next start --port 3173 &
+                SERVER_PID=$!
+                # Wait for server to be ready
+                for i in $(seq 1 30); do
+                  if curl -sf "http://localhost:3173/api/health" > /dev/null; then
+                    break
+                  fi
+                  sleep 1
+                done
+                # Check the health endpoint
+                HEALTH_JSON=$(curl -sf "http://localhost:3173/api/health" || echo '{}')
+                echo "Health response: $HEALTH_JSON"
+                # Verify database is up
+                if echo "$HEALTH_JSON" | grep -q '"database":"up"'; then
+                  echo "OK: /api/health reports database up"
+                else
+                  echo "FAIL: /api/health does not report database up"
+                  kill $SERVER_PID 2>/dev/null || true
+                  exit 1
+                fi
+                # Clean up
+                kill $SERVER_PID 2>/dev/null || true
+              else
+                echo "Skipping post-build health check on main branch (requires live database)"
+              fi
       artifacts:
         baseDirectory: .next
         files:
