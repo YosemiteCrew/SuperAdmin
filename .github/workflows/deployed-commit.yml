@@ -64,7 +64,7 @@ jobs:
           EXPECTED_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -uo pipefail
+          set -euo pipefail
           # The poll, its window and the supersession rule live in the script,
           # which admin-e2e.yml shares. Exit 3 is SUPERSEDED: a newer merge
           # replaced this deploy and its own run asserts that one, so it is not
@@ -74,4 +74,13 @@ jobs:
           if [ "$status" -eq 3 ]; then
             exit 0
           fi
-          exit "$status"
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+
+          health_file="$(mktemp)"
+          trap 'rm -f "$health_file"' EXIT
+          curl --fail --silent --show-error --max-time 30 \
+            --output "$health_file" "$HEALTH_URL"
+          node scripts/ci/intake-readiness.mjs \
+            "$health_file" "$EXPECTED_SHA" --require contact

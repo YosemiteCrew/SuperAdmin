@@ -60,6 +60,9 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - name: Test repository CI controls
+        run: node --test scripts/ci/intake-readiness.test.mjs scripts/ci/forbidden-terms.test.mjs
+
       - name: Lint
         run: pnpm run lint --filter admin
 
