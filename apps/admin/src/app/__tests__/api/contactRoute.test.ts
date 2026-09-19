@@ -15,6 +15,7 @@ jest.mock('@/app/features/contact/intake', () => {
   return {
     parseSubmission: actual.parseSubmission,
     isHoneypotTripped: actual.isHoneypotTripped,
+    ContactIntakeConflictError: actual.ContactIntakeConflictError,
     recordContactSubmission: (...args: unknown[]) => recordMock(...args),
   };
 });
@@ -27,6 +28,7 @@ jest.mock('@/app/lib/rateLimit', () => ({
 }));
 
 import { POST } from '@/app/api/contact/route';
+import { ContactIntakeConflictError } from '@/app/features/contact/intake';
 
 const VALID_BODY = {
   email: 'prospect@clinic.com',
@@ -109,6 +111,30 @@ describe('POST /api/contact', () => {
 
   it('returns 400 for an invalid submission', async () => {
     const res = await POST(req({ email: 'nope', message: '' }));
+    expect(res.status).toBe(400);
+    expect(recordMock).not.toHaveBeenCalled();
+  });
+
+  // A redelivered submission id carrying DIFFERENT content is a caller error,
+  // not a duplicate: answering 200 here would acknowledge content we refused to
+  // store. The class is passed through the module mock above precisely so this
+  // branch is exercised rather than crashing on an undefined constructor.
+  it('returns 409 when the submission id is recorded with different content', async () => {
+    recordMock.mockRejectedValueOnce(new ContactIntakeConflictError('src-1'));
+    const res = await POST(req({ ...VALID_BODY, sourceRequestId: 'src-1' }));
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toEqual({
+      message: 'This submission id is already recorded with different content',
+    });
+  });
+
+  it('still surfaces a non-conflict failure rather than reporting success', async () => {
+    recordMock.mockRejectedValueOnce(new Error('connection lost'));
+    await expect(POST(req(VALID_BODY))).rejects.toThrow('connection lost');
+  });
+
+  it('returns 400 when the submission id is present but unusable', async () => {
+    const res = await POST(req({ ...VALID_BODY, sourceRequestId: 'x'.repeat(201) }));
     expect(res.status).toBe(400);
     expect(recordMock).not.toHaveBeenCalled();
   });
