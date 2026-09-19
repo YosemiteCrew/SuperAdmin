@@ -134,7 +134,7 @@ describe('POST /api/contact', () => {
   });
 
   it('returns 400 when the submission id is present but unusable', async () => {
-    const res = await POST(req({ ...VALID_BODY, sourceRequestId: 'x'.repeat(201) }));
+    const res = await POST(req({ ...VALID_BODY, sourceRequestId: 'x'.repeat(101) }));
     expect(res.status).toBe(400);
     expect(recordMock).not.toHaveBeenCalled();
   });
