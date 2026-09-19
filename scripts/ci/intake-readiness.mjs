@@ -18,7 +18,8 @@
 //
 // HOW A CALLER USES IT
 //
-//   node scripts/ci/intake-readiness.mjs <health.json> <expected-sha>
+//   node scripts/ci/intake-readiness.mjs <health.json> <expected-sha> \
+//     [--require contact[,consent]]
 //
 // `health.json` is the body of `GET /api/health`. `<expected-sha>`
 // is the commit the caller expected to be live. The caller's job is to say
@@ -41,7 +42,8 @@
 //   NOT_DEPLOYED   the live buildSha does not match the expected sha, so no
 //                  assertion is made about THIS deployment yet; a polling
 //                  caller keeps polling
-//   DEPLOYED_OK    the expected sha IS live and both intakes are configured
+//   DEPLOYED_OK    the expected sha IS live and every required intake is
+//                  configured
 //
 // exit 1 names the fields that are unconfigured:
 //
@@ -49,13 +51,16 @@
 //                              intake is refusing writes
 //
 // The contact and consent keys are optional by design - a deployment may
-// legitimately never provision one - so DEPLOYED_BUT_UNCONFIGURED is not a
-// claim that configuration is wrong, only that ONE NEW DEPLOYMENT shipped with
-// a write path in the state the check exists to surface. The operator decides
-// whether that state is intended; the check ensures it is not invisible.
+// legitimately never provision one. Callers select the paths the deployment
+// must serve with `--require`; omitted means both for backwards compatibility.
+// Unrequired paths are still printed so their state is visible without making
+// an intentionally dormant path fail every deployment.
 
 import { readFileSync } from 'node:fs';
 import process from 'node:process';
+import { parseArgs } from 'node:util';
+
+const INTAKES = ['contact', 'consent'];
 
 /**
  * Classify a parsed health body against the expected live commit.
@@ -72,7 +77,7 @@ import process from 'node:process';
  * vs `||` trap the route documents), and a check that asserts against an
  * empty string asserts against nothing.
  */
-export function classifyReadiness(body, expectedSha) {
+export function classifyReadiness(body, expectedSha, requiredIntakes = INTAKES) {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) {
     throw new Error('body is not a JSON object');
   }
@@ -91,11 +96,11 @@ export function classifyReadiness(body, expectedSha) {
     };
   }
 
-  const unconfigured = ['contact', 'consent'].filter(
-    (k) => intake[k] !== 'configured'
-  );
+  const unconfigured = requiredIntakes.filter((k) => intake[k] !== 'configured');
   if (unconfigured.length === 0) {
-    return { state: 'DEPLOYED_OK', details: `${buildSha} live, intake configured` };
+    const names =
+      requiredIntakes.length === INTAKES.length ? '' : ` ${requiredIntakes.join(' and ')}`;
+    return { state: 'DEPLOYED_OK', details: `${buildSha} live, intake${names} configured` };
   }
   return {
     state: 'DEPLOYED_BUT_UNCONFIGURED',
@@ -106,26 +111,72 @@ export function classifyReadiness(body, expectedSha) {
 function fail(reason) {
   process.stderr.write(`intake-readiness: could not run - ${reason}.\n`);
   if (process.env.CI === 'true') {
-    process.stderr.write('intake-readiness: exit 2 - an assertion that did not run is red, not clean.\n');
+    process.stderr.write(
+      'intake-readiness: exit 2 - an assertion that did not run is red, not clean.\n'
+    );
   }
   process.exitCode = 2;
 }
 
-const [, , healthPath, expectedSha] = process.argv;
+function parseRequiredIntakes(value) {
+  if (value === undefined) return INTAKES;
+  const names = [...new Set(value.split(','))];
+  if (names.some((name) => name === '')) {
+    throw new Error('--require must name at least one intake');
+  }
+  const unknown = names.filter((name) => !INTAKES.includes(name));
+  if (unknown.length > 0) {
+    throw new Error(`unknown intake name: ${unknown.join(', ')}`);
+  }
+  return names;
+}
 
-if (!healthPath || !expectedSha) {
-  fail('usage: node scripts/ci/intake-readiness.mjs <health.json> <expected-sha>');
-} else {
+function main() {
+  let parsed;
+  try {
+    parsed = parseArgs({
+      args: process.argv.slice(2),
+      options: { require: { type: 'string' } },
+      allowPositionals: true,
+    });
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+    return;
+  }
+
+  const [healthPath, expectedSha] = parsed.positionals;
+  if (!healthPath || !expectedSha) {
+    fail(
+      'usage: node scripts/ci/intake-readiness.mjs <health.json> <expected-sha> [--require contact[,consent]]'
+    );
+    return;
+  }
+
+  let requiredIntakes;
+  try {
+    requiredIntakes = parseRequiredIntakes(parsed.values.require);
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+    return;
+  }
+
   let body;
   try {
     body = JSON.parse(readFileSync(healthPath, 'utf8'));
   } catch {
     fail('health response was not parseable JSON');
-    process.exit(process.exitCode);
+    return;
   }
   try {
-    const { state, details } = classifyReadiness(body, expectedSha);
+    const { state, details } = classifyReadiness(body, expectedSha, requiredIntakes);
     process.stdout.write(`intake-readiness: ${state} - ${details}.\n`);
+    if (state !== 'NOT_DEPLOYED') {
+      for (const name of INTAKES.filter((intake) => !requiredIntakes.includes(intake))) {
+        process.stdout.write(
+          `intake-readiness: INFO - intake ${name} is ${body.intake[name] === 'configured' ? '' : 'un'}configured (not required).\n`
+        );
+      }
+    }
     if (state === 'DEPLOYED_BUT_UNCONFIGURED') {
       process.exitCode = 1;
     }
@@ -133,3 +184,5 @@ if (!healthPath || !expectedSha) {
     fail(error.message);
   }
 }
+
+main();

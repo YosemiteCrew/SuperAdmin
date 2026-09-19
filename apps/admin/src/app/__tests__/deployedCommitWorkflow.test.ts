@@ -30,15 +30,25 @@ describe('wait-for-deployed-main', () => {
     stubDirectory = mkdtempSync(path.join(os.tmpdir(), 'deployed-commit-'));
     const nodeStub = path.join(stubDirectory, 'node');
     const ghStub = path.join(stubDirectory, 'gh');
+    const curlStub = path.join(stubDirectory, 'curl');
     // Stands in for assert-deployed.js, and refuses to answer unless it was
     // asked about the expected commit through the real script path.
     writeFileSync(
       nodeStub,
       `#!${process.execPath}\n` +
+        `const { readFileSync } = require('node:fs');\n` +
         `const [script, ...args] = process.argv.slice(2);\n` +
-        `if (!script.endsWith('/apps/admin/src/ci/assert-deployed.js')) process.exit(9);\n` +
-        `if (args[args.indexOf('--sha') + 1] !== process.env.STUB_SHA) process.exit(9);\n` +
-        `process.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n`
+        `if (script.endsWith('/apps/admin/src/ci/assert-deployed.js')) {\n` +
+        `  if (args[args.indexOf('--sha') + 1] !== process.env.STUB_SHA) process.exit(9);\n` +
+        `  process.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n` +
+        `}\n` +
+        `if (script.endsWith('scripts/ci/intake-readiness.mjs')) {\n` +
+        `  if (args[1] !== process.env.STUB_SHA || args[2] !== '--require' || args[3] !== 'contact') process.exit(9);\n` +
+        `  if (JSON.parse(readFileSync(args[0], 'utf8')).buildSha !== process.env.STUB_SHA) process.exit(9);\n` +
+        `  process.stdout.write('INTAKE_CALLED\\n');\n` +
+        `  process.exit(Number(process.env.INTAKE_CHECK_EXIT));\n` +
+        `}\n` +
+        `process.exit(9);\n`
     );
     // Answers only the lookup of main's tip in this repository.
     writeFileSync(
@@ -48,8 +58,20 @@ describe('wait-for-deployed-main', () => {
         `const code = Number(process.env.TIP_EXIT);\nif (code) process.exit(code);\n` +
         `process.stdout.write(process.env.TIP_OUTPUT ?? '');\n`
     );
+    writeFileSync(
+      curlStub,
+      `#!${process.execPath}\n` +
+        `const { writeFileSync } = require('node:fs');\n` +
+        `const args = process.argv.slice(2);\n` +
+        `const code = Number(process.env.CURL_EXIT);\n` +
+        `if (code) process.exit(code);\n` +
+        `const output = args[args.indexOf('--output') + 1];\n` +
+        `if (!output || args.at(-1) !== process.env.HEALTH_URL) process.exit(9);\n` +
+        `writeFileSync(output, JSON.stringify({ buildSha: process.env.STUB_SHA, intake: {} }));\n`
+    );
     chmodSync(nodeStub, 0o755);
     chmodSync(ghStub, 0o755);
+    chmodSync(curlStub, 0o755);
   });
 
   afterEach(() => {
@@ -60,7 +82,9 @@ describe('wait-for-deployed-main', () => {
     args: string[],
     deployCheckExit: number,
     tipOutput = EXPECTED_SHA,
-    tipExit = 0
+    tipExit = 0,
+    intakeCheckExit = 0,
+    curlExit = 0
   ): { status: number | null; stdout: string } {
     const result = spawnSync('/bin/bash', args, {
       encoding: 'utf8',
@@ -75,6 +99,8 @@ describe('wait-for-deployed-main', () => {
         INTERVAL_SECONDS: '1',
         GITHUB_REPOSITORY: 'example/repository',
         DEPLOY_CHECK_EXIT: String(deployCheckExit),
+        INTAKE_CHECK_EXIT: String(intakeCheckExit),
+        CURL_EXIT: String(curlExit),
         TIP_OUTPUT: tipOutput,
         TIP_EXIT: String(tipExit),
       },
@@ -85,8 +111,23 @@ describe('wait-for-deployed-main', () => {
   const runScript = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
     run([SCRIPT, 'https://example.test/health', EXPECTED_SHA], deployCheckExit, tipOutput, tipExit);
 
-  const runWorkflowStep = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
-    run(['-c', workflowScript()], deployCheckExit, tipOutput, tipExit);
+  const runWorkflowStep = (
+    deployCheckExit: number,
+    options: {
+      tipOutput?: string;
+      tipExit?: number;
+      intakeCheckExit?: number;
+      curlExit?: number;
+    } = {}
+  ) =>
+    run(
+      ['-c', workflowScript()],
+      deployCheckExit,
+      options.tipOutput,
+      options.tipExit,
+      options.intakeCheckExit,
+      options.curlExit
+    );
 
   describe('the script', () => {
     it('exits 0 when the expected commit is served', () => {
@@ -124,14 +165,18 @@ describe('wait-for-deployed-main', () => {
 
   describe('the deployed-commit workflow step', () => {
     it('passes when the expected commit is served', () => {
-      expect(runWorkflowStep(0, '', 99).status).toBe(0);
+      const result = runWorkflowStep(0, { tipOutput: '', tipExit: 99 });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('INTAKE_CALLED');
     });
 
     it('passes when a newer main commit superseded the deployment', () => {
-      const result = runWorkflowStep(1, MOVED_SHA);
+      const result = runWorkflowStep(1, { tipOutput: MOVED_SHA, intakeCheckExit: 99 });
 
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(`SUPERSEDED: main has moved to ${MOVED_SHA}`);
+      expect(result.stdout).not.toContain('INTAKE_CALLED');
     });
 
     it('fails when main still points at the undeployed commit', () => {
@@ -139,13 +184,29 @@ describe('wait-for-deployed-main', () => {
     });
 
     it('fails when the current main tip is unreadable', () => {
-      expect(runWorkflowStep(1, '', 2).status).toBe(1);
+      expect(runWorkflowStep(1, { tipOutput: '', tipExit: 2 }).status).toBe(1);
+    });
+
+    it.each([1, 2])('propagates intake-readiness exit %i after a confirmed deploy', (exitCode) => {
+      const result = runWorkflowStep(0, { intakeCheckExit: exitCode });
+
+      expect(result.status).toBe(exitCode);
+      expect(result.stdout).toContain('INTAKE_CALLED');
+    });
+
+    it('fails before the assertion when the health body cannot be fetched', () => {
+      const result = runWorkflowStep(0, { curlExit: 22 });
+
+      expect(result.status).toBe(22);
+      expect(result.stdout).not.toContain('INTAKE_CALLED');
     });
 
     it('delegates to the script instead of carrying its own copy of the poll', () => {
       const step = workflowScript();
 
       expect(step).toContain(`bash ${SCRIPT} "$HEALTH_URL" "$EXPECTED_SHA"`);
+      expect(step).toContain('node scripts/ci/intake-readiness.mjs');
+      expect(step).toContain('"$health_file" "$EXPECTED_SHA" --require contact');
       expect(step).not.toContain('assert-deployed.js');
       expect(step).not.toContain('gh api');
     });
