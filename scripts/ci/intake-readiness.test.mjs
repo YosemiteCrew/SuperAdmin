@@ -94,7 +94,7 @@ test('consent may be unconfigured when only contact is required', () => {
     SHA,
     'contact'
   );
-  assert.equal(status, 1);
+  assert.equal(status, 0);
   assert.match(stdout, /DEPLOYED_OK/);
   assert.match(stdout, /consent is unconfigured \(not required\)/);
 });
