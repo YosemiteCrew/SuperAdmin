@@ -25,6 +25,7 @@ export const LIMITS = {
   subject: 300,
   message: 5000,
   sourceUrl: 500,
+  sourceRequestId: 200,
 } as const;
 
 const DEFAULT_CONSENT_SOURCE = 'contact-us';
@@ -48,6 +49,29 @@ function optionalString(value: unknown, max: number): string | undefined {
 }
 
 /**
+ * How far ahead of our clock a caller's `submittedAt` may sit before we treat
+ * it as wrong rather than skewed. The backfill replays historical rows, so the
+ * past is unbounded; only the future is capped.
+ */
+export const MAX_SUBMITTED_AT_SKEW_MS = 5 * 60 * 1000;
+
+/**
+ * `undefined` when absent, a Date when valid, `null` when present but unusable.
+ * The three cases are distinct on purpose: a bad timestamp must fail the whole
+ * submission rather than silently fall back to now(), which would stamp a
+ * replayed historical request with the time of its import.
+ */
+function optionalDate(value: unknown, now: number): Date | null | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'string') return null;
+  const parsed = new Date(value);
+  const time = parsed.getTime();
+  if (Number.isNaN(time)) return null;
+  if (time > now + MAX_SUBMITTED_AT_SKEW_MS) return null;
+  return parsed;
+}
+
+/**
  * Parses and validates an untrusted intake payload from the public endpoint.
  * Returns null on anything invalid; the caller responds 400 without echoing
  * the reason back to an anonymous client.
@@ -68,6 +92,18 @@ export function parseSubmission(body: Record<string, unknown>): ContactSubmissio
   const message = rawMessage.trim();
   if (message.length === 0 || message.length > LIMITS.message) return null;
 
+  const submittedAt = optionalDate(body.submittedAt, Date.now());
+  if (submittedAt === null) return null;
+
+  // Present-but-unusable is rejected rather than dropped: this is the
+  // idempotency key, so silently continuing without it would turn a redelivery
+  // into a second stored request.
+  const rawSourceRequestId = body.sourceRequestId;
+  const sourceRequestId = optionalString(rawSourceRequestId, LIMITS.sourceRequestId);
+  if (rawSourceRequestId !== undefined && rawSourceRequestId !== null && !sourceRequestId) {
+    return null;
+  }
+
   return {
     email,
     name: optionalString(body.name, LIMITS.name) ?? optionalString(body.fullName, LIMITS.name),
@@ -77,14 +113,8 @@ export function parseSubmission(body: Record<string, unknown>): ContactSubmissio
     message,
     newsletterConsent: body.newsletterConsent === true,
     sourceUrl: optionalString(body.sourceUrl, LIMITS.sourceUrl),
-    sourceRequestId:
-      typeof body.sourceRequestId === 'string' && body.sourceRequestId.trim().length > 0
-        ? body.sourceRequestId.trim()
-        : undefined,
-    submittedAt:
-      body.submittedAt && typeof body.submittedAt === 'string'
-        ? new Date(body.submittedAt)
-        : undefined,
+    sourceRequestId,
+    submittedAt,
   };
 }
 
@@ -186,6 +216,45 @@ async function createLeadAndRequest(
   });
 }
 
+/**
+ * A sourceRequestId already recorded against DIFFERENT content. The caller
+ * answers 409: acknowledging this as stored would silently drop the corrected
+ * content the redelivery was carrying.
+ */
+export class ContactIntakeConflictError extends Error {
+  constructor(public readonly sourceRequestId: string) {
+    super('sourceRequestId already recorded with different content');
+    this.name = 'ContactIntakeConflictError';
+  }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
+  );
+}
+
+/**
+ * True when this sourceRequestId is already stored with the same content, so
+ * the delivery is a genuine duplicate and there is nothing left to do. False
+ * when it is not stored at all. Throws when it is stored with different
+ * content, which is a caller error rather than a duplicate.
+ */
+async function reconcileExisting(
+  sourceRequestId: string,
+  input: ContactSubmission
+): Promise<boolean> {
+  const existing = await prisma.contactRequest.findUnique({
+    where: { sourceRequestId },
+    select: { subject: true, message: true },
+  });
+  if (!existing) return false;
+  if (existing.subject !== (input.subject ?? null) || existing.message !== input.message) {
+    throw new ContactIntakeConflictError(sourceRequestId);
+  }
+  return true;
+}
+
 async function handleWithSourceRequestId(input: ContactSubmission): Promise<void> {
   const { email, name, company, phone, sourceRequestId, submittedAt } = input;
   const safeEmail = String(email);
@@ -194,13 +263,7 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
   const safePhone = phone === undefined ? undefined : String(phone);
   const requestCreatedAt = submittedAt ?? new Date();
 
-  const existingBySourceId = await prisma.contactRequest.findUnique({
-    where: { sourceRequestId: sourceRequestId! },
-    select: { id: true },
-  });
-  if (existingBySourceId) {
-    return;
-  }
+  if (await reconcileExisting(sourceRequestId!, input)) return;
 
   const lead = await prisma.contactLead.findUnique({
     where: { email: safeEmail },
@@ -208,36 +271,47 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
   });
 
   if (lead) {
+    // Content-matched, not timestamp-matched: a replay whose clock differs by a
+    // millisecond is the same request, and claiming the OLDEST such row keeps a
+    // repeated backfill deterministic when several duplicates are outstanding.
     const claimable = await prisma.contactRequest.findFirst({
       where: {
         leadId: lead.id,
         sourceRequestId: null,
         subject: input.subject ?? null,
         message: input.message,
-        createdAt: requestCreatedAt,
       },
+      orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
 
     if (claimable) {
       await prisma.contactRequest.update({
         where: { id: claimable.id },
-        data: { sourceRequestId },
+        data: { sourceRequestId, createdAt: requestCreatedAt },
       });
       await backfillLeadFields(safeEmail, safeName, safeCompany, safePhone);
       return;
     }
   }
 
-  await createLeadAndRequest(
-    safeEmail,
-    safeName,
-    safeCompany,
-    safePhone,
-    input,
-    requestCreatedAt,
-    sourceRequestId
-  );
+  try {
+    await createLeadAndRequest(
+      safeEmail,
+      safeName,
+      safeCompany,
+      safePhone,
+      input,
+      requestCreatedAt,
+      sourceRequestId
+    );
+  } catch (error) {
+    // A concurrent delivery of the same sourceRequestId won the unique index
+    // between our read above and this write. That is the case this function
+    // exists to make safe, so reconcile against the winner instead of 500ing.
+    if (!isUniqueViolation(error)) throw error;
+    if (!(await reconcileExisting(sourceRequestId!, input))) throw error;
+  }
   await backfillLeadFields(safeEmail, safeName, safeCompany, safePhone);
 }
 

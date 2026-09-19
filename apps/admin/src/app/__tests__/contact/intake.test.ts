@@ -1,17 +1,40 @@
 jest.mock('server-only', () => ({}));
 jest.mock('@superadmin/database', () => ({
-  prisma: { contactLead: { upsert: jest.fn(), updateMany: jest.fn() } },
+  prisma: {
+    contactLead: {
+      upsert: jest.fn(),
+      updateMany: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+    },
+    contactRequest: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+    },
+  },
 }));
 
 import { prisma } from '@superadmin/database';
 import {
+  ContactIntakeConflictError,
   isHoneypotTripped,
+  MAX_SUBMITTED_AT_SKEW_MS,
   parseSubmission,
   recordContactSubmission,
 } from '@/app/features/contact/intake';
 
+const LIMITS_SOURCE_REQUEST_ID = 200;
+
 const mockUpsert = prisma.contactLead.upsert as jest.Mock;
 const mockUpdateMany = prisma.contactLead.updateMany as jest.Mock;
+const mockLeadFindUnique = prisma.contactLead.findUnique as jest.Mock;
+const mockLeadFindUniqueOrThrow = prisma.contactLead.findUniqueOrThrow as jest.Mock;
+const mockRequestFindUnique = prisma.contactRequest.findUnique as jest.Mock;
+const mockRequestFindFirst = prisma.contactRequest.findFirst as jest.Mock;
+const mockRequestUpdate = prisma.contactRequest.update as jest.Mock;
+const mockRequestCreate = prisma.contactRequest.create as jest.Mock;
 
 const VALID = {
   email: 'Prospect@Clinic.com',
@@ -27,6 +50,12 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUpsert.mockResolvedValue({});
   mockUpdateMany.mockResolvedValue({ count: 0 });
+  mockLeadFindUnique.mockResolvedValue(null);
+  mockLeadFindUniqueOrThrow.mockResolvedValue({ id: 'lead-1' });
+  mockRequestFindUnique.mockResolvedValue(null);
+  mockRequestFindFirst.mockResolvedValue(null);
+  mockRequestUpdate.mockResolvedValue({});
+  mockRequestCreate.mockResolvedValue({});
 });
 
 describe('parseSubmission query-operator payloads', () => {
@@ -307,5 +336,181 @@ describe('recordContactSubmission', () => {
   it('falls back to a contact-us source label when none is given', async () => {
     await recordContactSubmission({ email: 'a@b.com', message: 'hi', newsletterConsent: true });
     expect(mockUpsert.mock.calls[0][0].create.consentSource).toBe('contact-us');
+  });
+});
+
+// The idempotency key and the replayed timestamp both arrive from the public
+// endpoint, and neither went through a bound before. Everything below drives
+// the sourceRequestId branch, which no test reached until the prisma mock above
+// grew a contactRequest: the branch was unreachable, not merely uncovered.
+describe('parseSubmission idempotency inputs', () => {
+  const ID = 'cmf0source0000abcdefghij';
+
+  it('keeps a valid sourceRequestId, trimmed', () => {
+    expect(parseSubmission({ ...VALID, sourceRequestId: `  ${ID}  ` })?.sourceRequestId).toBe(ID);
+  });
+
+  it('treats an absent sourceRequestId as undefined rather than rejecting', () => {
+    expect(parseSubmission({ ...VALID })?.sourceRequestId).toBeUndefined();
+  });
+
+  // Rejected, not dropped. Dropping it would leave a submission that looks
+  // ordinary and stores a SECOND row on the next redelivery.
+  it.each([
+    ['over the length limit', 'x'.repeat(LIMITS_SOURCE_REQUEST_ID + 1)],
+    ['blank', '   '],
+    ['a query operator', { not: 'x' }],
+    ['a number', 5],
+    ['an array', ['a']],
+  ])('rejects the whole submission when sourceRequestId is %s', (_label, sourceRequestId) => {
+    expect(parseSubmission({ ...VALID, sourceRequestId })).toBeNull();
+  });
+
+  it('accepts a sourceRequestId exactly at the limit', () => {
+    const atLimit = 'x'.repeat(LIMITS_SOURCE_REQUEST_ID);
+    expect(parseSubmission({ ...VALID, sourceRequestId: atLimit })?.sourceRequestId).toBe(atLimit);
+  });
+
+  it('accepts a historical submittedAt, which is what a backfill replays', () => {
+    const past = '2024-03-01T10:00:00.000Z';
+    expect(parseSubmission({ ...VALID, submittedAt: past })?.submittedAt).toEqual(new Date(past));
+  });
+
+  it('accepts a submittedAt inside the skew allowance', () => {
+    const nearFuture = new Date(Date.now() + MAX_SUBMITTED_AT_SKEW_MS / 2).toISOString();
+    expect(parseSubmission({ ...VALID, submittedAt: nearFuture })?.submittedAt).toBeInstanceOf(
+      Date
+    );
+  });
+
+  // An unparseable date used to reach prisma as an Invalid Date, and a far-future
+  // one used to be stored verbatim.
+  it.each([
+    ['unparseable', 'not-a-date'],
+    ['an empty string', ''],
+    ['a number', 1_700_000_000_000],
+    ['a Date instance rather than a string', new Date()],
+  ])('rejects the whole submission when submittedAt is %s', (_label, submittedAt) => {
+    expect(parseSubmission({ ...VALID, submittedAt })).toBeNull();
+  });
+
+  it('rejects a submittedAt beyond the skew allowance', () => {
+    const farFuture = new Date(Date.now() + MAX_SUBMITTED_AT_SKEW_MS + 60_000).toISOString();
+    expect(parseSubmission({ ...VALID, submittedAt: farFuture })).toBeNull();
+  });
+});
+
+describe('recordContactSubmission with a sourceRequestId', () => {
+  const ID = 'cmf0source0000abcdefghij';
+  const submission = (over: Record<string, unknown> = {}) => ({
+    email: 'a@b.com',
+    message: 'hi',
+    newsletterConsent: false,
+    sourceRequestId: ID,
+    ...over,
+  });
+
+  it('stores nothing when the id is already recorded with the same content', async () => {
+    mockRequestFindUnique.mockResolvedValue({ subject: null, message: 'hi' });
+
+    await recordContactSubmission(submission());
+
+    expect(mockRequestCreate).not.toHaveBeenCalled();
+    expect(mockRequestUpdate).not.toHaveBeenCalled();
+    expect(mockUpsert).not.toHaveBeenCalled();
+  });
+
+  // The defect this replaces: a redelivery carrying corrected content was
+  // discarded and acknowledged as stored.
+  it('refuses an id already recorded with different content', async () => {
+    mockRequestFindUnique.mockResolvedValue({ subject: null, message: 'a DIFFERENT message' });
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+    expect(mockRequestCreate).not.toHaveBeenCalled();
+    expect(mockRequestUpdate).not.toHaveBeenCalled();
+  });
+
+  it('treats a differing subject as a conflict too', async () => {
+    mockRequestFindUnique.mockResolvedValue({ subject: 'Old subject', message: 'hi' });
+
+    await expect(
+      recordContactSubmission(submission({ subject: 'New subject' }))
+    ).rejects.toBeInstanceOf(ContactIntakeConflictError);
+  });
+
+  it('claims an unclaimed matching request without requiring its exact createdAt', async () => {
+    mockLeadFindUnique.mockResolvedValue({ id: 'lead-1' });
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+    const submittedAt = new Date('2024-03-01T10:00:00.000Z');
+
+    await recordContactSubmission(submission({ submittedAt }));
+
+    const where = mockRequestFindFirst.mock.calls[0][0].where;
+    expect(where).not.toHaveProperty('createdAt');
+    expect(where).toMatchObject({ leadId: 'lead-1', sourceRequestId: null, message: 'hi' });
+    expect(mockRequestCreate).not.toHaveBeenCalled();
+  });
+
+  it('claims the OLDEST candidate when several match', async () => {
+    mockLeadFindUnique.mockResolvedValue({ id: 'lead-1' });
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+
+    await recordContactSubmission(submission());
+
+    expect(mockRequestFindFirst.mock.calls[0][0].orderBy).toEqual({ createdAt: 'asc' });
+  });
+
+  it('rewrites the claimed row createdAt to the replayed timestamp', async () => {
+    mockLeadFindUnique.mockResolvedValue({ id: 'lead-1' });
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+    const submittedAt = new Date('2024-03-01T10:00:00.000Z');
+
+    await recordContactSubmission(submission({ submittedAt }));
+
+    expect(mockRequestUpdate).toHaveBeenCalledWith({
+      where: { id: 'req-oldest' },
+      data: { sourceRequestId: ID, createdAt: submittedAt },
+    });
+  });
+
+  it('creates a request carrying the id when nothing is claimable', async () => {
+    await recordContactSubmission(submission());
+
+    expect(mockRequestCreate).toHaveBeenCalledTimes(1);
+    expect(mockRequestCreate.mock.calls[0][0].data.sourceRequestId).toBe(ID);
+  });
+
+  // Two concurrent deliveries of the same id both miss the read above; the
+  // loser hits the unique index. It must still be an idempotent success.
+  it('absorbs a concurrent duplicate that wins the unique index', async () => {
+    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockRequestCreate.mockRejectedValue(p2002);
+    mockRequestFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ subject: null, message: 'hi' });
+
+    await expect(recordContactSubmission(submission())).resolves.toBeUndefined();
+  });
+
+  it('still conflicts when the concurrent winner stored different content', async () => {
+    const p2002 = Object.assign(new Error('Unique constraint failed'), { code: 'P2002' });
+    mockRequestCreate.mockRejectedValue(p2002);
+    mockRequestFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue({ subject: null, message: 'something else' });
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+  });
+
+  it('does not swallow a write failure that is not a unique violation', async () => {
+    mockRequestCreate.mockRejectedValue(
+      Object.assign(new Error('connection lost'), { code: 'P1001' })
+    );
+
+    await expect(recordContactSubmission(submission())).rejects.toThrow('connection lost');
   });
 });
