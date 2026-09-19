@@ -25,7 +25,7 @@ export const LIMITS = {
   subject: 300,
   message: 5000,
   sourceUrl: 500,
-  sourceRequestId: 200,
+  sourceRequestId: 100,
 } as const;
 
 const DEFAULT_CONSENT_SOURCE = 'contact-us';
@@ -179,43 +179,6 @@ async function backfillLeadFields(
   }
 }
 
-async function createLeadAndRequest(
-  email: string,
-  name: string | undefined,
-  company: string | undefined,
-  phone: string | undefined,
-  input: ContactSubmission,
-  createdAt: Date,
-  sourceRequestId?: string
-): Promise<void> {
-  await prisma.contactLead.upsert({
-    where: { email },
-    create: {
-      email,
-      name: name ?? null,
-      company: company ?? null,
-      phone: phone ?? null,
-      newsletterConsent: input.newsletterConsent,
-      consentAt: input.newsletterConsent ? new Date() : null,
-      consentSource: input.newsletterConsent ? consentSource(input) : null,
-    },
-    update: { ...consentPatch(input) },
-  });
-
-  const lead = await prisma.contactLead.findUniqueOrThrow({ where: { email } });
-
-  await prisma.contactRequest.create({
-    data: {
-      sourceRequestId: sourceRequestId ?? null,
-      leadId: lead.id,
-      subject: input.subject ?? null,
-      message: input.message,
-      sourceUrl: input.sourceUrl ?? null,
-      createdAt,
-    },
-  });
-}
-
 /**
  * A sourceRequestId already recorded against DIFFERENT content. The caller
  * answers 409: acknowledging this as stored would silently drop the corrected
@@ -228,33 +191,33 @@ export class ContactIntakeConflictError extends Error {
   }
 }
 
-function isUniqueViolation(error: unknown): boolean {
+/**
+ * A stored request is the same submission when it belongs to the same lead and
+ * carries the same subject and message. The lead's EMAIL is part of the
+ * identity, not just the content: one product id arriving under two addresses
+ * is a sender error, and acknowledging it would file one visitor's message
+ * against another's record. Mirrors the deleted importer's sameImportedRequest,
+ * minus createdAt - a retry may legitimately carry a different submittedAt.
+ */
+function isSameSubmission(
+  stored: { subject: string | null; message: string; lead: { email: string } },
+  input: ContactSubmission,
+  email: string
+): boolean {
   return (
-    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
+    stored.lead.email === email &&
+    stored.subject === (input.subject ?? null) &&
+    stored.message === input.message
   );
 }
 
 /**
- * True when this sourceRequestId is already stored with the same content, so
- * the delivery is a genuine duplicate and there is nothing left to do. False
- * when it is not stored at all. Throws when it is stored with different
- * content, which is a caller error rather than a duplicate.
+ * The sourced path runs as ONE transaction, which is what makes "a conflict
+ * writes nothing" true: the lead upsert below happens before a conflict can be
+ * detected, so the rollback - not the ordering - is what guarantees it.
+ * Structure follows the importer this replaces: upsert, backdate, claim or
+ * insert-if-absent, then re-read and compare.
  */
-async function reconcileExisting(
-  sourceRequestId: string,
-  input: ContactSubmission
-): Promise<boolean> {
-  const existing = await prisma.contactRequest.findUnique({
-    where: { sourceRequestId },
-    select: { subject: true, message: true },
-  });
-  if (!existing) return false;
-  if (existing.subject !== (input.subject ?? null) || existing.message !== input.message) {
-    throw new ContactIntakeConflictError(sourceRequestId);
-  }
-  return true;
-}
-
 async function handleWithSourceRequestId(input: ContactSubmission): Promise<void> {
   const { email, name, company, phone, sourceRequestId, submittedAt } = input;
   const safeEmail = String(email);
@@ -262,19 +225,60 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
   const safeCompany = company === undefined ? undefined : String(company);
   const safePhone = phone === undefined ? undefined : String(phone);
   const requestCreatedAt = submittedAt ?? new Date();
+  const id = sourceRequestId!;
+  const storedShape = { include: { lead: { select: { email: true } } } } as const;
 
-  if (await reconcileExisting(sourceRequestId!, input)) return;
+  await prisma.$transaction(async (tx) => {
+    const lead = await tx.contactLead.upsert({
+      where: { email: safeEmail },
+      create: {
+        email: safeEmail,
+        name: safeName ?? null,
+        company: safeCompany ?? null,
+        phone: safePhone ?? null,
+        newsletterConsent: input.newsletterConsent,
+        consentAt: input.newsletterConsent ? new Date() : null,
+        consentSource: input.newsletterConsent ? consentSource(input) : null,
+        createdAt: requestCreatedAt,
+      },
+      update: { ...consentPatch(input) },
+    });
 
-  const lead = await prisma.contactLead.findUnique({
-    where: { email: safeEmail },
-    select: { id: true },
-  });
+    // A replayed submission can predate the lead we already hold; the lead is
+    // as old as its earliest request, never younger.
+    await tx.contactLead.updateMany({
+      where: { id: lead.id, createdAt: { gt: requestCreatedAt } },
+      data: { createdAt: requestCreatedAt },
+    });
 
-  if (lead) {
-    // Content-matched, not timestamp-matched: a replay whose clock differs by a
-    // millisecond is the same request, and claiming the OLDEST such row keeps a
-    // repeated backfill deterministic when several duplicates are outstanding.
-    const claimable = await prisma.contactRequest.findFirst({
+    // Fill only what is still null, so a replay never overwrites better data.
+    for (const [field, value] of [
+      ['name', safeName],
+      ['company', safeCompany],
+      ['phone', safePhone],
+    ] as const) {
+      if (value) {
+        await tx.contactLead.updateMany({
+          where: { id: lead.id, [field]: null },
+          data: { [field]: value },
+        });
+      }
+    }
+
+    const existing = await tx.contactRequest.findUnique({
+      where: { sourceRequestId: id },
+      ...storedShape,
+    });
+    if (existing) {
+      if (!isSameSubmission(existing, input, safeEmail)) {
+        throw new ContactIntakeConflictError(id);
+      }
+      return;
+    }
+
+    // Rows the live intake already wrote carry no source id. Claim the OLDEST
+    // content-matched one rather than filing a second copy of it.
+    const claimable = await tx.contactRequest.findFirst({
       where: {
         leadId: lead.id,
         sourceRequestId: null,
@@ -284,35 +288,39 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
       orderBy: { createdAt: 'asc' },
       select: { id: true },
     });
-
     if (claimable) {
-      await prisma.contactRequest.update({
+      await tx.contactRequest.update({
         where: { id: claimable.id },
-        data: { sourceRequestId, createdAt: requestCreatedAt },
+        data: { sourceRequestId: id, createdAt: requestCreatedAt },
       });
-      await backfillLeadFields(safeEmail, safeName, safeCompany, safePhone);
       return;
     }
-  }
 
-  try {
-    await createLeadAndRequest(
-      safeEmail,
-      safeName,
-      safeCompany,
-      safePhone,
-      input,
-      requestCreatedAt,
-      sourceRequestId
-    );
-  } catch (error) {
-    // A concurrent delivery of the same sourceRequestId won the unique index
-    // between our read above and this write. That is the case this function
-    // exists to make safe, so reconcile against the winner instead of 500ing.
-    if (!isUniqueViolation(error)) throw error;
-    if (!(await reconcileExisting(sourceRequestId!, input))) throw error;
-  }
-  await backfillLeadFields(safeEmail, safeName, safeCompany, safePhone);
+    // skipDuplicates emits INSERT ... ON CONFLICT DO NOTHING, so the unique
+    // index closes the concurrent-delivery race instead of a check-then-act
+    // read. The re-read below decides whether the row that now exists is ours.
+    await tx.contactRequest.createMany({
+      data: [
+        {
+          sourceRequestId: id,
+          leadId: lead.id,
+          subject: input.subject ?? null,
+          message: input.message,
+          sourceUrl: input.sourceUrl ?? null,
+          createdAt: requestCreatedAt,
+        },
+      ],
+      skipDuplicates: true,
+    });
+
+    const stored = await tx.contactRequest.findUnique({
+      where: { sourceRequestId: id },
+      ...storedShape,
+    });
+    if (!stored || !isSameSubmission(stored, input, safeEmail)) {
+      throw new ContactIntakeConflictError(id);
+    }
+  });
 }
 
 async function handleLegacy(input: ContactSubmission): Promise<void> {
