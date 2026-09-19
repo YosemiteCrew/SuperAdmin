@@ -430,9 +430,27 @@ describe('recordContactSubmission with a sourceRequestId', () => {
   });
 
   it('does the whole sourced write inside one transaction', async () => {
-    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+    const tx = {
+      contactLead: {
+        upsert: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      contactRequest: {
+        findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(stored()),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction.mockImplementationOnce(async (fn: (client: unknown) => unknown) => fn(tx));
+
     await recordContactSubmission(submission());
+
     expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(tx.contactLead.upsert).toHaveBeenCalledTimes(1);
+    expect(tx.contactRequest.createMany).toHaveBeenCalledTimes(1);
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
   });
 
   it('stores nothing further when the id is already recorded with the same submission', async () => {
