@@ -559,6 +559,46 @@ describe('recordContactSubmission with a sourceRequestId', () => {
     });
   });
 
+  // Ported from d551136, which caught a gap this suite had: the sourced path
+  // builds its OWN lead-create object, so the consent branches there are not
+  // the ones the legacy upsert tests cover.
+  it('stamps consent on a brand-new lead created by the sourced path', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(
+      submission({
+        newsletterConsent: true,
+        sourceUrl: 'https://www.yosemitecrew.com/contact-us',
+      })
+    );
+
+    const create = mockUpsert.mock.calls[0][0].create;
+    expect(create.newsletterConsent).toBe(true);
+    expect(create.consentAt).toBeInstanceOf(Date);
+    expect(create.consentSource).toBe('https://www.yosemitecrew.com/contact-us');
+  });
+
+  it('leaves consent unstamped on the sourced path when not opted in', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(submission());
+
+    const create = mockUpsert.mock.calls[0][0].create;
+    expect(create.consentAt).toBeNull();
+    expect(create.consentSource).toBeNull();
+  });
+
+  it('stamps the request with now() when no submittedAt is given', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+    const before = Date.now();
+
+    await recordContactSubmission(submission());
+
+    const createdAt = mockRequestCreateMany.mock.calls[0][0].data[0].createdAt;
+    expect(createdAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(createdAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
   it('fills only a null name, company and phone', async () => {
     mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
     await recordContactSubmission(
