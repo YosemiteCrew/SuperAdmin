@@ -114,6 +114,37 @@ function plainCall(expression: ts.Expression): ts.CallExpression | null {
     : null;
 }
 
+function isUnconditional(awaited: ts.AwaitExpression, body: ts.ConciseBody): boolean {
+  if (awaited === body) return true;
+
+  let ancestor: ts.Node | undefined = awaited.parent;
+  while (ancestor && ancestor !== body) {
+    const shortCircuited =
+      ts.isBinaryExpression(ancestor) &&
+      [
+        ts.SyntaxKind.AmpersandAmpersandToken,
+        ts.SyntaxKind.BarBarToken,
+        ts.SyntaxKind.QuestionQuestionToken,
+      ].includes(ancestor.operatorToken.kind);
+    if (
+      ts.isTryStatement(ancestor) ||
+      ts.isIfStatement(ancestor) ||
+      ts.isConditionalExpression(ancestor) ||
+      ts.isForStatement(ancestor) ||
+      ts.isForInStatement(ancestor) ||
+      ts.isForOfStatement(ancestor) ||
+      ts.isWhileStatement(ancestor) ||
+      ts.isDoStatement(ancestor) ||
+      ts.isSwitchStatement(ancestor) ||
+      shortCircuited
+    ) {
+      return false;
+    }
+    ancestor = ancestor.parent;
+  }
+  return ancestor === body;
+}
+
 function returnedHelper(body: ts.ConciseBody): string | null {
   let expression: ts.Expression | undefined;
   if (ts.isBlock(body)) {
@@ -142,6 +173,7 @@ function isGuarded(
     return helper ? isGuarded(helper, functions, visited) : false;
   }
 
+  if (!isUnconditional(awaited, action.body)) return false;
   const call = plainCall(awaited.expression);
   if (!call || !ts.isIdentifier(call.expression)) return false;
   if (call.expression.text === 'requireSuperAdmin') return call.arguments.length === 0;
@@ -208,6 +240,22 @@ describe('every server action authorises before its first await', () => {
     [
       'an optional guard',
       "'use server'; export async function action() { await requireSuperAdmin?.(); }",
+    ],
+    [
+      'a guard swallowed by try/catch',
+      "'use server'; export async function action() { try { await requireSuperAdmin(); } catch {} await write(); }",
+    ],
+    [
+      'a conditional guard',
+      "'use server'; export async function action() { if (enabled) { await requireSuperAdmin(); } await write(); }",
+    ],
+    [
+      'a short-circuited guard',
+      "'use server'; export async function action() { enabled && (await requireSuperAdmin()); await write(); }",
+    ],
+    [
+      'a ternary guard',
+      "'use server'; export async function action() { enabled ? await requireSuperAdmin() : null; await write(); }",
     ],
   ])('rejects %s', (_name, source) => {
     const actionModule = parseModule('fixture.ts', source);
