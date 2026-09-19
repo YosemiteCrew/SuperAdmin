@@ -20,6 +20,7 @@ const BASIC_AUTH_EXEMPTIONS = new Set([
   'GET /api/health',
   'POST /api/contact',
   'POST /api/consent',
+  'POST /api/approvals/reconcile',
   'POST /api/social/tiktok/scheduled',
   'POST /api/social/instagram/scheduled',
 ]);
