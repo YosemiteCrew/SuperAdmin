@@ -239,7 +239,7 @@ export async function listConsentSubjects(params: {
   if (rows.length === 0 && cursor) {
     rows = await prisma.consentSubject.findMany({
       ...query,
-      where: { AND: [searchFilter, {}] },
+      where: searchFilter,
     });
   }
 

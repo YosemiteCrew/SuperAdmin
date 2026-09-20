@@ -268,7 +268,7 @@ describe('listConsentSubjects', () => {
     });
 
     expect(mockSubjFind).toHaveBeenCalledTimes(2);
-    expect(mockSubjFind.mock.calls[1][0].where).toEqual({ AND: [{}, {}] });
+    expect(mockSubjFind.mock.calls[1][0].where).toEqual({});
     expect(result.subjects).toHaveLength(1);
   });
 });
