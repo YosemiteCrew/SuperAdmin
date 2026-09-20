@@ -279,7 +279,11 @@ describe('CommandPalette page search covers the whole sidebar', () => {
       'Open Analytics',
       'Open Settings',
     ]) {
-      expect(screen.getByRole('button', { name: new RegExp(title, 'i') })).toBeInTheDocument();
+      // Matched as text rather than through a RegExp built from a variable:
+      // the badge and subtitle are part of the button's accessible name, so an
+      // exact name match would not work, and a dynamic pattern is a needless
+      // sink for a list of literals.
+      expect(screen.getByText(title).closest('button')).toBeInTheDocument();
     }
   });
 });
