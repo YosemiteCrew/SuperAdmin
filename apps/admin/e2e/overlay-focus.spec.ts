@@ -36,16 +36,43 @@ const signIn = async (page: Page) => {
   return true;
 };
 
-/** True while the focused element is inside the open dialog. */
-const focusIsInsideDialog = (page: Page) =>
+/**
+ * Where focus sits relative to the open dialog, as a phrase naming what it found.
+ *
+ * `dialog.contains(activeElement)` is too strict to be the containment test:
+ * Chromium parks focus on `<body>` for one press as the tab cycle wraps past the
+ * last control in a modal dialog, so a walk asserting containment after every
+ * press fails once in each direction on a dialog that contains focus perfectly.
+ * `<body>` is the ABSENCE of a focused element, not a control behind the overlay
+ * - which is the thing #552 is about. So the escape this reports is a focused
+ * element OUTSIDE the dialog, and nothing else.
+ */
+const focusPlacement = (page: Page) =>
   page.evaluate(() => {
     const dialog = document.querySelector('dialog[open]');
-    return dialog instanceof HTMLElement && document.activeElement instanceof Node
-      ? dialog.contains(document.activeElement)
-      : false;
+    if (!(dialog instanceof HTMLElement)) return 'no open dialog';
+    const active = document.activeElement;
+    if (
+      !(active instanceof Element) ||
+      active === document.body ||
+      active === document.documentElement
+    ) {
+      return 'nothing focused';
+    }
+    if (dialog.contains(active)) return 'inside the dialog';
+    return `OUTSIDE the dialog: ${active.tagName.toLowerCase()}${active.id ? `#${active.id}` : ''}`;
   });
 
-/** How many tabbable controls the open dialog holds, so the walk outlasts it. */
+/**
+ * How many tabbable controls the open dialog holds, so the walk outlasts it.
+ *
+ * A LOWER bound, not the number of tab stops: Chromium also makes a scrollable
+ * region a tab stop without giving it a `tabindex`, and the palette's results
+ * list is one. Under-counting only shortens the walk, which is why the walk also
+ * asserts how many presses actually landed inside - a count that undershot the
+ * cycle would otherwise turn "focus is contained" into "focus is contained for
+ * the first few presses".
+ */
 const tabbableCountInDialog = (page: Page) =>
   page.evaluate(() => {
     const dialog = document.querySelector('dialog[open]');
@@ -59,21 +86,25 @@ const walkTabsAndStayInside = async (page: Page, extraPresses = 3) => {
   const inside = await tabbableCountInDialog(page);
   expect(inside, 'the dialog must hold at least one tabbable control').toBeGreaterThan(0);
 
-  for (let press = 0; press < inside + extraPresses; press += 1) {
-    await page.keyboard.press('Tab');
-    expect(
-      await focusIsInsideDialog(page),
-      `focus left the dialog after Tab press ${press + 1} of ${inside + extraPresses}`
-    ).toBe(true);
+  const walk: string[] = [];
+  for (const key of ['Tab', 'Shift+Tab'] as const) {
+    for (let press = 1; press <= inside + extraPresses; press += 1) {
+      await page.keyboard.press(key);
+      walk.push(`${key} ${press}/${inside + extraPresses}: ${await focusPlacement(page)}`);
+    }
   }
 
-  for (let press = 0; press < inside + extraPresses; press += 1) {
-    await page.keyboard.press('Shift+Tab');
-    expect(
-      await focusIsInsideDialog(page),
-      `focus left the dialog after Shift+Tab press ${press + 1}`
-    ).toBe(true);
-  }
+  expect(
+    walk.filter((step) => step.includes('OUTSIDE the dialog')),
+    'Tab reached page content behind the overlay'
+  ).toEqual([]);
+
+  // Without this the assertion above passes on a page where nothing inside the
+  // dialog is focusable at all, since 'nothing focused' is not an escape.
+  expect(
+    walk.filter((step) => step.endsWith('inside the dialog')).length,
+    `the walk barely entered the dialog: ${walk.join(' | ')}`
+  ).toBeGreaterThanOrEqual(inside);
 };
 
 test('the command palette contains Tab and returns focus to its opener', async ({ page }) => {
