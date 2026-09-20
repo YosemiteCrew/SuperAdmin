@@ -74,6 +74,22 @@ export const AUDIT_TARGET_TYPE_LABELS: Readonly<Record<AuditTargetType, string>>
   social_account: 'Social account',
 };
 
+/**
+ * The target kind in words, or the raw value if it is one this build does not
+ * know.
+ *
+ * The fallback is load-bearing, and the type above is why it is easy to miss:
+ * `AuditEvent.targetType` is typed as the union, but `AuditEvent.targetType` in
+ * the database is an unconstrained `String` and `fromRow` casts it unchecked, so
+ * a kind written by a newer deployment - or by a direct insert - arrives here
+ * with no word for it. Indexing the map alone renders NOTHING for that row,
+ * which on the audit register is a silent drop. Takes `string` rather than
+ * `AuditTargetType` so the call sites cannot claim every lookup resolves.
+ */
+export function describeAuditTargetType(targetType: string): string {
+  return (AUDIT_TARGET_TYPE_LABELS as Record<string, string | undefined>)[targetType] ?? targetType;
+}
+
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
   id: string;

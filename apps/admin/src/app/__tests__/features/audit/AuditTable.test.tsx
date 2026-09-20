@@ -113,6 +113,24 @@ describe('AuditTable identifiers', () => {
     }
   });
 
+  // `AuditEvent.targetType` is typed as the union but stored as an unconstrained
+  // `String`, and `fromRow` casts it unchecked - so a kind this build has no word
+  // for is reachable from the database. Indexing the label map alone rendered
+  // nothing at all for such a row, which on the audit register is a silent drop.
+  it('shows an unknown target kind as its raw value rather than nothing', () => {
+    render(
+      <AuditTable
+        events={[
+          event({
+            targetType: 'billing_account' as AuditEvent['targetType'],
+            targetLabel: 'acct-9',
+          }),
+        ]}
+      />
+    );
+    expect(screen.getByText('billing_account')).toBeInTheDocument();
+  });
+
   it('puts a recorded status enum into words in the Target column', () => {
     render(
       <AuditTable

@@ -1,5 +1,5 @@
 import { AUDIT_META, AUDIT_SEVERITY_LABELS, auditTargetLabel, type AuditSeverity } from './audit';
-import { AUDIT_TARGET_TYPE_LABELS } from './types';
+import { describeAuditTargetType } from './types';
 import type { AuditEvent } from './types';
 
 const SEVERITY_DOT: Record<AuditSeverity, string> = {
@@ -93,7 +93,7 @@ export function AuditTable({
                 <td className="px-5 py-3 text-[color:var(--ink-muted)]">
                   <span>{auditTargetLabel(event)}</span>
                   <span className="ml-2 rounded-full bg-[var(--inset)] px-[9px] py-[2.5px] text-[10px] font-bold tracking-[0.06em] text-[color:var(--ink-faint)]">
-                    {AUDIT_TARGET_TYPE_LABELS[event.targetType]}
+                    {describeAuditTargetType(event.targetType)}
                   </span>
                 </td>
               </tr>
