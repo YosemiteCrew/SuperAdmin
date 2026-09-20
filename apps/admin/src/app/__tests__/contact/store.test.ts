@@ -83,12 +83,51 @@ describe('listContactRequests', () => {
     expect(nextCursor).toBe('r24');
   });
 
-  it('filters by status and paginates from a cursor', async () => {
+  it('filters by status and pages from the cursor by value, not by offset', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
     await listContactRequests({ status: 'closed', cursor: 'r5' });
+
     const arg = mockFind.mock.calls[0][0];
-    expect(arg.where).toEqual({ status: 'closed' });
-    expect(arg.cursor).toEqual({ id: 'r5' });
-    expect(arg.skip).toBe(1);
+    expect(arg.where).toEqual({
+      AND: [
+        { status: 'closed' },
+        {
+          OR: [{ createdAt: { lt: cursorAt } }, { createdAt: cursorAt, id: { lt: 'r5' } }],
+        },
+      ],
+    });
+    expect(arg.cursor).toBeUndefined();
+    expect(arg.skip).toBeUndefined();
+  });
+
+  // The defect: Prisma resolves `cursor: { id }` inside the filtered result, so
+  // a cursor row whose status moved out of the filter is not the first row of
+  // the page any more and `skip: 1` drops a real request instead.
+  it('resolves the cursor row without the status filter, so a moved row cannot cost a page its first request', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
+    await listContactRequests({ status: 'new', cursor: 'r6' });
+
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { id: 'r6' },
+      select: { createdAt: true },
+    });
+    const lookup = mockFindUnique.mock.calls[0][0];
+    expect(lookup.where.status).toBeUndefined();
+    expect(mockFind.mock.calls[0][0].skip).toBeUndefined();
+  });
+
+  it('keeps the id tiebreak in the keyset bound so tied timestamps cannot straddle a page', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
+    await listContactRequests({ cursor: 'r5' });
+
+    const [, cursorFilter] = mockFind.mock.calls[0][0].where.AND;
+    expect(cursorFilter.OR).toContainEqual({ createdAt: cursorAt, id: { lt: 'r5' } });
   });
 
   // The cursor resolves to a `createdAt` value, not to the row, so the sort has
@@ -110,19 +149,33 @@ describe('listContactRequests', () => {
   // Prisma does not error on a cursor that matches no row, it just returns
   // nothing (verified against Postgres 16 with this schema), which would show
   // the empty state over a table that has rows in it.
-  it('falls back to the first page when a cursor matches no row', async () => {
-    mockFind.mockResolvedValueOnce([]).mockResolvedValueOnce([row('r1')]);
+  it('serves the first page in one query when a cursor matches no row', async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+    mockFind.mockResolvedValueOnce([row('r1')]);
 
     const { requests } = await listContactRequests({ cursor: 'deleted-or-stale' });
 
     expect(requests).toHaveLength(1);
+    // An unresolved cursor contributes no bound, so the first query already IS
+    // the first page - re-running it would only cost a second round trip.
+    expect(mockFind).toHaveBeenCalledTimes(1);
+    expect(mockFind.mock.calls[0][0].where).toEqual({ AND: [{}, {}] });
+  });
+
+  it('falls back to the first page when a resolved cursor lands past the end', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+    mockFind.mockResolvedValueOnce([]).mockResolvedValueOnce([row('r1')]);
+
+    const { requests } = await listContactRequests({ status: 'new', cursor: 'r5' });
+
+    expect(requests).toHaveLength(1);
     expect(mockFind).toHaveBeenCalledTimes(2);
-    const retry = mockFind.mock.calls[1][0];
-    expect(retry.cursor).toBeUndefined();
-    expect(retry.skip).toBeUndefined();
+    expect(mockFind.mock.calls[1][0].where).toEqual({ status: 'new' });
   });
 
   it('does not re-query when a cursor legitimately returns rows', async () => {
+    mockFindUnique.mockResolvedValueOnce({ createdAt: new Date('2026-07-01T09:00:00Z') });
     mockFind.mockResolvedValue([row('r1')]);
     await listContactRequests({ cursor: 'r0' });
     expect(mockFind).toHaveBeenCalledTimes(1);
@@ -133,6 +186,11 @@ describe('listContactRequests', () => {
     const { requests } = await listContactRequests({});
     expect(requests).toEqual([]);
     expect(mockFind).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not look a cursor up when none was given', async () => {
+    await listContactRequests({ status: 'new' });
+    expect(mockFindUnique).not.toHaveBeenCalled();
   });
 });
 

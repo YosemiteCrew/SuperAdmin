@@ -34,6 +34,16 @@ describe('ExportUsersButton', () => {
     expect(capturedBlob).toBeInstanceOf(Blob);
     expect(clickSpy).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:users');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     clickSpy.mockRestore();
+  });
+
+  it('reports a rejected export in the page instead of throwing to the boundary', async () => {
+    exportUsersActionMock.mockRejectedValue(new Error('core unreachable'));
+    render(<ExportUsersButton />);
+    fireEvent.click(screen.getByRole('button', { name: /export csv/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/export could not be produced/i);
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 });

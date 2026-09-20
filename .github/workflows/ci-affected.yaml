@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   # Build/test-time placeholders. Real values are set at deploy time per environment.
   # The app's env helpers refuse to load with missing required vars; CI satisfies them
   # with these dummies just so the build can verify the code compiles.

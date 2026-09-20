@@ -45,40 +45,59 @@ export async function listContactRequests(params: {
   status?: RequestStatus;
   cursor?: string;
 }): Promise<{ requests: ContactRequestView[]; nextCursor: string | null }> {
-  const where = params.status ? { status: params.status } : {};
+  const statusFilter = params.status ? { status: params.status } : {};
+
+  // The cursor row is looked up WITHOUT the status filter. Prisma's own
+  // `cursor`/`skip: 1` pagination assumes the cursor row is the first row of
+  // the filtered result, so when a second admin moves that row out of the
+  // filter - which `setRequestStatus` exists to support, and which revalidates
+  // this page - the filter drops it and `skip: 1` eats the first real row of
+  // the next page instead. A request then disappears for the operator who is
+  // already past page one. `createdAt` never changes after insert, so
+  // resolving it by id is stable whatever the row's status has become.
+  const cursorRow = params.cursor
+    ? await prisma.contactRequest.findUnique({
+        where: { id: params.cursor },
+        select: { createdAt: true },
+      })
+    : null;
+  const cursorFilter = cursorRow
+    ? {
+        OR: [
+          { createdAt: { lt: cursorRow.createdAt } },
+          { createdAt: cursorRow.createdAt, id: { lt: params.cursor } },
+        ],
+      }
+    : {};
+
   const query = {
-    where,
+    where: { AND: [statusFilter, cursorFilter] },
     include: { lead: true },
     // `id` is the tiebreaker, and it is load bearing rather than cosmetic.
-    // Cursor pagination here resolves the cursor to its `createdAt` value -
-    // Prisma emits `WHERE "createdAt" <= (SELECT "createdAt" ... WHERE id = $1)`
-    // and the id itself never enters the comparison. Ordering by a non-unique
-    // column alone leaves the order among tied rows undefined, and undefined
-    // means plan-dependent: with every row sharing one `createdAt`, a sequential
-    // scan and an index scan return disjoint sets of "the five newest". Page one
-    // has no WHERE clause and page two does, so the two are separate queries
-    // that can be planned differently, and a request can then be skipped or
-    // repeated. Contact requests arrive in bursts - a mirror replaying a backlog
-    // writes many rows in one millisecond - so ties are the normal case, not an
+    // Ordering by a non-unique column alone leaves the order among tied rows
+    // undefined, and undefined means plan-dependent: with every row sharing
+    // one `createdAt`, a sequential scan and an index scan return disjoint
+    // sets of "the five newest". The keyset bound above pairs with it -
+    // `createdAt` strictly older, OR the same instant and a lower id - so the
+    // boundary between two pages is decided by the query and not by the plan.
+    // Contact requests arrive in bursts - a mirror replaying a backlog writes
+    // many rows in one millisecond - so ties are the normal case, not an
     // exotic one, and a dropped lead is invisible: the page simply does not
     // contain it.
     orderBy: [{ createdAt: 'desc' as const }, { id: 'desc' as const }],
     take: PAGE_SIZE + 1,
   };
 
-  let rows = await prisma.contactRequest.findMany({
-    ...query,
-    ...(params.cursor ? { skip: 1, cursor: { id: params.cursor } } : {}),
-  });
+  let rows = await prisma.contactRequest.findMany(query);
 
-  // A cursor that no longer resolves to a row - a stale bookmark, or a request
-  // deleted since the link was shared - is not an error to Prisma: it quietly
-  // matches nothing. Left alone that renders "No contact requests here yet"
-  // over a table that is not empty, so fall back to the first page. Normal
-  // pagination never lands here, since a nextCursor is only emitted when a
-  // further row exists.
-  if (rows.length === 0 && params.cursor) {
-    rows = await prisma.contactRequest.findMany(query);
+  // A cursor that resolved but yields nothing is a bookmark past the end of
+  // the current result - a shared link, or rows re-filed since. Left alone it
+  // renders "No contact requests here yet" over a table that is not empty, so
+  // fall back to the first page. A cursor that resolved to no row at all does
+  // not reach here: its `cursorFilter` is already empty, so the query above
+  // IS the first page and re-running it would only cost a second round trip.
+  if (rows.length === 0 && cursorRow) {
+    rows = await prisma.contactRequest.findMany({ ...query, where: statusFilter });
   }
 
   const hasMore = rows.length > PAGE_SIZE;

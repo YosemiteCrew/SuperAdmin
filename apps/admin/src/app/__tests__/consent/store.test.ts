@@ -50,7 +50,7 @@ describe('recordConsent', () => {
       expect.objectContaining({
         where: { consentId: 'c1' },
         create: expect.objectContaining({ consentId: 'c1', email: 'a@b.com', userId: 'u1' }),
-        update: {},
+        update: { updatedAt: expect.any(Date) },
       })
     );
     const rows = mockCreateMany.mock.calls[0][0].data;
@@ -62,6 +62,21 @@ describe('recordConsent', () => {
       source: 'web',
     });
     expect(rows[1]).toMatchObject({ category: 'marketing', granted: false });
+  });
+
+  it('bumps the subject timestamp for an anonymous decision without writing identity', async () => {
+    await recordConsent({
+      consentId: 'anonymous-1',
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: false }],
+    });
+
+    expect(mockUpsert).toHaveBeenCalledWith({
+      where: { consentId: 'anonymous-1' },
+      create: { consentId: 'anonymous-1', userId: null, email: null },
+      update: { updatedAt: expect.any(Date) },
+    });
+    expect(mockSubjUpdateMany).not.toHaveBeenCalled();
   });
 
   it('fills an identity pair in one conditional write so concurrent submissions cannot split it', async () => {
@@ -169,6 +184,8 @@ describe('listConsentSubjects', () => {
     updatedAt: new Date('2026-07-01T00:00:00Z'),
     ...over,
   });
+  const cursorFor = (updatedAt: Date, id: string) =>
+    Buffer.from(JSON.stringify({ updatedAt: updatedAt.getTime(), id })).toString('base64url');
 
   it('derives current per-category state from the highest-seq event', async () => {
     mockSubjFind.mockResolvedValue([subject('s1')]);
@@ -210,20 +227,49 @@ describe('listConsentSubjects', () => {
     mockSubjFind.mockResolvedValue(Array.from({ length: 26 }, (_, i) => subject(`s${i}`)));
     const { subjects, nextCursor } = await listConsentSubjects({});
     expect(subjects).toHaveLength(25);
-    expect(nextCursor).toBe('s24');
+    expect(nextCursor).toBe(cursorFor(subjects[24].updatedAt, 's24'));
   });
 
   it('applies an email/consentId search filter', async () => {
     await listConsentSubjects({ search: 'clinic' });
     const where = mockSubjFind.mock.calls[0][0].where;
-    expect(where.OR).toBeDefined();
+    expect(where.AND[0].OR).toBeDefined();
   });
 
-  it('pages from a cursor when one is supplied', async () => {
-    await listConsentSubjects({ cursor: 's5' });
+  it('pages from encoded sort values without a row cursor or skip', async () => {
+    const updatedAt = new Date('2026-07-04T12:00:00Z');
+    await listConsentSubjects({ cursor: cursorFor(updatedAt, 's5') });
     const arg = mockSubjFind.mock.calls[0][0];
-    expect(arg.skip).toBe(1);
-    expect(arg.cursor).toEqual({ id: 's5' });
+    expect(arg).not.toHaveProperty('skip');
+    expect(arg).not.toHaveProperty('cursor');
+    expect(arg.where).toEqual({
+      AND: [
+        {},
+        {
+          OR: [{ updatedAt: { lt: updatedAt } }, { updatedAt, id: { lt: 's5' } }],
+        },
+      ],
+    });
+  });
+
+  it('treats an unparseable cursor as a first-page query', async () => {
+    await listConsentSubjects({ cursor: 'not-a-cursor' });
+
+    expect(mockSubjFind).toHaveBeenCalledTimes(1);
+    expect(mockSubjFind.mock.calls[0][0].where).toEqual({ AND: [{}, {}] });
+  });
+
+  it('falls back to the first page once when a parsed cursor returns no rows', async () => {
+    const firstPage = [subject('s1')];
+    mockSubjFind.mockResolvedValueOnce([]).mockResolvedValueOnce(firstPage);
+
+    const result = await listConsentSubjects({
+      cursor: cursorFor(new Date('2026-07-04T12:00:00Z'), 'missing'),
+    });
+
+    expect(mockSubjFind).toHaveBeenCalledTimes(2);
+    expect(mockSubjFind.mock.calls[1][0].where).toEqual({});
+    expect(result.subjects).toHaveLength(1);
   });
 });
 
