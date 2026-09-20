@@ -95,15 +95,13 @@ export async function bulkDeleteUsersAction(userIds: string[]): Promise<BulkUser
     if (id === actorId) return 'skipped'; // never delete yourself in a sweep
     if (await isBootstrapAdmin(id)) return 'skipped'; // never delete a break-glass admin
     let label: string | undefined;
-    let found = true;
     try {
       const user = await SuperTokens.getUser(id);
-      found = Boolean(user);
-      label = user?.emails[0];
+      if (!user) return 'skipped';
+      label = user.emails[0];
     } catch {
-      /* labelling is best-effort */
+      /* labelling is best-effort: a lookup that throws still deletes */
     }
-    if (!found) return 'skipped';
     await SuperTokens.deleteUser(id);
     await auditEach('user.delete', actorId, id, label);
     return 'done';
