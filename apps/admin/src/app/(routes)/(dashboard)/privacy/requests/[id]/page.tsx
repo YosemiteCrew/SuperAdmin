@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { requireSuperAdmin } from '@/app/config/backend';
+import { describeContactRequestStatus } from '@/app/features/contact/labels';
 import { getDataRequest } from '@/app/features/dataRequests/store';
 import {
   collectSubjectData,
@@ -11,6 +12,10 @@ import {
   type SubjectDataRequest,
   type SubjectLead,
 } from '@/app/features/dataRequests/subjectData';
+import {
+  describeDataRequestStatus,
+  describeDataRequestType,
+} from '@/app/features/dataRequests/types';
 import { isSectionError } from '@/app/lib/exportSection';
 
 import { EraseSubjectDataButton } from './EraseSubjectDataButton';
@@ -101,7 +106,7 @@ function LeadSection({ lead }: Readonly<{ lead: SubjectLead }>) {
                 className="rounded-[11px] border border-[var(--hairline)] bg-[var(--inset)] px-3 py-2"
               >
                 <p className="text-xs text-[color:var(--ink-muted)]">
-                  {formatDate(r.createdAt)} · {r.status}
+                  {formatDate(r.createdAt)} · {describeContactRequestStatus(r.status)}
                   {r.sourceUrl ? ` · ${r.sourceUrl}` : ''}
                 </p>
                 {r.subject && (
@@ -160,7 +165,8 @@ function RequestsSection({
     <ul className="space-y-2">
       {requests.map((r) => (
         <li key={r.id} className="text-sm text-[color:var(--ink-muted)]">
-          {formatDate(r.receivedAt)} · {r.type} · {r.status} · due {formatDate(r.dueAt)}
+          {formatDate(r.receivedAt)} · {describeDataRequestType(r.type)} ·{' '}
+          {describeDataRequestStatus(r.status)} · due {formatDate(r.dueAt)}
           {r.id === currentId && (
             <span className="ml-2 text-xs text-[color:var(--ink-faint)]">(this request)</span>
           )}

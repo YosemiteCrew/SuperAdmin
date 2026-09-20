@@ -5,7 +5,10 @@ import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
 import {
+  DATA_REQUEST_STATUS_LABELS,
+  DATA_REQUEST_TYPE_LABELS,
   daysUntilDue,
+  describeDataRequestType,
   isOpenStatus,
   isOverdue,
   REQUEST_STATUSES,
@@ -14,20 +17,6 @@ import {
 } from '@/app/features/dataRequests/types';
 import { logDataRequestAction, updateDataRequestStatusAction } from './actions';
 import type { ActionResult } from './actions';
-
-/**
- * `request.type` is the `DataRequest.type` column, typed `String` with no DB
- * or app-level constraint, so a value outside these four keys is reachable
- * (the "unknown type" test below exercises exactly that). Keying this map by
- * `string` claims every lookup resolves, which makes the `?? request.type`
- * fallback at the call site read as dead code while it is load-bearing.
- */
-const TYPE_LABELS: Record<string, string | undefined> = {
-  access: 'Access',
-  erasure: 'Erasure',
-  rectification: 'Rectification',
-  objection: 'Objection',
-};
 
 const CARD =
   'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
@@ -51,15 +40,12 @@ const STATUS_STYLES: Record<DataRequestStatus, string> = {
   rejected: NEUTRAL_PILL,
 };
 
-const STATUS_LABELS: Record<DataRequestStatus, string> = {
-  received: 'Received',
-  in_progress: 'In progress',
-  fulfilled: 'Fulfilled',
-  rejected: 'Rejected',
-};
-
 function StatusBadge({ status }: { readonly status: DataRequestStatus }) {
-  return <span className={`${BADGE} ${STATUS_STYLES[status]}`}>{STATUS_LABELS[status]}</span>;
+  return (
+    <span className={`${BADGE} ${STATUS_STYLES[status]}`}>
+      {DATA_REQUEST_STATUS_LABELS[status]}
+    </span>
+  );
 }
 
 /** Deadline pill: red when overdue, amber when due within a week, else muted. */
@@ -125,7 +111,7 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
       >
         {REQUEST_STATUSES.map((s) => (
           <option key={s} value={s}>
-            {STATUS_LABELS[s]}
+            {DATA_REQUEST_STATUS_LABELS[s]}
           </option>
         ))}
       </select>
@@ -187,7 +173,7 @@ function LogForm({ nowMs }: { readonly nowMs: number }) {
           <select id="dr-type" name="type" className={FIELD}>
             {REQUEST_TYPES.map((t) => (
               <option key={t} value={t}>
-                {TYPE_LABELS[t]}
+                {DATA_REQUEST_TYPE_LABELS[t]}
               </option>
             ))}
           </select>
@@ -279,7 +265,7 @@ export function RequestsTable({
                         {request.subjectEmail}
                       </Link>
                     </td>
-                    <td className={TD}>{TYPE_LABELS[request.type] ?? request.type}</td>
+                    <td className={TD}>{describeDataRequestType(request.type)}</td>
                     <td className={TD}>
                       {request.receivedAt.toLocaleDateString(undefined, { timeZone: 'UTC' })}
                     </td>

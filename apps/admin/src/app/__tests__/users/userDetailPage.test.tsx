@@ -239,3 +239,39 @@ describe('generateMetadata', () => {
     );
   });
 });
+
+describe('UserDetailPage login methods', () => {
+  /**
+   * The Login methods field printed SuperTokens recipe ids, so an operator read
+   * `emailpassword, passwordless` on a record they may have to act on. The
+   * unknown case matters as much as the known ones: this panel does not
+   * enumerate the core's recipes, and rendering nothing would delete a sign-in
+   * method from the account's own page.
+   */
+  it('names every known recipe in words', async () => {
+    getUserMock.mockResolvedValue(
+      makeUser({
+        loginMethods: [
+          { recipeId: 'emailpassword' },
+          { recipeId: 'thirdparty' },
+          { recipeId: 'passwordless' },
+        ],
+      })
+    );
+
+    await renderPage();
+
+    expect(
+      screen.getByText('Email and password, Social sign-in, One-time code')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/emailpassword/)).not.toBeInTheDocument();
+  });
+
+  it('shows a recipe it does not know as its raw id', async () => {
+    getUserMock.mockResolvedValue(makeUser({ loginMethods: [{ recipeId: 'webauthn' }] }));
+
+    await renderPage();
+
+    expect(screen.getByText('webauthn')).toBeInTheDocument();
+  });
+});

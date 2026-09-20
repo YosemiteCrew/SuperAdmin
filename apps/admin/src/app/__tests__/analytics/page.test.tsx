@@ -35,8 +35,12 @@ describe('AnalyticsPage sign-in methods', () => {
 
     render(await AnalyticsPage());
 
-    const row = screen.getByText('emailpassword').closest('tr');
+    // The recipe id is what the core returns and what the icon map is keyed
+    // on; the operator sees the words. Asserting both directions keeps the
+    // mapping from being undone without this test noticing.
+    const row = screen.getByText('Email and password').closest('tr');
     expect(row?.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByText('emailpassword')).not.toBeInTheDocument();
   });
 
   /**

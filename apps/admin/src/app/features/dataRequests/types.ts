@@ -5,6 +5,46 @@ export const REQUEST_STATUSES = ['received', 'in_progress', 'fulfilled', 'reject
 export type DataRequestStatus = (typeof REQUEST_STATUSES)[number];
 
 /**
+ * Operator-facing words for the two data-request enums. One map per enum, here
+ * beside the enum itself: the panel used to carry a private copy in each table
+ * that rendered one, which is how `in_progress` reached the screen from the
+ * places that had no copy.
+ */
+export const DATA_REQUEST_TYPE_LABELS: Readonly<Record<RequestType, string>> = {
+  access: 'Access',
+  erasure: 'Erasure',
+  rectification: 'Rectification',
+  objection: 'Objection',
+};
+
+export const DATA_REQUEST_STATUS_LABELS: Readonly<Record<DataRequestStatus, string>> = {
+  received: 'Received',
+  in_progress: 'In progress',
+  fulfilled: 'Fulfilled',
+  rejected: 'Rejected',
+};
+
+/** The status in words, or the raw value if it is one this panel does not know. */
+export function describeDataRequestStatus(status: string): string {
+  return (DATA_REQUEST_STATUS_LABELS as Record<string, string | undefined>)[status] ?? status;
+}
+
+/**
+ * The request type in words, or the raw value if it is one this panel does not
+ * know.
+ *
+ * The fallback is load-bearing, not defensive: `DataRequest.type` is a `String`
+ * column with no database or application constraint, so a value outside
+ * {@link REQUEST_TYPES} is reachable and RequestsTable has a test that reaches
+ * it. Taking `string` rather than `RequestType` is what keeps that visible at
+ * the call sites - a signature keyed to the union would claim every lookup
+ * resolves.
+ */
+export function describeDataRequestType(type: string): string {
+  return (DATA_REQUEST_TYPE_LABELS as Record<string, string | undefined>)[type] ?? type;
+}
+
+/**
  * The GDPR response window, in calendar months.
  *
  * Article 12(3) gives one MONTH, not thirty days, and the two are not the same

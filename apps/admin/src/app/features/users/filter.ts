@@ -36,6 +36,24 @@ export const USER_TYPE_META: Readonly<
   },
 };
 
+/**
+ * What a SuperTokens recipe id is called on screen.
+ *
+ * Not keyed by a union: this panel does not enumerate the core's recipes (see
+ * the note on the sign-in methods table), so a recipe configured later must
+ * still render. `describeRecipeId` falls back to the raw id for exactly that
+ * case - an unknown method is worth showing badly rather than not at all.
+ */
+export const RECIPE_ID_LABELS: Readonly<Record<string, string>> = {
+  emailpassword: 'Email and password',
+  thirdparty: 'Social sign-in',
+  passwordless: 'One-time code',
+};
+
+export function describeRecipeId(recipeId: string): string {
+  return RECIPE_ID_LABELS[recipeId] ?? recipeId;
+}
+
 const MOBILE_RECIPE_IDS: readonly string[] = ['passwordless', 'thirdparty'];
 const BUSINESS_RECIPE_IDS: readonly string[] = ['emailpassword'];
 

@@ -2,15 +2,17 @@
 
 import { type ChangeEvent, useState, useTransition } from 'react';
 
+import { CONTACT_REQUEST_STATUS_LABELS } from '@/app/features/contact/labels';
 import type { RequestStatus } from '@/app/features/contact/store';
 
 import { updateRequestStatusAction, type UpdateStatusResult } from './actions';
 
-const OPTIONS: { value: RequestStatus; label: string }[] = [
-  { value: 'new', label: 'New' },
-  { value: 'in_progress', label: 'In progress' },
-  { value: 'closed', label: 'Closed' },
-];
+// Built from the label map rather than from `REQUEST_STATUSES`: the list lives
+// in `contact/store`, which is `server-only`, and a value import of it from
+// this client component would pull the Prisma client into the browser bundle.
+const OPTIONS: { value: RequestStatus; label: string }[] = Object.entries(
+  CONTACT_REQUEST_STATUS_LABELS
+).map(([value, label]) => ({ value: value as RequestStatus, label }));
 
 export function StatusControl({
   requestId,
