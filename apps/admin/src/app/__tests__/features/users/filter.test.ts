@@ -1,7 +1,9 @@
 import {
   DEFAULT_USER_TYPE_FILTER,
+  RECIPE_ID_LABELS,
   USER_TYPE_FILTERS,
   USER_TYPE_META,
+  describeRecipeId,
   isMobileAppUser,
   parseUserTypeFilter,
   recipeIdsForUserType,
@@ -85,5 +87,34 @@ describe('USER_TYPE_META', () => {
   it('uses a noun that reads correctly in an empty-state sentence', () => {
     // Guards the regression where the tab label was reused and produced "No All yet."
     expect(`No ${USER_TYPE_META.all.noun} yet.`).toBe('No users yet.');
+  });
+});
+
+describe('describeRecipeId', () => {
+  /**
+   * The three recipes this deployment configures. Keyed off the map rather than
+   * re-listed, so adding one without a word for it fails here.
+   */
+  it.each([
+    ['emailpassword', 'Email and password'],
+    ['thirdparty', 'Social sign-in'],
+    ['passwordless', 'One-time code'],
+  ])('renders %s as "%s"', (recipeId, label) => {
+    expect(describeRecipeId(recipeId)).toBe(label);
+  });
+
+  it('shows a recipe this panel does not know as its raw id rather than blank', () => {
+    // The panel does not enumerate the core's recipes, so a recipe configured
+    // later reaches this function. Rendering nothing would delete a login
+    // method from the operator's view of an account.
+    expect(describeRecipeId('webauthn')).toBe('webauthn');
+    expect(describeRecipeId('')).toBe('');
+  });
+
+  it('has no raw identifier left in the words it produces', () => {
+    for (const label of Object.values(RECIPE_ID_LABELS)) {
+      expect(label).not.toMatch(/_/);
+      expect(label).toMatch(/^[A-Z]/);
+    }
   });
 });

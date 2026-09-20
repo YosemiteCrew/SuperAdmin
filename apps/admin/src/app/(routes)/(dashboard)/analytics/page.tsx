@@ -12,6 +12,7 @@ import supertokens from 'supertokens-node';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { getMFAStats } from '@/app/features/analytics';
 import type { DayBucket } from '@/app/features/analytics/types';
+import { describeRecipeId } from '@/app/features/users/filter';
 import { getServerTimestamp } from '@/app/lib/serverTime';
 
 export const metadata: Metadata = {
@@ -255,7 +256,7 @@ export default async function AnalyticsPage() {
                               >
                                 <Icon />
                               </span>
-                              {method}
+                              {describeRecipeId(method)}
                             </span>
                           </td>
                           <td className="px-[18px] py-3.5 text-right font-bold text-[color:var(--ink)] tabular-nums">

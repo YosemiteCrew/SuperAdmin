@@ -11,6 +11,7 @@ import {
   USER_TYPE_FILTERS,
   USER_TYPE_META,
   type UserTypeFilter,
+  describeRecipeId,
   parseUserTypeFilter,
   recipeIdsForUserType,
 } from '@/app/features/users/filter';
@@ -119,7 +120,9 @@ export default async function UsersPage({
         id: user.id,
         primaryEmail,
         extraEmailCount: Math.max(user.emails.length - 1, 0),
-        methods: Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).join(', '),
+        methods: Array.from(new Set(user.loginMethods.map((m) => m.recipeId)))
+          .map(describeRecipeId)
+          .join(', '),
         tenants: user.tenantIds.join(', ') || DEFAULT_TENANT,
         shortId: truncate(user.id),
         lastSeen: formatDateTime(lastSignInAt ?? user.timeJoined),

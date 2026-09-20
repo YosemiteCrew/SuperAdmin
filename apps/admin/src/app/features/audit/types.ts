@@ -57,6 +57,23 @@ export const AUDIT_TARGET_TYPES = [
 
 export type AuditTargetType = (typeof AUDIT_TARGET_TYPES)[number];
 
+/**
+ * What each target kind is called on screen. Keyed by {@link AuditTargetType}
+ * rather than by `string`, so adding a kind to the list above without a word
+ * for it is a type error here rather than a `data_request` pill on the audit
+ * screen.
+ */
+export const AUDIT_TARGET_TYPE_LABELS: Readonly<Record<AuditTargetType, string>> = {
+  user: 'User',
+  organization: 'Business',
+  invite: 'Invite',
+  system: 'System',
+  ap_token: 'AP token',
+  contact_request: 'Contact request',
+  data_request: 'Data request',
+  social_account: 'Social account',
+};
+
 /** A single recorded action: who did what, to whom, and when. */
 export interface AuditEvent {
   id: string;

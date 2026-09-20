@@ -13,6 +13,7 @@ import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { serverEnv } from '@/app/config/env.server';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForTarget } from '@/app/features/audit/store';
+import { describeRecipeId } from '@/app/features/users/filter';
 
 import { DeleteUserButton } from '../DeleteUserButton';
 import { DisableUserButton } from './DisableUserButton';
@@ -238,7 +239,9 @@ export default async function UserDetailPage({
   const { lastSignInAt, disabledAt } = accountMeta;
 
   const primaryEmail = user.emails[0] ?? '—';
-  const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId)));
+  const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).map(
+    describeRecipeId
+  );
   const verifiedDeviceCount = totpDevices.filter((device) => device.verified).length;
   const deviceWord = verifiedDeviceCount === 1 ? 'device' : 'devices';
   const totpStatusLabel =
