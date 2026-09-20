@@ -12,7 +12,7 @@ type Status =
   | { kind: 'idle' }
   | { kind: 'sending' }
   | { kind: 'processing'; containerId: string }
-  | { kind: 'done'; message: string }
+  | { kind: 'done'; message: string; alreadyPublished?: boolean }
   | { kind: 'error'; message: string };
 
 export function InstagramComposer() {
@@ -31,7 +31,13 @@ export function InstagramComposer() {
       setStatus({ kind: 'processing', containerId: result.containerId });
       return;
     }
-    setStatus({ kind: 'done', message: 'Published to Instagram.' });
+    setStatus({
+      kind: 'done',
+      message: result.alreadyPublished
+        ? 'Already published to Instagram.'
+        : 'Published to Instagram.',
+      alreadyPublished: result.alreadyPublished,
+    });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
