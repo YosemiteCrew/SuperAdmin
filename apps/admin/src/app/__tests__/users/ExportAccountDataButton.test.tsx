@@ -46,7 +46,7 @@ describe('ExportAccountDataButton', () => {
     clickSpy.mockRestore();
   });
 
-  it('does not attempt a download when the action returns null', async () => {
+  it('does not attempt a download when the action returns null, and says so', async () => {
     exportMock.mockResolvedValue(null);
     render(<ExportAccountDataButton userId="u1" />);
     fireEvent.click(screen.getByRole('button', { name: /Export account data/i }));
@@ -55,5 +55,32 @@ describe('ExportAccountDataButton', () => {
       expect(exportMock).toHaveBeenCalled();
     });
     expect(URL.createObjectURL).not.toHaveBeenCalled();
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /account data could not be produced/i
+    );
+  });
+
+  it('reports a rejected export in the page instead of throwing to the boundary', async () => {
+    exportMock.mockRejectedValue(new Error('core unreachable'));
+    render(<ExportAccountDataButton userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /Export account data/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /account data could not be produced/i
+    );
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it('clears an earlier failure once an export succeeds', async () => {
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    exportMock.mockResolvedValue(null);
+    render(<ExportAccountDataButton userId="u1" />);
+    fireEvent.click(screen.getByRole('button', { name: /Export account data/i }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    exportMock.mockResolvedValue('{"ok":true}');
+    fireEvent.click(screen.getByRole('button', { name: /Export account data/i }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    clickSpy.mockRestore();
   });
 });
