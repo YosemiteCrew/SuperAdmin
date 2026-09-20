@@ -188,6 +188,22 @@ describe('UsersTable', () => {
     expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
   });
 
+  it('freezes the confirm on the selection it was opened with', () => {
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    expect(screen.getByText('count 2')).toBeInTheDocument();
+
+    // A checkbox reachable behind the overlay used to rewrite the number in an
+    // open "Delete N users?" prompt, and the delete then ran on the new set.
+    fireEvent.click(screen.getByRole('checkbox', { name: /select a@x\.com/i }));
+    expect(screen.getByText('count 2')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
+  });
+
   it('excludes protected accounts from row and bulk delete controls', () => {
     const rows = [
       row({ id: 'u-1', primaryEmail: 'regular@x.com' }),
