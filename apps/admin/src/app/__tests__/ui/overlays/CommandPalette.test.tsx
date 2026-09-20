@@ -10,6 +10,21 @@ jest.mock('@/app/ui/overlays/CommandPalette/searchAction', () => ({
   searchDirectoryAction: (...args: unknown[]) => searchMock(...args),
 }));
 
+/**
+ * Escape reaches a modal <dialog> as its own `cancel` event, which is what
+ * Modal listens for. jsdom implements showModal() but never fires `cancel` on
+ * Escape (probed), so these arms pin the wiring and the real key press is
+ * covered by the browser spec in e2e/overlay-focus.spec.ts.
+ */
+function pressEscape() {
+  const dialog = screen.getByRole('dialog');
+  const event = new Event('cancel', { bubbles: false, cancelable: true });
+  act(() => {
+    fireEvent(dialog, event);
+  });
+  return event;
+}
+
 function openPalette() {
   act(() => {
     document.dispatchEvent(new Event(COMMAND_PALETTE_EVENT));
@@ -65,13 +80,14 @@ describe('CommandPalette', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
-  it('closes on Escape', () => {
+  it('closes on Escape, without letting the browser close the dialog itself', () => {
     render(<CommandPalette />);
     openPalette();
-    act(() => {
-      fireEvent.keyDown(document, { key: 'Escape' });
-    });
+    const event = pressEscape();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Unprevented, the browser's own close would leave isOpen true and the
+    // palette would not reopen.
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it('shows all quick links by default', () => {
@@ -438,9 +454,7 @@ describe('CommandPalette is a real modal', () => {
       expect(document.activeElement).toBe(screen.getByLabelText(/command palette input/i))
     );
 
-    act(() => {
-      fireEvent.keyDown(document, { key: 'Escape' });
-    });
+    pressEscape();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(document.activeElement).toBe(opener);
     opener.remove();

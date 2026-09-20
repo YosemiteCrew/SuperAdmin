@@ -48,6 +48,22 @@ export function Modal({
     };
   }, [isOpen]);
 
+  // A modal dialog fills the viewport for hit-testing, so a click that lands on
+  // the dialog element itself is a click outside its content. Registered here
+  // rather than as a JSX `onClick`, which puts a mouse-only handler on a
+  // non-interactive element (sonar S1082/S6847); Escape is the keyboard route
+  // out and the platform supplies it. Its own effect so that a fresh `onClose`
+  // closure re-binds the listener without closing and reopening the dialog.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog || !isOpen) return;
+    const onBackdropClick = (event: MouseEvent) => {
+      if (event.target === dialog) onClose?.();
+    };
+    dialog.addEventListener('click', onBackdropClick);
+    return () => dialog.removeEventListener('click', onBackdropClick);
+  }, [isOpen, onClose]);
+
   return (
     <dialog
       ref={dialogRef}
@@ -59,11 +75,6 @@ export function Modal({
         // close would leave `isOpen` true and the dialog would not reopen.
         event.preventDefault();
         onClose?.();
-      }}
-      onClick={(event) => {
-        // A modal dialog fills the viewport for hit-testing, so a click that
-        // lands on the dialog element itself is a click outside its content.
-        if (event.target === dialogRef.current) onClose?.();
       }}
     >
       {children}

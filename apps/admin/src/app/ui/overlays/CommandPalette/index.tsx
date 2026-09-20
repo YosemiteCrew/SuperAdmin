@@ -197,11 +197,9 @@ export function CommandPalette() {
 
       if (!isOpen) return;
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dispatch({ type: 'CLOSE' });
-        return;
-      }
+      // Escape is NOT handled here: the overlay is a modal <dialog>, so the
+      // platform fires `cancel` and Modal's own handler closes it. A second
+      // branch here would dispatch CLOSE twice for one key press.
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
