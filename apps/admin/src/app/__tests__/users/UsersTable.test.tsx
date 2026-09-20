@@ -1,10 +1,14 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { Component, type ReactNode } from 'react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
+import type { BulkUserResult } from '@/app/(routes)/(dashboard)/users/bulkActions';
 import { UsersTable, type UserRow } from '@/app/(routes)/(dashboard)/users/UsersTable';
 
-const bulkDisableMock = jest.fn((ids: string[]) => Promise.resolve(ids));
-const bulkEnableMock = jest.fn((ids: string[]) => Promise.resolve(ids));
-const bulkDeleteMock = jest.fn((ids: string[]) => Promise.resolve(ids));
+const ok = (done: number): BulkUserResult => ({ done, skipped: 0, failed: 0 });
+
+const bulkDisableMock = jest.fn((ids: string[]) => Promise.resolve(ok(ids.length)));
+const bulkEnableMock = jest.fn((ids: string[]) => Promise.resolve(ok(ids.length)));
+const bulkDeleteMock = jest.fn((ids: string[]) => Promise.resolve(ok(ids.length)));
 jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
   bulkDisableUsersAction: (ids: string[]) => bulkDisableMock(ids),
   bulkEnableUsersAction: (ids: string[]) => bulkEnableMock(ids),
@@ -62,6 +66,34 @@ const ROWS: UserRow[] = [
   row({ id: 'u-1', primaryEmail: 'a@x.com' }),
   row({ id: 'u-2', primaryEmail: 'b@x.com', disabled: true }),
 ];
+
+/**
+ * Stands in for the app-level error boundary. A rejected action that is not
+ * caught inside the transition reaches this, which is exactly the defect: in
+ * the app it is `error.tsx` and it replaces the whole dashboard shell.
+ */
+class TestBoundary extends Component<{ children: ReactNode }, { caught: boolean }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { caught: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { caught: true };
+  }
+
+  render() {
+    return this.state.caught ? <p>BOUNDARY CAUGHT</p> : this.props.children;
+  }
+}
+
+function renderInBoundary(rows: UserRow[]) {
+  return render(
+    <TestBoundary>
+      <UsersTable rows={rows} />
+    </TestBoundary>
+  );
+}
 
 const originalConfirm = globalThis.confirm;
 
@@ -197,6 +229,77 @@ describe('UsersTable', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
     expect(within(bar).queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  it('reports what a sweep did, naming skipped and failed only when non-zero', async () => {
+    globalThis.confirm = jest.fn(() => true);
+    bulkDisableMock.mockResolvedValueOnce({ done: 2, skipped: 1, failed: 0 });
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('2 disabled, 1 skipped');
+    expect(screen.getByRole('status')).not.toHaveTextContent('failed');
+    // The sweep landed, so the selection is spent.
+    await waitFor(() => expect(screen.queryByText(/selected/)).not.toBeInTheDocument());
+  });
+
+  it('counts failed accounts in the status line', async () => {
+    globalThis.confirm = jest.fn(() => true);
+    bulkEnableMock.mockResolvedValueOnce({ done: 1, skipped: 0, failed: 2 });
+    render(<UsersTable rows={ROWS} />);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /enable/i }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('1 re-enabled, 2 failed');
+  });
+
+  it('keeps a rejected sweep inside the table and holds the selection', async () => {
+    globalThis.confirm = jest.fn(() => true);
+    bulkDisableMock.mockRejectedValueOnce(new Error('core unreachable'));
+    renderInBoundary(ROWS);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The disable could not be completed. The selection was kept so you can try again.'
+    );
+    expect(screen.queryByText('BOUNDARY CAUGHT')).not.toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: /select a@x\.com/i })).toBeChecked();
+  });
+
+  it('keeps a rejected bulk delete inside the table and closes its dialog', async () => {
+    bulkDeleteMock.mockRejectedValueOnce(new Error('core unreachable'));
+    renderInBoundary(ROWS);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The delete could not be completed. The selection was kept so you can try again.'
+    );
+    expect(screen.queryByText('BOUNDARY CAUGHT')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('confirm-delete')).not.toBeInTheDocument();
+    expect(screen.getByText('2 users selected')).toBeInTheDocument();
+  });
+
+  it('replaces a failure alert with the status line on the next successful sweep', async () => {
+    globalThis.confirm = jest.fn(() => true);
+    bulkDisableMock.mockRejectedValueOnce(new Error('core unreachable'));
+    renderInBoundary(ROWS);
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
+    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+    expect(screen.getByRole('status')).toHaveTextContent('2 disabled');
   });
 
   it('closes the dialog without deleting when cancelled', () => {
