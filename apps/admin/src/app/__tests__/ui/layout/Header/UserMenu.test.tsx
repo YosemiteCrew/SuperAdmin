@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import { UserMenu } from '@/app/ui/layout/Header/UserMenu';
+
+expect.extend(toHaveNoViolations);
 
 const signOutMock = jest.fn();
 const replaceMock = jest.fn();
@@ -24,6 +27,33 @@ describe('UserMenu', () => {
   it('shows the firstName when provided', () => {
     render(<UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />);
     expect(screen.getByText('Aman')).toBeInTheDocument();
+  });
+
+  it('keeps a stable accessible name when the mobile layout hides visible text', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <style>{'.profileName, .chevron { display: none; }'}</style>
+        <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
+      </>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Account menu for Aman' });
+    await user.click(trigger);
+
+    expect(screen.getByRole('menuitem', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: SIGN_OUT })).toBeInTheDocument();
+  });
+
+  it('has no button-name violation when the mobile layout hides visible text', async () => {
+    const { container } = render(
+      <>
+        <style>{'.profileName, .chevron { display: none; }'}</style>
+        <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
+      </>
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('falls back to the first email chunk when firstName missing', () => {
