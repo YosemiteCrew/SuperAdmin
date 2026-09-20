@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 
 import { useDebounce } from '@/app/hooks/useDebounce';
+import { NAV_ROUTES } from '@/app/ui/layout/nav';
+import { Modal } from '@/app/ui/overlays/Modal';
 
 import type { DirectoryHit } from './searchAction';
 
@@ -13,11 +15,9 @@ const LIVE_SEARCH_DEBOUNCE_MS = 250;
 
 export const COMMAND_PALETTE_EVENT = 'yc:command-palette-open';
 
-type Module = 'overview' | 'users' | 'organizations' | 'analytics' | 'settings';
-
 type SearchItem = {
   id: string;
-  module: Module;
+  badge: string;
   title: string;
   subtitle: string;
   keywords: string;
@@ -25,73 +25,39 @@ type SearchItem = {
   isQuick?: boolean;
 };
 
-const moduleLabels: Record<Module, string> = {
-  overview: 'Overview',
-  users: 'Users',
-  organizations: 'Organizations',
-  analytics: 'Analytics',
-  settings: 'Settings',
-};
+// Shortcuts shown while the query is empty, in this order. Each names a route
+// in NAV_ROUTES; PaletteQuickLinks in the test suite pins that they all resolve.
+const QUICK_LINK_HREFS = ['/dashboard', '/users', '/organizations', '/analytics', '/settings'];
 
-const quickLinks: Array<{ module: Module; title: string; href: string }> = [
-  { module: 'overview', title: 'Open Dashboard', href: '/dashboard' },
-  { module: 'users', title: 'Open Users', href: '/users' },
-  { module: 'organizations', title: 'Open Organizations', href: '/organizations' },
-  { module: 'analytics', title: 'Open Analytics', href: '/analytics' },
-  { module: 'settings', title: 'Open Settings', href: '/settings' },
-];
+// Every sidebar destination is searchable, and the badge is its sidebar group,
+// so the palette and the sidebar cannot drift apart again (#556).
+const navigableItems: SearchItem[] = NAV_ROUTES.map((route) => ({
+  id: `page:${route.href.slice(1)}`,
+  badge: route.group,
+  title: route.name,
+  subtitle: route.description ?? '',
+  // The group label is searchable too: it is what makes "privacy" find both
+  // Consent and Data requests without repeating the word in either entry.
+  keywords: `${route.keywords ?? ''} ${route.group}`.trim(),
+  href: route.href,
+}));
 
-// [module, title, subtitle, keywords, href] — compact rows, not object
-// literals, so the copy-paste detector has no repeated shape to match.
-type PageEntry = [Module, string, string, string, string];
-const pageEntries: PageEntry[] = [
-  [
-    'overview',
-    'Dashboard',
-    'Stats overview, recent signups',
-    'dashboard overview home stats signups',
-    '/dashboard',
-  ],
-  [
-    'users',
-    'Users',
-    'Browse all users, search by email, paginate',
-    'users people accounts members search list',
-    '/users',
-  ],
-  [
-    'organizations',
-    'Organizations',
-    'Manage tenants and organizations',
-    'organizations orgs tenants companies workspaces',
-    '/organizations',
-  ],
-  [
-    'analytics',
-    'Analytics',
-    'Reports, metrics and trends',
-    'analytics metrics reports insights dashboards trends',
-    '/analytics',
-  ],
-  [
-    'settings',
-    'Settings',
-    'Account and admin configuration',
-    'settings preferences configuration account admin',
-    '/settings',
-  ],
-];
-
-const navigableItems: SearchItem[] = pageEntries.map(
-  ([module, title, subtitle, keywords, href]) => ({
-    id: `page:${href.slice(1)}`,
-    module,
-    title,
-    subtitle,
-    keywords,
-    href,
-  })
-);
+const quickLinkItems: SearchItem[] = QUICK_LINK_HREFS.flatMap((href) => {
+  const route = NAV_ROUTES.find((candidate) => candidate.href === href);
+  return route
+    ? [
+        {
+          id: `quick:${href}`,
+          badge: route.group,
+          title: `Open ${route.name}`,
+          subtitle: '',
+          keywords: route.name,
+          href,
+          isQuick: true,
+        },
+      ]
+    : [];
+});
 
 const getNextResultIndex = (activeIndex: number, resultCount: number, direction: 1 | -1) => {
   const safeCount = Math.max(resultCount, 1);
@@ -100,17 +66,7 @@ const getNextResultIndex = (activeIndex: number, resultCount: number, direction:
 
 const buildResultItems = (query: string): SearchItem[] => {
   const q = query.trim().toLowerCase();
-  if (!q) {
-    return quickLinks.map((link): SearchItem => ({
-      id: `quick:${link.href}`,
-      module: link.module,
-      title: link.title,
-      subtitle: '',
-      keywords: link.title,
-      href: link.href,
-      isQuick: true,
-    }));
-  }
+  if (!q) return quickLinkItems;
 
   const tokens = q.split(/\s+/).filter(Boolean);
   return navigableItems
@@ -177,6 +133,7 @@ export function CommandPalette() {
   const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
   const inputRef = useRef<HTMLInputElement>(null);
   const activeRowRef = useRef<HTMLButtonElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
 
   // Avoids SSR/client mismatch for the portal — server returns false, client returns true
   const isMounted = useSyncExternalStore(
@@ -215,7 +172,7 @@ export function CommandPalette() {
     // account, not a page link.
     const liveItems = liveHits.map((hit): SearchItem => ({
       id: `live:${hit.kind}:${hit.id}`,
-      module: hit.kind === 'user' ? 'users' : 'organizations',
+      badge: hit.kind === 'user' ? 'User' : 'Organization',
       title: hit.title,
       subtitle: hit.kind === 'user' ? 'Open user account' : 'Open organization',
       keywords: hit.title,
@@ -259,6 +216,13 @@ export function CommandPalette() {
       }
 
       if (event.key === 'Enter') {
+        // A focused result activates itself. Cancelling that keydown here would
+        // suppress the button's own activation and click the highlighted row
+        // instead, which is a different result once the operator has tabbed
+        // (#551). Enter from the input, or from nowhere, still takes the
+        // highlight.
+        const target = event.target;
+        if (target instanceof Node && resultsRef.current?.contains(target)) return;
         event.preventDefault();
         activeRowRef.current?.click();
       }
@@ -307,19 +271,16 @@ export function CommandPalette() {
   if (!isMounted || !isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[1200] bg-[var(--glass-93)] p-2 backdrop-blur-[8px] sm:p-6">
-      <button
-        type="button"
-        aria-label="Close command palette"
-        className="absolute inset-0"
-        onClick={() => dispatch({ type: 'CLOSE' })}
-      />
-      <dialog
-        open
-        aria-modal="true"
-        aria-label="Command palette"
-        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8"
-      >
+    // The dialog fills the viewport and carries the veil on its own ::backdrop:
+    // showModal() puts it in the top layer, so a separate overlay div behind it
+    // would be inert and could no longer be clicked to dismiss (#552).
+    <Modal
+      isOpen
+      label="Command palette"
+      onClose={() => dispatch({ type: 'CLOSE' })}
+      className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-2 backdrop:bg-[var(--glass-93)] backdrop:backdrop-blur-[8px] sm:p-6"
+    >
+      <div className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8">
         <div className="border-b border-line bg-[var(--blue-soft)] px-3 py-3 sm:px-4">
           <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface/72 px-3 py-2 shadow-[inset_0_1px_0_var(--hairline-soft)] backdrop-blur-md">
             <input
@@ -339,7 +300,11 @@ export function CommandPalette() {
               No matches found. Try a broader keyword.
             </div>
           ) : (
-            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Pages">
+            <ul
+              ref={resultsRef}
+              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+              aria-label="Pages"
+            >
               {resultItems.map((item, index) => {
                 const isActive = index === activeIndex;
                 return (
@@ -349,6 +314,10 @@ export function CommandPalette() {
                       type="button"
                       aria-current={isActive ? 'true' : undefined}
                       onMouseEnter={() => dispatch({ type: 'SET_ACTIVE', index })}
+                      // Keyboard focus is the one source of truth for "the row
+                      // the operator is on": the highlight follows Tab, and the
+                      // arrow keys carry on from the focused row.
+                      onFocus={() => dispatch({ type: 'SET_ACTIVE', index })}
                       onClick={() => {
                         dispatch({ type: 'SELECT_ITEM' });
                         router.push(item.href);
@@ -365,7 +334,7 @@ export function CommandPalette() {
                             {item.title}
                           </div>
                           <div className="shrink-0 rounded-xl border border-line bg-surface/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
-                            {moduleLabels[item.module]}
+                            {item.badge}
                           </div>
                         </div>
                         {item.subtitle && !item.isQuick ? (
@@ -381,8 +350,8 @@ export function CommandPalette() {
             </ul>
           )}
         </div>
-      </dialog>
-    </div>,
+      </div>
+    </Modal>,
     document.body
   );
 }

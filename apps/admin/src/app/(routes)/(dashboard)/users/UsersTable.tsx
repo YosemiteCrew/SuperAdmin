@@ -52,7 +52,10 @@ function avatarClassFor(id: string): string {
 
 export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  // The ids the confirm is about are frozen when it opens. Reading the live
+  // selection instead let a checkbox toggled behind the overlay change the
+  // number in an open "Delete N users?" prompt (#552).
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
 
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
@@ -85,18 +88,18 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
   }
 
   function confirmBulkDelete() {
-    const ids = deletableSelectedIds;
-    if (ids.length === 0) return;
+    const ids = pendingDeleteIds;
+    if (!ids?.length) return;
     startTransition(async () => {
       await bulkDeleteUsersAction(ids);
       setSelected(new Set());
-      setDeleteOpen(false);
+      setPendingDeleteIds(null);
     });
   }
 
   const count = selected.size;
   const noun = count === 1 ? 'user' : 'users';
-  const deleteCount = deletableSelectedIds.length;
+  const deleteCount = pendingDeleteIds?.length ?? deletableSelectedIds.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -131,7 +134,7 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => setDeleteOpen(true)}
+                onClick={() => setPendingDeleteIds(deletableSelectedIds)}
                 className={`${BULK_BTN} border-[color:var(--danger-border)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
               >
                 Delete
@@ -230,10 +233,10 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
       </div>
 
       <ConfirmDeleteDialog
-        open={deleteOpen}
+        open={pendingDeleteIds !== null}
         count={deleteCount}
         pending={pending}
-        onCancel={() => setDeleteOpen(false)}
+        onCancel={() => setPendingDeleteIds(null)}
         onConfirm={confirmBulkDelete}
       />
     </div>

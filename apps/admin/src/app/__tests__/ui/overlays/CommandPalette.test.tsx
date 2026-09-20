@@ -1,8 +1,9 @@
-import { fireEvent, render, screen, act } from '@testing-library/react';
+import { fireEvent, render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useRouter } from 'next/navigation';
 
 import { CommandPalette, COMMAND_PALETTE_EVENT } from '@/app/ui/overlays/CommandPalette';
+import { NAV_ROUTES } from '@/app/ui/layout/nav';
 
 const searchMock = jest.fn();
 jest.mock('@/app/ui/overlays/CommandPalette/searchAction', () => ({
@@ -45,9 +46,13 @@ describe('CommandPalette', () => {
     openPalette();
     const dialog = screen.getByRole('dialog');
     const input = screen.getByLabelText(/command palette input/i);
-    expect(dialog).toHaveClass('shadow-[0_28px_70px_var(--sh12)]');
-    expect(dialog).toHaveClass('border-[var(--ink-faint)]/80');
-    expect(dialog.parentElement).toHaveClass('bg-[var(--glass-93)]');
+    // The panel keeps its own surface tokens; the veil moved onto the dialog's
+    // ::backdrop when the overlay became a real modal (#552).
+    const panel = input.closest('.max-w-2xl');
+    expect(panel).toHaveClass('shadow-[0_28px_70px_var(--sh12)]');
+    expect(panel).toHaveClass('border-[var(--ink-faint)]/80');
+    expect(dialog).toHaveClass('backdrop:bg-[var(--glass-93)]');
+    expect(dialog).toHaveClass('backdrop:backdrop-blur-[8px]');
     expect(input.parentElement).toHaveClass('shadow-[inset_0_1px_0_var(--hairline-soft)]');
     expect(input.parentElement?.parentElement).toHaveClass('bg-[var(--blue-soft)]');
   });
@@ -201,5 +206,246 @@ describe('CommandPalette live directory search', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 350));
     expect(screen.queryByText('pet@owner.com')).not.toBeInTheDocument();
+  });
+});
+
+describe('CommandPalette page search covers the whole sidebar', () => {
+  const push = jest.fn();
+
+  beforeEach(() => {
+    push.mockClear();
+    searchMock.mockReset();
+    searchMock.mockResolvedValue([]);
+    (useRouter as jest.Mock).mockReturnValue({
+      push,
+      replace: jest.fn(),
+      back: jest.fn(),
+      prefetch: jest.fn(),
+      refresh: jest.fn(),
+    });
+  });
+
+  // Iterating the exported list is the point: a route added to the sidebar is
+  // covered here the moment it lands, so the palette cannot fall behind again.
+  it.each(NAV_ROUTES.map((route) => [route.name, route.href]))(
+    'finds %s by its sidebar name',
+    async (name) => {
+      const user = userEvent.setup();
+      render(<CommandPalette />);
+      openPalette();
+      await user.type(screen.getByLabelText(/command palette input/i), name);
+      expect(screen.getAllByText(name).length).toBeGreaterThan(0);
+    }
+  );
+
+  it('groups Consent and Data requests under a privacy search', async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    openPalette();
+    await user.type(screen.getByLabelText(/command palette input/i), 'privacy');
+    expect(screen.getByText('Consent')).toBeInTheDocument();
+    expect(screen.getByText('Data requests')).toBeInTheDocument();
+  });
+
+  it('finds Data requests by gdpr', async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    openPalette();
+    await user.type(screen.getByLabelText(/command palette input/i), 'gdpr');
+    expect(screen.getByText('Data requests')).toBeInTheDocument();
+  });
+
+  it('opens the audit log from its result row', async () => {
+    const user = userEvent.setup();
+    render(<CommandPalette />);
+    openPalette();
+    await user.type(screen.getByLabelText(/command palette input/i), 'audit log');
+    await user.click(screen.getByRole('button', { name: /Audit log/i }));
+    expect(push).toHaveBeenCalledWith('/audit');
+  });
+
+  it('keeps exactly the five empty-query quick links', () => {
+    render(<CommandPalette />);
+    openPalette();
+    const quickLinks = screen
+      .getAllByRole('button')
+      .map((button) => button.textContent ?? '')
+      .filter((label) => label.startsWith('Open '));
+    expect(quickLinks).toHaveLength(5);
+    for (const title of [
+      'Open Dashboard',
+      'Open Users',
+      'Open Organizations',
+      'Open Analytics',
+      'Open Settings',
+    ]) {
+      expect(screen.getByRole('button', { name: new RegExp(title, 'i') })).toBeInTheDocument();
+    }
+  });
+});
+
+describe('CommandPalette Enter activates the row the operator is on', () => {
+  const push = jest.fn();
+
+  beforeEach(() => {
+    push.mockClear();
+    searchMock.mockReset();
+    searchMock.mockResolvedValue([]);
+    (useRouter as jest.Mock).mockReturnValue({
+      push,
+      replace: jest.fn(),
+      back: jest.fn(),
+      prefetch: jest.fn(),
+      refresh: jest.fn(),
+    });
+  });
+
+  const openAndWaitForInput = async () => {
+    render(<CommandPalette />);
+    openPalette();
+    const input = screen.getByLabelText(/command palette input/i);
+    await waitFor(() => expect(input).toHaveFocus());
+    return input;
+  };
+
+  it('opens the tabbed-to quick link, not the highlighted one', async () => {
+    const user = userEvent.setup();
+    await openAndWaitForInput();
+
+    await user.tab();
+    await user.tab();
+    await user.tab();
+    expect(screen.getByRole('button', { name: /Open Organizations/i })).toHaveFocus();
+
+    await user.keyboard('{Enter}');
+    expect(push).toHaveBeenCalledWith('/organizations');
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the tabbed-to live directory hit', async () => {
+    searchMock.mockResolvedValue([
+      { id: 'u1', kind: 'user', title: 'first@example.test', href: '/users/u1' },
+      { id: 'u2', kind: 'user', title: 'second@example.test', href: '/users/u2' },
+      { id: 'u3', kind: 'user', title: 'third@example.test', href: '/users/u3' },
+    ]);
+    const user = userEvent.setup();
+    const input = await openAndWaitForInput();
+    await user.type(input, 'example');
+    expect(await screen.findByText('third@example.test')).toBeInTheDocument();
+
+    await user.tab();
+    await user.tab();
+    await user.tab();
+    await user.keyboard('{Enter}');
+    expect(push).toHaveBeenCalledWith('/users/u3');
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
+  it('moves the highlight onto a row that receives keyboard focus', async () => {
+    const user = userEvent.setup();
+    await openAndWaitForInput();
+
+    await user.tab();
+    await user.tab();
+    const users = screen.getByRole('button', { name: /Open Users/i });
+    expect(users).toHaveFocus();
+    expect(users).toHaveAttribute('aria-current', 'true');
+    expect(screen.getByRole('button', { name: /Open Dashboard/i })).not.toHaveAttribute(
+      'aria-current'
+    );
+  });
+
+  // The onFocus highlight sync alone already sends Enter to the right row, so
+  // these two assertions are what give the guard in the Enter branch a failing
+  // example: a focused row must keep its own native activation, and the input
+  // must keep handing Enter to the highlight.
+  it('leaves Enter on a focused row for the browser to activate', async () => {
+    const user = userEvent.setup();
+    await openAndWaitForInput();
+    await user.tab();
+
+    const row = screen.getByRole('button', { name: /Open Dashboard/i });
+    expect(row).toHaveFocus();
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    act(() => {
+      row.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('still cancels Enter in the search input so the highlight is used', async () => {
+    const input = await openAndWaitForInput();
+    expect(input).toHaveFocus();
+
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    act(() => {
+      input.dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+    expect(push).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('activates a focused row with Space as well as Enter', async () => {
+    const user = userEvent.setup();
+    await openAndWaitForInput();
+
+    await user.tab();
+    await user.tab();
+    await user.keyboard('{ }');
+    expect(push).toHaveBeenCalledWith('/users');
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CommandPalette is a real modal', () => {
+  beforeEach(() => {
+    searchMock.mockReset();
+    searchMock.mockResolvedValue([]);
+    (useRouter as jest.Mock).mockReturnValue({
+      push: jest.fn(),
+      replace: jest.fn(),
+      back: jest.fn(),
+      prefetch: jest.fn(),
+      refresh: jest.fn(),
+    });
+  });
+
+  it('opens through showModal, not the open attribute', () => {
+    const showModal = jest.spyOn(HTMLDialogElement.prototype, 'showModal');
+    render(<CommandPalette />);
+    openPalette();
+    expect(showModal).toHaveBeenCalledTimes(1);
+    showModal.mockRestore();
+  });
+
+  it('returns focus to the control that opened it', async () => {
+    const opener = document.createElement('button');
+    opener.textContent = 'Search';
+    document.body.append(opener);
+    opener.focus();
+
+    render(<CommandPalette />);
+    openPalette();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    // Control: focus must actually LEAVE the opener first, or the assertion
+    // below passes on a palette that never restores anything.
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByLabelText(/command palette input/i))
+    );
+
+    act(() => {
+      fireEvent.keyDown(document, { key: 'Escape' });
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it('closes when the click lands on the dialog outside its panel', () => {
+    render(<CommandPalette />);
+    openPalette();
+    fireEvent.click(screen.getByRole('dialog'));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });
