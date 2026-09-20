@@ -17,6 +17,15 @@ jest.mock('supertokens-auth-react/recipe/emailpassword', () => ({
 
 const SIGN_OUT = 'Sign out';
 
+function renderMobileUserMenu() {
+  return render(
+    <>
+      <style>{'.profileName, .chevron { display: none; }'}</style>
+      <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
+    </>
+  );
+}
+
 describe('UserMenu', () => {
   beforeEach(() => {
     signOutMock.mockReset();
@@ -31,12 +40,7 @@ describe('UserMenu', () => {
 
   it('keeps a stable accessible name when the mobile layout hides visible text', async () => {
     const user = userEvent.setup();
-    render(
-      <>
-        <style>{'.profileName, .chevron { display: none; }'}</style>
-        <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
-      </>
-    );
+    renderMobileUserMenu();
 
     const trigger = screen.getByRole('button', { name: 'Account menu for Aman' });
     await user.click(trigger);
@@ -46,12 +50,7 @@ describe('UserMenu', () => {
   });
 
   it('has no button-name violation when the mobile layout hides visible text', async () => {
-    const { container } = render(
-      <>
-        <style>{'.profileName, .chevron { display: none; }'}</style>
-        <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
-      </>
-    );
+    const { container } = renderMobileUserMenu();
 
     expect(await axe(container)).toHaveNoViolations();
   });
