@@ -15,9 +15,11 @@ applications:
       phases:
         preBuild:
           commands:
-            # Next 16 needs Node >= 20, and CI builds on 20 - keep them matched
-            # so a green CI build cannot mean a red Amplify build.
-            - nvm use 20 || nvm install 20
+            # Next 16 needs Node >= 20, and CI builds on 22 - keep them matched
+            # so a green CI build cannot mean a red Amplify build. Node 20 went
+            # end of life on 2026-04-30 and secretlint, lint-staged and
+            # commitlint all declare engines that exclude it.
+            - nvm use 22 || nvm install 22
             # pnpm 8: pnpm-lock.yaml is lockfileVersion 6.0 and pnpm 9+ rejects
             # it under --frozen-lockfile.
             - corepack enable
