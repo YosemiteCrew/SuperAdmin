@@ -3,18 +3,16 @@ import Link from 'next/link';
 import { IoCalendarClearOutline, IoSearchOutline } from 'react-icons/io5';
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { AUDIT_LOG_LIMIT, AUDIT_META } from '@/app/features/audit/audit';
+import { AUDIT_META } from '@/app/features/audit/audit';
 import { AuditIntegrityBanner } from '@/app/features/audit/AuditIntegrityBanner';
 import { AuditTable } from '@/app/features/audit/AuditTable';
 import {
   type AuditActionFilter,
-  filterAuditEvents,
-  paginate,
   parseAuditActionFilter,
   parseAuditDate,
   parsePage,
 } from '@/app/features/audit/filter';
-import { getRecentAuditEvents, verifyAuditChain } from '@/app/features/audit/store';
+import { getAuditEventPage, verifyAuditChain } from '@/app/features/audit/store';
 
 import { ExportAuditButton } from './ExportAuditButton';
 
@@ -97,17 +95,16 @@ export default async function AuditLogPage({
 
   // verifyAuditChain reads the raw stored log (with chain fields); the public
   // reader returns projected events. Run both reads concurrently.
-  const [allEvents, integrity] = await Promise.all([
-    getRecentAuditEvents(AUDIT_LOG_LIMIT),
-    verifyAuditChain(),
-  ]);
-  const filtered = filterAuditEvents(allEvents, {
+  const filters = {
     action: activeAction,
     search: searchTerm,
     from: parseAuditDate(fromRaw, 'start'),
     to: parseAuditDate(toRaw, 'end'),
-  });
-  const paged = paginate(filtered, parsePage(page));
+  };
+  const [auditPage, integrity] = await Promise.all([
+    getAuditEventPage(filters, parsePage(page)),
+    verifyAuditChain(),
+  ]);
   const hrefBase = { action: activeAction, search: searchTerm, from: fromRaw, to: toRaw };
 
   return (
@@ -116,7 +113,7 @@ export default async function AuditLogPage({
         <h1 className="m-0 flex items-baseline gap-3 font-[family-name:var(--font-serif-display)] text-[28px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
           Audit log
           <span className="text-[16px] italic text-[color:var(--ink-faint)]">
-            {AUDIT_LOG_LIMIT} most-recent events kept
+            Every privileged action, newest first
           </span>
         </h1>
         <p className="text-[13.5px] text-[color:var(--ink-muted)]">
@@ -191,23 +188,26 @@ export default async function AuditLogPage({
             <span>Filter</span>
           </button>
         </form>
-        <ExportAuditButton events={filtered} />
+        <ExportAuditButton
+          filters={{ action: activeAction, search: searchTerm, from: fromRaw, to: toRaw }}
+          disabled={auditPage.total === 0}
+        />
       </div>
 
       <AuditTable
-        events={paged.items}
+        events={auditPage.items}
         emptyMessage={
-          allEvents.length === 0
-            ? 'No super-admin actions have been recorded yet.'
-            : 'No activity matches these filters.'
+          auditPage.hasEvents
+            ? 'No activity matches these filters.'
+            : 'No super-admin actions have been recorded yet.'
         }
       />
 
       <Pagination
         base={hrefBase}
-        page={paged.page}
-        totalPages={paged.totalPages}
-        total={paged.total}
+        page={auditPage.page}
+        totalPages={auditPage.totalPages}
+        total={auditPage.total}
       />
     </div>
   );

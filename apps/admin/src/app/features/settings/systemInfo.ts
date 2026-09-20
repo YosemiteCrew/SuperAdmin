@@ -18,7 +18,6 @@ export interface SystemInfoInput {
   buildSha: string | undefined;
   apiConfigured: boolean;
   coreHost: string;
-  auditRetention: number;
 }
 
 /** Builds the read-only rows shown in the Settings → System card. */
@@ -27,7 +26,6 @@ export function buildSystemInfo({
   buildSha,
   apiConfigured,
   coreHost,
-  auditRetention,
 }: SystemInfoInput): SystemInfoRow[] {
   return [
     { label: 'Environment', value: nodeEnv || 'development' },
@@ -37,6 +35,6 @@ export function buildSystemInfo({
       value: apiConfigured ? 'Connected' : 'Not configured (set NEXT_PUBLIC_API_URL)',
     },
     { label: 'SuperTokens core', value: coreHost },
-    { label: 'Audit view', value: `${auditRetention} most-recent events` },
+    { label: 'Audit view', value: 'Complete append-only history' },
   ];
 }

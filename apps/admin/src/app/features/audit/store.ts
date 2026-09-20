@@ -9,6 +9,13 @@ import { logger } from '@/app/lib/logger';
 
 import { buildAuditEvent, isValidAuditEvent } from './audit';
 import { GENESIS_HASH, hashAuditEvent, verifyChain } from './chain';
+import {
+  AUDIT_PAGE_SIZE,
+  filterAuditEvents,
+  paginate,
+  type AuditFilterOptions,
+  type Paginated,
+} from './filter';
 import type {
   AuditAction,
   AuditChainStatus,
@@ -32,6 +39,20 @@ type AuditRow = {
   prevHash: string;
   hash: string;
 };
+
+type AuditWhere = {
+  action?: string;
+  at?: { gte?: Date; lte?: Date };
+  OR?: Array<{
+    actorEmail?: { contains: string; mode: 'insensitive' };
+    targetLabel?: { contains: string; mode: 'insensitive' };
+    targetId?: { contains: string; mode: 'insensitive' };
+  }>;
+};
+
+export interface AuditPage extends Paginated<AuditEvent> {
+  hasEvents: boolean;
+}
 
 function fromRow(row: AuditRow): StoredAuditEvent {
   return {
@@ -58,6 +79,45 @@ function toPublicEvent(event: StoredAuditEvent): AuditEvent {
     targetId: event.targetId,
     ...(event.targetLabel ? { targetLabel: event.targetLabel } : {}),
     at: event.at,
+  };
+}
+
+function buildAuditWhere(options: AuditFilterOptions): AuditWhere {
+  const search = (options.search ?? '').trim();
+  return {
+    ...(options.action && options.action !== 'all' ? { action: options.action } : {}),
+    ...(typeof options.from === 'number' || typeof options.to === 'number'
+      ? {
+          at: {
+            ...(typeof options.from === 'number' ? { gte: new Date(options.from) } : {}),
+            ...(typeof options.to === 'number' ? { lte: new Date(options.to) } : {}),
+          },
+        }
+      : {}),
+    ...(search
+      ? {
+          OR: [
+            { actorEmail: { contains: search, mode: 'insensitive' as const } },
+            { targetLabel: { contains: search, mode: 'insensitive' as const } },
+            { targetId: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}),
+  };
+}
+
+function emptyAuditPage(hasEvents: boolean): AuditPage {
+  return { items: [], page: 1, totalPages: 1, total: 0, hasEvents };
+}
+
+async function readLegacyPage(
+  options: AuditFilterOptions,
+  requestedPage: number
+): Promise<AuditPage> {
+  const legacy = (await readLegacyLog()).map(toPublicEvent);
+  return {
+    ...paginate(filterAuditEvents(legacy, options), requestedPage),
+    hasEvents: legacy.length > 0,
   };
 }
 
@@ -209,6 +269,51 @@ export async function getRecentAuditEvents(limit = 20): Promise<AuditEvent[]> {
   } catch {
     return [];
   }
+}
+
+/** Reads one filtered page from the durable audit table, falling back to legacy metadata only
+ * while the table is entirely empty. */
+export async function getAuditEventPage(
+  options: AuditFilterOptions,
+  requestedPage: number
+): Promise<AuditPage> {
+  try {
+    const where = buildAuditWhere(options);
+    const total = await prisma.auditEvent.count({ where });
+    if (total === 0) {
+      const hasDatabaseEvents = Boolean(
+        await prisma.auditEvent.findFirst({ select: { id: true } })
+      );
+      return hasDatabaseEvents ? emptyAuditPage(true) : readLegacyPage(options, requestedPage);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(total / AUDIT_PAGE_SIZE));
+    const page = Math.min(Math.max(requestedPage, 1), totalPages);
+    const rows = await prisma.auditEvent.findMany({
+      where,
+      orderBy: { seq: 'desc' },
+      skip: (page - 1) * AUDIT_PAGE_SIZE,
+      take: AUDIT_PAGE_SIZE,
+    });
+    return {
+      items: rows.map(fromRow).map(toPublicEvent),
+      page,
+      totalPages,
+      total,
+      hasEvents: true,
+    };
+  } catch {
+    return emptyAuditPage(false);
+  }
+}
+
+/** Reads every event matching the supplied filters for a complete CSV export. */
+export async function getFilteredAuditEvents(options: AuditFilterOptions): Promise<AuditEvent[]> {
+  const where = buildAuditWhere(options);
+  const rows = await prisma.auditEvent.findMany({ where, orderBy: { seq: 'desc' } });
+  if (rows.length > 0) return rows.map(fromRow).map(toPublicEvent);
+  if (await prisma.auditEvent.findFirst({ select: { id: true } })) return [];
+  return filterAuditEvents((await readLegacyLog()).map(toPublicEvent), options);
 }
 
 export async function getAuditEventsForActor(actorId: string, limit = 20): Promise<AuditEvent[]> {
