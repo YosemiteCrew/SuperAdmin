@@ -257,3 +257,54 @@ describe('RequestsTable', () => {
     expect(badges).toHaveLength(1);
   });
 });
+
+describe('RequestsTable prefill', () => {
+  it('opens the log form with the subject email and type filled in', () => {
+    render(
+      <RequestsTable
+        requests={[]}
+        nowMs={NOW_MS}
+        prefill={{ subjectEmail: 'jane@example.com', type: 'erasure' }}
+      />
+    );
+
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('jane@example.com');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('erasure');
+  });
+
+  it('never prefills the received date, which starts the statutory clock', () => {
+    render(
+      <RequestsTable
+        requests={[]}
+        nowMs={NOW_MS}
+        prefill={{ subjectEmail: 'jane@example.com', type: 'erasure' }}
+      />
+    );
+
+    expect(screen.getByLabelText(/Received on/i)).toHaveValue('');
+  });
+
+  it('says where the prefilled values came from', () => {
+    render(<RequestsTable requests={[]} nowMs={NOW_MS} prefill={{ subjectEmail: 'j@e.com' }} />);
+    expect(screen.getByText(/Filled in from a contact request/i)).toBeInTheDocument();
+  });
+
+  it('leaves the form empty and unexplained without a prefill', () => {
+    render(<RequestsTable requests={[]} nowMs={NOW_MS} />);
+
+    expect(screen.getByLabelText(/Subject email/i)).toHaveValue('');
+    expect(screen.getByLabelText(/^Type$/i)).toHaveValue('access');
+    expect(screen.queryByText(/Filled in from a contact request/i)).not.toBeInTheDocument();
+  });
+
+  it('drops the prefill note once the request has been logged', async () => {
+    mockLog.mockResolvedValue({ ok: true });
+    render(<RequestsTable requests={[]} nowMs={NOW_MS} prefill={{ subjectEmail: 'j@e.com' }} />);
+
+    fireEvent.change(screen.getByLabelText(/Received on/i), { target: { value: '2026-07-01' } });
+    fireEvent.click(screen.getByRole('button', { name: /Log request/i }));
+
+    expect(await screen.findByText(/Request logged/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Filled in from a contact request/i)).not.toBeInTheDocument();
+  });
+});

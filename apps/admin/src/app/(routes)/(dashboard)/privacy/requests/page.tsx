@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 
 import { requireSuperAdmin } from '@/app/config/backend';
+import { parseDataRequestPrefill } from '@/app/features/dataRequests/prefill';
 import { getDataRequestStats, listDataRequests } from '@/app/features/dataRequests/store';
 import { RequestsTable } from './RequestsTable';
 
@@ -49,8 +50,16 @@ function Stat({
   );
 }
 
-export default async function PrivacyRequestsPage() {
+// searchParams is typed the way Next hands it over: a repeated query param
+// arrives as an array, so neither value can be trusted to be a string.
+export default async function PrivacyRequestsPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ subjectEmail?: string | string[]; type?: string | string[] }>;
+}>) {
   await requireSuperAdmin('page');
+
+  const prefill = parseDataRequestPrefill(await searchParams);
 
   // Fix a single "now" so the deadline badges and the overdue count are
   // computed against the same instant (no SSR/client hydration drift).
@@ -79,7 +88,7 @@ export default async function PrivacyRequestsPage() {
         />
       </section>
 
-      <RequestsTable requests={requests} nowMs={now.getTime()} />
+      <RequestsTable requests={requests} nowMs={now.getTime()} prefill={prefill} />
     </div>
   );
 }
