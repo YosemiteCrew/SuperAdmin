@@ -12,7 +12,7 @@ type Status =
   | { kind: 'idle' }
   | { kind: 'sending' }
   | { kind: 'processing'; containerId: string }
-  | { kind: 'done'; message: string; alreadyPublished?: boolean }
+  | { kind: 'done'; message: string }
   | { kind: 'error'; message: string };
 
 export function InstagramComposer() {
@@ -36,7 +36,6 @@ export function InstagramComposer() {
       message: result.alreadyPublished
         ? 'Already published to Instagram.'
         : 'Published to Instagram.',
-      alreadyPublished: result.alreadyPublished,
     });
   }
 
