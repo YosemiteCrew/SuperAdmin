@@ -112,18 +112,21 @@ describe('GET /api/health', () => {
   });
 
   describe('the published reason', () => {
-    it('names the error class so a missing engine is distinguishable', async () => {
+    it('names the error class when there is no code to publish', async () => {
       class PrismaClientInitializationError extends Error {}
-      mockQueryRaw.mockRejectedValue(new PrismaClientInitializationError('engine not found'));
+      mockQueryRaw.mockRejectedValue(new PrismaClientInitializationError('client not ready'));
       const json = (await (await GET()).json()) as HealthBody;
       expect(json.reason).toEqual({ name: 'PrismaClientInitializationError', code: null });
     });
 
     it("carries Prisma's error code when there is one", async () => {
-      const err = Object.assign(new Error('cannot reach database'), { code: 'P1001' });
+      // P2010 rather than P1001: under @prisma/adapter-pg every connection
+      // failure arrives as PrismaClientKnownRequestError/P2010, measured against
+      // the built artifact for both an unreachable port and a wrong password.
+      const err = Object.assign(new Error('cannot reach database'), { code: 'P2010' });
       mockQueryRaw.mockRejectedValue(err);
       const json = (await (await GET()).json()) as HealthBody;
-      expect(json.reason?.code).toBe('P1001');
+      expect(json.reason?.code).toBe('P2010');
     });
 
     // The endpoint is unauthenticated. Prisma embeds host, port and sometimes

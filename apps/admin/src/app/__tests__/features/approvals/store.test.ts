@@ -65,7 +65,7 @@ import {
   rejectAccount,
 } from '@/app/features/approvals/store';
 import { logger } from '@/app/lib/logger';
-import { SUPABASE_ROOT_2021_CA } from '@/app/lib/pgConnectionConfig';
+import { SUPABASE_ROOT_2021_CA } from '@superadmin/database/pgConnectionConfig';
 
 const mockGet = UserMetadataNode.getUserMetadata as jest.MockedFunction<
   typeof UserMetadataNode.getUserMetadata

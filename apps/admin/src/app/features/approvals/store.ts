@@ -1,10 +1,10 @@
 import 'server-only';
 
 import { prisma } from '@superadmin/database';
+import { pgConnectionConfig } from '@superadmin/database/pgConnectionConfig';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
 import { logger } from '@/app/lib/logger';
-import { pgConnectionConfig } from '@/app/lib/pgConnectionConfig';
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
