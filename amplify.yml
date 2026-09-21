@@ -141,16 +141,6 @@ applications:
                 grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
               done
               echo "OK: required runtime vars present"
-            # Migrations run on the production branch only. Amplify builds every
-            # branch, and a preview build must never migrate the live database.
-            # This is what stops a repeat of the 2026-08-11 outage, where code
-            # shipped ahead of the schema because nothing ran migrate deploy.
-            - |
-              if [ "$AWS_BRANCH" = "main" ]; then
-                (cd ../.. && pnpm run migrate:deploy)
-              else
-                echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
-              fi
             - (cd ../.. && pnpm run build --filter admin)
             # There is no query-engine copy step any more. Prisma 7 queries
             # through @prisma/adapter-pg, so nothing outside .next has to reach
@@ -158,13 +148,12 @@ applications:
             # guard that copy is gone rather than weakened.
             #
             # Start the artifact and make it query the database before it is
-            # deployed. Nothing else in this build opens a connection from the
-            # application: migrate:deploy runs on main only and uses Migrate's
-            # own connection, and `next build` compiles without querying. The
-            # failure this exists for is the one that reverted the first Prisma 7
-            # attempt (03218f5) - the driver adapter's TLS against the Supabase
-            # pooler either works or does not, and until now nothing before
-            # deploy would say which.
+            # deployed. Nothing before this step opens a connection from the
+            # application: `next build` compiles without querying. The failure
+            # this exists for is the one that reverted the first Prisma 7 attempt
+            # (03218f5) - the driver adapter's TLS against the Supabase pooler
+            # either works or does not, and until now nothing before deploy would
+            # say which.
             #
             # Runs on every branch, main included. DATABASE_URL is asserted
             # present above, and /api/health is public (src/proxy.ts) so basic
@@ -214,6 +203,19 @@ applications:
                 exit 1
               fi
               echo "OK: the built artifact reached Postgres through the pg driver adapter"
+            # Migrations run on the production branch only. Amplify builds every
+            # branch, and a preview build must never migrate the live database.
+            # This is what stops a repeat of the 2026-08-11 outage, where code
+            # shipped ahead of the schema because nothing ran migrate deploy.
+            # It deliberately runs last: the schema-independent health gate above
+            # must accept the built artifact before production can be migrated,
+            # so a rejected build leaves the previous artifact and schema paired.
+            - |
+              if [ "$AWS_BRANCH" = "main" ]; then
+                (cd ../.. && pnpm run migrate:deploy)
+              else
+                echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
+              fi
       artifacts:
         baseDirectory: .next
         files:
