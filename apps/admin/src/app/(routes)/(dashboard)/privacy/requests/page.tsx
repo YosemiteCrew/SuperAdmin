@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { parseDataRequestPrefill } from '@/app/features/dataRequests/prefill';
+import { getContactRequestEmail } from '@/app/features/contact/store';
+import { parseDataRequestLink } from '@/app/features/dataRequests/prefill';
 import { getDataRequestStats, listDataRequests } from '@/app/features/dataRequests/store';
 import { RequestsTable } from './RequestsTable';
 
@@ -55,11 +56,17 @@ function Stat({
 export default async function PrivacyRequestsPage({
   searchParams,
 }: Readonly<{
-  searchParams: Promise<{ subjectEmail?: string | string[]; type?: string | string[] }>;
+  searchParams: Promise<{ fromContact?: string | string[]; type?: string | string[] }>;
 }>) {
   await requireSuperAdmin('page');
 
-  const prefill = parseDataRequestPrefill(await searchParams);
+  // The link carries the contact request's id; the address is read here, on the
+  // server, so it never appears in the URL, the history or an access log.
+  const link = parseDataRequestLink(await searchParams);
+  const subjectEmail = link.fromContact
+    ? ((await getContactRequestEmail(link.fromContact)) ?? undefined)
+    : undefined;
+  const prefill = { subjectEmail, type: link.type };
 
   // Fix a single "now" so the deadline badges and the overdue count are
   // computed against the same instant (no SSR/client hydration drift).

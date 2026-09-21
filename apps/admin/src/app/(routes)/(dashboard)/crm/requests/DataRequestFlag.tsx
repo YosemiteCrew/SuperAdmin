@@ -9,20 +9,25 @@ import { REQUEST_TYPE_LABELS } from '@/app/features/dataRequests/types';
  *
  * It is a reading, not a decision: the matched phrases are printed so the
  * operator can judge the marker itself, and the only action offered is the
- * existing manual form with the email and type filled in. Nothing is written
+ * existing manual form, which fills in the email and type from this request. Nothing is written
  * here, no clock starts here, and the contact row is untouched either way.
  */
 export function DataRequestFlag({
+  contactId,
   email,
   subject,
   message,
-}: Readonly<{ email: string; subject: string | null; message: string }>) {
+}: Readonly<{ contactId: string; email: string; subject: string | null; message: string }>) {
   const signals = detectDataRequestSignal({ subject, message });
   if (signals.length === 0) return null;
 
   const kinds = signals.map((s) => REQUEST_TYPE_LABELS[s.type]).join(', ');
   const phrases = signals.flatMap((s) => s.phrases).map((p) => `"${p}"`);
-  const href = `/privacy/requests?subjectEmail=${encodeURIComponent(email)}&type=${signals[0].type}`;
+  // The link carries this request's own id, never the sender's address: a URL
+  // is written into the operator's browser history and the deployment's access
+  // logs, and neither has an erasure path. The form resolves the address from
+  // the id on the server.
+  const href = `/privacy/requests?fromContact=${encodeURIComponent(contactId)}&type=${signals[0].type}`;
 
   return (
     <div className="flex flex-col gap-[6px] rounded-[12px] border border-[color:var(--warn-border)] bg-[var(--warn-bg)] px-[12px] py-[10px]">

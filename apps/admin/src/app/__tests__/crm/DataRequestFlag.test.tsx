@@ -6,6 +6,7 @@ describe('DataRequestFlag', () => {
   it('renders nothing for an ordinary support message', () => {
     const { container } = render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="vet@clinic.example"
         subject="General Enquiry"
         message="I cannot log in to my account since yesterday, can you help?"
@@ -17,6 +18,7 @@ describe('DataRequestFlag', () => {
   it('renders nothing for a sales enquiry that mentions data', () => {
     const { container } = render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="buyer@clinic.example"
         subject="Feature Request"
         message="Does your platform import data from our existing practice system?"
@@ -28,6 +30,7 @@ describe('DataRequestFlag', () => {
   it('names the kind it reads and shows the phrase that matched', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane@example.com"
         subject="General Enquiry"
         message="Please delete my account."
@@ -41,6 +44,7 @@ describe('DataRequestFlag', () => {
   it('links to the manual form with the email and type filled in', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane+dsar@example.com"
         subject={null}
         message="Please send me a copy of my data."
@@ -49,13 +53,14 @@ describe('DataRequestFlag', () => {
 
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
-      '/privacy/requests?subjectEmail=jane%2Bdsar%40example.com&type=access'
+      '/privacy/requests?fromContact=ckq1a2b3c4d5&type=access'
     );
   });
 
   it('names the sender in the link so several markers stay distinguishable', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane@example.com"
         subject={null}
         message="Please delete my account."
@@ -70,6 +75,7 @@ describe('DataRequestFlag', () => {
   it('reports every kind the message reads as, strongest first', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane@example.com"
         subject={null}
         message="Delete my account, forget me, and send me my data first."
@@ -79,13 +85,14 @@ describe('DataRequestFlag', () => {
     expect(screen.getByText(/Reads like a data request/)).toHaveTextContent('Erasure, Access');
     expect(screen.getByRole('link')).toHaveAttribute(
       'href',
-      '/privacy/requests?subjectEmail=jane%40example.com&type=erasure'
+      '/privacy/requests?fromContact=ckq1a2b3c4d5&type=erasure'
     );
   });
 
   it('says plainly that following the link records nothing', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane@example.com"
         subject={null}
         message="Please delete my account."
@@ -98,6 +105,7 @@ describe('DataRequestFlag', () => {
   it('reads the subject when the message alone says nothing', () => {
     render(
       <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
         email="jane@example.com"
         subject="Right to be forgotten"
         message="See the subject line."
@@ -105,5 +113,22 @@ describe('DataRequestFlag', () => {
     );
 
     expect(screen.getByText(/Reads like a data request/)).toHaveTextContent('Erasure');
+  });
+
+  it('keeps the sender address out of the link, which a URL would leak to history and logs', () => {
+    render(
+      <DataRequestFlag
+        contactId="ckq1a2b3c4d5"
+        email="jane+dsar@example.com"
+        subject="General enquiry"
+        message="please delete my account and everything you hold about me"
+      />
+    );
+
+    const href = screen.getByRole('link').getAttribute('href') ?? '';
+    expect(href).not.toContain('jane');
+    expect(href).not.toContain('%40');
+    expect(href).not.toContain('@');
+    expect(href).toContain('fromContact=ckq1a2b3c4d5');
   });
 });

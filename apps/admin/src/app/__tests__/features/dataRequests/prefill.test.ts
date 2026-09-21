@@ -1,26 +1,26 @@
-import { parseDataRequestPrefill } from '@/app/features/dataRequests/prefill';
+import { parseDataRequestLink } from '@/app/features/dataRequests/prefill';
 
-describe('parseDataRequestPrefill', () => {
+describe('parseDataRequestLink', () => {
   it('keeps a valid email and request type', () => {
-    expect(parseDataRequestPrefill({ subjectEmail: 'jane@example.com', type: 'erasure' })).toEqual({
-      subjectEmail: 'jane@example.com',
+    expect(parseDataRequestLink({ fromContact: 'ckq1a2b3c4d5', type: 'erasure' })).toEqual({
+      fromContact: 'ckq1a2b3c4d5',
       type: 'erasure',
     });
   });
 
   it('trims a padded email', () => {
-    expect(parseDataRequestPrefill({ subjectEmail: '  jane@example.com  ' })).toEqual({
-      subjectEmail: 'jane@example.com',
+    expect(parseDataRequestLink({ fromContact: 'ckq1a2b3c4d5' })).toEqual({
+      fromContact: 'ckq1a2b3c4d5',
       type: undefined,
     });
   });
 
   it.each([
-    ['an invalid email', { subjectEmail: 'not-an-email' }],
-    ['a repeated email param', { subjectEmail: ['a@b.com', 'c@d.com'] }],
+    ['an id with characters an id cannot contain', { fromContact: 'jane@example.com' }],
+    ['a repeated id param', { fromContact: ['abc', 'def'] }],
     ['no email at all', {}],
   ])('drops %s', (_label, params) => {
-    expect(parseDataRequestPrefill(params).subjectEmail).toBeUndefined();
+    expect(parseDataRequestLink(params).fromContact).toBeUndefined();
   });
 
   it.each([
@@ -28,6 +28,6 @@ describe('parseDataRequestPrefill', () => {
     ['a repeated type param', { type: ['access', 'erasure'] }],
     ['no type at all', {}],
   ])('drops %s', (_label, params) => {
-    expect(parseDataRequestPrefill(params).type).toBeUndefined();
+    expect(parseDataRequestLink(params).type).toBeUndefined();
   });
 });

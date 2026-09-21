@@ -103,6 +103,22 @@ export async function listContactRequests(params: {
   };
 }
 
+/**
+ * The sender's email for one contact request, for the data-request marker's
+ * link. The marker passes the request's own id rather than the address, so the
+ * address never travels in a URL, where it would be written into the operator's
+ * browser history and the deployment's access logs, neither of which has an
+ * erasure path. Returns null when the id matches nothing.
+ */
+export async function getContactRequestEmail(id: string): Promise<string | null> {
+  if (!id) return null;
+  const row = await prisma.contactRequest.findUnique({
+    where: { id },
+    select: { lead: { select: { email: true } } },
+  });
+  return row?.lead.email ?? null;
+}
+
 export async function countRequestsByStatus(): Promise<Record<RequestStatus, number>> {
   const grouped = await prisma.contactRequest.groupBy({
     by: ['status'],

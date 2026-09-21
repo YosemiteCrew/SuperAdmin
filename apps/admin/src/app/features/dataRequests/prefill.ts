@@ -1,5 +1,3 @@
-import { isValidEmail } from '@/app/features/settings/email';
-
 import { isRequestType, type RequestType } from './types';
 
 /**
@@ -16,22 +14,33 @@ export interface DataRequestPrefill {
   type?: RequestType;
 }
 
+/** What the marker's link carries: an opaque contact id and the kind read. */
+export interface DataRequestLink {
+  fromContact?: string;
+  type?: RequestType;
+}
+
 /**
- * Narrows an untrusted query string into that shape. Next parses a repeated
- * query param into an array, so `?type=access&type=erasure` yields
+ * Narrows an untrusted query string into the link's two values: which contact
+ * request it came from, and which kind was read. Next parses a repeated query
+ * param into an array, so `?type=access&type=erasure` yields
  * `['access','erasure']` and neither value can be assumed to be a string.
- * Anything that is not a valid email, or not one of the four request types, is
+ * Anything that is not a plain id, or not one of the four request types, is
  * dropped: the form then opens on its own defaults, which is the same page an
  * operator reaches from the menu.
+ *
+ * The subject's email is deliberately NOT a query value. The caller resolves it
+ * from the contact id on the server, so the address stays out of the URL, the
+ * browser history and the access logs.
  */
-export function parseDataRequestPrefill(
-  params: Readonly<{ subjectEmail?: string | string[]; type?: string | string[] }>
-): DataRequestPrefill {
-  const { subjectEmail, type } = params;
+export function parseDataRequestLink(
+  params: Readonly<{ fromContact?: string | string[]; type?: string | string[] }>
+): DataRequestLink {
+  const { fromContact, type } = params;
   return {
-    subjectEmail:
-      typeof subjectEmail === 'string' && isValidEmail(subjectEmail)
-        ? subjectEmail.trim()
+    fromContact:
+      typeof fromContact === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(fromContact)
+        ? fromContact
         : undefined,
     type: isRequestType(type) ? type : undefined,
   };
