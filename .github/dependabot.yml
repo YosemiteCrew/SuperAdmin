@@ -51,6 +51,13 @@ updates:
       # check-pnpm-overrides is plain ESM), so they no longer bind this hold.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # @types/node tracks the Node runtime major, not the latest release.
+      # `.nvmrc`, `amplify.yml` and every workflow pin Node 22 (#595), and
+      # nodeVersion.test.ts fails when the type surface disagrees - which is
+      # what turned #605 red. Release this hold in the commit that moves the
+      # runtime, not before.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
