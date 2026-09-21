@@ -4,11 +4,13 @@ import { type SyntheticEvent, useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { DataRequest } from '@superadmin/database';
 
+import type { DataRequestPrefill } from '@/app/features/dataRequests/prefill';
 import {
   daysUntilDue,
   isOpenStatus,
   isOverdue,
   REQUEST_STATUSES,
+  REQUEST_TYPE_LABELS,
   REQUEST_TYPES,
   type DataRequestStatus,
 } from '@/app/features/dataRequests/types';
@@ -18,16 +20,11 @@ import type { ActionResult } from './actions';
 /**
  * `request.type` is the `DataRequest.type` column, typed `String` with no DB
  * or app-level constraint, so a value outside these four keys is reachable
- * (the "unknown type" test below exercises exactly that). Keying this map by
- * `string` claims every lookup resolves, which makes the `?? request.type`
- * fallback at the call site read as dead code while it is load-bearing.
+ * (the "unknown type" test below exercises exactly that). Widening the shared
+ * label map to a `string` key here is what keeps the `?? request.type`
+ * fallback at the call site readable as live code rather than dead.
  */
-const TYPE_LABELS: Record<string, string | undefined> = {
-  access: 'Access',
-  erasure: 'Erasure',
-  rectification: 'Rectification',
-  objection: 'Objection',
-};
+const TYPE_LABELS: Record<string, string | undefined> = REQUEST_TYPE_LABELS;
 
 const CARD =
   'overflow-hidden rounded-[18px] border border-[var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]';
@@ -145,7 +142,13 @@ function StatusControl({ request }: { readonly request: DataRequest }) {
   );
 }
 
-function LogForm({ nowMs }: { readonly nowMs: number }) {
+function LogForm({
+  nowMs,
+  prefill,
+}: {
+  readonly nowMs: number;
+  readonly prefill?: DataRequestPrefill;
+}) {
   const [result, setResult] = useState<ActionResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -176,6 +179,7 @@ function LogForm({ nowMs }: { readonly nowMs: number }) {
             name="subjectEmail"
             type="email"
             required
+            defaultValue={prefill?.subjectEmail}
             placeholder="person@example.com"
             className={FIELD}
           />
@@ -184,7 +188,7 @@ function LogForm({ nowMs }: { readonly nowMs: number }) {
           <label htmlFor="dr-type" className={FIELD_LABEL}>
             Type
           </label>
-          <select id="dr-type" name="type" className={FIELD}>
+          <select id="dr-type" name="type" defaultValue={prefill?.type} className={FIELD}>
             {REQUEST_TYPES.map((t) => (
               <option key={t} value={t}>
                 {TYPE_LABELS[t]}
@@ -234,6 +238,11 @@ function LogForm({ nowMs }: { readonly nowMs: number }) {
           Request logged. The one-month response clock uses the recorded received date.
         </output>
       )}
+      {prefill?.subjectEmail && !result?.ok && (
+        <p className="mt-2 text-[12.5px] text-[color:var(--ink-muted)]">
+          Filled in from a contact request. Check it, set the date it was received, and log it.
+        </p>
+      )}
     </div>
   );
 }
@@ -241,13 +250,23 @@ function LogForm({ nowMs }: { readonly nowMs: number }) {
 export function RequestsTable({
   requests,
   nowMs,
+  prefill,
 }: {
   readonly requests: DataRequest[];
   readonly nowMs: number;
+  readonly prefill?: DataRequestPrefill;
 }) {
   return (
     <div className="flex flex-col gap-[22px]">
-      <LogForm nowMs={nowMs} />
+      {/* Keyed on the prefill so arriving from a different contact request
+          re-mounts the form: uncontrolled fields take their defaultValue on
+          mount only, and a stale email in the box is the one mistake this
+          shortcut must never make. */}
+      <LogForm
+        key={`${prefill?.subjectEmail ?? ''}:${prefill?.type ?? ''}`}
+        nowMs={nowMs}
+        prefill={prefill}
+      />
 
       <div className={`${CARD} overflow-x-auto`}>
         {requests.length === 0 ? (

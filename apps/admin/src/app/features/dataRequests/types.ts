@@ -1,6 +1,14 @@
 export const REQUEST_TYPES = ['access', 'erasure', 'rectification', 'objection'] as const;
 export type RequestType = (typeof REQUEST_TYPES)[number];
 
+/** Display names for the four request types, shared by every surface that shows one. */
+export const REQUEST_TYPE_LABELS: Record<RequestType, string> = {
+  access: 'Access',
+  erasure: 'Erasure',
+  rectification: 'Rectification',
+  objection: 'Objection',
+};
+
 export const REQUEST_STATUSES = ['received', 'in_progress', 'fulfilled', 'rejected'] as const;
 export type DataRequestStatus = (typeof REQUEST_STATUSES)[number];
 

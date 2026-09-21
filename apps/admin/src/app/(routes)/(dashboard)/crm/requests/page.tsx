@@ -10,6 +10,7 @@ import {
   type RequestStatus,
 } from '@/app/features/contact/store';
 
+import { DataRequestFlag } from './DataRequestFlag';
 import { StatusControl } from './StatusControl';
 
 export const metadata: Metadata = { title: 'Contact requests' };
@@ -119,6 +120,10 @@ function RequestCard({
           {r.message}
         </p>
       </div>
+
+      {/* Reads the wording, not the dropdown the sender happened to pick. It
+          renders nothing at all unless a phrase matched. */}
+      <DataRequestFlag contactId={r.id} email={r.email} subject={r.subject} message={r.message} />
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-[6px] border-t border-[var(--hairline)] pt-[9px] text-[11.5px] text-[color:var(--ink-faint)]">
         <time dateTime={new Date(r.createdAt).toISOString()}>
