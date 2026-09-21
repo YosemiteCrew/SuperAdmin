@@ -26,10 +26,14 @@ The panel is hosted on AWS Amplify at `https://admin.yosemitecrew.com`.
 to match CI, installs from the repo root so the workspace links resolve, and
 builds `apps/admin`.
 
-**Migrations run in the build, on `main` only.** The build guards on `$AWS_BRANCH`,
-so preview and feature-branch builds never touch the live database. This is the
-Amplify equivalent of `pnpm run release` below, and it is what prevents a repeat
-of the 2026-08-11 outage.
+**Migrations run last in the build, on `main` only.** The built artifact must pass
+the schema-independent `/api/health` database probe first, then the build guards
+the migration on `$AWS_BRANCH`, so preview and feature-branch builds never touch
+the live database. Amplify publishes only after the whole build phase succeeds,
+so the migration still lands before the artifact while a failed probe leaves the
+previous artifact and schema paired. This is the Amplify equivalent of
+`pnpm run release` below, and it is what prevents a repeat of the 2026-08-11
+outage.
 
 ### Environment variables
 
@@ -62,22 +66,19 @@ Required, the app refuses to boot without them:
 
 #### Which ones actually block a build
 
-Four variables stop a build, and they stop it at different points, so fix them in this
-order:
+Five variables stop a build, at three boundaries:
 
-1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
-   `next build`, so an absent value halts everything where Prisma Migrate reads the
-   datasource from `packages/database/prisma.config.ts`. A build that dies here never
-   even attempted to compile the app. The value is read a second time at the end of
-   the build, by the `/api/health` step that starts the built app and fails the build
-   unless it answers `"database":"up"`.
-2. **`SUPERTOKENS_CONNECTION_URI`**, **`SUPERTOKENS_API_KEY`**, and
-   **`SUPERADMIN_BOOTSTRAP_EMAILS`** fail next, while
-   Next collects page data - `env.server.ts` throws on module load. The URI has to
-   point at a core that is genuinely _reachable_, not merely be set: collecting
-   `/api/auth/[[...path]]` opens a connection. Check with
-   `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with no
-   API key.
+1. The build spec checks **`DATABASE_URL`**, **`SUPERTOKENS_CONNECTION_URI`**,
+   **`SUPERTOKENS_API_KEY`**, and **`PANEL_BASIC_AUTH_CREDENTIALS`** together before
+   compilation. If any is absent, the build stops before `next build`.
+2. **`SUPERADMIN_BOOTSTRAP_EMAILS`** is validated while Next collects page data.
+   The SuperTokens URI also has to point at a core that is genuinely _reachable_,
+   not merely be set: collecting `/api/auth/[[...path]]` opens a connection. Check
+   with `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with
+   no API key.
+3. After compilation, `/api/health` makes the first application database query and
+   fails the build unless it answers `"database":"up"`. Only after that probe passes
+   does a `main` build run `migrate:deploy`; non-`main` builds skip the migration.
 
 `NEXT_PUBLIC_APP_ORIGIN` does not fail the build, but it is baked into the bundle,
 so a wrong value ships silently and breaks both OAuth callbacks.
