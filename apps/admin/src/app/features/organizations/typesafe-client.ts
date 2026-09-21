@@ -21,35 +21,6 @@ const TYPE_SAFE_API_URL = 'https://api.typesafe.ai/v1/systemone';
 const TYPE_SAFE_MODEL = 'jev-latest';
 const TYPE_SAFE_TIMEOUT_MS = 1500;
 
-const CACHE_TTL_MS = 1000 * 60 * 60 * 24;
-
-interface CacheEntry {
-  probability: number;
-  timestamp: number;
-}
-
-const judgmentCache = new Map<string, CacheEntry>();
-
-function cacheKey(businessName: string, finalUrl: string): string {
-  return `${businessName}|${finalUrl}`;
-}
-
-function getFromCache(businessName: string, finalUrl: string): number | null {
-  const key = cacheKey(businessName, finalUrl);
-  const entry = judgmentCache.get(key);
-  if (!entry) return null;
-  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
-    judgmentCache.delete(key);
-    return null;
-  }
-  return entry.probability;
-}
-
-function setCache(businessName: string, finalUrl: string, probability: number): void {
-  const key = cacheKey(businessName, finalUrl);
-  judgmentCache.set(key, { probability, timestamp: Date.now() });
-}
-
 function buildQuestion(state: CorroborationState): { id: string; instructions: object } {
   return {
     id: 'is_official_site',
@@ -89,8 +60,6 @@ async function callTypeSafe(state: CorroborationState): Promise<number | null> {
       signal: controller.signal,
     });
 
-    clearTimeout(timeoutId);
-
     if (!response.ok) {
       return null;
     }
@@ -113,11 +82,6 @@ export async function judgeOfficialSite(
   finalUrl: string,
   pageText: string
 ): Promise<number | null> {
-  const cached = getFromCache(businessName, finalUrl);
-  if (cached !== null) {
-    return cached;
-  }
-
   const truncatedText = pageText.slice(0, 4000);
   const state: CorroborationState = {
     businessName,
@@ -125,11 +89,7 @@ export async function judgeOfficialSite(
     pageText: truncatedText,
   };
 
-  const probability = await callTypeSafe(state);
-  if (probability !== null) {
-    setCache(businessName, finalUrl, probability);
-  }
-  return probability;
+  return callTypeSafe(state);
 }
 
 export function mapProbabilityToStatus(
