@@ -38,6 +38,21 @@ beforeEach(() => {
 });
 
 describe('updateRequestStatusAction', () => {
+  it('does not update or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(
+      updateRequestStatusAction(
+        fd({ requestId: 'r1', status: 'in_progress', expectedStatus: 'new' })
+      )
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockUpdateMany).not.toHaveBeenCalled();
+    expect(mockFindUnique).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevalidate).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing request id', async () => {
     const res = await updateRequestStatusAction(
       fd({ requestId: '', status: 'closed', expectedStatus: 'new' })

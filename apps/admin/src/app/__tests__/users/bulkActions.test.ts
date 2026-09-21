@@ -146,11 +146,12 @@ describe('bulkDisableUsersAction', () => {
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
   });
 
-  it('audits a durable disablement even when session revocation fails', async () => {
+  it('audits a durable disablement even when session revocation fails, and counts it failed', async () => {
     revokeAllSessionsForUserMock.mockRejectedValueOnce(new Error('session store down'));
 
-    await expect(bulkDisableUsersAction(['u-1'])).rejects.toThrow('session store down');
+    const result = await bulkDisableUsersAction(['u-1']);
 
+    expect(result).toEqual({ done: 0, skipped: 0, failed: 1 });
     expect(updateUserMetadataMock).toHaveBeenCalledWith(
       'u-1',
       expect.objectContaining({ disabledAt: expect.any(Number) })
@@ -159,9 +160,50 @@ describe('bulkDisableUsersAction', () => {
       expect.objectContaining({ action: 'user.disable', targetId: 'u-1' })
     );
   });
+
+  it('counts the caller and a bootstrap admin as skipped, not done', async () => {
+    getUserMock.mockImplementation((id: string) =>
+      Promise.resolve({ emails: [id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'] })
+    );
+
+    const result = await bulkDisableUsersAction(['u-1', 'admin-1', 'boot-1']);
+
+    expect(result).toEqual({ done: 1, skipped: 2, failed: 0 });
+  });
+
+  it('counts one failing id and still runs the ids after it', async () => {
+    revokeAllSessionsForUserMock.mockImplementation((id: string) =>
+      id === 'u-1' ? Promise.reject(new Error('session store down')) : Promise.resolve([])
+    );
+
+    const result = await bulkDisableUsersAction(['u-1', 'u-2', 'u-3']);
+
+    expect(result).toEqual({ done: 2, skipped: 0, failed: 1 });
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('u-3');
+  });
+
+  it('revalidates the users page even when every id failed', async () => {
+    const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
+    revokeAllSessionsForUserMock.mockRejectedValue(new Error('session store down'));
+
+    const result = await bulkDisableUsersAction(['u-1', 'u-2']);
+
+    expect(result).toEqual({ done: 0, skipped: 0, failed: 2 });
+    expect(revalidatePath).toHaveBeenCalledWith('/users');
+  });
 });
 
 describe('bulkEnableUsersAction', () => {
+  it('does not read, update, or audit when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkEnableUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('clears the disabled flag for each id and audits', async () => {
     await bulkEnableUsersAction(['u-1', 'u-2']);
     expect(updateUserMetadataMock).toHaveBeenCalledWith('u-1', { disabledAt: null });
@@ -198,17 +240,38 @@ describe('bulkEnableUsersAction', () => {
     expect(revalidatePath).toHaveBeenCalledWith('/users');
   });
 
-  it('does not update or audit when disabled state cannot be read', async () => {
+  it('does not update or audit when disabled state cannot be read, and counts it failed', async () => {
     getUserMetadataMock.mockRejectedValueOnce(new Error('metadata unavailable'));
 
-    await expect(bulkEnableUsersAction(['u-1'])).rejects.toThrow('metadata unavailable');
+    const result = await bulkEnableUsersAction(['u-1']);
 
+    expect(result).toEqual({ done: 0, skipped: 0, failed: 1 });
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
     expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('counts an account that was not disabled as skipped', async () => {
+    getUserMetadataMock.mockImplementation((id: string) =>
+      Promise.resolve({ metadata: id === 'u-1' ? {} : { disabledAt: 1 } })
+    );
+
+    const result = await bulkEnableUsersAction(['u-1', 'u-2']);
+
+    expect(result).toEqual({ done: 1, skipped: 1, failed: 0 });
   });
 });
 
 describe('bulkDeleteUsersAction', () => {
+  it('does not read, delete, or audit when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkDeleteUsersAction(['u-1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(getUserMock).not.toHaveBeenCalled();
+    expect(deleteUserMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('deletes each id (except the caller), labelling from the user record', async () => {
     await bulkDeleteUsersAction(['u-1', 'admin-1']);
     expect(deleteUserMock).toHaveBeenCalledWith('u-1');
@@ -239,5 +302,19 @@ describe('bulkDeleteUsersAction', () => {
     getUserMock.mockResolvedValue({ emails: ['boot@x.com'] });
     await bulkDeleteUsersAction(['boot-1']);
     expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('counts an absent account as skipped and a failing delete as failed', async () => {
+    getUserMock.mockImplementation((id: string) =>
+      Promise.resolve(id === 'gone' ? undefined : { emails: ['victim@x.com'] })
+    );
+    deleteUserMock.mockImplementation((id: string) =>
+      id === 'u-bad' ? Promise.reject(new Error('core unreachable')) : Promise.resolve(undefined)
+    );
+
+    const result = await bulkDeleteUsersAction(['gone', 'u-bad', 'u-ok']);
+
+    expect(result).toEqual({ done: 1, skipped: 1, failed: 1 });
+    expect(deleteUserMock).toHaveBeenCalledWith('u-ok');
   });
 });

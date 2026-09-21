@@ -37,11 +37,16 @@ o/bKiIz+Fq8=
 const URL_SSL_PARAM = /^ssl/i;
 
 /**
- * Connection config for a raw `pg` client (Prisma has its own). A Supabase host in the standard
- * URL forms gets TLS verified against the pinned Supabase root, whatever TLS parameters the URL
- * carries:
+ * The only place that decides how this panel connects to Postgres. Both consumers go through
+ * node-postgres: the approvals advisory lock opens a raw `pg` Client, and `src/client.ts` hands
+ * the same settings to Prisma's `@prisma/adapter-pg`. A Supabase host in the standard URL forms
+ * gets TLS verified against the pinned Supabase root, whatever TLS parameters the URL carries:
  * node-postgres verifies sslmode=require against the public roots, which Supabase's chain does
  * not lead to. Other hosts (local, CI) keep the URL as given.
+ *
+ * Returning `ClientConfig` rather than `PoolConfig` on purpose: pool sizing belongs to the
+ * consumer that owns the pool, and `PoolConfig` extends `ClientConfig`, so the adapter spreads
+ * this and adds its own `max`.
  */
 export function pgConnectionConfig(databaseUrl: string): ClientConfig {
   // Parsed the way pg-connection-string parses it, so `host` is the host pg will dial.

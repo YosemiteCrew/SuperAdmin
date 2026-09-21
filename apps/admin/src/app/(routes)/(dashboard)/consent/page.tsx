@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { IoArrowForward, IoSearchOutline } from 'react-icons/io5';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { normalizeCursor } from '@/app/features/contact/store';
 import { listConsentSubjects, type CategoryState } from '@/app/features/consent/store';
 import type { ConsentCategory } from '@/app/features/consent/types';
 
@@ -58,15 +59,17 @@ function truncate(value: string, max = 20): string {
 
 export default async function ConsentPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ search?: string; cursor?: string }> }>) {
+}: Readonly<{
+  searchParams: Promise<{ search?: string | string[]; cursor?: string | string[] }>;
+}>) {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
 
   const { search, cursor } = await searchParams;
-  const trimmed = search?.trim() ?? '';
+  const trimmed = normalizeCursor(search)?.trim() ?? '';
   const { subjects, nextCursor } = await listConsentSubjects({
     search: trimmed || undefined,
-    cursor,
+    cursor: normalizeCursor(cursor),
   });
 
   return (

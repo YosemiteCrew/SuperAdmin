@@ -5,7 +5,7 @@ import { X509Certificate } from 'node:crypto';
 
 import { Client } from 'pg';
 
-import { pgConnectionConfig, SUPABASE_ROOT_2021_CA } from '@/app/lib/pgConnectionConfig';
+import { pgConnectionConfig, SUPABASE_ROOT_2021_CA } from '@superadmin/database/pgConnectionConfig';
 
 const POOLER = 'aws-1-eu-central-1.pooler.supabase.com';
 const poolerUrl = (query: string) => `postgresql://USER:PASSWORD@${POOLER}:5432/postgres${query}`;

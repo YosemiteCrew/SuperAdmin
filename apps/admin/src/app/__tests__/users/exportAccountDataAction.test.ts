@@ -71,6 +71,15 @@ beforeEach(() => {
 });
 
 describe('exportAccountDataAction', () => {
+  it('does not collect or audit data when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(exportAccountDataAction(fd({ userId: 'u1' }))).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockCollect).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
   it('returns null for a missing userId without collecting anything', async () => {
     expect(await exportAccountDataAction(fd({ userId: '' }))).toBeNull();
     expect(mockCollect).not.toHaveBeenCalled();

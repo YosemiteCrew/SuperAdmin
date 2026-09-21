@@ -32,6 +32,16 @@ pnpm --filter admin run test --testPathPatterns="<file>"
 
 Coverage must remain ≥ 95% on all touched files.
 
+## Repository Tooling Gotchas
+
+- Keep the Postgres settings in `docker-compose.dev.yml` as discrete host, port, user, password,
+  and database variables. A connection-string literal has a credential-in-URL shape that the
+  repository's Secretlint rules correctly reject.
+- Pass staged Next.js dynamic-route paths such as `[[...path]]` to Secretlint quoted but otherwise
+  unchanged. Secretlint 13 accepts the literal brackets; escaping them makes the tool report that
+  the target file was not found. Older guidance to escape these paths is obsolete, and excluding
+  bracket paths would leave server route files unscanned.
+
 ## Branch Naming
 
 ```

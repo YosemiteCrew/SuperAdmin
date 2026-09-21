@@ -46,7 +46,8 @@
       "fast-uri@>=3.0.0 <3.1.8": ">=3.1.8 <4",
       "deepmerge-ts@<8.0.0": ">=8.0.0 <9",
       "adm-zip@<0.6.1": ">=0.6.1 <0.7",
-      "qs@<6.16.0": ">=6.16.0 <7"
+      "qs@<6.16.0": ">=6.16.0 <7",
+      "mysql2@<3.22.0": ">=3.22.0 <4"
     }
   },
   "overrideReasons": {
@@ -72,7 +73,8 @@
     "fast-uri@>=3.0.0 <3.1.8": "AIKIDO-2026-662928: fast-uri is transitive under ajv@8.20.0 (^3.0.1); percent-encoded host normalisation is fixed in 3.1.8. Raises the >=3.1.5 floor added in 78b1752.",
     "deepmerge-ts@<8.0.0": "Security floor added in 6fe3907.",
     "adm-zip@<0.6.1": "GHSA-7q85-xj36-vmfc and GHSA-vwc7-r8mq-g2x9: adm-zip is transitive under sonarqube-scanner; 0.6.1 is the first release outside both advisories. Raises the >=0.6.0 floor (GHSA-xcpc-8h2w-3j85) added in 698d6d9.",
-    "qs@<6.16.0": "Security floor added in 698d6d9."
+    "qs@<6.16.0": "Security floor added in 698d6d9.",
+    "mysql2@<3.22.0": "GHSA-3f6p-5ww8-9rcr remediation (dependency-review blocked PR #380). mysql2 is a direct dependency of the prisma CLI at 7.10.0, alongside postgres and @prisma/dev, for the local dev-database commands. Nothing here connects to MySQL - the panel queries Postgres through @prisma/adapter-pg - so the vulnerable auth downgrade path is unreachable, but the package still ships in the tree at the pinned version, which is what dependency-review reads."
   },
   "overrideResolutionEffects": {
     "axios@>=1.0.0 <1.16.0": false,
@@ -97,7 +99,8 @@
     "fast-uri@>=3.0.0 <3.1.8": false,
     "deepmerge-ts@<8.0.0": true,
     "adm-zip@<0.6.1": true,
-    "qs@<6.16.0": false
+    "qs@<6.16.0": false,
+    "mysql2@<3.22.0": true
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
@@ -107,7 +110,7 @@
     "eslint": "^9.33.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
-    "prettier": "^3.9.6",
+    "prettier": "^3.9.8",
     "secretlint": "^13.0.5",
     "sonarqube-scanner": "^5.0.0",
     "turbo": "^2.10.13"

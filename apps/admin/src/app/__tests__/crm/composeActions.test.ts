@@ -202,6 +202,19 @@ describe('sendCampaignAction notification failure', () => {
 });
 
 describe('sendCampaignAction validation', () => {
+  it('does not read recipients, send, or record when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(sendCampaignAction(fd(VALID))).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockGetUsers).not.toHaveBeenCalled();
+    expect(mockGetRoleUsers).not.toHaveBeenCalled();
+    expect(mockBroadcast).not.toHaveBeenCalled();
+    expect(mockRecord).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('rejects a too-short subject', async () => {
     const result = await sendCampaignAction(fd({ ...VALID, subject: 'ab' }));
     expect(result.error).toMatch(/Subject/);

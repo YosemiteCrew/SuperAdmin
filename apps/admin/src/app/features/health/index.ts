@@ -1,9 +1,11 @@
 import 'server-only';
+import { prisma } from '@superadmin/database';
 import supertokens from 'supertokens-node';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 
+import { serverEnv } from '@/app/config/env.server';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
-import type { HealthCheck, MemorySnapshot, SystemHealth } from './types';
+import type { ContactIntakeHealth, HealthCheck, MemorySnapshot, SystemHealth } from './types';
 
 async function checkSupertokens(): Promise<{ check: HealthCheck; totalUsers: number }> {
   const start = Date.now();
@@ -47,14 +49,26 @@ function getMemory(): MemorySnapshot {
   };
 }
 
+async function getContactIntakeHealth(): Promise<ContactIntakeHealth> {
+  const keyConfigured = Boolean(serverEnv.contactIntakeKey);
+  try {
+    const newest = await prisma.contactRequest.aggregate({ _max: { createdAt: true } });
+    return { keyConfigured, newestSubmissionAt: newest._max.createdAt };
+  } catch {
+    return { keyConfigured, newestSubmissionAt: 'unavailable' };
+  }
+}
+
 export async function collectSystemHealth(): Promise<SystemHealth> {
-  const [{ check: supertokensCheck, totalUsers }, adminCount] = await Promise.all([
+  const [{ check: supertokensCheck, totalUsers }, adminCount, contactIntake] = await Promise.all([
     checkSupertokens(),
     getAdminCount(),
+    getContactIntakeHealth(),
   ]);
 
   return {
     supertokens: supertokensCheck,
+    contactIntake,
     totalUsers,
     adminCount,
     memory: getMemory(),

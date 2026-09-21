@@ -93,6 +93,16 @@ describe('verifyEmailAction', () => {
 });
 
 describe('unverifyEmailAction', () => {
+  it('does not change or audit email state when the caller is not a super admin', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const { unverifyEmailAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
+
+    await expect(unverifyEmailAction(makeForm({ userId: 'u-2' }))).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(setEmailVerifiedMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
   it('marks unverified, audits, and revalidates', async () => {
     const { unverifyEmailAction } = await import('@/app/(routes)/(dashboard)/users/[id]/actions');
     const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };

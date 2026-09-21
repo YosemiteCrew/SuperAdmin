@@ -12,6 +12,18 @@ import type { AuditAction } from '@/app/features/audit/types';
 import { isBootstrapAdmin } from '@/app/features/users/bootstrap';
 import { disableAccount } from '@/app/features/users/disable';
 
+/**
+ * What a sweep did, so the table can report it. `skipped` is a deliberate
+ * refusal (self, a break-glass admin, an account already in the target state);
+ * `failed` is an id whose own work threw. They are counted apart because the
+ * operator's next move differs: a skip is expected, a failure is a retry.
+ */
+export interface BulkUserResult {
+  done: number;
+  skipped: number;
+  failed: number;
+}
+
 function cleanIds(userIds: unknown): string[] {
   if (!Array.isArray(userIds) || userIds.length > DEFAULT_PAGE_SIZE) return [];
   return Array.from(
@@ -29,45 +41,69 @@ async function auditEach(action: AuditAction, actorId: string, userId: string, l
   });
 }
 
-export async function bulkDisableUsersAction(userIds: string[]) {
-  const { userId: actorId } = await requireSuperAdmin();
+type Outcome = 'done' | 'skipped';
+
+/**
+ * Runs one id's work inside its own boundary so a single failing account is
+ * counted and the rest of the sweep still runs.
+ */
+async function sweep(
+  userIds: string[],
+  path: string,
+  each: (id: string) => Promise<Outcome>
+): Promise<BulkUserResult> {
+  const result: BulkUserResult = { done: 0, skipped: 0, failed: 0 };
   for (const id of cleanIds(userIds)) {
-    if (id === actorId) continue; // never disable yourself in a sweep
-    if (await isBootstrapAdmin(id)) continue; // never lock out a break-glass admin
+    try {
+      result[await each(id)] += 1;
+    } catch (err) {
+      result.failed += 1;
+      console.error('[users] bulk action failed for one account', { err });
+    }
+  }
+  revalidatePath(path);
+  return result;
+}
+
+export async function bulkDisableUsersAction(userIds: string[]): Promise<BulkUserResult> {
+  const { userId: actorId } = await requireSuperAdmin();
+  return sweep(userIds, '/users', async (id) => {
+    if (id === actorId) return 'skipped'; // never disable yourself in a sweep
+    if (await isBootstrapAdmin(id)) return 'skipped'; // never lock out a break-glass admin
     if (await disableAccount(id)) await auditEach('user.disable', actorId, id);
     // Revoke even when already disabled: pressing Disable again is the retry for
     // a revocation that failed after the durable disable landed.
     await SessionNode.revokeAllSessionsForUser(id);
-  }
-  revalidatePath('/users');
+    return 'done';
+  });
 }
 
-export async function bulkEnableUsersAction(userIds: string[]) {
+export async function bulkEnableUsersAction(userIds: string[]): Promise<BulkUserResult> {
   const { userId: actorId } = await requireSuperAdmin();
-  for (const id of cleanIds(userIds)) {
+  return sweep(userIds, '/users', async (id) => {
     const { metadata } = await UserMetadataNode.getUserMetadata(id);
-    if (typeof metadata.disabledAt !== 'number') continue;
+    if (typeof metadata.disabledAt !== 'number') return 'skipped';
     await UserMetadataNode.updateUserMetadata(id, { disabledAt: null });
     await auditEach('user.enable', actorId, id);
-  }
-  revalidatePath('/users');
+    return 'done';
+  });
 }
 
-export async function bulkDeleteUsersAction(userIds: string[]) {
+export async function bulkDeleteUsersAction(userIds: string[]): Promise<BulkUserResult> {
   const { userId: actorId } = await requireSuperAdmin();
-  for (const id of cleanIds(userIds)) {
-    if (id === actorId) continue; // never delete yourself in a sweep
-    if (await isBootstrapAdmin(id)) continue; // never delete a break-glass admin
+  return sweep(userIds, '/users', async (id) => {
+    if (id === actorId) return 'skipped'; // never delete yourself in a sweep
+    if (await isBootstrapAdmin(id)) return 'skipped'; // never delete a break-glass admin
     let label: string | undefined;
     try {
       const user = await SuperTokens.getUser(id);
-      if (!user) continue;
+      if (!user) return 'skipped';
       label = user.emails[0];
     } catch {
-      /* labelling is best-effort */
+      /* labelling is best-effort: a lookup that throws still deletes */
     }
     await SuperTokens.deleteUser(id);
     await auditEach('user.delete', actorId, id, label);
-  }
-  revalidatePath('/users');
+    return 'done';
+  });
 }
