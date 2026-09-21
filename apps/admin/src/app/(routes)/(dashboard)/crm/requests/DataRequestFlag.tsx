@@ -37,8 +37,7 @@ export function DataRequestFlag({
           href={href}
           className="text-[12px] font-semibold text-[color:var(--blue-text)] hover:underline"
         >
-          Log it on the data-request form
-          <span className="sr-only"> for {email}</span> -&gt;
+          Log it on the data-request form <span className="sr-only">for {email}</span> -&gt;
         </Link>
         <span className="text-[11.5px] text-[color:var(--ink-faint)]">
           Opens the form filled in. Nothing is logged until you submit it.

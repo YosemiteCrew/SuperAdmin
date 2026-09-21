@@ -23,6 +23,10 @@ const config = [
       'no-negated-condition': 'error',
       'react/prefer-read-only-props': 'error',
       'sonarjs/no-nested-conditional': 'error',
+      // S6772: a text child sitting next to an element across a line break
+      // leaves the space between them up to the reader. Mirrored here so the
+      // ambiguity is caught before a server-side scan reports it.
+      'react/jsx-child-element-spacing': 'error',
     },
   },
   {
