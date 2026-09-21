@@ -8,9 +8,12 @@ import type { LookupFunction } from 'node:net';
 import type { OrganizationAddress, SuperAdminOrganizationDetail } from './types';
 import {
   judgeOfficialSite,
+  judgeDetailPlausibility,
+  buildPlausibilityState,
   mapProbabilityToStatus,
   getStatusDetail,
   CORROBORATION_THRESHOLDS,
+  type PlausibilityLevel,
 } from './typesafe-client';
 
 /** Resolves a hostname to its IP addresses. Injectable so tests stay hermetic. */
@@ -410,14 +413,46 @@ function structuralChecks(org: SuperAdminOrganizationDetail): CorroborationCheck
   ];
 }
 
+/** The id of the plausibility judgment's row, excluded from presence counting. */
+export const PLAUSIBILITY_CHECK_ID = 'plausibility';
+
+const PLAUSIBILITY_DETAIL: Record<PlausibilityLevel, { status: CheckStatus; detail: string }> = {
+  placeholder: { status: 'fail', detail: 'The submitted details read as placeholder text.' },
+  thin: { status: 'warn', detail: 'The submitted details are thin for an operating business.' },
+  consistent: { status: 'pass', detail: 'The submitted details read as a real business.' },
+  'strongly-consistent': {
+    status: 'pass',
+    detail: 'The submitted details corroborate one another.',
+  },
+};
+
+/** Renders a plausibility level as one more row in the existing checks list. */
+export function plausibilityCheck(level: PlausibilityLevel): CorroborationCheck {
+  const { status, detail } = PLAUSIBILITY_DETAIL[level];
+  return { id: PLAUSIBILITY_CHECK_ID, label: 'Detail plausibility', status, detail };
+}
+
+/**
+ * Today's presence arithmetic, plus one rule: the plausibility judgment may
+ * only lower the result, never raise it. Its row is excluded from the presence
+ * count for exactly that reason - counted as a pass it could manufacture a
+ * "corroborated" badge the structural evidence does not support - and a
+ * `placeholder` verdict caps the result at `unverified`.
+ */
 function aggregate(checks: CorroborationCheck[]): CorroborationLevel {
   const website = checks.find((c) => c.id === 'website');
-  const structuralPass = checks.filter((c) => c.id !== 'website' && c.status === 'pass').length;
+  const structuralPass = checks.filter(
+    (c) => c.id !== 'website' && c.id !== PLAUSIBILITY_CHECK_ID && c.status === 'pass'
+  ).length;
   const websitePass = website?.status === 'pass';
 
-  if (websitePass && structuralPass >= 3) return 'corroborated';
-  if (websitePass || structuralPass >= 3) return 'partial';
-  return 'unverified';
+  let level: CorroborationLevel = 'unverified';
+  if (websitePass && structuralPass >= 3) level = 'corroborated';
+  else if (websitePass || structuralPass >= 3) level = 'partial';
+
+  const plausibility = checks.find((c) => c.id === PLAUSIBILITY_CHECK_ID);
+  if (plausibility?.status === 'fail') return 'unverified';
+  return level;
 }
 
 /**
@@ -429,8 +464,14 @@ export async function corroborateBusiness(
   fetchImpl: typeof fetch = createPinnedFetch(),
   resolveImpl: HostResolver = defaultResolver
 ): Promise<CorroborationResult> {
-  const website = await checkWebsite(org.website, org.name, fetchImpl, resolveImpl);
+  // The plausibility judgment reads only the identity block, so it owes nothing
+  // to the website fetch and is issued alongside it rather than after it.
+  const [website, plausibility] = await Promise.all([
+    checkWebsite(org.website, org.name, fetchImpl, resolveImpl),
+    judgeDetailPlausibility(org.id, buildPlausibilityState(org)).catch(() => null),
+  ]);
   const checks = [website, ...structuralChecks(org)];
+  if (plausibility) checks.push(plausibilityCheck(plausibility.level));
   return { level: aggregate(checks), checks };
 }
 
