@@ -37,9 +37,17 @@ export interface JudgmentUsage {
   latencyMs: number;
 }
 
-function buildQuestion(state: CorroborationState): { id: string; instructions: object } {
+/**
+ * The website question. `type` is required on every question and its absence is
+ * not something the API can answer around, so a request without it fails and
+ * `checkWebsite` silently falls back to token overlap. The question id is the
+ * key in `questions`, not a field of the question itself.
+ */
+const WEBSITE_QUESTION_ID = 'is_official_site';
+
+function buildQuestion(state: CorroborationState): { type: string; instructions: object } {
   return {
-    id: 'is_official_site',
+    type: 'noul',
     instructions: {
       business_name: state.businessName,
       website_url: state.finalUrl,
@@ -106,8 +114,7 @@ async function postQuestion(
 }
 
 async function callTypeSafe(state: CorroborationState): Promise<number | null> {
-  const question = buildQuestion(state);
-  const result = await postQuestion(question.id, question, state);
+  const result = await postQuestion(WEBSITE_QUESTION_ID, buildQuestion(state), state);
   const answer = result?.answer;
   if (answer && answer.type === 'noul' && typeof answer.noul === 'number') {
     return answer.noul;

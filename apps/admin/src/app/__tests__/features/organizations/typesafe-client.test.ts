@@ -161,7 +161,7 @@ describe('judgeOfficialSite', () => {
     expect(callBody.state.finalUrl).toBe('https://payload-test.com');
     expect(callBody.state.pageText).toBe('Welcome to Acme');
     expect(callBody.questions.is_official_site).toBeDefined();
-    expect(callBody.questions.is_official_site.id).toBe('is_official_site');
+    expect(callBody.questions.is_official_site.type).toBe('noul');
     expect(callBody.questions.is_official_site.instructions).toMatchObject({
       business_name: 'Acme Veterinary',
       website_url: 'https://payload-test.com',
