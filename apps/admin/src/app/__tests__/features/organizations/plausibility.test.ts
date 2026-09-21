@@ -1,3 +1,24 @@
+jest.mock('next/cache', () => {
+  const values = new Map<string, unknown>();
+  const unstableCache = jest.fn(
+    (read: () => Promise<unknown>, keyParts: string[]) => async (): Promise<unknown> => {
+      const key = JSON.stringify(keyParts);
+      if (values.has(key)) return values.get(key);
+      const value = await read();
+      values.set(key, value);
+      return value;
+    }
+  );
+
+  return {
+    unstable_cache: unstableCache,
+    __clearForTests: () => {
+      values.clear();
+      unstableCache.mockClear();
+    },
+  };
+});
+
 import {
   PLAUSIBILITY_CHECK_ID,
   corroborateBusiness,
@@ -10,11 +31,15 @@ import type { SuperAdminOrganizationDetail } from '@/app/features/organizations/
 import {
   PLAUSIBILITY_LEVELS,
   buildPlausibilityState,
-  clearPlausibilityCache,
   judgeDetailPlausibility,
   parsePlausibilityAnswer,
   type PlausibilityLevel,
 } from '@/app/features/organizations/typesafe-client';
+
+const nextCacheMock = jest.requireMock('next/cache') as {
+  unstable_cache: jest.Mock;
+  __clearForTests(): void;
+};
 
 // Not a credential: the client only checks that TYPE_SAFE_API_KEY is non-empty
 // before it calls out, so any non-empty string exercises the same branch.
@@ -31,7 +56,7 @@ jest.mock('node:dns/promises', () => ({
 }));
 
 beforeEach(() => {
-  clearPlausibilityCache();
+  nextCacheMock.__clearForTests();
   mockFetch = jest.fn();
   globalThis.fetch = mockFetch as unknown as typeof fetch;
   process.env.TYPE_SAFE_API_KEY = TEST_API_KEY;
@@ -221,6 +246,17 @@ describe('judgeDetailPlausibility', () => {
     expect(result?.usage.latencyMs).toBeGreaterThanOrEqual(0);
   });
 
+  it('uses the shared Next cache with a five minute revalidation window', async () => {
+    mockFetch.mockResolvedValue(scored('consistent'));
+    await judgeDetailPlausibility('o1', buildPlausibilityState(fullRecord));
+
+    expect(nextCacheMock.unstable_cache).toHaveBeenCalledWith(
+      expect.any(Function),
+      ['organization-detail-plausibility', 'o1', expect.stringMatching(/^[a-f0-9]{64}$/)],
+      { revalidate: 300 }
+    );
+  });
+
   it('answers an unchanged record from cache', async () => {
     mockFetch.mockResolvedValue(scored('consistent'));
     const state = buildPlausibilityState(fullRecord);
@@ -346,7 +382,7 @@ describe('the judgment can only lower the aggregate level', () => {
     const today = await levelWithoutJudgments(org, page);
 
     for (const level of PLAUSIBILITY_LEVELS) {
-      clearPlausibilityCache();
+      nextCacheMock.__clearForTests();
       // Only the plausibility call reaches globalThis.fetch; the page fetch is
       // the injected one, so the website judgment is the same in both arms.
       mockFetch.mockResolvedValue(scored(level));
@@ -361,7 +397,7 @@ describe('the judgment can only lower the aggregate level', () => {
     const today = await levelWithoutJudgments(fullRecord, 'Acme Veterinary');
     expect(today.level).toBe('corroborated');
 
-    clearPlausibilityCache();
+    nextCacheMock.__clearForTests();
     mockFetch.mockResolvedValue(scored('placeholder'));
     const judged = await corroborateBusiness(
       fullRecord,
@@ -380,7 +416,7 @@ describe('the judgment can only lower the aggregate level', () => {
     const today = await levelWithoutJudgments(partialRecord, 'Acme Veterinary');
     expect(today.level).toBe('partial');
 
-    clearPlausibilityCache();
+    nextCacheMock.__clearForTests();
     mockFetch.mockResolvedValue(scored('strongly-consistent'));
     const judged = await corroborateBusiness(
       partialRecord,

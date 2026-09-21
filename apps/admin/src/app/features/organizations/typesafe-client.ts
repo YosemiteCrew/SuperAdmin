@@ -205,7 +205,7 @@ export interface PlausibilityJudgment {
 }
 
 /** How long a judgment stays valid for an unchanged record. */
-export const PLAUSIBILITY_CACHE_TTL_MS = 5 * 60 * 1000;
+export const PLAUSIBILITY_CACHE_TTL_SECONDS = 5 * 60;
 
 const PLAUSIBILITY_QUESTION = {
   type: 'score',
@@ -229,23 +229,6 @@ const PLAUSIBILITY_QUESTION = {
       'numbers all fit together as one real practice.',
   ],
 } as const;
-
-interface CacheEntry {
-  value: PlausibilityJudgment;
-  expiresAt: number;
-}
-
-/**
- * Per-process judgment cache, keyed on the organization id plus a hash of the
- * identity block. A changed record hashes differently, so an edited business is
- * never answered from the answer given about its previous details.
- */
-const plausibilityCache = new Map<string, CacheEntry>();
-
-/** Exposed for tests: the cache outlives a single request by design. */
-export function clearPlausibilityCache(): void {
-  plausibilityCache.clear();
-}
 
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
@@ -299,9 +282,16 @@ export function parsePlausibilityAnswer(
   };
 }
 
+async function requestDetailPlausibility(state: PlausibilityState): Promise<PlausibilityJudgment> {
+  const result = await postQuestion('detail_plausibility', PLAUSIBILITY_QUESTION, state);
+  const parsed = parsePlausibilityAnswer(result?.answer);
+  if (!result || !parsed) throw new Error('plausibility judgment unavailable');
+  return { ...parsed, usage: result.usage };
+}
+
 /**
  * Judges whether an organization's submitted details read as a real business or
- * as filler. Returns `null` on every failure path — unconfigured key, timeout,
+ * as filler. Returns `null` on every failure path: unconfigured key, timeout,
  * transport error, unusable answer — and the caller then reports exactly the
  * checks and the level it reported before this judgment existed.
  */
@@ -309,26 +299,18 @@ export async function judgeDetailPlausibility(
   orgId: string,
   state: PlausibilityState
 ): Promise<PlausibilityJudgment | null> {
-  const key = `${orgId}:${createHash('sha256').update(JSON.stringify(state)).digest('hex')}`;
-  const now = Date.now();
+  if (!process.env.TYPE_SAFE_API_KEY) return null;
 
-  const cached = plausibilityCache.get(key);
-  if (cached) {
-    if (cached.expiresAt > now) return cached.value;
-    plausibilityCache.delete(key);
+  try {
+    const { unstable_cache } = await import('next/cache');
+    const stateHash = createHash('sha256').update(JSON.stringify(state)).digest('hex');
+    const readCached = unstable_cache(
+      () => requestDetailPlausibility(state),
+      ['organization-detail-plausibility', orgId, stateHash],
+      { revalidate: PLAUSIBILITY_CACHE_TTL_SECONDS }
+    );
+    return await readCached();
+  } catch {
+    return null;
   }
-
-  const result = await postQuestion('detail_plausibility', PLAUSIBILITY_QUESTION, state);
-  const parsed = parsePlausibilityAnswer(result?.answer);
-  if (!result || !parsed) return null;
-
-  const judgment: PlausibilityJudgment = { ...parsed, usage: result.usage };
-  // An entry is only ever expired by a read of its own key, and most keys are
-  // read once. Sweeping on write bounds the map to the keys touched inside one
-  // TTL window rather than every organization the process has ever rendered.
-  for (const [existing, entry] of plausibilityCache) {
-    if (entry.expiresAt <= now) plausibilityCache.delete(existing);
-  }
-  plausibilityCache.set(key, { value: judgment, expiresAt: now + PLAUSIBILITY_CACHE_TTL_MS });
-  return judgment;
 }
