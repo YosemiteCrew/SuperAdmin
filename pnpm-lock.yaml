@@ -178,11 +178,14 @@ importers:
         version: 7.10.0
       '@prisma/client':
         specifier: ^7.10.0
-        version: 7.10.0(prisma@7.10.0)(typescript@5.9.3)
+        version: 7.10.0(prisma@7.10.0)(typescript@7.0.2)
       pg:
         specifier: ^8.16.3
         version: 8.23.0
     devDependencies:
+      '@types/node':
+        specifier: ^22
+        version: 22.20.4
       '@types/pg':
         specifier: ^8.15.5
         version: 8.23.1
@@ -191,10 +194,10 @@ importers:
         version: 18.0.0
       prisma:
         specifier: ^7.10.0
-        version: 7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@5.9.3)
+        version: 7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@7.0.2)
       typescript:
-        specifier: ^5
-        version: 5.9.3
+        specifier: ^7
+        version: 7.0.2
 
   packages/types:
     devDependencies:
@@ -1954,7 +1957,7 @@ packages:
     resolution: {integrity: sha512-cnCy7lUV8/CctgKVEmqAbSLAmwqJdE/qAlqTBk/0NDk59zEb2cZ0M0M0E4vVPnqbSEYudRroQDvOWfUZH6RIfw==}
     dev: false
 
-  /@prisma/client@7.10.0(prisma@7.10.0)(typescript@5.9.3):
+  /@prisma/client@7.10.0(prisma@7.10.0)(typescript@7.0.2):
     resolution: {integrity: sha512-Ubw/QS9JGIBSBUsyxAUQuK/Jcu0Tsva7le7QbLd91Kix9yJvYDdj5QkwgEbbZniH80dd+sziQcALPc+HnvQC8Q==}
     engines: {node: ^20.19 || ^22.12 || >=24.0}
     peerDependencies:
@@ -1967,8 +1970,8 @@ packages:
         optional: true
     dependencies:
       '@prisma/client-runtime-utils': 7.10.0
-      prisma: 7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@5.9.3)
-      typescript: 5.9.3
+      prisma: 7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@7.0.2)
+      typescript: 7.0.2
     dev: false
 
   /@prisma/config@7.10.0:
@@ -1987,7 +1990,7 @@ packages:
   /@prisma/debug@7.2.0:
     resolution: {integrity: sha512-YSGTiSlBAVJPzX4ONZmMotL+ozJwQjRmZweQNIq/ER0tQJKJynNkRB3kyvt37eOfsbMCXk3gnLF6J9OJ4QWftw==}
 
-  /@prisma/dev@0.24.17(typescript@5.9.3):
+  /@prisma/dev@0.24.17(typescript@7.0.2):
     resolution: {integrity: sha512-UvdZzmpFwknnfreh6Jije84ekkYGPYEJhXG1tFzCsCfQyzJifrOo38eZc0qajzvaC6OLUOrN9ML5XfCnEZL9DA==}
     dependencies:
       '@electric-sql/pglite': 0.4.3
@@ -2003,7 +2006,7 @@ packages:
       proper-lockfile: 4.1.2
       remeda: 2.33.4
       std-env: 3.10.0
-      valibot: 1.4.2(typescript@5.9.3)
+      valibot: 1.4.2(typescript@7.0.2)
       zeptomatch: 2.1.0
     transitivePeerDependencies:
       - typescript
@@ -2995,7 +2998,6 @@ packages:
     cpu: [ppc64]
     os: [aix]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-darwin-arm64@7.0.2:
@@ -3004,7 +3006,6 @@ packages:
     cpu: [arm64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-darwin-x64@7.0.2:
@@ -3013,7 +3014,6 @@ packages:
     cpu: [x64]
     os: [darwin]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-freebsd-arm64@7.0.2:
@@ -3022,7 +3022,6 @@ packages:
     cpu: [arm64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-freebsd-x64@7.0.2:
@@ -3031,7 +3030,6 @@ packages:
     cpu: [x64]
     os: [freebsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-arm64@7.0.2:
@@ -3040,7 +3038,6 @@ packages:
     cpu: [arm64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-arm@7.0.2:
@@ -3049,7 +3046,6 @@ packages:
     cpu: [arm]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-loong64@7.0.2:
@@ -3058,7 +3054,6 @@ packages:
     cpu: [loong64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-mips64el@7.0.2:
@@ -3067,7 +3062,6 @@ packages:
     cpu: [mips64el]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-ppc64@7.0.2:
@@ -3076,7 +3070,6 @@ packages:
     cpu: [ppc64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-riscv64@7.0.2:
@@ -3085,7 +3078,6 @@ packages:
     cpu: [riscv64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-s390x@7.0.2:
@@ -3094,7 +3086,6 @@ packages:
     cpu: [s390x]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-linux-x64@7.0.2:
@@ -3103,7 +3094,6 @@ packages:
     cpu: [x64]
     os: [linux]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-netbsd-arm64@7.0.2:
@@ -3112,7 +3102,6 @@ packages:
     cpu: [arm64]
     os: [netbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-netbsd-x64@7.0.2:
@@ -3121,7 +3110,6 @@ packages:
     cpu: [x64]
     os: [netbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-openbsd-arm64@7.0.2:
@@ -3130,7 +3118,6 @@ packages:
     cpu: [arm64]
     os: [openbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-openbsd-x64@7.0.2:
@@ -3139,7 +3126,6 @@ packages:
     cpu: [x64]
     os: [openbsd]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-sunos-x64@7.0.2:
@@ -3148,7 +3134,6 @@ packages:
     cpu: [x64]
     os: [sunos]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-win32-arm64@7.0.2:
@@ -3157,7 +3142,6 @@ packages:
     cpu: [arm64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@typescript/typescript-win32-x64@7.0.2:
@@ -3166,7 +3150,6 @@ packages:
     cpu: [x64]
     os: [win32]
     requiresBuild: true
-    dev: true
     optional: true
 
   /@ungap/structured-clone@1.4.0:
@@ -7499,7 +7482,7 @@ packages:
       ansi-styles: 5.2.0
     dev: true
 
-  /prisma@7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@5.9.3):
+  /prisma@7.10.0(@types/node@22.20.4)(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)(typescript@7.0.2):
     resolution: {integrity: sha512-o0ornyJOWgygVAzGCpr8PdXV8EJLHyVGDDUr/voBQt8Azzw8cYTByzzPGcA/m4tCkPcnJA8raEOv2CslsKhPEw==}
     engines: {node: ^20.19 || ^22.12 || >=24.0}
     hasBin: true
@@ -7514,12 +7497,12 @@ packages:
         optional: true
     dependencies:
       '@prisma/config': 7.10.0
-      '@prisma/dev': 0.24.17(typescript@5.9.3)
+      '@prisma/dev': 0.24.17(typescript@7.0.2)
       '@prisma/engines': 7.10.0
       '@prisma/studio-core': 0.33.0(@types/react@19.3.0)(react-dom@19.3.0)(react@19.3.0)
       mysql2: 3.24.4(@types/node@22.20.4)
       postgres: 3.4.7
-      typescript: 5.9.3
+      typescript: 7.0.2
     transitivePeerDependencies:
       - '@types/node'
       - '@types/react'
@@ -8682,11 +8665,6 @@ packages:
       - supports-color
     dev: true
 
-  /typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   /typescript@6.0.3:
     resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
@@ -8718,7 +8696,6 @@ packages:
       '@typescript/typescript-sunos-x64': 7.0.2
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
-    dev: true
 
   /unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
@@ -8811,7 +8788,7 @@ packages:
       convert-source-map: 2.0.0
     dev: true
 
-  /valibot@1.4.2(typescript@5.9.3):
+  /valibot@1.4.2(typescript@7.0.2):
     resolution: {integrity: sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==}
     peerDependencies:
       typescript: '>=5'
@@ -8819,7 +8796,7 @@ packages:
       typescript:
         optional: true
     dependencies:
-      typescript: 5.9.3
+      typescript: 7.0.2
 
   /validate-npm-package-license@3.0.4:
     resolution: {integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==}

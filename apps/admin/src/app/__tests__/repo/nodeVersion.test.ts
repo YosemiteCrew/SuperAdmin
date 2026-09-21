@@ -9,7 +9,7 @@ const REPO_ROOT = path.resolve(__dirname, '../../../../../..');
 const WORKFLOW_DIR = path.join(REPO_ROOT, '.github/workflows');
 const AMPLIFY_SPEC = path.join(REPO_ROOT, 'amplify.yml');
 const NVMRC = path.join(REPO_ROOT, '.nvmrc');
-const ADMIN_PACKAGE = path.join(REPO_ROOT, 'apps/admin/package.json');
+const WORKSPACE_DIRS = ['apps', 'packages'] as const;
 
 // Literal pins only. `node-version: ${{ env.NODE_VERSION }}` carries no version
 // of its own — the value it resolves to is collected from its own declaration.
@@ -42,6 +42,26 @@ function amplifyPins(): Pin[] {
   return pinsInFile('amplify.yml', NVM_USE);
 }
 
+function nodeTypePins(): Pin[] {
+  return WORKSPACE_DIRS.flatMap((workspaceDir) =>
+    readdirSync(path.join(REPO_ROOT, workspaceDir), { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => {
+        const relativePath = `${workspaceDir}/${entry.name}/package.json`;
+        const manifest = JSON.parse(readFileSync(path.join(REPO_ROOT, relativePath), 'utf8')) as {
+          dependencies?: Record<string, string>;
+          devDependencies?: Record<string, string>;
+        };
+        const specifier =
+          manifest.dependencies?.['@types/node'] ?? manifest.devDependencies?.['@types/node'];
+
+        return specifier
+          ? [{ site: `${relativePath} @types/node`, major: declaredMajor(specifier) }]
+          : [];
+      })
+  );
+}
+
 function declaredMajor(specifier: string): string {
   const match = /(\d+)/.exec(specifier);
   if (!match) throw new Error(`no major in specifier ${specifier}`);
@@ -53,25 +73,16 @@ describe('Node version pins', () => {
     // Without these floors an agreement check passes on an empty set.
     expect(workflowPins().length).toBeGreaterThanOrEqual(MINIMUM_WORKFLOW_PINS);
     expect(amplifyPins()).toHaveLength(1);
+    expect(nodeTypePins().length).toBeGreaterThanOrEqual(2);
     expect(readFileSync(NVMRC, 'utf8').trim()).toMatch(/^\d+(\.\d+)*$/);
     expect(readdirSync(WORKFLOW_DIR).length).toBeGreaterThan(0);
     expect(readFileSync(AMPLIFY_SPEC, 'utf8')).toContain('nvm use');
   });
 
   it('names one Node major in .nvmrc, amplify.yml, every workflow and @types/node', () => {
-    const manifest = JSON.parse(readFileSync(ADMIN_PACKAGE, 'utf8')) as {
-      devDependencies: Record<string, string>;
-    };
     const expected = declaredMajor(readFileSync(NVMRC, 'utf8').trim());
 
-    const pins: Pin[] = [
-      ...workflowPins(),
-      ...amplifyPins(),
-      {
-        site: 'apps/admin/package.json @types/node',
-        major: declaredMajor(manifest.devDependencies['@types/node']),
-      },
-    ];
+    const pins: Pin[] = [...workflowPins(), ...amplifyPins(), ...nodeTypePins()];
 
     expect(
       pins.filter((pin) => pin.major !== expected).map((pin) => `${pin.site} pins ${pin.major}`)
