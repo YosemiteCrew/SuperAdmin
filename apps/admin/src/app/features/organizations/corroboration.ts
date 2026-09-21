@@ -6,6 +6,12 @@ import { request as httpsRequest } from 'node:https';
 import type { LookupFunction } from 'node:net';
 
 import type { OrganizationAddress, SuperAdminOrganizationDetail } from './types';
+import {
+  judgeOfficialSite,
+  mapProbabilityToStatus,
+  getStatusDetail,
+  CORROBORATION_THRESHOLDS,
+} from './typesafe-client';
 
 /** Resolves a hostname to its IP addresses. Injectable so tests stay hermetic. */
 export type HostResolver = (hostname: string) => Promise<Array<{ address: string }>>;
@@ -308,6 +314,25 @@ export async function checkWebsite(
       };
     }
     const text = stripHtml(await res.text());
+    const finalUrl = res.url ?? url.toString();
+
+    // Try TypeSafe judgment first; fall back to token overlap on any error.
+    const probability = await judgeOfficialSite(name, finalUrl, text);
+    if (probability !== null) {
+      const status = mapProbabilityToStatus(
+        probability,
+        CORROBORATION_THRESHOLDS.PASS,
+        CORROBORATION_THRESHOLDS.WARN
+      );
+      return {
+        id: 'website',
+        label: 'Website',
+        status,
+        detail: getStatusDetail(status),
+      };
+    }
+
+    // Fallback: original token-overlap logic
     const tokens = tokenize(name);
     const matched = tokens.filter((t) => text.includes(t));
     if (tokens.length > 0 && matched.length / tokens.length >= 0.5) {

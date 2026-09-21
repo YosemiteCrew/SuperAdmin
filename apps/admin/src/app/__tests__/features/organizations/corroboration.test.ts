@@ -12,6 +12,10 @@ import {
 } from '@/app/features/organizations/corroboration';
 import type { SuperAdminOrganizationDetail } from '@/app/features/organizations/types';
 
+// Not a credential: judgeOfficialSite only checks that TYPE_SAFE_API_KEY is set
+// before it calls out, so any non-empty string exercises the same branch.
+const TEST_API_KEY = 'this string stands in for a key, it is not one';
+
 function fetchReturning(res: Partial<Response> & { text?: () => Promise<string> }): typeof fetch {
   return jest.fn().mockResolvedValue(res) as unknown as typeof fetch;
 }
@@ -240,6 +244,171 @@ describe('checkWebsite', () => {
     const res = await checkWebsite('https://acme.com', 'Acme', fetchReturning(okHtml('Acme')));
     expect(res.status).toBe('pass');
     expect(lookupMock).toHaveBeenCalledWith('acme.com', { all: true });
+  });
+
+  describe('with TypeSafe API key configured', () => {
+    const originalApiKey = process.env.TYPE_SAFE_API_KEY;
+    const originalFetch = globalThis.fetch;
+    let mockFetch: jest.Mock;
+
+    beforeEach(() => {
+      process.env.TYPE_SAFE_API_KEY = TEST_API_KEY;
+      mockFetch = jest.fn();
+      globalThis.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      process.env.TYPE_SAFE_API_KEY = originalApiKey;
+      globalThis.fetch = originalFetch;
+    });
+
+    it('uses TypeSafe judgment when API key is set and returns pass', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul: 0.9 } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+
+      const res = await checkWebsite(
+        'https://acme-pass.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Some parked domain</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('pass');
+      expect(res.detail).toBe("Live, and the page appears to be the business's own site.");
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      expect(callBody.state.businessName).toBe('Acme Veterinary');
+      expect(callBody.state.finalUrl).toBe('https://acme-pass.com/');
+      expect(callBody.state.pageText).toContain('parked domain');
+    });
+
+    it('uses TypeSafe judgment when API key is set and returns warn', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul: 0.6 } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+
+      const res = await checkWebsite(
+        'https://acme-warn.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Some parked domain</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('warn');
+      expect(res.detail).toBe("Live, but it is unclear if this is the business's official site.");
+    });
+
+    it('uses TypeSafe judgment when API key is set and returns fail', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul: 0.2 } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+
+      const res = await checkWebsite(
+        'https://acme-fail.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Some parked domain</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('fail');
+      expect(res.detail).toBe("Live, but it does not look like this business's site.");
+    });
+
+    it('falls back to token overlap when TypeSafe returns network error', async () => {
+      mockFetch.mockRejectedValue(new Error('network'));
+
+      const res = await checkWebsite(
+        'https://acme-fallback-network.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Welcome to Acme Veterinary clinic</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('pass');
+      expect(res.detail).toBe('Live, and the page mentions the business name.');
+    });
+
+    it('falls back to token overlap when TypeSafe returns non-OK', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500, json: async () => ({}) });
+
+      const res = await checkWebsite(
+        'https://acme-fallback-nonok.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Welcome to Acme Veterinary clinic</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('pass');
+      expect(res.detail).toBe('Live, and the page mentions the business name.');
+    });
+
+    it('falls back to token overlap when TypeSafe returns invalid shape', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          answers: {},
+          model: 'jev',
+          usage: { input_tokens: 0, output_tokens: 0 },
+        }),
+      });
+
+      const res = await checkWebsite(
+        'https://acme-fallback-invalid.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Welcome to Acme Veterinary clinic</h1>')),
+        publicResolver
+      );
+
+      expect(res.status).toBe('pass');
+      expect(res.detail).toBe('Live, and the page mentions the business name.');
+    });
+
+    it('does not send sensitive organization fields to TypeSafe', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul: 0.9 } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+
+      await checkWebsite(
+        'https://acme-sensitive.com',
+        'Acme Veterinary',
+        fetchReturning(okHtml('<h1>Welcome to Acme Veterinary clinic</h1>')),
+        publicResolver
+      );
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      const state = callBody.state;
+      expect(state).toHaveProperty('businessName');
+      expect(state).toHaveProperty('finalUrl');
+      expect(state).toHaveProperty('pageText');
+      expect(state).not.toHaveProperty('taxId');
+      expect(state).not.toHaveProperty('phoneNo');
+      expect(state).not.toHaveProperty('address');
+      expect(state).not.toHaveProperty('DUNSNumber');
+      expect(state).not.toHaveProperty('memberCount');
+      expect(state).not.toHaveProperty('isVerified');
+    });
   });
 });
 
