@@ -284,8 +284,9 @@ export function parsePlausibilityAnswer(
 
 async function requestDetailPlausibility(state: PlausibilityState): Promise<PlausibilityJudgment> {
   const result = await postQuestion('detail_plausibility', PLAUSIBILITY_QUESTION, state);
-  const parsed = parsePlausibilityAnswer(result?.answer);
-  if (!result || !parsed) throw new Error('plausibility judgment unavailable');
+  if (!result) throw new Error('plausibility judgment unavailable');
+  const parsed = parsePlausibilityAnswer(result.answer);
+  if (!parsed) throw new Error('plausibility judgment unavailable');
   return { ...parsed, usage: result.usage };
 }
 
