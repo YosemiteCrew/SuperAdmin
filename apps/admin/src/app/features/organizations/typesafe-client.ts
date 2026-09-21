@@ -293,7 +293,7 @@ async function requestDetailPlausibility(state: PlausibilityState): Promise<Plau
 /**
  * Judges whether an organization's submitted details read as a real business or
  * as filler. Returns `null` on every failure path: unconfigured key, timeout,
- * transport error, unusable answer — and the caller then reports exactly the
+ * transport error, or unusable answer; the caller then reports exactly the
  * checks and the level it reported before this judgment existed.
  */
 export async function judgeDetailPlausibility(
