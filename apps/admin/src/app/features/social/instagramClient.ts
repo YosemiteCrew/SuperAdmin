@@ -8,7 +8,7 @@ export interface SubmitReelInput {
 }
 
 export type SubmitReelResult =
-  | { ok: true; state: 'published' }
+  | { ok: true; state: 'published'; alreadyPublished?: boolean }
   // Instagram is still transcoding; the container id finishes it.
   | { ok: true; state: 'processing'; containerId: string }
   | { ok: false; error: string };
@@ -26,7 +26,13 @@ function toResult(payload: Record<string, unknown>, status: number): SubmitReelR
   if (status === 202 && typeof payload.containerId === 'string') {
     return { ok: true, state: 'processing', containerId: payload.containerId };
   }
-  if (status >= 200 && status < 300) return { ok: true, state: 'published' };
+  if (status >= 200 && status < 300) {
+    return {
+      ok: true,
+      state: 'published',
+      alreadyPublished: payload.alreadyPublished === true,
+    };
+  }
   return {
     ok: false,
     error: typeof payload.error === 'string' ? payload.error : `Request failed (${status})`,

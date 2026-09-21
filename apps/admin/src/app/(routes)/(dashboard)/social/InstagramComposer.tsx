@@ -31,7 +31,12 @@ export function InstagramComposer() {
       setStatus({ kind: 'processing', containerId: result.containerId });
       return;
     }
-    setStatus({ kind: 'done', message: 'Published to Instagram.' });
+    setStatus({
+      kind: 'done',
+      message: result.alreadyPublished
+        ? 'Already published to Instagram.'
+        : 'Published to Instagram.',
+    });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {

@@ -37,17 +37,30 @@ export function upstreamFailure(error: unknown): NextResponse {
 /** Maps a completed Instagram publish attempt onto the HTTP status it deserves. */
 export function instagramOutcomeResponse(outcome: InstagramPublishOutcome): NextResponse {
   if (outcome.ok) {
-    return outcome.state === 'published'
-      ? NextResponse.json({ state: 'published', mediaId: outcome.mediaId })
-      : // 202: the upload succeeded and Instagram is still transcoding. The
-        // container id is what finishes it, so it must reach the caller.
-        NextResponse.json(
-          { state: 'processing', containerId: outcome.containerId },
-          { status: 202 }
-        );
+    if (outcome.state === 'published') {
+      return NextResponse.json({ state: 'published', mediaId: outcome.mediaId });
+    }
+    if (outcome.state === 'already_published') {
+      return NextResponse.json({ state: 'published', alreadyPublished: true });
+    }
+    // 202: the upload succeeded and Instagram is still transcoding. The
+    // container id is what finishes it, so it must reach the caller.
+    return NextResponse.json(
+      { state: 'processing', containerId: outcome.containerId },
+      { status: 202 }
+    );
   }
   if (outcome.reason === 'not_connected') {
     return NextResponse.json({ error: 'Instagram is not connected' }, { status: 409 });
+  }
+  if (outcome.reason === 'container_expired') {
+    return NextResponse.json(
+      {
+        error:
+          'The Instagram container expired before it could be published. Create the post again.',
+      },
+      { status: 410 }
+    );
   }
   return NextResponse.json(
     { error: 'Instagram could not process the video', detail: outcome.detail },
