@@ -62,3 +62,51 @@ describe('AuditTimeline', () => {
     expect(screen.getByText('mystery.event')).toBeInTheDocument();
   });
 });
+
+describe('AuditTimeline severity', () => {
+  function one(action: AuditEvent['action']): AuditEvent {
+    return { ...EVENTS[0], id: 'x', action, targetLabel: 'someone@x.com' };
+  }
+
+  it.each([
+    ['user.session_revoke', 'Info'],
+    ['role.grant', 'Warning'],
+    ['user.delete', 'High risk'],
+  ] as const)('exposes %s as "%s" in the item text', (action, word) => {
+    render(<AuditTimeline events={[one(action as AuditEvent['action'])]} />);
+    expect(screen.getByRole('listitem')).toHaveTextContent(new RegExp(word));
+  });
+
+  it('shows a visible badge for warning and danger and none for info', () => {
+    render(
+      <AuditTimeline
+        events={[
+          { ...one('user.session_revoke'), id: 'i' },
+          { ...one('role.grant'), id: 'w' },
+          { ...one('user.delete'), id: 'd' },
+        ]}
+      />
+    );
+    expect(screen.getByText('Warning', { selector: 'span[aria-hidden]' })).toBeInTheDocument();
+    expect(screen.getByText('High risk', { selector: 'span[aria-hidden]' })).toBeInTheDocument();
+    expect(screen.queryByText('Info', { selector: 'span[aria-hidden]' })).not.toBeInTheDocument();
+  });
+
+  it('puts a recorded status enum into words when showTarget is set', () => {
+    render(
+      <AuditTimeline
+        events={[
+          {
+            ...EVENTS[0],
+            id: 's',
+            action: 'privacy.request_update',
+            targetType: 'data_request',
+            targetLabel: 'in_progress',
+          },
+        ]}
+        showTarget
+      />
+    );
+    expect(screen.getByText('Updated a data-subject request to In progress')).toBeInTheDocument();
+  });
+});

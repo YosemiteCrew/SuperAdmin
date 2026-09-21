@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import type { NextConfig } from 'next';
 import { securityHeaders } from './src/securityHeaders';
 
@@ -9,25 +7,11 @@ const nextConfig: NextConfig = {
   // importing it as "@prisma/client" instead would hit Next's built-in
   // externals list and break every route handler).
   //
-  // Bundling the JS is not enough: the query engine is a .node binary loaded at
-  // runtime through dynamic filesystem access, which tracing cannot follow. It
-  // has to be named explicitly or it never reaches the compute bundle, and
-  // every query fails with PrismaClientInitializationError while the build
-  // stays green.
+  // Nothing has to be traced out of that directory any more: Prisma 7 queries
+  // through @prisma/adapter-pg, so there is no .node query engine loaded at
+  // runtime that file tracing cannot follow. The outputFileTracingRoot and
+  // outputFileTracingIncludes entries that named it are gone with it.
   //
-  // tracingRoot must be the monorepo root; without it tracing will not look
-  // outside apps/admin and the include below silently matches nothing.
-  //
-  // BOTH of these are inert unless the build runs on webpack. next/dist/build/
-  // index.js guards the whole NFT step with
-  //   if (bundler !== Bundler.Turbopack && ...) collectBuildTraces(...)
-  // and collect-build-traces.js is the only reader of outputFileTracingIncludes.
-  // Next 16 defaults `next build` to Turbopack, so the app's build script pins
-  // --webpack. Drop that flag and the engine silently stops shipping again.
-  outputFileTracingRoot: path.join(__dirname, '../..'),
-  outputFileTracingIncludes: {
-    '/**': ['../../packages/database/src/generated/client/**/*'],
-  },
   // No `images.remotePatterns` on purpose. The panel renders two images and both
   // are local (`/yosemite-crew-logo.png`); with no patterns configured Next
   // refuses every remote URL, which is the correct default here.

@@ -4,7 +4,11 @@ import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore 
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 
+import type { Dispatch, RefObject } from 'react';
+
 import { useDebounce } from '@/app/hooks/useDebounce';
+import { NAV_ROUTES } from '@/app/ui/layout/nav';
+import { Modal } from '@/app/ui/overlays/Modal';
 
 import type { DirectoryHit } from './searchAction';
 
@@ -13,11 +17,9 @@ const LIVE_SEARCH_DEBOUNCE_MS = 250;
 
 export const COMMAND_PALETTE_EVENT = 'yc:command-palette-open';
 
-type Module = 'overview' | 'users' | 'organizations' | 'analytics' | 'settings';
-
 type SearchItem = {
   id: string;
-  module: Module;
+  badge: string;
   title: string;
   subtitle: string;
   keywords: string;
@@ -25,73 +27,39 @@ type SearchItem = {
   isQuick?: boolean;
 };
 
-const moduleLabels: Record<Module, string> = {
-  overview: 'Overview',
-  users: 'Users',
-  organizations: 'Organizations',
-  analytics: 'Analytics',
-  settings: 'Settings',
-};
+// Shortcuts shown while the query is empty, in this order. Each names a route
+// in NAV_ROUTES; PaletteQuickLinks in the test suite pins that they all resolve.
+const QUICK_LINK_HREFS = ['/dashboard', '/users', '/organizations', '/analytics', '/settings'];
 
-const quickLinks: Array<{ module: Module; title: string; href: string }> = [
-  { module: 'overview', title: 'Open Dashboard', href: '/dashboard' },
-  { module: 'users', title: 'Open Users', href: '/users' },
-  { module: 'organizations', title: 'Open Organizations', href: '/organizations' },
-  { module: 'analytics', title: 'Open Analytics', href: '/analytics' },
-  { module: 'settings', title: 'Open Settings', href: '/settings' },
-];
+// Every sidebar destination is searchable, and the badge is its sidebar group,
+// so the palette and the sidebar cannot drift apart again (#556).
+const navigableItems: SearchItem[] = NAV_ROUTES.map((route) => ({
+  id: `page:${route.href.slice(1)}`,
+  badge: route.group,
+  title: route.name,
+  subtitle: route.description ?? '',
+  // The group label is searchable too: it is what makes "privacy" find both
+  // Consent and Data requests without repeating the word in either entry.
+  keywords: `${route.keywords ?? ''} ${route.group}`.trim(),
+  href: route.href,
+}));
 
-// [module, title, subtitle, keywords, href] — compact rows, not object
-// literals, so the copy-paste detector has no repeated shape to match.
-type PageEntry = [Module, string, string, string, string];
-const pageEntries: PageEntry[] = [
-  [
-    'overview',
-    'Dashboard',
-    'Stats overview, recent signups',
-    'dashboard overview home stats signups',
-    '/dashboard',
-  ],
-  [
-    'users',
-    'Users',
-    'Browse all users, search by email, paginate',
-    'users people accounts members search list',
-    '/users',
-  ],
-  [
-    'organizations',
-    'Organizations',
-    'Manage tenants and organizations',
-    'organizations orgs tenants companies workspaces',
-    '/organizations',
-  ],
-  [
-    'analytics',
-    'Analytics',
-    'Reports, metrics and trends',
-    'analytics metrics reports insights dashboards trends',
-    '/analytics',
-  ],
-  [
-    'settings',
-    'Settings',
-    'Account and admin configuration',
-    'settings preferences configuration account admin',
-    '/settings',
-  ],
-];
-
-const navigableItems: SearchItem[] = pageEntries.map(
-  ([module, title, subtitle, keywords, href]) => ({
-    id: `page:${href.slice(1)}`,
-    module,
-    title,
-    subtitle,
-    keywords,
-    href,
-  })
-);
+const quickLinkItems: SearchItem[] = QUICK_LINK_HREFS.flatMap((href) => {
+  const route = NAV_ROUTES.find((candidate) => candidate.href === href);
+  return route
+    ? [
+        {
+          id: `quick:${href}`,
+          badge: route.group,
+          title: `Open ${route.name}`,
+          subtitle: '',
+          keywords: route.name,
+          href,
+          isQuick: true,
+        },
+      ]
+    : [];
+});
 
 const getNextResultIndex = (activeIndex: number, resultCount: number, direction: 1 | -1) => {
   const safeCount = Math.max(resultCount, 1);
@@ -100,17 +68,7 @@ const getNextResultIndex = (activeIndex: number, resultCount: number, direction:
 
 const buildResultItems = (query: string): SearchItem[] => {
   const q = query.trim().toLowerCase();
-  if (!q) {
-    return quickLinks.map((link): SearchItem => ({
-      id: `quick:${link.href}`,
-      module: link.module,
-      title: link.title,
-      subtitle: '',
-      keywords: link.title,
-      href: link.href,
-      isQuick: true,
-    }));
-  }
+  if (!q) return quickLinkItems;
 
   const tokens = q.split(/\s+/).filter(Boolean);
   return navigableItems
@@ -171,20 +129,7 @@ function paletteReducer(state: PaletteState, action: PaletteAction): PaletteStat
   }
 }
 
-export function CommandPalette() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const activeRowRef = useRef<HTMLButtonElement>(null);
-
-  // Avoids SSR/client mismatch for the portal — server returns false, client returns true
-  const isMounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-
+function useLiveDirectorySearch(query: string, isOpen: boolean) {
   const [liveHits, setLiveHits] = useState<DirectoryHit[]>([]);
   const debouncedQuery = useDebounce(query, LIVE_SEARCH_DEBOUNCE_MS);
   // Monotonic sequence: a slow earlier response must never clobber the
@@ -210,12 +155,16 @@ export function CommandPalette() {
       });
   }, [debouncedQuery, isOpen]);
 
-  const resultItems = useMemo(() => {
+  return liveHits;
+}
+
+function useResultItems(query: string, liveHits: DirectoryHit[]) {
+  return useMemo(() => {
     // Live directory hits lead: typing an email means the admin wants the
     // account, not a page link.
     const liveItems = liveHits.map((hit): SearchItem => ({
       id: `live:${hit.kind}:${hit.id}`,
-      module: hit.kind === 'user' ? 'users' : 'organizations',
+      badge: hit.kind === 'user' ? 'User' : 'Organization',
       title: hit.title,
       subtitle: hit.kind === 'user' ? 'Open user account' : 'Open organization',
       keywords: hit.title,
@@ -225,7 +174,18 @@ export function CommandPalette() {
       ? [...liveItems, ...buildResultItems(query)]
       : buildResultItems(query);
   }, [query, liveHits]);
+}
 
+type KeyboardOptions = {
+  isOpen: boolean;
+  resultItems: SearchItem[];
+  activeRowRef: RefObject<HTMLButtonElement | null>;
+  resultsRef: RefObject<HTMLUListElement | null>;
+  dispatch: Dispatch<PaletteAction>;
+};
+
+function usePaletteKeyboard(options: KeyboardOptions) {
+  const { isOpen, resultItems, activeRowRef, resultsRef, dispatch } = options;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (typeof event.key !== 'string') return;
@@ -240,11 +200,9 @@ export function CommandPalette() {
 
       if (!isOpen) return;
 
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        dispatch({ type: 'CLOSE' });
-        return;
-      }
+      // Escape is NOT handled here: the overlay is a modal <dialog>, so the
+      // platform fires `cancel` and Modal's own handler closes it. A second
+      // branch here would dispatch CLOSE twice for one key press.
 
       if (event.key === 'ArrowDown') {
         event.preventDefault();
@@ -259,6 +217,13 @@ export function CommandPalette() {
       }
 
       if (event.key === 'Enter') {
+        // A focused result activates itself. Cancelling that keydown here would
+        // suppress the button's own activation and click the highlighted row
+        // instead, which is a different result once the operator has tabbed
+        // (#551). Enter from the input, or from nowhere, still takes the
+        // highlight.
+        const target = event.target;
+        if (target instanceof Node && resultsRef.current?.contains(target)) return;
         event.preventDefault();
         activeRowRef.current?.click();
       }
@@ -272,11 +237,23 @@ export function CommandPalette() {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener(COMMAND_PALETTE_EVENT, onCustomOpen);
     };
-  }, [activeIndex, isOpen, resultItems]);
+  }, [activeRowRef, dispatch, isOpen, resultItems, resultsRef]);
+}
 
+type LifecycleOptions = {
+  isOpen: boolean;
+  pathname: string;
+  activeIndex: number;
+  inputRef: RefObject<HTMLInputElement | null>;
+  activeRowRef: RefObject<HTMLButtonElement | null>;
+  dispatch: Dispatch<PaletteAction>;
+};
+
+function usePaletteLifecycle(options: LifecycleOptions) {
+  const { isOpen, pathname, activeIndex, inputRef, activeRowRef, dispatch } = options;
   useEffect(() => {
     dispatch({ type: 'CLOSE_AND_CLEAR' });
-  }, [pathname]);
+  }, [dispatch, pathname]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -288,12 +265,12 @@ export function CommandPalette() {
     return () => {
       if (timeout) globalThis.window.clearTimeout(timeout);
     };
-  }, [isOpen]);
+  }, [dispatch, inputRef, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     activeRowRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex, isOpen]);
+  }, [activeIndex, activeRowRef, isOpen]);
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
@@ -303,86 +280,142 @@ export function CommandPalette() {
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
+}
 
-  if (!isMounted || !isOpen) return null;
+type PaletteResultsProps = {
+  readonly resultItems: SearchItem[];
+  readonly activeIndex: number;
+  readonly activeRowRef: RefObject<HTMLButtonElement | null>;
+  readonly resultsRef: RefObject<HTMLUListElement | null>;
+  readonly onActivate: (index: number) => void;
+  readonly onSelect: (href: string) => void;
+};
 
-  return createPortal(
-    <div className="fixed inset-0 z-[1200] bg-[var(--glass-93)] p-2 backdrop-blur-[8px] sm:p-6">
-      <button
-        type="button"
-        aria-label="Close command palette"
-        className="absolute inset-0"
-        onClick={() => dispatch({ type: 'CLOSE' })}
-      />
-      <dialog
-        open
-        aria-modal="true"
-        aria-label="Command palette"
-        className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8"
-      >
+function PaletteResults(props: PaletteResultsProps) {
+  const { resultItems, activeIndex, activeRowRef, resultsRef, onActivate, onSelect } = props;
+  if (resultItems.length === 0) {
+    return (
+      <div className="px-4 py-7 text-center font-[var(--font-satoshi)] text-sm text-[var(--color-text-secondary)]">
+        No matches found. Try a broader keyword.
+      </div>
+    );
+  }
+
+  return (
+    <ul ref={resultsRef} className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Pages">
+      {resultItems.map((item, index) => {
+        const isActive = index === activeIndex;
+        return (
+          <li key={item.id}>
+            <button
+              ref={isActive ? activeRowRef : null}
+              type="button"
+              aria-current={isActive ? 'true' : undefined}
+              onMouseEnter={() => onActivate(index)}
+              onFocus={() => onActivate(index)}
+              onClick={() => onSelect(item.href)}
+              className={
+                isActive
+                  ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
+                  : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--blue)]/25 hover:bg-surface/78'
+              }
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
+                    {item.title}
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-line bg-surface/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
+                    {item.badge}
+                  </div>
+                </div>
+                {item.subtitle && !item.isQuick ? (
+                  <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
+                    {item.subtitle}
+                  </div>
+                ) : null}
+              </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+type PaletteDialogProps = PaletteResultsProps & {
+  readonly query: string;
+  readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly onQueryChange: (query: string) => void;
+  readonly onClose: () => void;
+};
+
+function PaletteDialog(props: PaletteDialogProps) {
+  const { query, inputRef, onQueryChange, onClose, ...resultsProps } = props;
+  return (
+    <Modal
+      isOpen
+      label="Command palette"
+      onClose={onClose}
+      className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-2 backdrop:bg-[var(--glass-93)] backdrop:backdrop-blur-[8px] sm:p-6"
+    >
+      <div className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8">
         <div className="border-b border-line bg-[var(--blue-soft)] px-3 py-3 sm:px-4">
           <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface/72 px-3 py-2 shadow-[inset_0_1px_0_var(--hairline-soft)] backdrop-blur-md">
             <input
               ref={inputRef}
               value={query}
-              onChange={(event) => dispatch({ type: 'SET_QUERY', query: event.target.value })}
+              onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search pages, users, organizations…"
               className="w-full border-0 bg-transparent font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
               aria-label="Command palette input"
             />
           </div>
         </div>
-
         <div className="scrollbar-custom max-h-[60vh] overflow-y-auto p-2.5 sm:p-3">
-          {resultItems.length === 0 ? (
-            <div className="px-4 py-7 text-center font-[var(--font-satoshi)] text-sm text-[var(--color-text-secondary)]">
-              No matches found. Try a broader keyword.
-            </div>
-          ) : (
-            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Pages">
-              {resultItems.map((item, index) => {
-                const isActive = index === activeIndex;
-                return (
-                  <li key={item.id}>
-                    <button
-                      ref={isActive ? activeRowRef : null}
-                      type="button"
-                      aria-current={isActive ? 'true' : undefined}
-                      onMouseEnter={() => dispatch({ type: 'SET_ACTIVE', index })}
-                      onClick={() => {
-                        dispatch({ type: 'SELECT_ITEM' });
-                        router.push(item.href);
-                      }}
-                      className={
-                        isActive
-                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
-                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--blue)]/25 hover:bg-surface/78'
-                      }
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
-                            {item.title}
-                          </div>
-                          <div className="shrink-0 rounded-xl border border-line bg-surface/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
-                            {moduleLabels[item.module]}
-                          </div>
-                        </div>
-                        {item.subtitle && !item.isQuick ? (
-                          <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
-                            {item.subtitle}
-                          </div>
-                        ) : null}
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <PaletteResults {...resultsProps} />
         </div>
-      </dialog>
-    </div>,
+      </div>
+    </Modal>
+  );
+}
+
+export function CommandPalette() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeRowRef = useRef<HTMLButtonElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const liveHits = useLiveDirectorySearch(query, isOpen);
+  const resultItems = useResultItems(query, liveHits);
+
+  usePaletteKeyboard({ isOpen, resultItems, activeRowRef, resultsRef, dispatch });
+  usePaletteLifecycle({ isOpen, pathname, activeIndex, inputRef, activeRowRef, dispatch });
+
+  if (!isMounted || !isOpen) return null;
+
+  return createPortal(
+    <PaletteDialog
+      query={query}
+      resultItems={resultItems}
+      activeIndex={activeIndex}
+      inputRef={inputRef}
+      activeRowRef={activeRowRef}
+      resultsRef={resultsRef}
+      onClose={() => dispatch({ type: 'CLOSE' })}
+      onQueryChange={(nextQuery) => dispatch({ type: 'SET_QUERY', query: nextQuery })}
+      onActivate={(index) => dispatch({ type: 'SET_ACTIVE', index })}
+      onSelect={(href) => {
+        dispatch({ type: 'SELECT_ITEM' });
+        router.push(href);
+      }}
+    />,
     document.body
   );
 }

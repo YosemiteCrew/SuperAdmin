@@ -4,9 +4,14 @@ import Link from 'next/link';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { linkEmailsToAccounts } from '@/app/features/contact/link';
 import {
+  CONTACT_REQUEST_STATUS_LABELS,
+  describeContactRequestStatus,
+} from '@/app/features/contact/labels';
+import {
   countRequestsByStatus,
   listContactRequests,
   normalizeCursor,
+  REQUEST_STATUSES,
   type RequestStatus,
 } from '@/app/features/contact/store';
 
@@ -18,10 +23,8 @@ export const metadata: Metadata = { title: 'Contact requests' };
 type Filter = RequestStatus | 'all';
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'new', label: 'New' },
-  { key: 'in_progress', label: 'In progress' },
-  { key: 'closed', label: 'Closed' },
-  { key: 'all', label: 'All' },
+  ...REQUEST_STATUSES.map((key) => ({ key, label: CONTACT_REQUEST_STATUS_LABELS[key] })),
+  { key: 'all' as const, label: 'All' },
 ];
 
 const STATUS_STYLE: Record<RequestStatus, string> = {
@@ -102,7 +105,7 @@ function RequestCard({
           <span
             className={`inline-flex rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLE[r.status]}`}
           >
-            {FILTERS.find((f) => f.key === r.status)?.label ?? r.status}
+            {describeContactRequestStatus(r.status)}
           </span>
           {/* Keyed on status so a rejected stale write, or another admin's
               change landing via revalidatePath, remounts the control: its

@@ -183,6 +183,20 @@ describe('logDataRequestAction', () => {
 });
 
 describe('updateDataRequestStatusAction', () => {
+  it('does not update or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(
+      updateDataRequestStatusAction(
+        makeFormData({ id: 'dr_1', status: 'fulfilled', expectedStatus: 'in_progress' })
+      )
+    ).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevalidate).not.toHaveBeenCalled();
+  });
+
   it('rejects a missing id', async () => {
     const result = await updateDataRequestStatusAction(
       makeFormData({ status: 'fulfilled', expectedStatus: 'in_progress' })

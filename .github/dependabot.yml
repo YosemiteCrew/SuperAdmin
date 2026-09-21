@@ -51,18 +51,12 @@ updates:
       # check-pnpm-overrides is plain ESM), so they no longer bind this hold.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
-      # prisma 7 + @prisma/client 7 drop `url` from the schema's datasource
-      # block: connection URLs move to a prisma.config.ts for Migrate, and the
-      # client takes an `adapter` (or accelerateUrl) instead. packages/database
-      # still declares `url = env("DATABASE_URL")`, so v7 fails schema validation
-      # (P1012) inside `prisma generate` — which runs in that package's
-      # postinstall, so `pnpm install` itself dies and EVERY job goes red, not
-      # just the database ones. That is what happened in #143 and #144.
-      # The two must move together, and only once the migration is done.
-      # Lift both rules in the same PR.
-      - dependency-name: 'prisma'
-        update-types: ['version-update:semver-major']
-      - dependency-name: '@prisma/client'
+      # @types/node tracks the Node runtime major, not the latest release.
+      # `.nvmrc`, `amplify.yml` and every workflow pin Node 22 (#595), and
+      # nodeVersion.test.ts fails when the type surface disagrees - which is
+      # what turned #605 red. Release this hold in the commit that moves the
+      # runtime, not before.
+      - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: '/'

@@ -81,6 +81,18 @@ afterEach(() => {
 });
 
 describe('bulkApproveAccountsAction', () => {
+  it('does not read, approve, audit, or notify when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkApproveAccountsAction(['u1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockApprove).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockSendEmail).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('rejects an empty selection', async () => {
     const result = await bulkApproveAccountsAction([]);
     expect(result.error).toMatch(/No accounts/);
@@ -201,6 +213,19 @@ describe('bulkApproveAccountsAction', () => {
 });
 
 describe('bulkRejectAccountsAction', () => {
+  it('does not read, reject, audit, or notify when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(bulkRejectAccountsAction(['u1'])).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockBootstrap).not.toHaveBeenCalled();
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockReject).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+    expect(mockRevokeAll).not.toHaveBeenCalled();
+    expect(mockNotify).not.toHaveBeenCalled();
+  });
+
   it('rejects a batch over the cap', async () => {
     const ids = Array.from({ length: 51 }, (_, i) => `u${i}`);
     const result = await bulkRejectAccountsAction(ids);

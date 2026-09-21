@@ -22,6 +22,15 @@ State is local React (`useState` / Server Components / URL params). No client st
 2. `pnpm --filter admin run lint`
 3. `pnpm --filter admin run test --testPathPatterns="<file>"`
 
+## Local Build and Development Gotchas
+
+- `next build` sets `NODE_ENV=production` even for a local or CI build. Consequently,
+  `src/app/config/env.public.ts` must still accept loopback HTTP origins while rejecting HTTP for
+  every deployed origin; otherwise a local production build cannot use its normal localhost URL.
+- After changing `src/proxy.ts` or `src/securityHeaders.ts`, a stale `.next` cache can fail with an
+  `ENOENT` for an `edge/chunks/*.js` file. Run `pnpm --filter admin run dev:clean` to discard the
+  generated cache before investigating the application code.
+
 ## Directory Conventions
 
 - `src/app/ui/` — UI primitives (no business logic, no API calls)

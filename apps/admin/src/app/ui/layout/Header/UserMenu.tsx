@@ -75,6 +75,7 @@ export function UserMenu({
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-label={`Account menu for ${displayName}`}
         className={
           open ? `${styles.profileTrigger} ${styles.profileTriggerOpen}` : styles.profileTrigger
         }

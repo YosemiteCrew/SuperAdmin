@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { IoCalendarClearOutline, IoSearchOutline } from 'react-icons/io5';
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { AUDIT_META } from '@/app/features/audit/audit';
+import { AUDIT_META, AUDIT_SEVERITY_LABELS } from '@/app/features/audit/audit';
 import { AuditIntegrityBanner } from '@/app/features/audit/AuditIntegrityBanner';
 import { AuditTable } from '@/app/features/audit/AuditTable';
 import {
@@ -193,6 +193,14 @@ export default async function AuditLogPage({
           disabled={auditPage.total === 0}
         />
       </div>
+
+      {/* Names the three severities in order, so the dot beside each action has
+          something to mean for a reader who has not seen this screen before. */}
+      <p className="m-0 text-[12px] text-[color:var(--ink-faint)]">
+        Severity: {AUDIT_SEVERITY_LABELS.info} · {AUDIT_SEVERITY_LABELS.warning} ·{' '}
+        {AUDIT_SEVERITY_LABELS.danger}. Warning and high-risk events are labelled in the Action
+        column.
+      </p>
 
       <AuditTable
         events={auditPage.items}

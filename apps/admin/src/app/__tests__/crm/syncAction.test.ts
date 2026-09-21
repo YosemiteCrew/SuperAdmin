@@ -41,6 +41,17 @@ beforeEach(() => {
 });
 
 describe('syncContactsAction', () => {
+  it('does not inspect config, sync, or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(syncContactsAction()).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockConfigured).not.toHaveBeenCalled();
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockSync).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
   it('syncs all contacts and returns counts', async () => {
     const result = await syncContactsAction();
     expect(mockSync).toHaveBeenCalledWith(['a@b.com', 'c@d.com']);

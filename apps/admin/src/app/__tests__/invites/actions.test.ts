@@ -65,6 +65,18 @@ beforeEach(() => {
 });
 
 describe('createInviteAction', () => {
+  it('does not create or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(createInviteAction(formData({ email: 'new@admin.com' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockCreateInvite).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+  });
+
   it('returns error for missing email', async () => {
     const result = await createInviteAction(formData({ email: '' }));
     expect(result.error).toBeTruthy();
@@ -108,6 +120,18 @@ describe('createInviteAction', () => {
 });
 
 describe('revokeInviteAction', () => {
+  it('does not revoke or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(revokeInviteAction(formData({ inviteId: 'inv-1' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockRevokeInvite).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
   it('does nothing for missing inviteId', async () => {
     await revokeInviteAction(formData({ inviteId: '' }));
     expect(mockRevokeInvite).not.toHaveBeenCalled();

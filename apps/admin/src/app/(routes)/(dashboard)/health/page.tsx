@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { collectSystemHealth, formatUptime } from '@/app/features/health';
 import type { SystemHealth } from '@/app/features/health/types';
+import { getServerTimestamp } from '@/app/lib/serverTime';
 
 export const metadata: Metadata = {
   title: 'System Health',
@@ -63,7 +64,46 @@ function Row({
   );
 }
 
-function HealthReport({ h }: { readonly h: SystemHealth }) {
+function formatUtc(date: Date): string {
+  return `${date.toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  })} UTC`;
+}
+
+function formatAge(date: Date, now: number): string {
+  const minutes = Math.max(0, Math.floor((now - date.getTime()) / 60_000));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function NewestSubmission({
+  value,
+  now,
+}: {
+  readonly value: SystemHealth['contactIntake']['newestSubmissionAt'];
+  readonly now: number;
+}) {
+  if (value === 'unavailable') {
+    return <span className="text-[color:var(--danger-text)]">Unavailable</span>;
+  }
+  if (!value) return 'None received';
+  return (
+    <span className="flex flex-col items-end gap-0.5 tabular-nums">
+      <time dateTime={value.toISOString()}>{formatUtc(value)}</time>
+      <span className="text-[11.5px] font-medium text-[color:var(--ink-faint)]">
+        {formatAge(value, now)}
+      </span>
+    </span>
+  );
+}
+
+function HealthReport({ h, now }: { readonly h: SystemHealth; readonly now: number }) {
   const stOk = h.supertokens.status === 'ok';
 
   return (
@@ -97,6 +137,22 @@ function HealthReport({ h }: { readonly h: SystemHealth }) {
         <Row label="RSS" value={`${h.memory.rssmb} MB`} />
         <Row label="Heap used" value={`${h.memory.heapUsedMb} / ${h.memory.heapTotalMb} MB`} />
       </Card>
+
+      <Card title="Contact intake">
+        <Row
+          label="Shared key"
+          value={
+            <span className="flex items-center justify-end gap-2">
+              <StatusDot ok={h.contactIntake.keyConfigured} size={8} />
+              {h.contactIntake.keyConfigured ? 'Configured' : 'Not configured'}
+            </span>
+          }
+        />
+        <Row
+          label="Newest submission"
+          value={<NewestSubmission value={h.contactIntake.newestSubmissionAt} now={now} />}
+        />
+      </Card>
     </div>
   );
 }
@@ -105,6 +161,7 @@ export default async function HealthPage() {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
   const health = await collectSystemHealth();
+  const now = getServerTimestamp();
 
   const overallOk = health.supertokens.status === 'ok';
 
@@ -133,7 +190,7 @@ export default async function HealthPage() {
         </div>
       </header>
 
-      <HealthReport h={health} />
+      <HealthReport h={health} now={now} />
     </div>
   );
 }
