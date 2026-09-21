@@ -18,12 +18,7 @@ export type DataRequestStatus = (typeof REQUEST_STATUSES)[number];
  * that rendered one, which is how `in_progress` reached the screen from the
  * places that had no copy.
  */
-export const DATA_REQUEST_TYPE_LABELS: Readonly<Record<RequestType, string>> = {
-  access: 'Access',
-  erasure: 'Erasure',
-  rectification: 'Rectification',
-  objection: 'Objection',
-};
+export const DATA_REQUEST_TYPE_LABELS: Readonly<Record<RequestType, string>> = REQUEST_TYPE_LABELS;
 
 export const DATA_REQUEST_STATUS_LABELS: Readonly<Record<DataRequestStatus, string>> = {
   received: 'Received',

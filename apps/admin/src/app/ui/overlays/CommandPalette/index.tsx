@@ -4,6 +4,8 @@ import { useEffect, useMemo, useReducer, useRef, useState, useSyncExternalStore 
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 
+import type { Dispatch, RefObject } from 'react';
+
 import { useDebounce } from '@/app/hooks/useDebounce';
 import { NAV_ROUTES } from '@/app/ui/layout/nav';
 import { Modal } from '@/app/ui/overlays/Modal';
@@ -127,21 +129,7 @@ function paletteReducer(state: PaletteState, action: PaletteAction): PaletteStat
   }
 }
 
-export function CommandPalette() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const activeRowRef = useRef<HTMLButtonElement>(null);
-  const resultsRef = useRef<HTMLUListElement>(null);
-
-  // Avoids SSR/client mismatch for the portal — server returns false, client returns true
-  const isMounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-
+function useLiveDirectorySearch(query: string, isOpen: boolean) {
   const [liveHits, setLiveHits] = useState<DirectoryHit[]>([]);
   const debouncedQuery = useDebounce(query, LIVE_SEARCH_DEBOUNCE_MS);
   // Monotonic sequence: a slow earlier response must never clobber the
@@ -167,7 +155,11 @@ export function CommandPalette() {
       });
   }, [debouncedQuery, isOpen]);
 
-  const resultItems = useMemo(() => {
+  return liveHits;
+}
+
+function useResultItems(query: string, liveHits: DirectoryHit[]) {
+  return useMemo(() => {
     // Live directory hits lead: typing an email means the admin wants the
     // account, not a page link.
     const liveItems = liveHits.map((hit): SearchItem => ({
@@ -182,7 +174,18 @@ export function CommandPalette() {
       ? [...liveItems, ...buildResultItems(query)]
       : buildResultItems(query);
   }, [query, liveHits]);
+}
 
+type KeyboardOptions = {
+  isOpen: boolean;
+  resultItems: SearchItem[];
+  activeRowRef: RefObject<HTMLButtonElement | null>;
+  resultsRef: RefObject<HTMLUListElement | null>;
+  dispatch: Dispatch<PaletteAction>;
+};
+
+function usePaletteKeyboard(options: KeyboardOptions) {
+  const { isOpen, resultItems, activeRowRef, resultsRef, dispatch } = options;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (typeof event.key !== 'string') return;
@@ -234,11 +237,23 @@ export function CommandPalette() {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener(COMMAND_PALETTE_EVENT, onCustomOpen);
     };
-  }, [activeIndex, isOpen, resultItems]);
+  }, [activeRowRef, dispatch, isOpen, resultItems, resultsRef]);
+}
 
+type LifecycleOptions = {
+  isOpen: boolean;
+  pathname: string;
+  activeIndex: number;
+  inputRef: RefObject<HTMLInputElement | null>;
+  activeRowRef: RefObject<HTMLButtonElement | null>;
+  dispatch: Dispatch<PaletteAction>;
+};
+
+function usePaletteLifecycle(options: LifecycleOptions) {
+  const { isOpen, pathname, activeIndex, inputRef, activeRowRef, dispatch } = options;
   useEffect(() => {
     dispatch({ type: 'CLOSE_AND_CLEAR' });
-  }, [pathname]);
+  }, [dispatch, pathname]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -250,12 +265,12 @@ export function CommandPalette() {
     return () => {
       if (timeout) globalThis.window.clearTimeout(timeout);
     };
-  }, [isOpen]);
+  }, [dispatch, inputRef, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
     activeRowRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex, isOpen]);
+  }, [activeIndex, activeRowRef, isOpen]);
 
   useEffect(() => {
     if (!isOpen || typeof document === 'undefined') return;
@@ -265,17 +280,83 @@ export function CommandPalette() {
       document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
+}
 
-  if (!isMounted || !isOpen) return null;
+type PaletteResultsProps = {
+  readonly resultItems: SearchItem[];
+  readonly activeIndex: number;
+  readonly activeRowRef: RefObject<HTMLButtonElement | null>;
+  readonly resultsRef: RefObject<HTMLUListElement | null>;
+  readonly onActivate: (index: number) => void;
+  readonly onSelect: (href: string) => void;
+};
 
-  return createPortal(
-    // The dialog fills the viewport and carries the veil on its own ::backdrop:
-    // showModal() puts it in the top layer, so a separate overlay div behind it
-    // would be inert and could no longer be clicked to dismiss (#552).
+function PaletteResults(props: PaletteResultsProps) {
+  const { resultItems, activeIndex, activeRowRef, resultsRef, onActivate, onSelect } = props;
+  if (resultItems.length === 0) {
+    return (
+      <div className="px-4 py-7 text-center font-[var(--font-satoshi)] text-sm text-[var(--color-text-secondary)]">
+        No matches found. Try a broader keyword.
+      </div>
+    );
+  }
+
+  return (
+    <ul ref={resultsRef} className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Pages">
+      {resultItems.map((item, index) => {
+        const isActive = index === activeIndex;
+        return (
+          <li key={item.id}>
+            <button
+              ref={isActive ? activeRowRef : null}
+              type="button"
+              aria-current={isActive ? 'true' : undefined}
+              onMouseEnter={() => onActivate(index)}
+              onFocus={() => onActivate(index)}
+              onClick={() => onSelect(item.href)}
+              className={
+                isActive
+                  ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
+                  : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--blue)]/25 hover:bg-surface/78'
+              }
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
+                    {item.title}
+                  </div>
+                  <div className="shrink-0 rounded-xl border border-line bg-surface/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
+                    {item.badge}
+                  </div>
+                </div>
+                {item.subtitle && !item.isQuick ? (
+                  <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
+                    {item.subtitle}
+                  </div>
+                ) : null}
+              </div>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+type PaletteDialogProps = PaletteResultsProps & {
+  readonly query: string;
+  readonly inputRef: RefObject<HTMLInputElement | null>;
+  readonly onQueryChange: (query: string) => void;
+  readonly onClose: () => void;
+};
+
+function PaletteDialog(props: PaletteDialogProps) {
+  const { query, inputRef, onQueryChange, onClose, ...resultsProps } = props;
+  return (
     <Modal
       isOpen
       label="Command palette"
-      onClose={() => dispatch({ type: 'CLOSE' })}
+      onClose={onClose}
       className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 bg-transparent p-2 backdrop:bg-[var(--glass-93)] backdrop:backdrop-blur-[8px] sm:p-6"
     >
       <div className="mx-auto mt-2 w-full max-w-2xl overflow-hidden rounded-2xl border border-[var(--ink-faint)]/80 bg-surface/68 shadow-[0_28px_70px_var(--sh12)] backdrop-blur-xl sm:mt-8">
@@ -284,72 +365,57 @@ export function CommandPalette() {
             <input
               ref={inputRef}
               value={query}
-              onChange={(event) => dispatch({ type: 'SET_QUERY', query: event.target.value })}
+              onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Search pages, users, organizations…"
               className="w-full border-0 bg-transparent font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-tertiary)]"
               aria-label="Command palette input"
             />
           </div>
         </div>
-
         <div className="scrollbar-custom max-h-[60vh] overflow-y-auto p-2.5 sm:p-3">
-          {resultItems.length === 0 ? (
-            <div className="px-4 py-7 text-center font-[var(--font-satoshi)] text-sm text-[var(--color-text-secondary)]">
-              No matches found. Try a broader keyword.
-            </div>
-          ) : (
-            <ul
-              ref={resultsRef}
-              className="grid grid-cols-1 gap-2 sm:grid-cols-2"
-              aria-label="Pages"
-            >
-              {resultItems.map((item, index) => {
-                const isActive = index === activeIndex;
-                return (
-                  <li key={item.id}>
-                    <button
-                      ref={isActive ? activeRowRef : null}
-                      type="button"
-                      aria-current={isActive ? 'true' : undefined}
-                      onMouseEnter={() => dispatch({ type: 'SET_ACTIVE', index })}
-                      // Keyboard focus is the one source of truth for "the row
-                      // the operator is on": the highlight follows Tab, and the
-                      // arrow keys carry on from the focused row.
-                      onFocus={() => dispatch({ type: 'SET_ACTIVE', index })}
-                      onClick={() => {
-                        dispatch({ type: 'SELECT_ITEM' });
-                        router.push(item.href);
-                      }}
-                      className={
-                        isActive
-                          ? 'flex w-full min-h-[64px] items-center rounded-2xl border border-[var(--blue)]/30 bg-[var(--blue-soft)] px-3 py-2.5 text-left shadow-[0_6px_18px_var(--sh12)] transition-all duration-150'
-                          : 'flex w-full min-h-[64px] items-center rounded-2xl border border-line bg-surface/62 px-3 py-2.5 text-left transition-all duration-150 hover:border-[var(--blue)]/25 hover:bg-surface/78'
-                      }
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="truncate pr-2 font-[var(--font-satoshi)] text-sm text-[var(--color-text-primary)]">
-                            {item.title}
-                          </div>
-                          <div className="shrink-0 rounded-xl border border-line bg-surface/72 px-2 py-0.5 font-[var(--font-satoshi)] text-[10px] font-medium uppercase tracking-[-0.22px] text-[var(--color-text-secondary)]">
-                            {item.badge}
-                          </div>
-                        </div>
-                        {item.subtitle && !item.isQuick ? (
-                          <div className="truncate pt-0.5 font-[var(--font-satoshi)] text-xs text-[var(--color-text-secondary)]">
-                            {item.subtitle}
-                          </div>
-                        ) : null}
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <PaletteResults {...resultsProps} />
         </div>
       </div>
-    </Modal>,
+    </Modal>
+  );
+}
+
+export function CommandPalette() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [{ isOpen, query, activeIndex }, dispatch] = useReducer(paletteReducer, paletteInitial);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeRowRef = useRef<HTMLButtonElement>(null);
+  const resultsRef = useRef<HTMLUListElement>(null);
+  const isMounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+  const liveHits = useLiveDirectorySearch(query, isOpen);
+  const resultItems = useResultItems(query, liveHits);
+
+  usePaletteKeyboard({ isOpen, resultItems, activeRowRef, resultsRef, dispatch });
+  usePaletteLifecycle({ isOpen, pathname, activeIndex, inputRef, activeRowRef, dispatch });
+
+  if (!isMounted || !isOpen) return null;
+
+  return createPortal(
+    <PaletteDialog
+      query={query}
+      resultItems={resultItems}
+      activeIndex={activeIndex}
+      inputRef={inputRef}
+      activeRowRef={activeRowRef}
+      resultsRef={resultsRef}
+      onClose={() => dispatch({ type: 'CLOSE' })}
+      onQueryChange={(nextQuery) => dispatch({ type: 'SET_QUERY', query: nextQuery })}
+      onActivate={(index) => dispatch({ type: 'SET_ACTIVE', index })}
+      onSelect={(href) => {
+        dispatch({ type: 'SELECT_ITEM' });
+        router.push(href);
+      }}
+    />,
     document.body
   );
 }

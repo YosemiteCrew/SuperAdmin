@@ -78,8 +78,12 @@ export const submitTotp = async (page: Page, secret: string) => {
 
   try {
     await expect(codeField).toBeVisible({ timeout: 30_000 });
-  } catch (error) {
-    const heading = await page.locator('h1, h2, h3').first().textContent().catch(() => null);
+  } catch {
+    const heading = await page
+      .locator('h1, h2, h3')
+      .first()
+      .textContent()
+      .catch(() => null);
     throw new Error(
       `No TOTP field appeared at ${new URL(page.url()).pathname}. ` +
         `Heading on screen: ${heading ?? '(none)'}. ` +
@@ -92,7 +96,5 @@ export const submitTotp = async (page: Page, secret: string) => {
 };
 
 export const waitForRouteAwayFrom = async (page: Page, fromPath: string) => {
-  await expect
-    .poll(() => new URL(page.url()).pathname, { timeout: 60_000 })
-    .not.toBe(fromPath);
+  await expect.poll(() => new URL(page.url()).pathname, { timeout: 60_000 }).not.toBe(fromPath);
 };
