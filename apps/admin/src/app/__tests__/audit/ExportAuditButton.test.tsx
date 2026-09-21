@@ -41,4 +41,19 @@ describe('ExportAuditButton', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:audit');
     clickSpy.mockRestore();
   });
+
+  it('reports a failed export and lets the admin try again', async () => {
+    exportAuditActionMock.mockRejectedValue(new Error('database unavailable'));
+    render(<ExportAuditButton filters={{}} disabled={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /export csv/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(/export could not be produced/i)
+    );
+    // Without the catch the transition never settles, so the button keeps
+    // saying "Exporting…" and stays disabled for the rest of the session.
+    const button = screen.getByRole('button', { name: /export csv/i });
+    expect(button).toBeEnabled();
+    expect(createObjectURL).not.toHaveBeenCalled();
+  });
 });
