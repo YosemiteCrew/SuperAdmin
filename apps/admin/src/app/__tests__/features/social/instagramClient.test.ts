@@ -26,7 +26,11 @@ beforeEach(() => fetchMock.mockReset());
 describe('submitReel', () => {
   it('posts the video, caption and placement as multipart', async () => {
     fetchMock.mockResolvedValue(response({ state: 'published', mediaId: 'm1' }));
-    expect(await submitReel(INPUT)).toEqual({ ok: true, state: 'published' });
+    expect(await submitReel(INPUT)).toEqual({
+      ok: true,
+      state: 'published',
+      alreadyPublished: false,
+    });
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/social/instagram/post');
@@ -68,14 +72,22 @@ describe('submitReel', () => {
 
   it('treats a 202 without a container id as published rather than losing the result', async () => {
     fetchMock.mockResolvedValue(response({}, 202));
-    expect(await submitReel(INPUT)).toEqual({ ok: true, state: 'published' });
+    expect(await submitReel(INPUT)).toEqual({
+      ok: true,
+      state: 'published',
+      alreadyPublished: false,
+    });
   });
 });
 
 describe('finishReel', () => {
   it('POSTs the container id, because finishing publishes the Reel', async () => {
     fetchMock.mockResolvedValue(response({ state: 'published' }));
-    expect(await finishReel('17909')).toEqual({ ok: true, state: 'published' });
+    expect(await finishReel('17909')).toEqual({
+      ok: true,
+      state: 'published',
+      alreadyPublished: false,
+    });
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('/api/social/instagram/finish');
     expect(init.method).toBe('POST');
@@ -85,5 +97,14 @@ describe('finishReel', () => {
   it('reports still-processing', async () => {
     fetchMock.mockResolvedValue(response({ state: 'processing', containerId: '17909' }, 202));
     expect(await finishReel('17909')).toMatchObject({ state: 'processing' });
+  });
+
+  it('reports alreadyPublished when the container is already published', async () => {
+    fetchMock.mockResolvedValue(response({ state: 'published', alreadyPublished: true }));
+    expect(await finishReel('17909')).toEqual({
+      ok: true,
+      state: 'published',
+      alreadyPublished: true,
+    });
   });
 });

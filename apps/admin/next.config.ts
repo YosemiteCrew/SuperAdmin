@@ -7,8 +7,11 @@ const nextConfig: NextConfig = {
   // importing it as "@prisma/client" instead would hit Next's built-in
   // externals list and break every route handler).
   //
-  // Prisma 7 uses the PostgreSQL driver adapter and has no native query-engine
-  // binary to trace or copy into the deployment artifact.
+  // Nothing has to be traced out of that directory any more: Prisma 7 queries
+  // through @prisma/adapter-pg, so there is no .node query engine loaded at
+  // runtime that file tracing cannot follow. The outputFileTracingRoot and
+  // outputFileTracingIncludes entries that named it are gone with it.
+  //
   // No `images.remotePatterns` on purpose. The panel renders two images and both
   // are local (`/yosemite-crew-logo.png`); with no patterns configured Next
   // refuses every remote URL, which is the correct default here.

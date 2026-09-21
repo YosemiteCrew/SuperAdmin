@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
 
+const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
+  requireSuperAdmin: (...a: unknown[]) => requireSuperAdminMock(...a),
 }));
 
 const getUserCountMock = jest.fn();
@@ -33,8 +35,12 @@ describe('AnalyticsPage sign-in methods', () => {
 
     render(await AnalyticsPage());
 
-    const row = screen.getByText('emailpassword').closest('tr');
+    // The recipe id is what the core returns and what the icon map is keyed
+    // on; the operator sees the words. Asserting both directions keeps the
+    // mapping from being undone without this test noticing.
+    const row = screen.getByText('Email and password').closest('tr');
     expect(row?.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByText('emailpassword')).not.toBeInTheDocument();
   });
 
   /**
@@ -51,5 +57,21 @@ describe('AnalyticsPage sign-in methods', () => {
 
     const row = screen.getByText('webauthn').closest('tr');
     expect(row?.querySelector('svg')).toBeInTheDocument();
+  });
+
+  /**
+   * The page must authorise for itself: a `redirect()` from the shared
+   * dashboard layout does not stop React rendering the page beside it, and Next
+   * serialises what rendered into the body of the 3xx response. See
+   * __tests__/dashboardPageGuard.test.ts.
+   */
+  it('reads no data when the guard rejects the caller', async () => {
+    const redirected = Symbol('redirected');
+    requireSuperAdminMock.mockRejectedValueOnce(redirected);
+
+    await expect(AnalyticsPage()).rejects.toBe(redirected);
+    expect(requireSuperAdminMock).toHaveBeenCalledWith('page');
+    expect(getUserCountMock).not.toHaveBeenCalled();
+    expect(getUsersNewestFirstMock).not.toHaveBeenCalled();
   });
 });

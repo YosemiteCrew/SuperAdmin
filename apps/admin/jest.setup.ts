@@ -8,8 +8,14 @@ if (typeof globalThis.TextEncoder === 'undefined') {
   Object.defineProperty(globalThis, 'TextEncoder', { value: TextEncoder });
 }
 
-// Mock DATABASE_URL so @superadmin/database client.ts doesn't throw at import time
-process.env.DATABASE_URL ??= 'postgres://user:pass@localhost:5432/test';
+// @superadmin/database builds its pg adapter when the module is imported, so
+// importing it needs a connection string to parse. A few suites reach it through
+// a server action they are testing for other reasons, and before the Prisma 7
+// move they did so without one. ci-affected.yaml already exports a placeholder
+// for every job, so default rather than assign: this makes a local run behave
+// like CI instead of depending on whatever is in the shell. No connection is
+// opened; a suite that cares about the value sets its own.
+process.env.DATABASE_URL ??= 'postgresql://localhost:5432/placeholder?schema=superadmin';
 
 configureAxe({
   rules: {

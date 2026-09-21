@@ -15,14 +15,14 @@ describe('UserRowActions', () => {
   });
 
   it('renders only the trigger button initially (menu closed)', () => {
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     expect(screen.getByRole('button', { name: /Actions for a@b\.com/i })).toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
   it('opens the menu when the trigger is clicked', async () => {
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     expect(screen.getByRole('menu')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /View details/i })).toHaveAttribute(
@@ -32,9 +32,16 @@ describe('UserRowActions', () => {
     expect(screen.getByRole('menuitem', { name: /Delete/i })).toBeInTheDocument();
   });
 
+  it('hides delete for a protected account', async () => {
+    const user = userEvent.setup();
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete={false} />);
+    await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
+    expect(screen.queryByRole('menuitem', { name: /Delete/i })).not.toBeInTheDocument();
+  });
+
   it('toggles closed when the trigger is clicked twice', async () => {
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     const trigger = screen.getByRole('button', { name: /Actions for a@b\.com/i });
     await user.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
@@ -44,7 +51,7 @@ describe('UserRowActions', () => {
 
   it('closes on Escape', async () => {
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     act(() => {
       fireEvent.keyDown(document, { key: 'Escape' });
@@ -55,7 +62,7 @@ describe('UserRowActions', () => {
   it('cancels the delete submit if user dismisses the confirm', async () => {
     globalThis.confirm = jest.fn(() => false);
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     const deleteBtn = screen.getByRole('menuitem', { name: /Delete/i });
     fireEvent.submit(deleteBtn.closest('form') as HTMLFormElement);
@@ -67,7 +74,7 @@ describe('UserRowActions', () => {
   it('proceeds with delete and closes the menu when the confirm is accepted', async () => {
     globalThis.confirm = jest.fn(() => true);
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     const deleteBtn = screen.getByRole('menuitem', { name: /Delete/i });
     act(() => {
@@ -79,7 +86,7 @@ describe('UserRowActions', () => {
 
   it('closes the menu when a pointer event occurs outside the component', async () => {
     const user = userEvent.setup();
-    render(<UserRowActions userId="user-1" email="a@b.com" />);
+    render(<UserRowActions userId="user-1" email="a@b.com" canDelete />);
     await user.click(screen.getByRole('button', { name: /Actions for a@b\.com/i }));
     expect(screen.getByRole('menu')).toBeInTheDocument();
     act(() => {

@@ -1,11 +1,22 @@
-Paste your SonarCloud user token on a single line in a file named ".sonar-token"
-(no quotes, no extra whitespace). That file is gitignored and must never be committed.
+How apps/admin finds your SonarCloud token. sonar-local.sh and
+fetch-sonar-issues.command both resolve it through sonar-token.sh, in this order:
+
+  1. the SONAR_TOKEN environment variable
+  2. the login Keychain, service name "sonar-token-superadmin"
+  3. a gitignored ".sonar-token" file in this folder (legacy)
 
 Generate a token at: https://sonarcloud.io/account/security
 
-  cp .sonar-token.example .sonar-token
-  # then replace the contents of .sonar-token with your token
+Prefer the Keychain. It keeps the token off disk in plaintext and every checkout
+on the machine picks it up, so there is nothing to copy into a new worktree:
 
-Alternatively, export it for the current shell instead of using a file:
+  security add-generic-password -a "$USER" -s sonar-token-superadmin -w <your-token> -U
+
+For a single shell, or for anything driven over ssh — where the login keychain is
+locked and the Keychain read returns nothing — export it instead:
 
   export SONAR_TOKEN=<your-token>
+
+Option 3 still works so an unmigrated checkout keeps running, but it writes your
+token to disk in plaintext. If you already have a .sonar-token file, move it into
+the Keychain with the command above and then delete the file.

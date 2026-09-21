@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { type SyntheticEvent, useState, useTransition } from 'react';
 import type { APLicenseToken } from '@superadmin/database';
 
 /**
@@ -86,29 +86,43 @@ function TierBadge({ tier }: { readonly tier: string }) {
 }
 
 function RevokeButton({ tokenId }: { readonly tokenId: string }) {
-  const [, action, isPending] = useActionState<null, FormData>(async (_prev, formData) => {
-    await revokeLicenseTokenAction(formData);
-    return null;
-  }, null);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      !window.confirm('Revoke this token? Federated instances will lose access within 24 hours.')
+    ) {
+      return;
+    }
+
+    const form = event.currentTarget;
+    setError(null);
+    startTransition(async () => {
+      try {
+        await revokeLicenseTokenAction(new FormData(form));
+      } catch {
+        setError('Token could not be revoked. Try again.');
+      }
+    });
+  }
+
   return (
-    <form action={action}>
+    <form onSubmit={handleSubmit}>
       <input type="hidden" name="tokenId" value={tokenId} />
       <button
         type="submit"
         disabled={isPending}
-        onClick={(e) => {
-          if (
-            !window.confirm(
-              'Revoke this token? Federated instances will lose access within 24 hours.'
-            )
-          ) {
-            e.preventDefault();
-          }
-        }}
         className="inline-flex h-7 items-center rounded-full border border-[var(--danger-border)] px-3 text-[11.5px] font-semibold text-[color:var(--danger-text)] transition-colors hover:bg-[var(--danger-bg)] disabled:opacity-60"
       >
         {isPending ? 'Revoking...' : 'Revoke'}
       </button>
+      {error ? (
+        <p role="alert" className="mt-1 text-[11.5px] text-[color:var(--danger-text)]">
+          {error}
+        </p>
+      ) : null}
     </form>
   );
 }
@@ -164,12 +178,18 @@ function IssuedTokenPanel({ token }: { readonly token: string }) {
 }
 
 function IssueForm() {
-  const [result, action, isPending] = useActionState<IssueResult | null, FormData>(
-    async (_prev, formData) => {
-      return issueLicenseTokenAction(formData);
-    },
-    null
-  );
+  const [result, setResult] = useState<IssueResult | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    startTransition(async () => {
+      const nextResult = await issueLicenseTokenAction(new FormData(form));
+      setResult(nextResult);
+      if (nextResult.ok) form.reset();
+    });
+  }
 
   return (
     <div
@@ -179,7 +199,7 @@ function IssueForm() {
     >
       <section className={`${CARD} flex flex-col gap-2.5 px-5 py-4`}>
         <h2 className="text-[13px] font-bold text-[color:var(--ink)]">Issue new license token</h2>
-        <form action={action} className="flex flex-wrap items-end gap-2.5">
+        <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2.5">
           <div className="flex w-[170px] flex-col gap-1.5">
             <label htmlFor="ap-orgId" className={FIELD_LABEL}>
               Org ID
@@ -223,7 +243,7 @@ function IssueForm() {
           </button>
         </form>
         {result && !result.ok && (
-          <p className="text-[12.5px] font-semibold text-[color:var(--danger-text)]">
+          <p role="alert" className="text-[12.5px] font-semibold text-[color:var(--danger-text)]">
             {result.error}
           </p>
         )}
@@ -275,7 +295,7 @@ export function InstancesTable({ tokens }: { readonly tokens: LicenseTokenRow[] 
       ) : (
         <section className={`${CARD} overflow-hidden`}>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse text-left">
+            <table className="min-w-[900px] table-fixed border-collapse text-left">
               <thead>
                 <tr className="border-b border-[var(--hairline)] bg-[var(--screen-2)]">
                   <th className={`${TH} w-[25%]`}>Domain</th>

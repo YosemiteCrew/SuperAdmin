@@ -125,7 +125,7 @@ export default async function ConsentDetailPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { id } = await params;
   const detail = await getSubjectDetail(id);
@@ -202,7 +202,7 @@ export default async function ConsentDetailPage({
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+              <table className="min-w-[760px] border-collapse">
                 <thead>
                   <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left">
                     <th className={TH}>When</th>

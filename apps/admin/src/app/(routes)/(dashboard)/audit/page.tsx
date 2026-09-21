@@ -2,18 +2,17 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { IoCalendarClearOutline, IoSearchOutline } from 'react-icons/io5';
 
-import { AUDIT_LOG_LIMIT, AUDIT_META } from '@/app/features/audit/audit';
+import { requireSuperAdmin } from '@/app/config/backend';
+import { AUDIT_META, AUDIT_SEVERITY_LABELS } from '@/app/features/audit/audit';
 import { AuditIntegrityBanner } from '@/app/features/audit/AuditIntegrityBanner';
 import { AuditTable } from '@/app/features/audit/AuditTable';
 import {
   type AuditActionFilter,
-  filterAuditEvents,
-  paginate,
   parseAuditActionFilter,
   parseAuditDate,
   parsePage,
 } from '@/app/features/audit/filter';
-import { getRecentAuditEvents, verifyAuditChain } from '@/app/features/audit/store';
+import { getAuditEventPage, verifyAuditChain } from '@/app/features/audit/store';
 
 import { ExportAuditButton } from './ExportAuditButton';
 
@@ -87,6 +86,7 @@ function Pagination({
 export default async function AuditLogPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
+  await requireSuperAdmin('page');
   const { action, q, from, to, page } = await searchParams;
   const activeAction = parseAuditActionFilter(action);
   const searchTerm = (q ?? '').trim();
@@ -95,26 +95,25 @@ export default async function AuditLogPage({
 
   // verifyAuditChain reads the raw stored log (with chain fields); the public
   // reader returns projected events. Run both reads concurrently.
-  const [allEvents, integrity] = await Promise.all([
-    getRecentAuditEvents(AUDIT_LOG_LIMIT),
-    verifyAuditChain(),
-  ]);
-  const filtered = filterAuditEvents(allEvents, {
+  const filters = {
     action: activeAction,
     search: searchTerm,
     from: parseAuditDate(fromRaw, 'start'),
     to: parseAuditDate(toRaw, 'end'),
-  });
-  const paged = paginate(filtered, parsePage(page));
+  };
+  const [auditPage, integrity] = await Promise.all([
+    getAuditEventPage(filters, parsePage(page)),
+    verifyAuditChain(),
+  ]);
   const hrefBase = { action: activeAction, search: searchTerm, from: fromRaw, to: toRaw };
 
   return (
     <div className="flex flex-col gap-[22px]">
       <header className="flex flex-col gap-1">
         <h1 className="m-0 flex items-baseline gap-3 font-[family-name:var(--font-serif-display)] text-[28px] font-normal tracking-[-0.015em] text-[color:var(--ink)]">
-          Audit log
+          Audit log{' '}
           <span className="text-[16px] italic text-[color:var(--ink-faint)]">
-            {AUDIT_LOG_LIMIT} most-recent events kept
+            Every privileged action, newest first
           </span>
         </h1>
         <p className="text-[13.5px] text-[color:var(--ink-muted)]">
@@ -189,23 +188,34 @@ export default async function AuditLogPage({
             <span>Filter</span>
           </button>
         </form>
-        <ExportAuditButton events={filtered} />
+        <ExportAuditButton
+          filters={{ action: activeAction, search: searchTerm, from: fromRaw, to: toRaw }}
+          disabled={auditPage.total === 0}
+        />
       </div>
 
+      {/* Names the three severities in order, so the dot beside each action has
+          something to mean for a reader who has not seen this screen before. */}
+      <p className="m-0 text-[12px] text-[color:var(--ink-faint)]">
+        Severity: {AUDIT_SEVERITY_LABELS.info} · {AUDIT_SEVERITY_LABELS.warning} ·{' '}
+        {AUDIT_SEVERITY_LABELS.danger}. Warning and high-risk events are labelled in the Action
+        column.
+      </p>
+
       <AuditTable
-        events={paged.items}
+        events={auditPage.items}
         emptyMessage={
-          allEvents.length === 0
-            ? 'No super-admin actions have been recorded yet.'
-            : 'No activity matches these filters.'
+          auditPage.hasEvents
+            ? 'No activity matches these filters.'
+            : 'No super-admin actions have been recorded yet.'
         }
       />
 
       <Pagination
         base={hrefBase}
-        page={paged.page}
-        totalPages={paged.totalPages}
-        total={paged.total}
+        page={auditPage.page}
+        totalPages={auditPage.totalPages}
+        total={auditPage.total}
       />
     </div>
   );

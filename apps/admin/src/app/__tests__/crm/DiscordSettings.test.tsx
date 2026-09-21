@@ -53,17 +53,26 @@ describe('DiscordSettings', () => {
       expect(screen.getByText(/Configuration saved/i)).toBeInTheDocument();
     });
     expect(saveMock).toHaveBeenCalled();
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the save error when the action rejects the URL', async () => {
     saveMock.mockResolvedValue({ error: 'Webhook URL must start with https://.' });
     render(<DiscordSettings config={EMPTY_CONFIG} />);
+    const webhook = screen.getByLabelText(/Webhook URL/i);
+    const channel = screen.getByLabelText(/Channel name/i);
+    const notifications = screen.getByRole('checkbox');
+    fireEvent.change(webhook, { target: { value: 'http://retry.example.com/hook' } });
+    fireEvent.change(channel, { target: { value: '#retry' } });
+    fireEvent.click(notifications);
     fireEvent.submit(
       screen.getByRole('button', { name: /^Save$/i }).closest('form') as HTMLFormElement
     );
-    await waitFor(() => {
-      expect(screen.getByText(/must start with https/i)).toBeInTheDocument();
-    });
+    const error = await screen.findByText(/must start with https/i);
+    expect(webhook).toHaveValue('http://retry.example.com/hook');
+    expect(channel).toHaveValue('#retry');
+    expect(notifications).toBeChecked();
+    expect(error).toHaveAttribute('role', 'alert');
   });
 
   it('shows confirmation after a successful broadcast', async () => {
@@ -78,6 +87,8 @@ describe('DiscordSettings', () => {
       expect(screen.getByText(/Message sent/i)).toBeInTheDocument();
     });
     expect(broadcastMock).toHaveBeenCalled();
+    expect(screen.getByPlaceholderText(/Type your message/i)).toHaveValue('');
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the broadcast error and keeps the message for a retry', async () => {
@@ -88,9 +99,9 @@ describe('DiscordSettings', () => {
     fireEvent.submit(
       screen.getByRole('button', { name: /Send to Discord/i }).closest('form') as HTMLFormElement
     );
-    await waitFor(() => {
-      expect(screen.getByText(/webhook failed \(404\)/i)).toBeInTheDocument();
-    });
+    const error = await screen.findByText(/webhook failed \(404\)/i);
+    expect(textarea).toHaveValue('Hello channel');
+    expect(error).toHaveAttribute('role', 'alert');
   });
 
   it('shows confirmation after a successful webhook test', async () => {
@@ -102,6 +113,7 @@ describe('DiscordSettings', () => {
       expect(screen.getByText(/Test message sent/i)).toBeInTheDocument();
     });
     expect(testMock).toHaveBeenCalled();
+    expect(screen.getByRole('status').tagName).toBe('OUTPUT');
   });
 
   it('shows the error when the webhook test fails', async () => {
@@ -110,8 +122,7 @@ describe('DiscordSettings', () => {
     fireEvent.submit(
       screen.getByRole('button', { name: /Send test/i }).closest('form') as HTMLFormElement
     );
-    await waitFor(() => {
-      expect(screen.getByText(/valid webhook URL first/i)).toBeInTheDocument();
-    });
+    const error = await screen.findByText(/valid webhook URL first/i);
+    expect(error).toHaveAttribute('role', 'alert');
   });
 });

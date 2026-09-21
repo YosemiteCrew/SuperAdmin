@@ -45,7 +45,14 @@ export type InstagramPublishOutcome =
   // Transcoding outran the wait. Nothing is lost: the container is real and the
   // status endpoint finishes it.
   | { ok: true; state: 'processing'; containerId: string }
+  // The container was already published by a prior finish call. Safe to return
+  // success without republishing or re-auditing.
+  | { ok: true; state: 'already_published' }
   | { ok: false; reason: 'not_connected' }
+  // The container finished transcoding but was never published (e.g. EXPIRED).
+  // The caller should create a new post from scratch.
+  | { ok: false; reason: 'container_expired' }
+  // The container failed (ERROR) or is in an unexpected state.
   | { ok: false; reason: 'container_failed'; detail: string };
 
 async function auditPost(actorId: string, connection: InstagramConnection): Promise<void> {
@@ -137,7 +144,9 @@ export async function publishReel(
 /**
  * Finishes a publish whose container was still transcoding when the request
  * returned. Safe to call repeatedly: it publishes only once the container
- * reports FINISHED.
+ * reports FINISHED. A container that is already PUBLISHED returns success
+ * without republishing or re-auditing. An EXPIRED container returns a
+ * dedicated failure so the caller can create a fresh post.
  */
 export async function finishReel(
   config: InstagramConfig,
@@ -150,6 +159,12 @@ export async function finishReel(
   const status = await fetchContainerStatus({ accessToken: connection.accessToken, containerId });
   if (status.statusCode === 'IN_PROGRESS') {
     return { ok: true, state: 'processing', containerId };
+  }
+  if (status.statusCode === 'PUBLISHED') {
+    return { ok: true, state: 'already_published' };
+  }
+  if (status.statusCode === 'EXPIRED') {
+    return { ok: false, reason: 'container_expired' };
   }
   if (status.statusCode !== 'FINISHED') {
     return { ok: false, reason: 'container_failed', detail: status.error || status.statusCode };

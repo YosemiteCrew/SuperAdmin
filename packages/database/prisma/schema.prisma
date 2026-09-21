@@ -11,11 +11,22 @@ generator client {
   // absent from the Amplify compute bundle - and the whole server chunk then
   // fails to load, taking EVERY route handler down, not just Prisma ones.
   //
+  // No binaryTargets: Prisma 7 queries through @prisma/adapter-pg, so there is
+  // no native query engine to build for a target platform or to ship into the
+  // Amplify artifact.
   output = "../src/generated/client"
 }
 
+// No `url` here. Prisma 7 takes the client's connection from the adapter in
+// src/client.ts and Migrate's from prisma.config.ts; declaring it in this block
+// fails schema validation.
 datasource db {
   provider = "postgresql"
+}
+
+enum CrmCampaignAudience {
+  all
+  admins
 }
 
 // Adding a model here is two steps, not one. Every table the panel owns must
@@ -25,6 +36,14 @@ datasource db {
 // the `public` schema, so it never fires for ours. Miss it and
 // apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
 // the table. See docs/deploy.md, "Row level security".
+
+// Rebuildable status index for the dashboard's pending-approval count. Approval
+// state and rejection enforcement remain authoritative in UserMetadata.
+model ApprovalStatusIndex {
+  userId    String   @id
+  status    String
+  indexedAt DateTime @default(now()) @updatedAt
+}
 
 // A GDPR data-subject rights request (access / erasure / rectification /
 // objection). The controller must respond within one month, so dueAt is the
@@ -97,6 +116,20 @@ model ContactRequest {
   @@index([leadId])
   @@index([status])
   @@index([createdAt])
+}
+
+model CrmCampaign {
+  id          String   @id
+  subject     String
+  preview     String
+  audience    CrmCampaignAudience
+  sentCount   Int
+  failedCount Int
+  sentAt      DateTime
+  sentBy      String
+  sentByEmail String
+
+  @@index([sentAt, id])
 }
 
 // A person or device whose consent decisions we hold. Anonymous-first: keyed
@@ -222,5 +255,39 @@ model OrgNote {
 
 model OrgNoteImport {
   orgId      String   @id
+  importedAt DateTime @default(now())
+}
+
+// A super-admin invitation, from creation through use or revocation.
+//
+// Previously a single JSON array under one UserMetadata key, read in full,
+// modified, and written back in full on every create/use/revoke. Two
+// concurrent writers (two invites created back to back, or an accept racing a
+// revoke) could each read the same snapshot and then replace it independently,
+// silently dropping whichever write landed first (issue #469). A row per
+// invite makes create a single INSERT and use/revoke a single conditional
+// UPDATE, so there is no shared snapshot for a second writer to clobber.
+model Invite {
+  id             String    @id
+  token          String    @unique
+  email          String
+  createdBy      String
+  createdByEmail String
+  createdAt      DateTime  @default(now())
+  expiresAt      DateTime
+  usedAt         DateTime?
+  usedBy         String?
+  usedByEmail    String?
+  revokedAt      DateTime?
+  revokedBy      String?
+
+  @@index([createdAt])
+}
+
+// Marks the one-time import of legacy UserMetadata invites into `Invite` as
+// done. Single-row table (fixed id) — mirrors OrgNoteImport's per-org marker,
+// just without a key, since invites were never partitioned by org.
+model InviteImport {
+  id         String   @id
   importedAt DateTime @default(now())
 }

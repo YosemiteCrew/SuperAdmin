@@ -13,7 +13,10 @@ describe('ExportSubjectDataButton', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    exportMock.mockResolvedValue('{"subjectEmail":"person@example.com"}');
+    exportMock.mockResolvedValue({
+      json: '{"subjectEmail":"person@example.com"}',
+      auditRecorded: true,
+    });
     URL.createObjectURL = jest.fn(() => 'blob:mock');
     URL.revokeObjectURL = jest.fn();
   });
@@ -25,7 +28,9 @@ describe('ExportSubjectDataButton', () => {
 
   it('renders the export button', () => {
     render(<ExportSubjectDataButton requestId="dr_1" />);
-    expect(screen.getByRole('button', { name: /Export subject data/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Export subject data/i })).toHaveClass(
+      'yc-primary-button'
+    );
   });
 
   it('sends the request id, not an address, and downloads the JSON blob', async () => {
@@ -53,7 +58,9 @@ describe('ExportSubjectDataButton', () => {
     render(<ExportSubjectDataButton requestId="dr_1" />);
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/export could not be produced/i);
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/export could not be produced/i);
+    expect(alert).toHaveClass('text-[color:var(--danger-text)]');
     expect(URL.createObjectURL).not.toHaveBeenCalled();
   });
 
@@ -65,9 +72,29 @@ describe('ExportSubjectDataButton', () => {
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
+    // The transition's pending flag - which drives `disabled` - can clear in a
+    // commit after the one that rendered the alert (#503). A click while the
+    // button is still disabled is a no-op, and exportMock would never get its
+    // second call, so wait for the button to settle before firing it again.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Export subject data/i })).toBeEnabled()
+    );
     fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
     await waitFor(() => {
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
+  });
+
+  it('downloads the export and warns when its audit record could not be written', async () => {
+    jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    exportMock.mockResolvedValue({ json: '{}', auditRecorded: false });
+    render(<ExportSubjectDataButton requestId="dr_1" />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Export subject data/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/audit record could not be written/i);
+    expect(alert).toHaveClass('text-[color:var(--warn-text)]');
+    expect(URL.createObjectURL).toHaveBeenCalled();
   });
 });

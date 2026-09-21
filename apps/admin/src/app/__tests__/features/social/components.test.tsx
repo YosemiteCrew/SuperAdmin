@@ -234,6 +234,14 @@ describe('InstagramComposer', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Post to Instagram' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Instagram is not connected');
   });
+
+  it('shows "Already published to Instagram." when the container was already published', async () => {
+    submitReelMock.mockResolvedValue({ ok: true, state: 'published', alreadyPublished: true });
+    render(<InstagramComposer />);
+    await userEvent.upload(screen.getByLabelText('Reel video'), mp4('reel.mp4'));
+    await userEvent.click(screen.getByRole('button', { name: 'Post to Instagram' }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Already published to Instagram.');
+  });
 });
 
 describe('DisconnectButton platform routing', () => {

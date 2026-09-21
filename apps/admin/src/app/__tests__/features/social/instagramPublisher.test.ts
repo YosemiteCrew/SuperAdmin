@@ -200,4 +200,33 @@ describe('finishReel', () => {
       reason: 'not_connected',
     });
   });
+
+  it('returns already_published when the container is PUBLISHED, without republishing or re-auditing', async () => {
+    ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'PUBLISHED', error: '' });
+    const result = await finishReel(CONFIG, ACTOR, '17901');
+    expect(result).toEqual({ ok: true, state: 'already_published' });
+    expect(ig.publishContainer).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('reports container_expired when the container is EXPIRED', async () => {
+    ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'EXPIRED', error: '' });
+    expect(await finishReel(CONFIG, ACTOR, '17901')).toEqual({
+      ok: false,
+      reason: 'container_expired',
+    });
+    expect(ig.publishContainer).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+
+  it('treats an unknown status code as container_failed', async () => {
+    ig.fetchContainerStatus.mockResolvedValue({ statusCode: 'UNKNOWN', error: '' });
+    expect(await finishReel(CONFIG, ACTOR, '17901')).toEqual({
+      ok: false,
+      reason: 'container_failed',
+      detail: 'UNKNOWN',
+    });
+    expect(ig.publishContainer).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
 });

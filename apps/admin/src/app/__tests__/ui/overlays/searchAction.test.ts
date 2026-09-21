@@ -47,6 +47,15 @@ beforeEach(() => {
 });
 
 describe('searchDirectoryAction', () => {
+  it('does not search either directory when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(searchDirectoryAction('pet')).rejects.toThrow('NEXT_REDIRECT');
+
+    expect(mockGetUsers).not.toHaveBeenCalled();
+    expect(mockListOrgs).not.toHaveBeenCalled();
+  });
+
   it('always enforces the super-admin gate', async () => {
     await searchDirectoryAction('pet');
     expect(mockRequireSuperAdmin).toHaveBeenCalled();

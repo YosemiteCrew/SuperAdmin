@@ -13,6 +13,7 @@ import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { serverEnv } from '@/app/config/env.server';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForTarget } from '@/app/features/audit/store';
+import { describeRecipeId } from '@/app/features/users/filter';
 
 import { DeleteUserButton } from '../DeleteUserButton';
 import { DisableUserButton } from './DisableUserButton';
@@ -28,6 +29,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   ensureSuperTokensInit();
+  await requireSuperAdmin('page');
   const { id } = await params;
   try {
     const user = await supertokens.getUser(id);
@@ -128,7 +130,7 @@ const SECTION_BODY =
   'flex flex-col gap-[14px] p-[18px] sm:flex-row sm:items-center sm:justify-between';
 const SECTION_STATE = 'text-[13.5px] font-semibold text-[color:var(--ink)]';
 const SECTION_HINT = 'text-[12px] leading-[1.5] text-[color:var(--ink-faint)] text-pretty';
-const DT_CLASS = 'text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint2)]';
+const DT_CLASS = 'text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 const DD_CLASS = 'mt-[3px] text-[13.5px] font-medium text-[color:var(--ink)]';
 
 function AccessSection({
@@ -221,7 +223,7 @@ export default async function UserDetailPage({
   params,
 }: Readonly<{ params: Promise<{ id: string }> }>) {
   ensureSuperTokensInit();
-  const { userId: callerId } = await requireSuperAdmin();
+  const { userId: callerId } = await requireSuperAdmin('page');
 
   const { id } = await params;
   const user = await supertokens.getUser(id);
@@ -237,7 +239,9 @@ export default async function UserDetailPage({
   const { lastSignInAt, disabledAt } = accountMeta;
 
   const primaryEmail = user.emails[0] ?? '—';
-  const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId)));
+  const methods = Array.from(new Set(user.loginMethods.map((m) => m.recipeId))).map(
+    describeRecipeId
+  );
   const verifiedDeviceCount = totpDevices.filter((device) => device.verified).length;
   const deviceWord = verifiedDeviceCount === 1 ? 'device' : 'devices';
   const totpStatusLabel =
@@ -405,7 +409,9 @@ export default async function UserDetailPage({
               metadata. Cannot be undone.
             </p>
           </div>
-          <DeleteUserButton userId={user.id} email={primaryEmail} variant="danger-zone" />
+          {canManageStatus ? (
+            <DeleteUserButton userId={user.id} email={primaryEmail} variant="danger-zone" />
+          ) : null}
         </div>
       </section>
     </div>

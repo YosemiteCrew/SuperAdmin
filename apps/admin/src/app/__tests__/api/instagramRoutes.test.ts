@@ -305,6 +305,22 @@ describe('POST /api/social/instagram/finish', () => {
     finishReelMock.mockRejectedValue(new Error('boom'));
     expect((await finish(req({ containerId: '17909' }))).status).toBe(500);
   });
+
+  it('returns 200 with alreadyPublished when the container is PUBLISHED', async () => {
+    finishReelMock.mockResolvedValue({ ok: true, state: 'already_published' });
+    const response = await finish(req({ containerId: '17909' }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: 'published', alreadyPublished: true });
+  });
+
+  it('returns 410 when the container is EXPIRED', async () => {
+    finishReelMock.mockResolvedValue({ ok: false, reason: 'container_expired' });
+    const response = await finish(req({ containerId: '17909' }));
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({
+      error: 'The Instagram container expired before it could be published. Create the post again.',
+    });
+  });
 });
 
 describe('POST /api/social/instagram/scheduled', () => {
@@ -404,6 +420,24 @@ describe('POST /api/social/instagram/scheduled', () => {
     expect(
       (await scheduled(req(form({ containerId: '17930' }, false), 'correct-horse'))).status
     ).toBe(500);
+  });
+
+  it('finish mode returns 200 with alreadyPublished when the container is PUBLISHED', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    finishReelMock.mockResolvedValue({ ok: true, state: 'already_published' });
+    const response = await scheduled(req(form({ containerId: '17930' }, false), 'correct-horse'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ state: 'published', alreadyPublished: true });
+  });
+
+  it('finish mode returns 410 when the container is EXPIRED', async () => {
+    env.socialSchedulerKey = 'correct-horse';
+    finishReelMock.mockResolvedValue({ ok: false, reason: 'container_expired' });
+    const response = await scheduled(req(form({ containerId: '17930' }, false), 'correct-horse'));
+    expect(response.status).toBe(410);
+    expect(await response.json()).toMatchObject({
+      error: 'The Instagram container expired before it could be published. Create the post again.',
+    });
   });
 });
 

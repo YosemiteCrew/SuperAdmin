@@ -7,19 +7,22 @@ import { exportSubjectDataAction } from './actions';
 export function ExportSubjectDataButton({ requestId }: Readonly<{ requestId: string }>) {
   const [pending, startTransition] = useTransition();
   const [failed, setFailed] = useState(false);
+  const [auditFailed, setAuditFailed] = useState(false);
 
   function handleExport() {
     startTransition(async () => {
       const fd = new FormData();
       fd.set('id', requestId);
-      const json = await exportSubjectDataAction(fd);
-      if (!json) {
+      const result = await exportSubjectDataAction(fd);
+      if (!result) {
         setFailed(true);
+        setAuditFailed(false);
         return;
       }
       setFailed(false);
+      setAuditFailed(!result.auditRecorded);
 
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+      const blob = new Blob([result.json], { type: 'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -37,13 +40,19 @@ export function ExportSubjectDataButton({ requestId }: Readonly<{ requestId: str
         type="button"
         onClick={handleExport}
         disabled={pending}
-        className="inline-flex items-center rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        className="yc-primary-button inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold disabled:opacity-50"
       >
-        {pending ? 'Exporting…' : 'Export subject data'}
+        <span>{pending ? 'Exporting…' : 'Export subject data'}</span>
       </button>
       {failed && (
-        <p role="alert" className="text-xs text-red-600">
+        <p role="alert" className="text-xs text-[color:var(--danger-text)]">
           The export could not be produced. The request may have been deleted.
+        </p>
+      )}
+      {auditFailed && (
+        <p role="alert" className="text-xs text-[color:var(--warn-text)]">
+          The export was produced, but its audit record could not be written. Record this disclosure
+          in the request notes before sending the file.
         </p>
       )}
     </div>

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import { ThemeToggle } from '@/app/ui/components/ThemeToggle';
 
@@ -24,10 +24,12 @@ describe('ThemeToggle', () => {
     expect(screen.getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true');
   });
 
-  it('hydrates from the stored preference', () => {
+  it('hydrates from the stored preference', async () => {
     globalThis.localStorage.setItem('theme', 'dark');
     render(<ThemeToggle />);
-    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+    await waitFor(() =>
+      expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true')
+    );
   });
 
   it('applies and persists an explicit light choice', () => {

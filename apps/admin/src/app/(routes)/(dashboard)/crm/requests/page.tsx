@@ -4,12 +4,18 @@ import Link from 'next/link';
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { linkEmailsToAccounts } from '@/app/features/contact/link';
 import {
+  CONTACT_REQUEST_STATUS_LABELS,
+  describeContactRequestStatus,
+} from '@/app/features/contact/labels';
+import {
   countRequestsByStatus,
   listContactRequests,
   normalizeCursor,
+  REQUEST_STATUSES,
   type RequestStatus,
 } from '@/app/features/contact/store';
 
+import { DataRequestFlag } from './DataRequestFlag';
 import { StatusControl } from './StatusControl';
 
 export const metadata: Metadata = { title: 'Contact requests' };
@@ -17,10 +23,8 @@ export const metadata: Metadata = { title: 'Contact requests' };
 type Filter = RequestStatus | 'all';
 
 const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'new', label: 'New' },
-  { key: 'in_progress', label: 'In progress' },
-  { key: 'closed', label: 'Closed' },
-  { key: 'all', label: 'All' },
+  ...REQUEST_STATUSES.map((key) => ({ key, label: CONTACT_REQUEST_STATUS_LABELS[key] })),
+  { key: 'all' as const, label: 'All' },
 ];
 
 const STATUS_STYLE: Record<RequestStatus, string> = {
@@ -101,9 +105,13 @@ function RequestCard({
           <span
             className={`inline-flex rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] ${STATUS_STYLE[r.status]}`}
           >
-            {FILTERS.find((f) => f.key === r.status)?.label ?? r.status}
+            {describeContactRequestStatus(r.status)}
           </span>
-          <StatusControl requestId={r.id} status={r.status} />
+          {/* Keyed on status so a rejected stale write, or another admin's
+              change landing via revalidatePath, remounts the control: its
+              local selection and any leftover error both reset to the real
+              row instead of a stale useState(status) closure. */}
+          <StatusControl key={`${r.id}:${r.status}`} requestId={r.id} status={r.status} />
         </div>
       </div>
 
@@ -116,13 +124,17 @@ function RequestCard({
         </p>
       </div>
 
+      {/* Reads the wording, not the dropdown the sender happened to pick. It
+          renders nothing at all unless a phrase matched. */}
+      <DataRequestFlag contactId={r.id} email={r.email} subject={r.subject} message={r.message} />
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-[6px] border-t border-[var(--hairline)] pt-[9px] text-[11.5px] text-[color:var(--ink-faint)]">
         <time dateTime={new Date(r.createdAt).toISOString()}>
           {formatDate(r.createdAt.getTime())}
         </time>
         {/* Green marks a real opt-in; a missing consent stays faint. */}
         {r.newsletterConsent ? (
-          <span className="font-semibold text-[color:var(--success)]">
+          <span className="font-semibold text-[color:var(--success-text)]">
             Newsletter opt-in
             {r.consentAt ? ` (${formatDate(r.consentAt.getTime())})` : ''}
           </span>
@@ -152,7 +164,7 @@ export default async function ContactRequestsPage({
   searchParams: Promise<{ status?: string | string[]; cursor?: string | string[] }>;
 }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status, cursor } = await searchParams;
   const filter: Filter = FILTERS.find((f) => f.key === status)?.key ?? 'new';
@@ -196,7 +208,8 @@ export default async function ContactRequestsPage({
               }`}
             >
               {f.label}
-              {count ? <span className="opacity-65 tabular-nums">{count}</span> : null}
+              {/* Weight, not opacity: see the same count on /approvals. */}
+              {count ? <span className="font-normal tabular-nums">{count}</span> : null}
             </Link>
           );
         })}

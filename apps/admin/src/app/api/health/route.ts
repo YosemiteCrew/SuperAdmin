@@ -13,21 +13,29 @@ export const revalidate = 0;
  *
  * This endpoint is unauthenticated, so the error MESSAGE must never be
  * returned: Prisma's connection errors embed the database host, port and
- * sometimes the user. The error's class name and Prisma error code are enough
- * to tell the three failure modes apart and neither carries credentials:
+ * sometimes the user. The class name and error code carry no credentials.
  *
- *   P1001  cannot reach the database server        -> network / egress
- *   P1000  authentication failed                   -> wrong credentials
- *   PrismaClientInitializationError with no code   -> client initialization
- *                                                     failed before a query
+ * What they no longer carry is the failure mode. Prisma 6 raised the connection
+ * error itself, so the code told the modes apart: P1001 unreachable, P1000
+ * authentication, and PrismaClientInitializationError with no code for a query
+ * engine missing from the bundle. Prisma 7 queries through @prisma/adapter-pg
+ * and wraps whatever node-postgres raises, so both of the first two arrive here
+ * as:
  *
- * NOTE: With the Prisma 7 driver adapter (@prisma/adapter-pg), connection
- * errors originate from node-postgres (pg) but are wrapped by the adapter and
- * surfaced as Prisma error codes (P1001, P1000, etc.). The class name is
- * PrismaClientInitializationError for startup failures. This classification
- * remains correct for the adapter path.
+ *   PrismaClientKnownRequestError, code P2010
  *
- * The full error still goes to the server log, where it is not public.
+ * Measured against the built artifact, not inferred: an unreachable port and a
+ * wrong password produce that same pair, and what separates them
+ * (`DatabaseNotReachable` against `AuthenticationFailed`, on
+ * `error.meta.driverAdapterError`) is only in the full error. The third mode is
+ * gone with the engine - there is no engine binary any more.
+ *
+ * That is a real loss of signal for a caller of this endpoint, and it is left as
+ * one deliberately. Publishing the adapter's own reason would say, to anyone on
+ * the internet, whether the panel's database credentials are currently accepted;
+ * the operator who needs that distinction reads the console.error below, in a
+ * log that is not public. `amplify.yml` covers the case this cost the most in:
+ * a build now fails unless the artifact it just built can reach the database.
  */
 function describe(error: unknown): { name: string; code: string | null } {
   if (typeof error !== 'object' || error === null) {
@@ -161,8 +169,10 @@ export async function GET() {
     database = 'down';
     reason = describe(error);
     // Swallowing this entirely is what made the 2026-08-21 outage opaque: the
-    // endpoint reported "down" with no way to distinguish initialization from
-    // an unreachable host without redeploying instrumentation.
+    // endpoint reported "down" with no way to tell one cause from another
+    // without redeploying instrumentation. Under the driver adapter this line
+    // is the ONLY place the cause appears: `reason` above narrows to P2010 for
+    // every connection failure.
     console.error('[health] database probe failed', error);
   }
 

@@ -27,20 +27,31 @@ import {
  * as a follow-up; today the control is key secrecy plus never-overwrite.
  */
 export async function recordConsent(input: ConsentSubmission): Promise<void> {
+  if (typeof input.consentId !== 'string') {
+    throw new TypeError('consentId must be a string');
+  }
+  const consentId = input.consentId;
+  const userId = typeof input.userId === 'string' && input.userId ? input.userId : undefined;
+  const email = typeof input.email === 'string' && input.email ? input.email : undefined;
+
   const subject = await prisma.consentSubject.upsert({
-    where: { consentId: input.consentId },
+    where: { consentId },
     create: {
-      consentId: input.consentId,
-      userId: input.userId ?? null,
-      email: input.email ?? null,
+      consentId,
+      userId: userId ?? null,
+      email: email ?? null,
     },
-    // Never touch identity on update — see the fill-only-if-absent writes below.
-    update: {},
+    // Every decision is activity on the subject, including fully anonymous
+    // submissions. Never touch identity here — see the fill-only-if-absent
+    // writes below.
+    update: { updatedAt: new Date() },
   });
 
-  // Fill identity only when the column is still null. Filtering on null keeps
-  // this atomic (no read-modify-write race) and makes overwriting an existing
-  // identity impossible.
+  // Fill identity in one conditional write. Separate userId/email updates can
+  // interleave and combine two concurrent submissions into one false identity.
+  // Each supplied value may fill a null or confirm the same value; an omitted
+  // half requires the stored half to be null so a partial submission cannot be
+  // attached to an identity somebody else already established.
   //
   // `consentId: { equals }` for the same reason as the contact intake: updateMany's
   // where accepts FILTERS, so a value that turned out to be an object at runtime
@@ -49,16 +60,19 @@ export async function recordConsent(input: ConsentSubmission): Promise<void> {
   // parseConsentSubmission already rejects a non-string consentId and is the only
   // path here today, but that makes this function's safety a property of its
   // caller; this makes it a property of the query.
-  if (input.userId) {
+  if (userId || email) {
     await prisma.consentSubject.updateMany({
-      where: { consentId: { equals: input.consentId }, userId: null },
-      data: { userId: input.userId },
-    });
-  }
-  if (input.email) {
-    await prisma.consentSubject.updateMany({
-      where: { consentId: { equals: input.consentId }, email: null },
-      data: { email: input.email },
+      where: {
+        consentId: { equals: consentId },
+        AND: [
+          userId ? { OR: [{ userId: null }, { userId: { equals: userId } }] } : { userId: null },
+          email ? { OR: [{ email: null }, { email: { equals: email } }] } : { email: null },
+        ],
+      },
+      data: {
+        ...(userId ? { userId } : {}),
+        ...(email ? { email } : {}),
+      },
     });
   }
 
@@ -152,12 +166,48 @@ async function currentStateFor(
 
 const PAGE_SIZE = 25;
 
+interface ConsentCursor {
+  updatedAt: Date;
+  id: string;
+}
+
+function encodeConsentCursor(subject: Pick<SubjectSummary, 'updatedAt' | 'id'>): string {
+  return Buffer.from(
+    JSON.stringify({ updatedAt: subject.updatedAt.getTime(), id: subject.id })
+  ).toString('base64url');
+}
+
+function parseConsentCursor(value: string | undefined): ConsentCursor | undefined {
+  if (!value) return undefined;
+
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !('updatedAt' in parsed) ||
+      !('id' in parsed) ||
+      typeof parsed.updatedAt !== 'number' ||
+      !Number.isFinite(parsed.updatedAt) ||
+      typeof parsed.id !== 'string' ||
+      parsed.id.length === 0
+    ) {
+      return undefined;
+    }
+
+    const updatedAt = new Date(parsed.updatedAt);
+    return Number.isNaN(updatedAt.getTime()) ? undefined : { updatedAt, id: parsed.id };
+  } catch {
+    return undefined;
+  }
+}
+
 export async function listConsentSubjects(params: {
   search?: string;
   cursor?: string;
 }): Promise<{ subjects: SubjectSummary[]; nextCursor: string | null }> {
   const search = params.search?.trim();
-  const where = search
+  const searchFilter = search
     ? {
         OR: [
           { email: { contains: search, mode: 'insensitive' as const } },
@@ -165,18 +215,33 @@ export async function listConsentSubjects(params: {
         ],
       }
     : {};
-
-  const rows = await prisma.consentSubject.findMany({
-    where,
-    // Ordered by a non-unique column plus `id` as a tiebreaker: the cursor
-    // resolves to the `updatedAt` value only, so without a total order the page
-    // boundary between rows sharing a timestamp is plan-dependent and a subject
-    // can be skipped or repeated between pages. See the same note in
-    // features/contact/store.ts.
-    orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+  const cursor = parseConsentCursor(params.cursor);
+  const cursorFilter = cursor
+    ? {
+        OR: [
+          { updatedAt: { lt: cursor.updatedAt } },
+          { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
+        ],
+      }
+    : {};
+  const query = {
+    where: { AND: [searchFilter, cursorFilter] },
+    orderBy: [{ updatedAt: 'desc' as const }, { id: 'desc' as const }],
     take: PAGE_SIZE + 1,
-    ...(params.cursor ? { skip: 1, cursor: { id: params.cursor } } : {}),
-  });
+  };
+
+  let rows = await prisma.consentSubject.findMany(query);
+
+  // A well-formed cursor can still be stale or point beyond the remaining
+  // result set. Falling back keeps a shared/bookmarked URL from claiming the
+  // ledger is empty. An invalid cursor already executes this same first-page
+  // query once because parseConsentCursor deliberately ignores it.
+  if (rows.length === 0 && cursor) {
+    rows = await prisma.consentSubject.findMany({
+      ...query,
+      where: searchFilter,
+    });
+  }
 
   const hasMore = rows.length > PAGE_SIZE;
   const page = hasMore ? rows.slice(0, PAGE_SIZE) : rows;
@@ -184,7 +249,7 @@ export async function listConsentSubjects(params: {
 
   return {
     subjects: page.map((r) => toSubjectSummary(r, states)),
-    nextCursor: hasMore ? page[page.length - 1].id : null,
+    nextCursor: hasMore ? encodeConsentCursor(page[page.length - 1]) : null,
   };
 }
 

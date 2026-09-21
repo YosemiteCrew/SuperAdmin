@@ -3,11 +3,11 @@ import Link from 'next/link';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import {
-  annotateApprovalStatuses,
   countPending,
   fetchApprovalCandidates,
+  scanApprovalStatuses,
 } from '@/app/features/approvals/queue';
-import type { ApprovalStatus } from '@/app/features/approvals/store';
+import { refreshApprovalStatusIndex, type ApprovalStatus } from '@/app/features/approvals/store';
 
 import { ApprovalsTable } from './ApprovalsTable';
 
@@ -34,7 +34,7 @@ export default async function ApprovalsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
   ensureSuperTokensInit();
-  await requireSuperAdmin();
+  await requireSuperAdmin('page');
 
   const { status } = await searchParams;
   const filter: StatusFilter = FILTERS.some((f) => f.key === status)
@@ -42,7 +42,8 @@ export default async function ApprovalsPage({
     : 'pending';
 
   const users = await fetchApprovalCandidates(SCAN_LIMIT);
-  const rows = await annotateApprovalStatuses(users);
+  const { rows, indexableRows } = await scanApprovalStatuses(users);
+  await refreshApprovalStatusIndex(indexableRows);
 
   const visible = filter === 'all' ? rows : rows.filter((r) => r.status === filter);
   const pendingCount = countPending(rows);
@@ -70,7 +71,10 @@ export default async function ApprovalsPage({
           >
             {f.label}
             {f.key === 'pending' && pendingCount > 0 ? (
-              <span className="tabular-nums opacity-65">{pendingCount}</span>
+              // Weight, not opacity, carries the step down from the label: a
+              // resting opacity-65 dropped this count to 2.78 in light and
+              // 3.51 in dark against every surface the nav sits on.
+              <span className="tabular-nums font-normal">{pendingCount}</span>
             ) : null}
           </Link>
         ))}

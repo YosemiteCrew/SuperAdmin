@@ -1,7 +1,12 @@
 jest.mock('server-only', () => ({}));
 jest.mock('@superadmin/database', () => ({
   prisma: {
-    contactRequest: { findMany: jest.fn(), groupBy: jest.fn(), update: jest.fn() },
+    contactRequest: {
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      groupBy: jest.fn(),
+      updateMany: jest.fn(),
+    },
   },
 }));
 
@@ -15,8 +20,9 @@ import {
 } from '@/app/features/contact/store';
 
 const mockFind = prisma.contactRequest.findMany as jest.Mock;
+const mockFindUnique = prisma.contactRequest.findUnique as jest.Mock;
 const mockGroup = prisma.contactRequest.groupBy as jest.Mock;
-const mockUpdate = prisma.contactRequest.update as jest.Mock;
+const mockUpdateMany = prisma.contactRequest.updateMany as jest.Mock;
 
 function row(id: string, over: Record<string, unknown> = {}) {
   return {
@@ -42,7 +48,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockFind.mockResolvedValue([]);
   mockGroup.mockResolvedValue([]);
-  mockUpdate.mockResolvedValue({});
+  mockUpdateMany.mockResolvedValue({ count: 1 });
 });
 
 describe('isRequestStatus', () => {
@@ -77,12 +83,51 @@ describe('listContactRequests', () => {
     expect(nextCursor).toBe('r24');
   });
 
-  it('filters by status and paginates from a cursor', async () => {
+  it('filters by status and pages from the cursor by value, not by offset', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
     await listContactRequests({ status: 'closed', cursor: 'r5' });
+
     const arg = mockFind.mock.calls[0][0];
-    expect(arg.where).toEqual({ status: 'closed' });
-    expect(arg.cursor).toEqual({ id: 'r5' });
-    expect(arg.skip).toBe(1);
+    expect(arg.where).toEqual({
+      AND: [
+        { status: 'closed' },
+        {
+          OR: [{ createdAt: { lt: cursorAt } }, { createdAt: cursorAt, id: { lt: 'r5' } }],
+        },
+      ],
+    });
+    expect(arg.cursor).toBeUndefined();
+    expect(arg.skip).toBeUndefined();
+  });
+
+  // The defect: Prisma resolves `cursor: { id }` inside the filtered result, so
+  // a cursor row whose status moved out of the filter is not the first row of
+  // the page any more and `skip: 1` drops a real request instead.
+  it('resolves the cursor row without the status filter, so a moved row cannot cost a page its first request', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
+    await listContactRequests({ status: 'new', cursor: 'r6' });
+
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { id: 'r6' },
+      select: { createdAt: true },
+    });
+    const lookup = mockFindUnique.mock.calls[0][0];
+    expect(lookup.where.status).toBeUndefined();
+    expect(mockFind.mock.calls[0][0].skip).toBeUndefined();
+  });
+
+  it('keeps the id tiebreak in the keyset bound so tied timestamps cannot straddle a page', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+
+    await listContactRequests({ cursor: 'r5' });
+
+    const [, cursorFilter] = mockFind.mock.calls[0][0].where.AND;
+    expect(cursorFilter.OR).toContainEqual({ createdAt: cursorAt, id: { lt: 'r5' } });
   });
 
   // The cursor resolves to a `createdAt` value, not to the row, so the sort has
@@ -104,19 +149,33 @@ describe('listContactRequests', () => {
   // Prisma does not error on a cursor that matches no row, it just returns
   // nothing (verified against Postgres 16 with this schema), which would show
   // the empty state over a table that has rows in it.
-  it('falls back to the first page when a cursor matches no row', async () => {
-    mockFind.mockResolvedValueOnce([]).mockResolvedValueOnce([row('r1')]);
+  it('serves the first page in one query when a cursor matches no row', async () => {
+    mockFindUnique.mockResolvedValueOnce(null);
+    mockFind.mockResolvedValueOnce([row('r1')]);
 
     const { requests } = await listContactRequests({ cursor: 'deleted-or-stale' });
 
     expect(requests).toHaveLength(1);
+    // An unresolved cursor contributes no bound, so the first query already IS
+    // the first page - re-running it would only cost a second round trip.
+    expect(mockFind).toHaveBeenCalledTimes(1);
+    expect(mockFind.mock.calls[0][0].where).toEqual({ AND: [{}, {}] });
+  });
+
+  it('falls back to the first page when a resolved cursor lands past the end', async () => {
+    const cursorAt = new Date('2026-07-01T09:00:00Z');
+    mockFindUnique.mockResolvedValueOnce({ createdAt: cursorAt });
+    mockFind.mockResolvedValueOnce([]).mockResolvedValueOnce([row('r1')]);
+
+    const { requests } = await listContactRequests({ status: 'new', cursor: 'r5' });
+
+    expect(requests).toHaveLength(1);
     expect(mockFind).toHaveBeenCalledTimes(2);
-    const retry = mockFind.mock.calls[1][0];
-    expect(retry.cursor).toBeUndefined();
-    expect(retry.skip).toBeUndefined();
+    expect(mockFind.mock.calls[1][0].where).toEqual({ status: 'new' });
   });
 
   it('does not re-query when a cursor legitimately returns rows', async () => {
+    mockFindUnique.mockResolvedValueOnce({ createdAt: new Date('2026-07-01T09:00:00Z') });
     mockFind.mockResolvedValue([row('r1')]);
     await listContactRequests({ cursor: 'r0' });
     expect(mockFind).toHaveBeenCalledTimes(1);
@@ -127,6 +186,11 @@ describe('listContactRequests', () => {
     const { requests } = await listContactRequests({});
     expect(requests).toEqual([]);
     expect(mockFind).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not look a cursor up when none was given', async () => {
+    await listContactRequests({ status: 'new' });
+    expect(mockFindUnique).not.toHaveBeenCalled();
   });
 });
 
@@ -164,11 +228,51 @@ describe('countRequestsByStatus', () => {
 });
 
 describe('setRequestStatus', () => {
-  it('writes the status and the acting admin', async () => {
-    await setRequestStatus({ requestId: 'r1', status: 'closed', actorId: 'admin-1' });
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: 'r1' },
+  it('writes the status and the acting admin only when the expected status still matches', async () => {
+    const result = await setRequestStatus({
+      requestId: 'r1',
+      status: 'closed',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: { equals: 'r1' }, status: { equals: 'new' } },
       data: { status: 'closed', handledBy: 'admin-1' },
     });
+    expect(result).toEqual({ ok: true });
+    expect(mockFindUnique).not.toHaveBeenCalled();
+  });
+
+  // Another admin closed the request between page-load and this submit, so the
+  // WHERE clause matches zero rows: the write must not happen, and the caller
+  // needs the real current status to show the operator instead of trusting
+  // the stale one their page still holds.
+  it('makes no write and reports the current status when the row already moved on', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue({ id: 'r1', status: 'closed' });
+
+    const result = await setRequestStatus({
+      requestId: 'r1',
+      status: 'in_progress',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: 'closed' });
+    expect(mockFindUnique).toHaveBeenCalledWith({ where: { id: 'r1' } });
+  });
+
+  it('reports a null current status when the row no longer exists', async () => {
+    mockUpdateMany.mockResolvedValue({ count: 0 });
+    mockFindUnique.mockResolvedValue(null);
+
+    const result = await setRequestStatus({
+      requestId: 'gone',
+      status: 'closed',
+      expectedStatus: 'new',
+      actorId: 'admin-1',
+    });
+
+    expect(result).toEqual({ ok: false, currentStatus: null });
   });
 });

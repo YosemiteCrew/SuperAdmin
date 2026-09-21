@@ -2,7 +2,6 @@
 
 import { usePathname } from 'next/navigation';
 import { IoSearchOutline } from 'react-icons/io5';
-import { MdNotificationsActive } from 'react-icons/md';
 
 import { COMMAND_PALETTE_EVENT } from '@/app/ui/overlays/CommandPalette';
 import styles from '@/app/ui/layout/shell.module.css';
@@ -12,8 +11,21 @@ import { UserMenu } from './UserMenu';
 const SECTION_TITLES: Record<string, string> = {
   '/dashboard': 'Dashboard',
   '/users': 'Users',
+  '/approvals': 'Approvals',
   '/organizations': 'Organizations',
+  '/invites': 'Invites',
+  '/admins': 'Admins',
+  '/crm/requests': 'Contact requests',
+  '/crm/compose': 'New campaign',
+  '/crm/discord': 'Discord',
+  '/crm': 'Campaigns',
+  '/social': 'Social',
+  '/consent': 'Consent',
+  '/privacy/requests': 'Data requests',
   '/analytics': 'Analytics',
+  '/audit': 'Audit log',
+  '/health': 'Health',
+  '/ap': 'Federation',
   '/settings': 'Settings',
 };
 
@@ -64,11 +76,6 @@ export function Header({
             <span className={styles.keycap} aria-hidden>
               ⌘K
             </span>
-          </button>
-
-          <button type="button" aria-label="Notifications" className={styles.iconButton}>
-            <MdNotificationsActive size={17} />
-            <span className={styles.bellDot} aria-hidden />
           </button>
 
           <UserMenu email={email} firstName={firstName} lastName={lastName} />

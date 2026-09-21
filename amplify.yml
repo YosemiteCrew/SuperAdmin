@@ -15,9 +15,11 @@ applications:
       phases:
         preBuild:
           commands:
-            # Next 16 needs Node >= 20, and CI builds on 20 - keep them matched
-            # so a green CI build cannot mean a red Amplify build.
-            - nvm use 20 || nvm install 20
+            # Next 16 needs Node >= 20, and CI builds on 22 - keep them matched
+            # so a green CI build cannot mean a red Amplify build. Node 20 went
+            # end of life on 2026-04-30 and secretlint, lint-staged and
+            # commitlint all declare engines that exclude it.
+            - nvm use 22 || nvm install 22
             # pnpm 8: pnpm-lock.yaml is lockfileVersion 6.0 and pnpm 9+ rejects
             # it under --frozen-lockfile.
             - corepack enable
@@ -139,48 +141,80 @@ applications:
                 grep -q "^$R=" .env.production || { echo "FAIL: $R missing - the app cannot boot without it"; exit 1; }
               done
               echo "OK: required runtime vars present"
+            - (cd ../.. && pnpm run build --filter admin)
+            # There is no query-engine copy step any more. Prisma 7 queries
+            # through @prisma/adapter-pg, so nothing outside .next has to reach
+            # the compute bundle - which is also why the assertion that used to
+            # guard that copy is gone rather than weakened.
+            #
+            # Start the artifact and make it query the database before it is
+            # deployed. Nothing before this step opens a connection from the
+            # application: `next build` compiles without querying. The failure
+            # this exists for is the one that reverted the first Prisma 7 attempt
+            # (03218f5) - the driver adapter's TLS against the Supabase pooler
+            # either works or does not, and until now nothing before deploy would
+            # say which.
+            #
+            # Runs on every branch, main included. DATABASE_URL is asserted
+            # present above, and /api/health is public (src/proxy.ts) so basic
+            # auth does not intercept the probe. It is a read of SELECT 1; it
+            # writes nothing and needs no migration.
+            - |
+              PORT=3001
+              HEALTH_URL="http://127.0.0.1:$PORT/api/health"
+              # Resolved rather than pathed, and started without a wrapper.
+              # node-linker=hoisted (see .npmrc) means apps/admin/node_modules
+              # does not exist, so there is no local .bin to point at; and $!
+              # has to belong to the server itself for the `kill -0` liveness
+              # check below to mean anything.
+              NEXT_BIN=$(node -e "process.stdout.write(require.resolve('next/dist/bin/next'))")
+              node "$NEXT_BIN" start --port "$PORT" > /tmp/next-start.log 2>&1 &
+              APP_PID=$!
+              CODE=000
+              for _ in $(seq 1 45); do
+                if ! kill -0 "$APP_PID" 2>/dev/null; then
+                  echo "FAIL: next start exited before answering $HEALTH_URL"
+                  cat /tmp/next-start.log
+                  exit 1
+                fi
+                # Remove the body first and assign 000 on any curl failure, so a
+                # refused connection during startup can never be read as a
+                # previous iteration's success.
+                rm -f /tmp/health.json
+                CODE=$(curl -s -o /tmp/health.json -w '%{http_code}' "$HEALTH_URL") || CODE=000
+                if [ "$CODE" = "200" ]; then break; fi
+                sleep 2
+              done
+              kill "$APP_PID" 2>/dev/null || true
+              wait "$APP_PID" 2>/dev/null || true
+              if [ "$CODE" != "200" ]; then
+                echo "FAIL: $HEALTH_URL answered $CODE, expected 200"
+                cat /tmp/health.json 2>/dev/null || true
+                cat /tmp/next-start.log
+                exit 1
+              fi
+              # 200 already means database:up - the route returns 503 when the
+              # probe throws - but assert the field rather than inferring it from
+              # the status, because a later edit to the route could separate them.
+              if ! grep -q '"database":"up"' /tmp/health.json; then
+                echo "FAIL: /api/health returned 200 without \"database\":\"up\""
+                cat /tmp/health.json
+                cat /tmp/next-start.log
+                exit 1
+              fi
+              echo "OK: the built artifact reached Postgres through the pg driver adapter"
             # Migrations run on the production branch only. Amplify builds every
             # branch, and a preview build must never migrate the live database.
             # This is what stops a repeat of the 2026-08-11 outage, where code
             # shipped ahead of the schema because nothing ran migrate deploy.
+            # It deliberately runs last: the schema-independent health gate above
+            # must accept the built artifact before production can be migrated,
+            # so a rejected build leaves the previous artifact and schema paired.
             - |
               if [ "$AWS_BRANCH" = "main" ]; then
                 (cd ../.. && pnpm run migrate:deploy)
               else
                 echo "Skipping migrate:deploy on branch '$AWS_BRANCH' (production is 'main')"
-              fi
-            - (cd ../.. && pnpm run build --filter admin)
-            # Post-build health check: start the built app and verify /api/health
-            # returns 200 with database:up. This catches connection/config issues
-            # that would otherwise only surface at runtime.
-            - |
-              if [ "$AWS_BRANCH" != "main" ]; then
-                echo "Running post-build health check on preview branch..."
-                # Start the built app in the background on a random port
-                PORT=3173 NODE_ENV=production npx next start --port 3173 &
-                SERVER_PID=$!
-                # Wait for server to be ready
-                for i in $(seq 1 30); do
-                  if curl -sf "http://localhost:3173/api/health" > /dev/null; then
-                    break
-                  fi
-                  sleep 1
-                done
-                # Check the health endpoint
-                HEALTH_JSON=$(curl -sf "http://localhost:3173/api/health" || echo '{}')
-                echo "Health response: $HEALTH_JSON"
-                # Verify database is up
-                if echo "$HEALTH_JSON" | grep -q '"database":"up"'; then
-                  echo "OK: /api/health reports database up"
-                else
-                  echo "FAIL: /api/health does not report database up"
-                  kill $SERVER_PID 2>/dev/null || true
-                  exit 1
-                fi
-                # Clean up
-                kill $SERVER_PID 2>/dev/null || true
-              else
-                echo "Skipping post-build health check on main branch (requires live database)"
               fi
       artifacts:
         baseDirectory: .next

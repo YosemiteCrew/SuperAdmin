@@ -19,26 +19,44 @@ updates:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
+      # react and react-dom are a peer pair that must move in lockstep: react-dom
+      # asserts at runtime that both resolve to the exact same version, and its
+      # peerDependency floor rises with every minor. Ungrouped, they are two
+      # production dependencies, so Dependabot opened one PR each - and each half
+      # regenerated the lockfile for only its own side. Both were red with
+      # "Incompatible React versions" and 60 of 181 suites failing to run, which
+      # is not a fault in either PR: neither can be green alone, and merging one
+      # would have broken `main`. See #496 and #497. The type packages join the
+      # group because @types/react-dom's peer floor tracks @types/react the same
+      # way. Declared BEFORE dev-dependencies so the two devDependency type
+      # packages land here rather than in the weekly dev group.
+      react:
+        patterns:
+          - 'react'
+          - 'react-dom'
+          - '@types/react'
+          - '@types/react-dom'
       dev-dependencies:
         dependency-type: development
     ignore:
-      # These majors are held back deliberately. Without these rules Dependabot
-      # re-proposes them in every dev-dependencies batch, which lands a red PR
-      # and costs a manual revert each time (this happened in #116, #121, #127).
-      #
-      # eslint 10 + eslint-config-next 16: apps/admin loads eslint-config-next
-      # through FlatCompat (@eslint/eslintrc). Under eslint 10 that loader dies
-      # with "Converting circular structure to JSON" in config-validator, so lint
-      # fails repo-wide. The two must move together, and only once the flat-config
-      # migration is done. Lift both rules in the same PR.
+      # eslint 10 remains outside the peer ranges declared by three plugins
+      # bundled with eslint-config-next 16. Keep this hold until that graph is
+      # supported; the native flat-config migration no longer couples it to
+      # eslint-config-next's major.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
-      - dependency-name: 'eslint-config-next'
-        update-types: ['version-update:semver-major']
-      # typescript 7 is the Go-based native compiler rewrite; ts-jest@29 and
-      # ts-node@10 do not support it, so type-check and the jest transform break.
-      # Lift once those two declare TS 7 support.
+      # The admin lint stack still rejects TypeScript 7 explicitly through
+      # typescript-eslint, which requires typescript <6.1.0. ts-jest and
+      # ts-node were removed from apps/admin (jest.config is plain ESM,
+      # check-pnpm-overrides is plain ESM), so they no longer bind this hold.
       - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
+      # @types/node tracks the Node runtime major, not the latest release.
+      # `.nvmrc`, `amplify.yml` and every workflow pin Node 22 (#595), and
+      # nodeVersion.test.ts fails when the type surface disagrees - which is
+      # what turned #605 red. Release this hold in the commit that moves the
+      # runtime, not before.
+      - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: '/'

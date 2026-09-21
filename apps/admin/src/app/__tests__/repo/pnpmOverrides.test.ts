@@ -1,4 +1,7 @@
-import { validateMetadata, withoutOverrideHeader } from '../../../../scripts/check-pnpm-overrides';
+import {
+  validateMetadata,
+  withoutOverrideHeader,
+} from '../../../../scripts/check-pnpm-overrides.mjs';
 
 describe('pnpm override monitoring', () => {
   it('compares resolution without treating the expected override-header change as evidence', () => {

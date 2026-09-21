@@ -10,7 +10,6 @@ import UserRolesNode from 'supertokens-node/recipe/userroles';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { serverEnv } from '@/app/config/env.server';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
-import { AUDIT_LOG_LIMIT } from '@/app/features/audit/audit';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForActor } from '@/app/features/audit/store';
 import { buildSystemInfo, maskCoreHost } from '@/app/features/settings/systemInfo';
@@ -86,7 +85,7 @@ async function loadTotpLabel(userId: string): Promise<string> {
 }
 
 export default async function SettingsPage() {
-  const { userId } = await requireSuperAdmin();
+  const { userId } = await requireSuperAdmin('page');
   const user = await supertokens.getUser(userId);
   const email = user?.emails[0] ?? '';
 
@@ -103,7 +102,6 @@ export default async function SettingsPage() {
     buildSha: process.env.NEXT_PUBLIC_BUILD_SHA ?? process.env.VERCEL_GIT_COMMIT_SHA,
     apiConfigured: Boolean(process.env.NEXT_PUBLIC_API_URL),
     coreHost: maskCoreHost(serverEnv.supertokensConnectionUri),
-    auditRetention: AUDIT_LOG_LIMIT,
   });
   const bootstrapEmails = serverEnv.superadminBootstrapEmails;
 

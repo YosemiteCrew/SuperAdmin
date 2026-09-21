@@ -1,14 +1,9 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { FlatCompat } from '@eslint/eslintrc';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({ baseDirectory: __dirname });
+import nextVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
 const config = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...nextVitals,
+  ...nextTypescript,
   {
     plugins: {
       sonarjs: (await import('eslint-plugin-sonarjs')).default,
@@ -28,6 +23,10 @@ const config = [
       'no-negated-condition': 'error',
       'react/prefer-read-only-props': 'error',
       'sonarjs/no-nested-conditional': 'error',
+      // S6772: a text child sitting next to an element across a line break
+      // leaves the space between them up to the reader. Mirrored here so the
+      // ambiguity is caught before a server-side scan reports it.
+      'react/jsx-child-element-spacing': 'error',
     },
   },
   {

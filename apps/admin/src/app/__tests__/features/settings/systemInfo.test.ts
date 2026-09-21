@@ -24,7 +24,6 @@ describe('buildSystemInfo', () => {
     buildSha: 'abcdef1234567',
     apiConfigured: true,
     coreHost: 'core.example.com',
-    auditRetention: 250,
   };
 
   it('produces a labelled row per system field', () => {
@@ -34,7 +33,7 @@ describe('buildSystemInfo', () => {
     expect(map.Build).toBe('abcdef1'); // shortened to 7 chars
     expect(map['Organizations backend']).toBe('Connected');
     expect(map['SuperTokens core']).toBe('core.example.com');
-    expect(map['Audit view']).toBe('250 most-recent events');
+    expect(map['Audit view']).toBe('Complete append-only history');
   });
 
   it('falls back for missing env, no build sha, and unconfigured backend', () => {

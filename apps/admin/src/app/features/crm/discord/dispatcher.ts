@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { getDiscordConfig } from './store';
+import { isDiscordWebhookUrl } from './webhookUrl';
 
 interface DiscordEmbed {
   title: string;
@@ -11,6 +12,9 @@ interface DiscordEmbed {
 }
 
 async function postWebhook(webhookUrl: string, payload: unknown): Promise<void> {
+  if (!isDiscordWebhookUrl(webhookUrl)) {
+    throw new Error('Discord webhook URL is invalid. Save a valid webhook URL first.');
+  }
   const res = await fetch(webhookUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

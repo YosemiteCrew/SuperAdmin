@@ -1,24 +1,58 @@
 import { fireEvent, render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe, toHaveNoViolations } from 'jest-axe';
 
 import { UserMenu } from '@/app/ui/layout/Header/UserMenu';
 
+expect.extend(toHaveNoViolations);
+
 const signOutMock = jest.fn();
+const replaceMock = jest.fn();
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: replaceMock }),
+}));
 jest.mock('supertokens-auth-react/recipe/emailpassword', () => ({
   signOut: () => signOutMock(),
 }));
 
 const SIGN_OUT = 'Sign out';
 
+function renderMobileUserMenu() {
+  return render(
+    <>
+      <style>{'.profileName, .chevron { display: none; }'}</style>
+      <UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />
+    </>
+  );
+}
+
 describe('UserMenu', () => {
   beforeEach(() => {
     signOutMock.mockReset();
     signOutMock.mockResolvedValue(undefined);
+    replaceMock.mockReset();
   });
 
   it('shows the firstName when provided', () => {
     render(<UserMenu email="aman.gupta@gmail.com" firstName="Aman" lastName={null} />);
     expect(screen.getByText('Aman')).toBeInTheDocument();
+  });
+
+  it('keeps a stable accessible name when the mobile layout hides visible text', async () => {
+    const user = userEvent.setup();
+    renderMobileUserMenu();
+
+    const trigger = screen.getByRole('button', { name: 'Account menu for Aman' });
+    await user.click(trigger);
+
+    expect(screen.getByRole('menuitem', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: SIGN_OUT })).toBeInTheDocument();
+  });
+
+  it('has no button-name violation when the mobile layout hides visible text', async () => {
+    const { container } = renderMobileUserMenu();
+
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it('falls back to the first email chunk when firstName missing', () => {
@@ -57,6 +91,7 @@ describe('UserMenu', () => {
     await user.click(screen.getByRole('menuitem', { name: SIGN_OUT }));
     await waitFor(() => {
       expect(signOutMock).toHaveBeenCalledTimes(1);
+      expect(replaceMock).toHaveBeenCalledWith('/auth');
     });
   });
 

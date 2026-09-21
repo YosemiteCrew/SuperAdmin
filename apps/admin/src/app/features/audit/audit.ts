@@ -1,3 +1,5 @@
+import { describeContactRequestStatus } from '../contact/labels';
+import { describeDataRequestStatus, describeDataRequestType } from '../dataRequests/types';
 import { AUDIT_TARGET_TYPES } from './types';
 import type { AuditAction, AuditEvent, AuditEventInput } from './types';
 
@@ -5,6 +7,18 @@ import type { AuditAction, AuditEvent, AuditEventInput } from './types';
 export const AUDIT_LOG_LIMIT = 250;
 
 export type AuditSeverity = 'info' | 'warning' | 'danger';
+
+/**
+ * Severity in words, for the readers the coloured dot never reached: assistive
+ * technology, and anyone who cannot separate grey, amber and red. One map, so
+ * the table and the timeline cannot drift into saying different things about
+ * the same event.
+ */
+export const AUDIT_SEVERITY_LABELS: Readonly<Record<AuditSeverity, string>> = {
+  info: 'Info',
+  warning: 'Warning',
+  danger: 'High risk',
+};
 
 /** Display metadata per action: a short verb-phrase label and a severity. */
 export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSeverity }> = {
@@ -37,6 +51,10 @@ export const AUDIT_META: Record<AuditAction, { label: string; severity: AuditSev
   'privacy.subject_export': {
     label: 'Exported the panel record for a data-subject request',
     severity: 'warning',
+  },
+  'privacy.subject_erase_authorize': {
+    label: 'Authorized erasure for a data-subject request',
+    severity: 'danger',
   },
   'privacy.subject_erase': {
     label: 'Erased the panel record for a data-subject request',
@@ -111,9 +129,35 @@ export function isValidAuditEvent(value: unknown): value is AuditEvent {
   );
 }
 
+/**
+ * What an event points at, in words.
+ *
+ * Six actions complete their phrase with an enum value recorded as the
+ * `targetLabel`, and the words for those enums live with the enums. Resolved
+ * HERE, at display time, rather than at the point of writing: events recorded
+ * before this existed already hold the raw value, and a hash-chained log with
+ * no erasure workflow is not a thing to migrate.
+ */
+const TARGET_LABEL_RESOLVERS: Partial<Record<AuditAction, (raw: string) => string>> = {
+  'contact.status_change': describeContactRequestStatus,
+  'privacy.request_update': describeDataRequestStatus,
+  // These four complete the phrase with the request TYPE, not its status: see
+  // the labels above. `access` and `erasure` are single lowercase words, so
+  // they read as ordinary prose in a sentence and were the last raw enum values
+  // left on this screen.
+  'privacy.request_create': describeDataRequestType,
+  'privacy.subject_export': describeDataRequestType,
+  'privacy.subject_erase_authorize': describeDataRequestType,
+  'privacy.subject_erase': describeDataRequestType,
+};
+
+export function auditTargetLabel(event: AuditEvent): string {
+  const raw = event.targetLabel?.trim() || event.targetId;
+  return TARGET_LABEL_RESOLVERS[event.action]?.(raw) ?? raw;
+}
+
 /** Human-readable phrase for an event, e.g. "Deleted user alice@x.com". */
 export function describeAuditEvent(event: AuditEvent): string {
   const label = AUDIT_META[event.action]?.label ?? event.action;
-  const target = event.targetLabel?.trim() || event.targetId;
-  return `${label} ${target}`;
+  return `${label} ${auditTargetLabel(event)}`;
 }

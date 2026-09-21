@@ -16,7 +16,8 @@ while ADR-0001 explicitly described the log as non-authoritative.
 Store every privileged action as an immutable `AuditEvent` row in the panel's Postgres database.
 Writes take a transaction-scoped Postgres advisory lock before linking and inserting the next hash,
 so separate application instances cannot fork the chain. A database trigger refuses updates and
-deletes. The UI may load only its 250 most-recent rows, but that is a display limit, not retention.
+deletes. The UI queries the complete table with database-side filters and pagination; exports use
+the same filters without silently truncating older matching events.
 
 The log is a compliance record. Account erasure does not rewrite historical audit rows because the
 identity and action are retained to demonstrate how privileged access and data-subject requests

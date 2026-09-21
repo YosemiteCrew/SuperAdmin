@@ -19,13 +19,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
   # Build/test-time placeholders. Real values are set at deploy time per environment.
   # The app's env helpers refuse to load with missing required vars; CI satisfies them
   # with these dummies just so the build can verify the code compiles.
   NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
   SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
   SUPERTOKENS_API_KEY: placeholder-ci-key
+  SUPERADMIN_BOOTSTRAP_EMAILS: admin@example.com
   # Credential-free on purpose: the secret scanner rejects a placeholder that
   # carries a user:password pair. Nothing connects during lint/build/test.
   DATABASE_URL: postgresql://localhost:5432/placeholder
@@ -51,13 +52,16 @@ jobs:
 
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.STORE_PATH }}
           key: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: pnpm-${{ runner.os }}-${{ env.NODE_VERSION }}-
 
       - run: pnpm install --frozen-lockfile
+
+      - name: Test repository CI controls
+        run: node --test scripts/ci/intake-readiness.test.mjs scripts/ci/forbidden-terms.test.mjs
 
       - name: Lint
         run: pnpm run lint --filter admin
@@ -75,45 +79,38 @@ jobs:
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
         run: pnpm run test --filter admin -- --ci --maxWorkers=2 --coverage
 
-  rls:
-    name: RLS enabled in the database the migrations build
-    runs-on: ubuntu-latest
-    # A sibling job, not a step in `ci`: it needs a database, and nothing else
-    # in this workflow connects to one. Keeping it separate means the lint and
-    # build path stays credential-free and connection-free as documented above.
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: ci
-          POSTGRES_DB: panel
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-    env:
-      # Ephemeral and thrown away with the runner, so there is nothing here to
-      # leak. `?schema=superadmin` is required: scripts/assert-schema.js refuses
-      # to migrate without it, and the guard reads that schema by name.
-      DATABASE_URL: postgresql://postgres:ci@localhost:5432/panel?schema=superadmin
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
+      # Row level security, asserted against the database the migrations build.
+      # These steps live in this job because it reports the required check. They
+      # run last and start the database themselves, so every step above stays
+      # connection-free as documented at the top of this file, and the
+      # connection string below reaches only the two steps that use it. The
+      # database is ephemeral and goes with the runner.
+      - name: Start an ephemeral Postgres for the RLS check
+        run: |
+          docker run --detach --name rls-postgres --publish 5432:5432 \
+            --env POSTGRES_PASSWORD=ci --env POSTGRES_DB=panel \
+            --health-cmd 'pg_isready -h 127.0.0.1 -U postgres -d panel' \
+            --health-interval 2s --health-timeout 5s --health-retries 30 \
+            postgres:16-alpine
+          for _ in $(seq 1 60); do
+            status="$(docker inspect --format '{{.State.Health.Status}}' rls-postgres)"
+            if [ "$status" = healthy ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs rls-postgres
+          echo "Postgres was not healthy after two minutes (last status: $status)." >&2
+          exit 1
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-        with:
-          run_install: false
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
-
-      - run: pnpm install --frozen-lockfile
-
+      # `?schema=superadmin` is required: scripts/assert-schema.js refuses to
+      # migrate without it, and the guard reads that schema by name.
       - name: Apply the migrations
+        env:
+          DATABASE_URL: postgresql://postgres:ci@localhost:5432/panel?schema=superadmin
         run: pnpm --filter @superadmin/database run migrate:deploy
 
       - name: Assert row level security is on in the resulting database
+        env:
+          DATABASE_URL: postgresql://postgres:ci@localhost:5432/panel?schema=superadmin
         run: pnpm --filter @superadmin/database run assert-rls

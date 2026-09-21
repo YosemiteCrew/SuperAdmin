@@ -66,9 +66,11 @@ describe('proxy', () => {
     ['GET', '/api/ap/revoked.json'],
     ['GET', '/api/directory'],
     ['PUT', '/api/directory/listing'],
+    ['GET', '/api/cloud-users'],
     ['GET', '/api/health'],
     ['POST', '/api/contact'],
     ['POST', '/api/consent'],
+    ['POST', '/api/approvals/reconcile'],
     ['POST', '/api/social/tiktok/scheduled'],
     ['POST', '/api/social/instagram/scheduled'],
   ])('exempts the machine route %s %s from Basic Auth', (method, path) => {
@@ -89,6 +91,7 @@ describe('proxy', () => {
 
     expect(proxy(makeRequest('/api/directory/listing')).status).toBe(401);
     expect(proxy(makeRequest('/api/health/private')).status).toBe(401);
+    expect(proxy(makeRequest('/api/approvals/reconcile')).status).toBe(401);
   });
 
   it.each([undefined, '', 'operator', ':password', 'operator:', 'operator:pass\nword'])(

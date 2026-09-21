@@ -1,0 +1,86 @@
+name: Deployed commit
+
+# Did this merge actually ship?
+#
+# The panel deploys through the Amplify GitHub app, so there is no CD workflow
+# to fail and no webhook response to inspect. A merge to `main` either becomes
+# an artifact or does not, and until now the only place that showed was the
+# Amplify console. On 2026-09-06 a `DATABASE_URL` edit broke `migrate:deploy`;
+# every check here stayed green, the site stayed up serving the previous
+# artifact, and `main` silently stopped deploying. Nothing in the repository
+# could have said so.
+#
+# `/api/health` publishes the commit the running artifact was built from, which
+# is enough to close that on one request. No AWS call: the IAM principal
+# available to this fleet is under an explicit deny for Amplify configuration,
+# and a check that needs an access nobody has is not a check.
+#
+# `main` is behind the panel's own Basic Auth gate (moved from the Amplify
+# branch-wide gate into the app in #377, since Amplify had no per-path
+# exemption). `GET /api/health` is a named entry in `BASIC_AUTH_EXEMPTIONS`
+# (apps/admin/src/proxy.ts) for exactly this reason - a route called by
+# machines that cannot complete a browser challenge - so this check reads it
+# unauthenticated by design and needs no credential.
+#
+# NOT a required status check, and it should not become one. It runs after the
+# merge, so it cannot gate a pull request, and making deployability a merge
+# condition would block the repository during an unrelated production outage.
+
+on:
+  push:
+    branches: [main]
+  # So an operator can ask "is main deployed right now?" without pushing -
+  # which is exactly the question that went unanswered on 2026-09-06.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deployed-commit-${{ github.ref }}
+  # Never cancel. This runs only on a branch, and a cancelled run verifies
+  # nothing - the same reasoning that made `ci-affected` stop cancelling its
+  # `push` builds. Two merges close together are handled below instead.
+  cancel-in-progress: false
+
+jobs:
+  assert:
+    name: main is serving this commit
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'YosemiteCrew'
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Wait for the deployed commit to match
+        shell: bash
+        env:
+          HEALTH_URL: https://admin.yosemitecrew.com/api/health
+          EXPECTED_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # The poll, its window and the supersession rule live in the script,
+          # which admin-e2e.yml shares. Exit 3 is SUPERSEDED: a newer merge
+          # replaced this deploy and its own run asserts that one, so it is not
+          # a failure of this commit. Every other non-zero exit is.
+          status=0
+          bash scripts/ci/wait-for-deployed-main.sh "$HEALTH_URL" "$EXPECTED_SHA" || status=$?
+          if [ "$status" -eq 3 ]; then
+            exit 0
+          fi
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
+
+          health_file="$(mktemp)"
+          trap 'rm -f "$health_file"' EXIT
+          curl --fail --silent --show-error --max-time 30 \
+            --output "$health_file" "$HEALTH_URL"
+          node scripts/ci/intake-readiness.mjs \
+            "$health_file" "$EXPECTED_SHA" --require contact

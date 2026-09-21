@@ -50,7 +50,7 @@ describe('recordConsent', () => {
       expect.objectContaining({
         where: { consentId: 'c1' },
         create: expect.objectContaining({ consentId: 'c1', email: 'a@b.com', userId: 'u1' }),
-        update: {},
+        update: { updatedAt: expect.any(Date) },
       })
     );
     const rows = mockCreateMany.mock.calls[0][0].data;
@@ -64,7 +64,22 @@ describe('recordConsent', () => {
     expect(rows[1]).toMatchObject({ category: 'marketing', granted: false });
   });
 
-  it('fills identity only when the column is still null (never overwrites)', async () => {
+  it('bumps the subject timestamp for an anonymous decision without writing identity', async () => {
+    await recordConsent({
+      consentId: 'anonymous-1',
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: false }],
+    });
+
+    expect(mockUpsert).toHaveBeenCalledWith({
+      where: { consentId: 'anonymous-1' },
+      create: { consentId: 'anonymous-1', userId: null, email: null },
+      update: { updatedAt: expect.any(Date) },
+    });
+    expect(mockSubjUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it('fills an identity pair in one conditional write so concurrent submissions cannot split it', async () => {
     await recordConsent({
       consentId: 'c1',
       source: 'web',
@@ -72,38 +87,83 @@ describe('recordConsent', () => {
       email: 'a@b.com',
       userId: 'u1',
     });
-    // consentId is matched with an explicit `equals` rather than a bare value:
-    // updateMany's where accepts filters, so a bare value that turned out to be
-    // an object at runtime would be read as one.
+    expect(mockSubjUpdateMany).toHaveBeenCalledTimes(1);
     expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: { equals: 'c1' }, userId: null },
-      data: { userId: 'u1' },
-    });
-    expect(mockSubjUpdateMany).toHaveBeenCalledWith({
-      where: { consentId: { equals: 'c1' }, email: null },
-      data: { email: 'a@b.com' },
+      where: {
+        consentId: { equals: 'c1' },
+        AND: [
+          { OR: [{ userId: null }, { userId: { equals: 'u1' } }] },
+          { OR: [{ email: null }, { email: { equals: 'a@b.com' } }] },
+        ],
+      },
+      data: { userId: 'u1', email: 'a@b.com' },
     });
   });
 
-  // Defence in depth at the query, not just at the parser. If a future caller
-  // reaches recordConsent without going through parseConsentSubmission, an
-  // object consentId must still be compared rather than interpreted as a filter:
-  // a bare `consentId: { not: 'x' }` would match every OTHER subject and write
-  // the identity onto their rows.
-  it('compares consentId by value even if a non-string reaches it', async () => {
+  it('does not attach a partial identity to a subject already linked by the other field', async () => {
     await recordConsent({
-      consentId: { not: 'c1' } as unknown as string,
+      consentId: 'c1',
       source: 'web',
       decisions: [{ category: 'analytics', granted: true }],
       userId: 'u1',
     });
 
-    const [call] = mockSubjUpdateMany.mock.calls;
-    // The injected object is nested under `equals`, so Prisma compares against it
-    // rather than treating `not` as an operator.
-    expect(call[0].where.consentId).toEqual({ equals: { not: 'c1' } });
-    expect(call[0].where.consentId).not.toHaveProperty('not');
+    expect(mockSubjUpdateMany).toHaveBeenCalledWith({
+      where: {
+        consentId: { equals: 'c1' },
+        AND: [{ OR: [{ userId: null }, { userId: { equals: 'u1' } }] }, { email: null }],
+      },
+      data: { userId: 'u1' },
+    });
   });
+
+  it('keeps an email-only backfill away from a subject that already has a user id', async () => {
+    await recordConsent({
+      consentId: 'c1',
+      source: 'web',
+      decisions: [{ category: 'analytics', granted: true }],
+      email: 'a@b.com',
+    });
+
+    expect(mockSubjUpdateMany).toHaveBeenCalledWith({
+      where: {
+        consentId: { equals: 'c1' },
+        AND: [{ userId: null }, { OR: [{ email: null }, { email: { equals: 'a@b.com' } }] }],
+      },
+      data: { email: 'a@b.com' },
+    });
+  });
+
+  it('refuses a non-string consent id before any database query', async () => {
+    await expect(
+      recordConsent({
+        consentId: { not: 'c1' } as unknown as string,
+        source: 'web',
+        decisions: [{ category: 'analytics', granted: true }],
+        userId: 'u1',
+      })
+    ).rejects.toThrow(TypeError);
+
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockSubjUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it.each(['userId', 'email'] as const)(
+    'drops a non-string %s before persistence',
+    async (field) => {
+      await recordConsent({
+        consentId: 'c1',
+        source: 'web',
+        decisions: [{ category: 'analytics', granted: true }],
+        [field]: { not: 'x' } as unknown as string,
+      });
+
+      expect(mockUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ create: expect.objectContaining({ [field]: null }) })
+      );
+      expect(mockSubjUpdateMany).not.toHaveBeenCalled();
+    }
+  );
 
   it('does not attempt an identity backfill when none is supplied', async () => {
     await recordConsent({
@@ -124,6 +184,8 @@ describe('listConsentSubjects', () => {
     updatedAt: new Date('2026-07-01T00:00:00Z'),
     ...over,
   });
+  const cursorFor = (updatedAt: Date, id: string) =>
+    Buffer.from(JSON.stringify({ updatedAt: updatedAt.getTime(), id })).toString('base64url');
 
   it('derives current per-category state from the highest-seq event', async () => {
     mockSubjFind.mockResolvedValue([subject('s1')]);
@@ -165,20 +227,49 @@ describe('listConsentSubjects', () => {
     mockSubjFind.mockResolvedValue(Array.from({ length: 26 }, (_, i) => subject(`s${i}`)));
     const { subjects, nextCursor } = await listConsentSubjects({});
     expect(subjects).toHaveLength(25);
-    expect(nextCursor).toBe('s24');
+    expect(nextCursor).toBe(cursorFor(subjects[24].updatedAt, 's24'));
   });
 
   it('applies an email/consentId search filter', async () => {
     await listConsentSubjects({ search: 'clinic' });
     const where = mockSubjFind.mock.calls[0][0].where;
-    expect(where.OR).toBeDefined();
+    expect(where.AND[0].OR).toBeDefined();
   });
 
-  it('pages from a cursor when one is supplied', async () => {
-    await listConsentSubjects({ cursor: 's5' });
+  it('pages from encoded sort values without a row cursor or skip', async () => {
+    const updatedAt = new Date('2026-07-04T12:00:00Z');
+    await listConsentSubjects({ cursor: cursorFor(updatedAt, 's5') });
     const arg = mockSubjFind.mock.calls[0][0];
-    expect(arg.skip).toBe(1);
-    expect(arg.cursor).toEqual({ id: 's5' });
+    expect(arg).not.toHaveProperty('skip');
+    expect(arg).not.toHaveProperty('cursor');
+    expect(arg.where).toEqual({
+      AND: [
+        {},
+        {
+          OR: [{ updatedAt: { lt: updatedAt } }, { updatedAt, id: { lt: 's5' } }],
+        },
+      ],
+    });
+  });
+
+  it('treats an unparseable cursor as a first-page query', async () => {
+    await listConsentSubjects({ cursor: 'not-a-cursor' });
+
+    expect(mockSubjFind).toHaveBeenCalledTimes(1);
+    expect(mockSubjFind.mock.calls[0][0].where).toEqual({ AND: [{}, {}] });
+  });
+
+  it('falls back to the first page once when a parsed cursor returns no rows', async () => {
+    const firstPage = [subject('s1')];
+    mockSubjFind.mockResolvedValueOnce([]).mockResolvedValueOnce(firstPage);
+
+    const result = await listConsentSubjects({
+      cursor: cursorFor(new Date('2026-07-04T12:00:00Z'), 'missing'),
+    });
+
+    expect(mockSubjFind).toHaveBeenCalledTimes(2);
+    expect(mockSubjFind.mock.calls[1][0].where).toEqual({});
+    expect(result.subjects).toHaveLength(1);
   });
 });
 

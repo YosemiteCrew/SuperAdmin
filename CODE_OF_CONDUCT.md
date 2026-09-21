@@ -12,4 +12,4 @@ We are committed to making participation in this project a harassment-free exper
 
 ## Enforcement
 
-Instances of unacceptable behavior may be reported to the project maintainers. All complaints will be reviewed and investigated.
+Instances of unacceptable behavior may be reported to the project maintainers at support@yosemitecrew.com. All complaints will be reviewed and investigated, and will be handled in a way that is confidential as appropriate.

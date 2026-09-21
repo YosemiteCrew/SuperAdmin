@@ -16,9 +16,11 @@ const BASIC_AUTH_EXEMPTIONS = new Set([
   'GET /api/ap/revoked.json',
   'GET /api/directory',
   'PUT /api/directory/listing',
+  'GET /api/cloud-users',
   'GET /api/health',
   'POST /api/contact',
   'POST /api/consent',
+  'POST /api/approvals/reconcile',
   'POST /api/social/tiktok/scheduled',
   'POST /api/social/instagram/scheduled',
 ]);

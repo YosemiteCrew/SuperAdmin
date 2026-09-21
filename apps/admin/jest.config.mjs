@@ -1,16 +1,15 @@
-import type { Config } from 'jest';
 // Explicit .js extension: jest 30's stricter ESM resolver rejects the
 // extensionless 'next/jest' specifier.
 import nextJest from 'next/jest.js';
 
 const createJestConfig = nextJest({ dir: './' });
 
-const config: Config = {
+const config = {
   watchman: false,
   clearMocks: true,
   collectCoverage: false,
   collectCoverageFrom: [
-    '<rootDir>/src/**/*.{ts,tsx}',
+    '<rootDir>/src/**/*.{js,ts,tsx}',
     '!<rootDir>/src/**/*.d.ts',
     '!<rootDir>/src/**/*.test.ts',
     '!<rootDir>/src/**/*.test.tsx',
@@ -23,12 +22,14 @@ const config: Config = {
     '!<rootDir>/src/app/services/http/types.ts',
     '!<rootDir>/src/app/features/organizations/types.ts',
     '!<rootDir>/src/app/features/audit/types.ts',
+    '!<rootDir>/src/app/features/health/types.ts',
     '!<rootDir>/src/app/features/social/types.ts',
     // SuperTokens provider is framework bootstrapping (module-level init side
     // effect) — not meaningfully unit-testable without asserting mocks.
     '!<rootDir>/src/app/components/supertokensProvider.tsx',
     // Trivial barrel re-exports
     '!<rootDir>/src/app/features/**/index.ts',
+    '<rootDir>/src/app/features/health/index.ts',
     '!<rootDir>/src/app/ui/components/index.ts',
   ],
   // Server-rendered pages and layouts under (routes) are evaluated by Next at
@@ -54,7 +55,6 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@superadmin/types$': '<rootDir>/../../packages/types/src',
-    '^@superadmin/database$': '<rootDir>/../../packages/database/src',
     '^next/navigation$': '<rootDir>/src/app/jest.mocks/nextNavigation.ts',
   },
   transformIgnorePatterns: [

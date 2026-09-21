@@ -123,6 +123,7 @@ describe('UserDetailPage', () => {
     expect(screen.getByText('No verified TOTP device')).toBeInTheDocument();
     expect(screen.getByText('No sign-in recorded since tracking was enabled')).toBeInTheDocument();
     expect(screen.getByTestId('role-button')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-user')).toBeInTheDocument();
   });
 
   it('renders a role-based super admin with the Role badge and TOTP status', async () => {
@@ -167,6 +168,7 @@ describe('UserDetailPage', () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
   });
 
   it('blocks self-management when the caller views their own account', async () => {
@@ -174,6 +176,7 @@ describe('UserDetailPage', () => {
     await renderPage();
     expect(screen.getByText('You cannot change your own access.')).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
   });
 
   it('still renders when every data loader fails (catch paths)', async () => {
@@ -203,6 +206,15 @@ describe('UserDetailPage', () => {
 });
 
 describe('generateMetadata', () => {
+  it('does not read a private user record before authorization', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const mod = await import('@/app/(routes)/(dashboard)/users/[id]/page');
+    await expect(mod.generateMetadata({ params: Promise.resolve({ id: 'u-1' }) })).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+    expect(getUserMock).not.toHaveBeenCalled();
+  });
+
   it('uses the user email as the title', async () => {
     getUserMock.mockResolvedValueOnce(makeUser({ emails: ['meta@example.com'] }));
     const mod = await import('@/app/(routes)/(dashboard)/users/[id]/page');
@@ -225,5 +237,41 @@ describe('generateMetadata', () => {
     await expect(mod.generateMetadata({ params: Promise.resolve({ id: 'u-1' }) })).resolves.toEqual(
       { title: 'User detail' }
     );
+  });
+});
+
+describe('UserDetailPage login methods', () => {
+  /**
+   * The Login methods field printed SuperTokens recipe ids, so an operator read
+   * `emailpassword, passwordless` on a record they may have to act on. The
+   * unknown case matters as much as the known ones: this panel does not
+   * enumerate the core's recipes, and rendering nothing would delete a sign-in
+   * method from the account's own page.
+   */
+  it('names every known recipe in words', async () => {
+    getUserMock.mockResolvedValue(
+      makeUser({
+        loginMethods: [
+          { recipeId: 'emailpassword' },
+          { recipeId: 'thirdparty' },
+          { recipeId: 'passwordless' },
+        ],
+      })
+    );
+
+    await renderPage();
+
+    expect(
+      screen.getByText('Email and password, Social sign-in, One-time code')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/emailpassword/)).not.toBeInTheDocument();
+  });
+
+  it('shows a recipe it does not know as its raw id', async () => {
+    getUserMock.mockResolvedValue(makeUser({ loginMethods: [{ recipeId: 'webauthn' }] }));
+
+    await renderPage();
+
+    expect(screen.getByText('webauthn')).toBeInTheDocument();
   });
 });

@@ -26,10 +26,14 @@ The panel is hosted on AWS Amplify at `https://admin.yosemitecrew.com`.
 to match CI, installs from the repo root so the workspace links resolve, and
 builds `apps/admin`.
 
-**Migrations run in the build, on `main` only.** The build guards on `$AWS_BRANCH`,
-so preview and feature-branch builds never touch the live database. This is the
-Amplify equivalent of `pnpm run release` below, and it is what prevents a repeat
-of the 2026-08-11 outage.
+**Migrations run last in the build, on `main` only.** The built artifact must pass
+the schema-independent `/api/health` database probe first, then the build guards
+the migration on `$AWS_BRANCH`, so preview and feature-branch builds never touch
+the live database. Amplify publishes only after the whole build phase succeeds,
+so the migration still lands before the artifact while a failed probe leaves the
+previous artifact and schema paired. This is the Amplify equivalent of
+`pnpm run release` below, and it is what prevents a repeat of the 2026-08-11
+outage.
 
 ### Environment variables
 
@@ -52,35 +56,35 @@ is baked into the bundle, so changing it needs a redeploy.
 
 Required, the app refuses to boot without them:
 
-| Variable                     | Value                                                                                             |
-| ---------------------------- | ------------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_APP_ORIGIN`     | `https://admin.yosemitecrew.com`                                                                  |
-| `SUPERTOKENS_CONNECTION_URI` | the SuperTokens core URI                                                                          |
-| `SUPERTOKENS_API_KEY`        | the core API key                                                                                  |
-| `DATABASE_URL`               | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
+| Variable                      | Value                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_APP_ORIGIN`      | `https://admin.yosemitecrew.com`                                                                  |
+| `SUPERTOKENS_CONNECTION_URI`  | the SuperTokens core URI                                                                          |
+| `SUPERTOKENS_API_KEY`         | the core API key                                                                                  |
+| `DATABASE_URL`                | Postgres. **Session pooler**, and it must end `?schema=superadmin` - see Supabase specifics below |
+| `SUPERADMIN_BOOTSTRAP_EMAILS` | Comma-separated emails for configuration-owned admin accounts                                     |
 
 #### Which ones actually block a build
 
-Only three stop a build, and they stop it at different points, so fix them in this
-order:
+Five variables stop a build, at three boundaries:
 
-1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
-   `next build`, so an absent value halts everything when Prisma loads the
-   datasource from `packages/database/prisma.config.ts`. A build that dies here
-   never even attempted to compile the app.
-2. **`SUPERTOKENS_CONNECTION_URI`** and **`SUPERTOKENS_API_KEY`** fail next, while
-   Next collects page data - `env.server.ts` throws on module load. The URI has to
-   point at a core that is genuinely _reachable_, not merely be set: collecting
-   `/api/auth/[[...path]]` opens a connection. Check with
-   `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with no
-   API key.
+1. The build spec checks **`DATABASE_URL`**, **`SUPERTOKENS_CONNECTION_URI`**,
+   **`SUPERTOKENS_API_KEY`**, and **`PANEL_BASIC_AUTH_CREDENTIALS`** together before
+   compilation. If any is absent, the build stops before `next build`.
+2. **`SUPERADMIN_BOOTSTRAP_EMAILS`** is validated while Next collects page data.
+   The SuperTokens URI also has to point at a core that is genuinely _reachable_,
+   not merely be set: collecting `/api/auth/[[...path]]` opens a connection. Check
+   with `curl -o /dev/null -w '%{http_code}' <uri>/hello`, which returns `200` with
+   no API key.
+3. After compilation, `/api/health` makes the first application database query and
+   fails the build unless it answers `"database":"up"`. Only after that probe passes
+   does a `main` build run `migrate:deploy`; non-`main` builds skip the migration.
 
 `NEXT_PUBLIC_APP_ORIGIN` does not fail the build, but it is baked into the bundle,
 so a wrong value ships silently and breaks both OAuth callbacks.
 
 Optional; each one that is absent disables exactly one feature and leaves the
-rest of the panel working, so a first deploy can go green with only the three
-above: `SUPERADMIN_BOOTSTRAP_EMAILS`, `PLUNK_API_KEY`,
+rest of the panel working: `PLUNK_API_KEY`,
 `PLUNK_API_ENDPOINT`, `AP_SIGNING_KEY`, `AP_SIGNING_KEY_ID`, `CONSENT_INTAKE_KEY`,
 `CONTACT_INTAKE_KEY`, and the social poster set (`TIKTOK_CLIENT_KEY`,
 `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `INSTAGRAM_APP_ID`,
@@ -97,7 +101,8 @@ character for character, or the callback fails:
 
 Set `PANEL_BASIC_AUTH_CREDENTIALS` to a distinct `username:password` credential.
 The application proxy requires it for every panel page and API route except the
-nine exact machine-facing method/path pairs declared in `src/proxy.ts`. Those
+exact machine-facing method/path pairs declared in `BASIC_AUTH_EXEMPTIONS` in
+`apps/admin/src/proxy.ts`. Those
 routes retain their own bearer token, shared-key, rate-limit, and validation
 controls. SuperTokens role enforcement and TOTP remain required behind this
 additional layer.
@@ -170,8 +175,11 @@ rather than resetting unless you have accounted for the other consumers.
 
 If the password contains special characters, percent-encode it in the URI.
 
-Run migrations from inside `packages/database`, where Prisma finds the package's
-`prisma.config.ts` and schema.
+Run migrations from inside `packages/database`, which is where Prisma finds the
+package's `prisma.config.ts` and, through it, the schema and the Migrate connection
+URL. Outside that directory there is no config to find: the datasource block in
+`prisma/schema.prisma` deliberately carries no `url`, because Prisma 7 takes the
+application's connection from the driver adapter in `src/client.ts` instead.
 
 ## The panel must own its database
 
@@ -205,61 +213,16 @@ Two things follow once the panel has its own project:
   consent record and data-subject request invisible. Verify it before assuming a
   clean database is a fresh one - the query is under "Which schema holds the
   data" below.
-- The **session pooler** requirement does NOT go away. `prisma migrate deploy`
-  takes a session-level advisory lock, so the transaction pooler still breaks it
-  regardless of which project you are pointed at.
 
-The API to panel contact mirror is HTTP (`/api/contact` with `x-contact-key`),
-not a shared database, so separating the projects costs no coupling.
+  Two readers, one parameter, and they no longer read it the same way. Prisma 7's
+  driver adapter does not interpret the URL's `schema` parameter at all: the
+  application's search path comes from `{ schema: 'superadmin' }` passed to
+  `PrismaPg` in `packages/database/src/client.ts`. `?schema=superadmin` is still
+  what Migrate and `scripts/assert-schema.js` read, so it remains required - but
+  the two can now disagree, and a URL whose parameter was dropped would migrate
+  into `public` while the running panel still queried `superadmin`. Changing
+  either one means changing both.
 
-### Schema selection with the Prisma driver adapter
-
-Under the Prisma 7 driver adapter (`@prisma/adapter-pg`), the runtime schema is
-configured via the adapter option `{ schema: 'superadmin' }` in
-`packages/database/src/client.ts`. The `?schema=superadmin` query parameter in
-`DATABASE_URL` remains required for two reasons:
-
-1. **Migrations**: `prisma migrate deploy` reads the schema from the datasource
-   URL in `prisma.config.ts`, not from the adapter option. The parameter must be
-   present for migrations to target the correct schema.
-
-2. **Schema assertion**: `scripts/assert-schema.js` validates that the live
-   database matches the expected schema by querying `information_schema`, and it
-   constructs its connection from `DATABASE_URL` directly.
-
-The adapter option and the URL parameter must agree. A mismatch would cause
-migrations to apply to one schema while the application reads from another.
-
-**Target architecture: SuperAdmin runs against its own Supabase project** - not
-`yosemitecrew-production`, and not `yosemitecrew-dev`. Decided 2026-08-21.
-
-The reasoning is worth keeping, because the obvious middle option is the wrong
-one. A Postgres schema gives **namespace** isolation, not **permission**
-isolation: `?schema=superadmin` prevents the migration collision described
-below, but the connection still authenticates as a role that can read `public`
-anyway. This repository is public and the panel is the highest-privilege surface
-in the estate, so "a compromise of the panel must not reach production data" is
-a requirement a schema cannot satisfy.
-
-Nor is the dev database a home for it. These tables are not scratch data:
-`ContactLead`/`ContactRequest` are leads from the live marketing site,
-`ConsentSubject`/`ConsentEvent` are the consent ledger, and `DataRequest`
-carries a statutory one-month deadline. A dev database is somewhere people
-reset, reseed and restore from snapshots.
-
-Two things follow once the panel has its own project:
-
-- `?schema=superadmin` **stays required, for a different reason than it was added
-  for.** The collision it was introduced to prevent is gone - there is no foreign
-  `public` to land in any more - but the migrations have since been applied
-  through that parameter, so the panel's tables and every row in them physically
-  live in the `superadmin` schema and `public` holds nothing. Dropping the
-  parameter now does not restore a default, it re-points Prisma at an empty
-  schema: `migrate deploy` re-applies all of them into `public`, comes up
-  reporting success, and the panel then looks freshly installed with every lead,
-  consent record and data-subject request invisible. Verify it before assuming a
-  clean database is a fresh one - the query is under "Which schema holds the
-  data" below.
 - The **session pooler** requirement does NOT go away. `prisma migrate deploy`
   takes a session-level advisory lock, so the transaction pooler still breaks it
   regardless of which project you are pointed at.
@@ -319,7 +282,11 @@ Two consequences worth knowing before changing anything here:
   normally auto-enables RLS is scoped to the `public` schema and has never fired
   for the panel's tables. `apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts`
   is what catches it: add a model without an `ALTER TABLE ... ENABLE ROW LEVEL
-SECURITY` in a migration and it fails, naming the table.
+SECURITY` in a migration and it fails, naming the table. It reads the
+  migrations in the order Prisma applies them, so a later `DISABLE` counts, and
+  it fails on any `CREATE POLICY` or `ALTER POLICY`. The required CI check also
+  migrates a throwaway database and runs `packages/database/scripts/assert-rls.sql`
+  against it.
 
 ### Until then: the schema requirement, and why
 

@@ -7,6 +7,7 @@ import {
   bulkDeleteUsersAction,
   bulkDisableUsersAction,
   bulkEnableUsersAction,
+  type BulkUserResult,
 } from './bulkActions';
 import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 import { UserRowActions } from './UserRowActions';
@@ -21,6 +22,7 @@ export type UserRow = {
   lastSeen: string;
   lastSeenTitle: string;
   disabled: boolean;
+  canDelete: boolean;
 };
 
 const BULK_BTN =
@@ -49,13 +51,47 @@ function avatarClassFor(id: string): string {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
+interface Feedback {
+  kind: 'status' | 'alert';
+  message: string;
+}
+
+/**
+ * Same treatment as the approvals queue: success is carried by weight, because
+ * warm-bone reserves the green --success token for live/status dots.
+ */
+function statusClass(message: string): string {
+  return message ? 'text-[13px] font-semibold text-[color:var(--ink)]' : 'sr-only';
+}
+
+/** A sweep's two names: `Disable` the control, `disabled` the outcome. */
+interface BulkVerb {
+  imperative: string;
+  past: string;
+}
+
+/** `2 disabled, 1 skipped` — the counts are only named when they are non-zero. */
+function summarise(verb: BulkVerb, result: BulkUserResult): string {
+  const parts = [`${result.done} ${verb.past}`];
+  if (result.skipped) parts.push(`${result.skipped} skipped`);
+  if (result.failed) parts.push(`${result.failed} failed`);
+  return parts.join(', ');
+}
+
 export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
-  const [deleteOpen, setDeleteOpen] = useState(false);
+  // The ids the confirm is about are frozen when it opens. Reading the live
+  // selection instead let a checkbox toggled behind the overlay change the
+  // number in an open "Delete N users?" prompt (#552).
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
   const [pending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
   const someSelected = selected.size > 0;
+  const deletableSelectedIds = rows
+    .filter((row) => row.canDelete && selected.has(row.id))
+    .map((row) => row.id);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -70,28 +106,62 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
     setSelected(allSelected ? new Set() : new Set(rows.map((row) => row.id)));
   }
 
-  function run(action: (ids: string[]) => Promise<void>, confirmMessage: string) {
+  /**
+   * React 19 rethrows an error raised inside a transition to the nearest error
+   * boundary, and the only boundaries here are the app-level ones — an
+   * unhandled rejection would replace the whole dashboard shell. So every
+   * sweep is caught here and reported in the page, and a failed sweep keeps
+   * the selection so the operator can retry it.
+   */
+  function sweep(
+    action: (ids: string[]) => Promise<BulkUserResult>,
+    ids: string[],
+    verb: BulkVerb,
+    onSettled?: () => void
+  ) {
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        const result = await action(ids);
+        setSelected(new Set());
+        setFeedback({ kind: 'status', message: summarise(verb, result) });
+      } catch {
+        setFeedback({
+          kind: 'alert',
+          message: `The ${verb.imperative} could not be completed. The selection was kept so you can try again.`,
+        });
+      } finally {
+        onSettled?.();
+      }
+    });
+  }
+
+  function run(
+    action: (ids: string[]) => Promise<BulkUserResult>,
+    confirmMessage: string,
+    verb: BulkVerb
+  ) {
     const ids = [...selected];
     if (ids.length === 0) return;
     if (!globalThis.confirm(confirmMessage)) return;
-    startTransition(async () => {
-      await action(ids);
-      setSelected(new Set());
-    });
+    sweep(action, ids, verb);
   }
 
   function confirmBulkDelete() {
-    const ids = [...selected];
-    if (ids.length === 0) return;
-    startTransition(async () => {
-      await bulkDeleteUsersAction(ids);
-      setSelected(new Set());
-      setDeleteOpen(false);
-    });
+    // The ids the confirm was OPENED with, not the live selection: a checkbox
+    // toggled behind an open "Delete N users?" must not change what is deleted
+    // (#552). The sweep reports failure in the page and keeps the selection.
+    const ids = pendingDeleteIds;
+    if (!ids?.length) return;
+    sweep(bulkDeleteUsersAction, ids, { imperative: 'delete', past: 'deleted' }, () =>
+      setPendingDeleteIds(null)
+    );
   }
 
+  const statusMessage = feedback?.kind === 'status' ? feedback.message : '';
   const count = selected.size;
   const noun = count === 1 ? 'user' : 'users';
+  const deleteCount = pendingDeleteIds?.length ?? deletableSelectedIds.length;
 
   return (
     <div className="flex flex-col gap-3">
@@ -107,7 +177,8 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
               onClick={() =>
                 run(
                   bulkDisableUsersAction,
-                  `Disable ${count} ${noun}? They will be signed out everywhere.`
+                  `Disable ${count} ${noun}? They will be signed out everywhere.`,
+                  { imperative: 'disable', past: 'disabled' }
                 )
               }
               className={`${BULK_BTN} border-[color:var(--warn-border)] text-[color:var(--warn-text)] hover:bg-[var(--warn-bg)]`}
@@ -117,25 +188,41 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
             <button
               type="button"
               disabled={pending}
-              onClick={() => run(bulkEnableUsersAction, `Re-enable ${count} ${noun}?`)}
+              onClick={() =>
+                run(bulkEnableUsersAction, `Re-enable ${count} ${noun}?`, {
+                  imperative: 're-enable',
+                  past: 're-enabled',
+                })
+              }
               className={`${BULK_BTN} border-[color:var(--divider)] text-[color:var(--ink)] hover:bg-[var(--surface-soft)]`}
             >
               Enable
             </button>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => setDeleteOpen(true)}
-              className={`${BULK_BTN} border-[color:var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
-            >
-              Delete
-            </button>
+            {deleteCount > 0 ? (
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => setPendingDeleteIds(deletableSelectedIds)}
+                className={`${BULK_BTN} border-[color:var(--danger-border)] text-[color:var(--danger-text)] hover:bg-[var(--danger-bg)]`}
+              >
+                Delete
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
 
-      <div className="rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
-        <table className="w-full border-collapse">
+      <p role="status" aria-live="polite" className={statusClass(statusMessage)}>
+        {statusMessage}
+      </p>
+      {feedback?.kind === 'alert' ? (
+        <p role="alert" className="text-[13px] font-semibold text-[color:var(--danger-text)]">
+          {feedback.message}
+        </p>
+      ) : null}
+
+      <div className="overflow-x-auto rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] shadow-[0_1px_2px_var(--sh03),0_8px_22px_var(--sh05)]">
+        <table className="min-w-[940px] border-collapse">
           <thead>
             <tr className="border-b border-[color:var(--hairline)] bg-[var(--screen-2)] text-left [&>th:first-child]:rounded-tl-[18px] [&>th:last-child]:rounded-tr-[18px]">
               <th className={`${TH} w-11`}>
@@ -210,7 +297,11 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
                   {row.lastSeen}
                 </td>
                 <td className="px-[18px] py-3 text-right">
-                  <UserRowActions userId={row.id} email={row.primaryEmail} />
+                  <UserRowActions
+                    userId={row.id}
+                    email={row.primaryEmail}
+                    canDelete={row.canDelete}
+                  />
                 </td>
               </tr>
             ))}
@@ -219,10 +310,10 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
       </div>
 
       <ConfirmDeleteDialog
-        open={deleteOpen}
-        count={count}
+        open={pendingDeleteIds !== null}
+        count={deleteCount}
         pending={pending}
-        onCancel={() => setDeleteOpen(false)}
+        onCancel={() => setPendingDeleteIds(null)}
         onConfirm={confirmBulkDelete}
       />
     </div>

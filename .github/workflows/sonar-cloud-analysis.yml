@@ -25,6 +25,7 @@ env:
   NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
   SUPERTOKENS_CONNECTION_URI: https://placeholder.supertokens.io
   SUPERTOKENS_API_KEY: placeholder-ci-key
+  SUPERADMIN_BOOTSTRAP_EMAILS: admin@example.com
 
 jobs:
   changes:
@@ -90,7 +91,7 @@ jobs:
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 20
+          node-version: 22
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -98,7 +99,7 @@ jobs:
 
       - run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_ENV
 
-      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ${{ env.STORE_PATH }}
@@ -112,7 +113,7 @@ jobs:
         run: pnpm test:coverage
 
       - name: Sonar Scan
-        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         with:
           projectBaseDir: apps/admin
         env:

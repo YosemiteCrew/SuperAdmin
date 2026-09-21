@@ -12,10 +12,11 @@ jest.mock('@/app/features/dataRequests/subjectErasure', () => ({
 
 jest.mock('@/app/features/audit/store', () => ({
   recordAuditEvent: jest.fn(),
+  tryRecordAuditEvent: jest.fn(),
 }));
 
 import { requireSuperAdmin } from '@/app/config/backend';
-import { recordAuditEvent } from '@/app/features/audit/store';
+import { recordAuditEvent, tryRecordAuditEvent } from '@/app/features/audit/store';
 import { getDataRequest } from '@/app/features/dataRequests/store';
 import { eraseSubjectData } from '@/app/features/dataRequests/subjectErasure';
 import { eraseSubjectDataAction } from '@/app/(routes)/(dashboard)/privacy/requests/[id]/actions';
@@ -24,6 +25,7 @@ const mockRequireSuperAdmin = requireSuperAdmin as jest.MockedFunction<typeof re
 const mockGetRequest = getDataRequest as jest.MockedFunction<typeof getDataRequest>;
 const mockErase = eraseSubjectData as jest.MockedFunction<typeof eraseSubjectData>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockTryAudit = tryRecordAuditEvent as jest.MockedFunction<typeof tryRecordAuditEvent>;
 
 const REQUEST = {
   id: 'dr_1',
@@ -57,6 +59,7 @@ beforeEach(() => {
   mockRequireSuperAdmin.mockResolvedValue({ userId: 'admin_1' });
   mockGetRequest.mockResolvedValue(REQUEST as never);
   mockErase.mockResolvedValue(REPORT as never);
+  mockTryAudit.mockResolvedValue(true);
 });
 
 describe('eraseSubjectDataAction', () => {
@@ -135,6 +138,13 @@ describe('eraseSubjectDataAction', () => {
   it('audits against the request row at danger, and never the address', async () => {
     await eraseSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
+    expect(mockTryAudit).toHaveBeenCalledWith({
+      action: 'privacy.subject_erase_authorize',
+      actorId: 'admin_1',
+      targetType: 'data_request',
+      targetId: 'dr_1',
+      targetLabel: 'erasure',
+    });
     expect(mockAudit).toHaveBeenCalledWith({
       action: 'privacy.subject_erase',
       actorId: 'admin_1',
@@ -142,7 +152,9 @@ describe('eraseSubjectDataAction', () => {
       targetId: 'dr_1',
       targetLabel: 'erasure',
     });
-    expect(JSON.stringify(mockAudit.mock.calls)).not.toContain('person@example.com');
+    expect(JSON.stringify([mockTryAudit.mock.calls, mockAudit.mock.calls])).not.toContain(
+      'person@example.com'
+    );
   });
 
   it('audits after the erasure, so the log records one that happened', async () => {
@@ -151,13 +163,26 @@ describe('eraseSubjectDataAction', () => {
       order.push('erase');
       return REPORT as never;
     });
+    mockTryAudit.mockImplementation(async () => {
+      order.push('audit');
+      return true;
+    });
     mockAudit.mockImplementation(async () => {
       order.push('audit');
     });
 
     await eraseSubjectDataAction(formDataWith({ id: 'dr_1' }));
 
-    expect(order).toEqual(['erase', 'audit']);
+    expect(order).toEqual(['audit', 'erase', 'audit']);
+  });
+
+  it('destroys nothing when the required authorization audit cannot be written', async () => {
+    mockTryAudit.mockResolvedValue(false);
+
+    await expect(eraseSubjectDataAction(formDataWith({ id: 'dr_1' }))).resolves.toBeNull();
+    expect(mockErase).not.toHaveBeenCalled();
+    expect(mockTryAudit).toHaveBeenCalledTimes(1);
+    expect(mockAudit).not.toHaveBeenCalled();
   });
 
   it('returns the report of what went and what stayed', async () => {

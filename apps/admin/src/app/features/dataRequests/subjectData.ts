@@ -2,6 +2,7 @@ import 'server-only';
 
 import { prisma } from '@superadmin/database';
 
+import { isErasedSubjectKey } from '@/app/constants';
 import { section } from '@/app/lib/exportSection';
 
 /**
@@ -116,6 +117,19 @@ function iso(value: Date | null): string | null {
 
 export async function collectSubjectData(rawEmail: string): Promise<SubjectDataExport> {
   const subjectEmail = normalizeSubjectEmail(rawEmail);
+
+  // An erased request row keeps the shared tombstone as its address, so the
+  // tombstone names no one. Looking it up would match every erased subject's
+  // rows and disclose them under this request.
+  if (isErasedSubjectKey(subjectEmail)) {
+    return {
+      exportedAt: new Date().toISOString(),
+      subjectEmail,
+      lead: null,
+      consent: [],
+      dataRequests: [],
+    };
+  }
 
   const [lead, consent, dataRequests] = await Promise.all([
     section(async (): Promise<SubjectLead | null> => {

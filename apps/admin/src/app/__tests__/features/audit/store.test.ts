@@ -12,6 +12,7 @@ jest.mock('supertokens-node/recipe/usermetadata', () => ({
 jest.mock('@/app/config/backend', () => ({ ensureSuperTokensInit: jest.fn() }));
 
 const findManyMock = jest.fn();
+const countMock = jest.fn();
 const databaseFindFirstMock = jest.fn();
 const findFirstMock = jest.fn();
 const createMock = jest.fn();
@@ -22,6 +23,7 @@ jest.mock('@superadmin/database', () => ({
   prisma: {
     auditEvent: {
       findMany: (...args: unknown[]) => findManyMock(...args),
+      count: (...args: unknown[]) => countMock(...args),
       findFirst: (...args: unknown[]) => databaseFindFirstMock(...args),
     },
     $transaction: (...args: unknown[]) => transactionMock(...args),
@@ -31,9 +33,12 @@ jest.mock('@superadmin/database', () => ({
 import {
   getAuditEventsForActor,
   getAuditEventsForTarget,
+  getAuditEventPage,
+  getFilteredAuditEvents,
   getRecentAuditEvents,
   readAuditEventsInvolving,
   recordAuditEvent,
+  tryRecordAuditEvent,
   verifyAuditChain,
 } from '@/app/features/audit/store';
 import { GENESIS_HASH, hashAuditEvent } from '@/app/features/audit/chain';
@@ -69,6 +74,7 @@ beforeEach(() => {
   getUserMock.mockReset().mockResolvedValue({ emails: ['admin@x.com'] });
   getUserMetadataMock.mockReset().mockResolvedValue({ metadata: {} });
   findManyMock.mockReset().mockResolvedValue([]);
+  countMock.mockReset().mockResolvedValue(0);
   databaseFindFirstMock.mockReset().mockResolvedValue(null);
   findFirstMock.mockReset().mockResolvedValue(null);
   createMock.mockReset().mockResolvedValue(undefined);
@@ -210,6 +216,29 @@ describe('recordAuditEvent', () => {
     );
     errorSpy.mockRestore();
   });
+
+  it('reports whether a caller-required audit write succeeded', async () => {
+    await expect(
+      tryRecordAuditEvent({
+        action: 'privacy.subject_export',
+        actorId: 'admin-1',
+        targetType: 'data_request',
+        targetId: 'dr-1',
+      })
+    ).resolves.toBe(true);
+
+    const errorSpy = jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    transactionMock.mockRejectedValue(new Error('database unavailable'));
+    await expect(
+      tryRecordAuditEvent({
+        action: 'privacy.subject_erase_authorize',
+        actorId: 'admin-1',
+        targetType: 'data_request',
+        targetId: 'dr-1',
+      })
+    ).resolves.toBe(false);
+    errorSpy.mockRestore();
+  });
 });
 
 describe('audit readers', () => {
@@ -243,6 +272,16 @@ describe('audit readers', () => {
     });
   });
 
+  it('filters legacy actor history before the first database append', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [event({ id: 'match' }), event({ id: 'other', actorId: 'admin-2' })],
+      },
+    });
+
+    await expect(getAuditEventsForActor('admin-1')).resolves.toEqual([event({ id: 'match' })]);
+  });
+
   it('does not fall back to stale metadata when the database has other rows', async () => {
     databaseFindFirstMock.mockResolvedValue({ id: 'already-migrated' });
     getUserMetadataMock.mockResolvedValue({ metadata: { events: [event({ id: 'legacy' })] } });
@@ -268,6 +307,139 @@ describe('audit readers', () => {
     expect(result.asTarget).toHaveLength(1);
     expect(result.asActor).toHaveLength(1);
     expect(findManyMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ['action', { action: 'user.delete' as const }, { action: 'user.delete' }],
+    ['from', { from: 1_000 }, { at: { gte: new Date(1_000) } }],
+    ['to', { to: 2_000 }, { at: { lte: new Date(2_000) } }],
+    [
+      'search',
+      { search: ' Alice ' },
+      {
+        OR: [
+          { actorEmail: { contains: 'Alice', mode: 'insensitive' } },
+          { targetLabel: { contains: 'Alice', mode: 'insensitive' } },
+          { targetId: { contains: 'Alice', mode: 'insensitive' } },
+        ],
+      },
+    ],
+  ])('passes the %s filter to the database count', async (_name, options, where) => {
+    databaseFindFirstMock.mockResolvedValue({ id: 'stored' });
+
+    await getAuditEventPage(options, 1);
+
+    expect(countMock).toHaveBeenCalledWith({ where });
+  });
+
+  it('uses one combined where for count and database paging', async () => {
+    countMock.mockResolvedValue(51);
+    findManyMock.mockResolvedValue([row({ id: 'old-match' })]);
+    const options = {
+      action: 'user.delete' as const,
+      search: 'target',
+      from: 1_000,
+      to: 2_000,
+    };
+
+    await expect(getAuditEventPage(options, 3)).resolves.toEqual({
+      items: [event({ id: 'old-match' })],
+      page: 3,
+      totalPages: 3,
+      total: 51,
+      hasEvents: true,
+    });
+
+    const where = {
+      action: 'user.delete',
+      at: { gte: new Date(1_000), lte: new Date(2_000) },
+      OR: [
+        { actorEmail: { contains: 'target', mode: 'insensitive' } },
+        { targetLabel: { contains: 'target', mode: 'insensitive' } },
+        { targetId: { contains: 'target', mode: 'insensitive' } },
+      ],
+    };
+    expect(countMock).toHaveBeenCalledWith({ where });
+    expect(findManyMock).toHaveBeenCalledWith({
+      where,
+      orderBy: { seq: 'desc' },
+      skip: 50,
+      take: 25,
+    });
+  });
+
+  it('does not use legacy rows when a filtered database query has no matches', async () => {
+    databaseFindFirstMock.mockResolvedValue({ id: 'stored' });
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: [event({ id: 'legacy' })] } });
+
+    await expect(getAuditEventPage({ action: 'user.delete' }, 1)).resolves.toEqual({
+      items: [],
+      page: 1,
+      totalPages: 1,
+      total: 0,
+      hasEvents: true,
+    });
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('filters and pages legacy rows only while the database is empty', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [event({ id: 'match' }), event({ id: 'other', action: 'org.verify' })],
+      },
+    });
+
+    await expect(getAuditEventPage({ action: 'user.delete' }, 1)).resolves.toEqual({
+      items: [event({ id: 'match' })],
+      page: 1,
+      totalPages: 1,
+      total: 1,
+      hasEvents: true,
+    });
+  });
+
+  it('reads every filtered database row for export without a page limit', async () => {
+    findManyMock.mockResolvedValue([row({ id: 'older-than-250' })]);
+
+    await expect(getFilteredAuditEvents({ action: 'user.delete' })).resolves.toEqual([
+      event({ id: 'older-than-250' }),
+    ]);
+    expect(findManyMock).toHaveBeenCalledWith({
+      where: { action: 'user.delete' },
+      orderBy: { seq: 'desc' },
+    });
+  });
+
+  it('does not export stale legacy rows when the database has non-matching rows', async () => {
+    databaseFindFirstMock.mockResolvedValue({ id: 'stored' });
+    getUserMetadataMock.mockResolvedValue({ metadata: { events: [event({ id: 'legacy' })] } });
+
+    await expect(getFilteredAuditEvents({ search: 'missing' })).resolves.toEqual([]);
+    expect(getUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('filters legacy rows for export while the database is empty', async () => {
+    getUserMetadataMock.mockResolvedValue({
+      metadata: {
+        events: [event({ id: 'match' }), event({ id: 'other', action: 'org.verify' })],
+      },
+    });
+
+    await expect(getFilteredAuditEvents({ action: 'user.delete' })).resolves.toEqual([
+      event({ id: 'match' }),
+    ]);
+  });
+
+  it('returns an empty page when the durable read fails', async () => {
+    countMock.mockRejectedValue(new Error('down'));
+
+    await expect(getAuditEventPage({}, 1)).resolves.toEqual({
+      items: [],
+      page: 1,
+      totalPages: 1,
+      total: 0,
+      hasEvents: false,
+    });
   });
 });
 

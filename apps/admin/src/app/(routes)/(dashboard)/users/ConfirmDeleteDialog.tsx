@@ -2,6 +2,8 @@
 
 import { useEffect, useId, useRef, useState } from 'react';
 
+import { Modal } from '@/app/ui/overlays/Modal';
+
 const CONFIRM_WORD = 'DELETE';
 
 export function ConfirmDeleteDialog({
@@ -21,16 +23,16 @@ export function ConfirmDeleteDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
 
+  // Escape is the dialog's own `cancel` event now that Modal opens this with
+  // showModal(), so there is no document-level key listener left to leak.
   useEffect(() => {
     if (!open) return;
-    setTyped('');
-    inputRef.current?.focus();
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCancel();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+    const timeout = globalThis.setTimeout(() => {
+      setTyped('');
+      inputRef.current?.focus();
+    }, 0);
+    return () => globalThis.clearTimeout(timeout);
+  }, [open]);
 
   if (!open) return null;
 
@@ -38,19 +40,13 @@ export function ConfirmDeleteDialog({
   const canConfirm = typed === CONFIRM_WORD && !pending;
 
   return (
-    <div className="fixed inset-0 z-[1200] flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-label="Cancel"
-        onClick={onCancel}
-        className="absolute inset-0 bg-[var(--glass-93)] backdrop-blur-[2px]"
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="relative w-full max-w-md rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] p-6 shadow-[0_2px_6px_var(--sh05),0_28px_70px_var(--sh12)]"
-      >
+    <Modal
+      isOpen={open}
+      onClose={onCancel}
+      labelledBy={titleId}
+      className="fixed inset-0 m-0 grid h-full max-h-none w-full max-w-none place-items-center border-0 bg-transparent p-4 backdrop:bg-[var(--glass-93)] backdrop:backdrop-blur-[2px]"
+    >
+      <div className="relative w-full max-w-md rounded-[18px] border border-[color:var(--hairline)] bg-[var(--screen)] p-6 shadow-[0_2px_6px_var(--sh05),0_28px_70px_var(--sh12)]">
         <h2
           id={titleId}
           className="text-[22px] font-normal tracking-[-0.015em] text-[color:var(--ink)]"
@@ -90,6 +86,6 @@ export function ConfirmDeleteDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

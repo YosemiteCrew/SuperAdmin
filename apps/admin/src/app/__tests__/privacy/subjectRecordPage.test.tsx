@@ -153,6 +153,48 @@ describe('SubjectRecordPage', () => {
     expect(screen.getByText('(this request)')).toBeInTheDocument();
   });
 
+  /**
+   * The two summary lines on this page printed the enum values straight out of
+   * the database, so a compliance record read `access · in_progress`. Both
+   * enums have words elsewhere in the panel; these assert this page reaches for
+   * the same ones, in both directions so the mapping cannot be quietly undone.
+   */
+  it('names the contact-submission status in words', async () => {
+    await renderPage();
+
+    expect(screen.getByText(/Closed/)).toBeInTheDocument();
+    expect(screen.queryByText(/\bclosed\b/)).not.toBeInTheDocument();
+  });
+
+  it('names the data-request type and status in words', async () => {
+    await renderPage();
+
+    const related = screen.getByText(/Access ·/);
+    expect(related).toHaveTextContent(/Access · In progress/);
+    expect(screen.queryByText(/\baccess · in_progress\b/)).not.toBeInTheDocument();
+  });
+
+  it('shows a status this panel does not know as itself rather than blank', async () => {
+    collectSubjectDataMock.mockResolvedValue(
+      dossier({
+        dataRequests: [
+          {
+            id: 'dr_1',
+            type: 'portability',
+            status: 'escalated',
+            notes: null,
+            receivedAt: '2026-08-10T00:00:00.000Z',
+            dueAt: '2026-09-09T00:00:00.000Z',
+            fulfilledAt: null,
+          },
+        ],
+      })
+    );
+    await renderPage();
+
+    expect(screen.getByText(/portability · escalated/)).toBeInTheDocument();
+  });
+
   // Every other date on this page is formatted in UTC. A bare toLocaleDateString
   // here would render in whatever locale the server runs under, so a build box
   // and a laptop would disagree about the date on a statutory record.
@@ -163,12 +205,18 @@ describe('SubjectRecordPage', () => {
   });
 
   it('offers the export and a way back to the queue', async () => {
-    await renderPage();
+    const { container } = await renderPage();
 
-    expect(screen.getByRole('button', { name: /Export subject data/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Export subject data/i })).toHaveClass(
+      'yc-primary-button'
+    );
     expect(screen.getByRole('link', { name: /Back to data requests/i })).toHaveAttribute(
       'href',
       '/privacy/requests'
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-[color:var(--ink)]');
+    expect(container.innerHTML).not.toMatch(
+      /(?:text|bg|border|hover:text|hover:bg)-(?:gray|red|emerald|white|blue|amber)/
     );
   });
 

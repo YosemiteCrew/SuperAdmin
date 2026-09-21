@@ -1,46 +1,77 @@
-import 'server-only';
+import type { ClientConfig } from 'pg';
+
+// Supabase Root 2021 CA: Supabase's published prod-ca-2021.crt, the root the pooler presents.
+// SHA-256 80:70:25:AD:50:D4:ED:21:9D:2C:9C:7D:29:9C:00:4F:82:4E:B0:0C:F7:F6:5A:FE:F6:07:D0:7B:72:E6:CA:FA
+// Valid until 2031-04-26. If the pooler moves to another root (the Supabase CLI already bundles a
+// same-named 2025 root, SHA-256 5F:9B:77:95:...:2C:9A:E2), connects fail closed: add that root to
+// `ca` once the pooler actually presents it.
+export const SUPABASE_ROOT_2021_CA = `-----BEGIN CERTIFICATE-----
+MIIDxDCCAqygAwIBAgIUbLxMod62P2ktCiAkxnKJwtE9VPYwDQYJKoZIhvcNAQEL
+BQAwazELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5l
+dyBDYXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJh
+c2UgUm9vdCAyMDIxIENBMB4XDTIxMDQyODEwNTY1M1oXDTMxMDQyNjEwNTY1M1ow
+azELMAkGA1UEBhMCVVMxEDAOBgNVBAgMB0RlbHdhcmUxEzARBgNVBAcMCk5ldyBD
+YXN0bGUxFTATBgNVBAoMDFN1cGFiYXNlIEluYzEeMBwGA1UEAwwVU3VwYWJhc2Ug
+Um9vdCAyMDIxIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqQXW
+QyHOB+qR2GJobCq/CBmQ40G0oDmCC3mzVnn8sv4XNeWtE5XcEL0uVih7Jo4Dkx1Q
+DmGHBH1zDfgs2qXiLb6xpw/CKQPypZW1JssOTMIfQppNQ87K75Ya0p25Y3ePS2t2
+GtvHxNjUV6kjOZjEn2yWEcBdpOVCUYBVFBNMB4YBHkNRDa/+S4uywAoaTWnCJLUi
+cvTlHmMw6xSQQn1UfRQHk50DMCEJ7Cy1RxrZJrkXXRP3LqQL2ijJ6F4yMfh+Gyb4
+O4XajoVj/+R4GwywKYrrS8PrSNtwxr5StlQO8zIQUSMiq26wM8mgELFlS/32Uclt
+NaQ1xBRizkzpZct9DwIDAQABo2AwXjALBgNVHQ8EBAMCAQYwHQYDVR0OBBYEFKjX
+uXY32CztkhImng4yJNUtaUYsMB8GA1UdIwQYMBaAFKjXuXY32CztkhImng4yJNUt
+aUYsMA8GA1UdEwEB/wQFMAMBAf8wDQYJKoZIhvcNAQELBQADggEBAB8spzNn+4VU
+tVxbdMaX+39Z50sc7uATmus16jmmHjhIHz+l/9GlJ5KqAMOx26mPZgfzG7oneL2b
+VW+WgYUkTT3XEPFWnTp2RJwQao8/tYPXWEJDc0WVQHrpmnWOFKU/d3MqBgBm5y+6
+jB81TU/RG2rVerPDWP+1MMcNNy0491CTL5XQZ7JfDJJ9CCmXSdtTl4uUQnSuv/Qx
+Cea13BX2ZgJc7Au30vihLhub52De4P/4gonKsNHYdbWjg7OWKwNv/zitGDVDB9Y2
+CMTyZKG3XEu5Ghl1LEnI3QmEKsqaCLv12BnVjbkSeZsMnevJPs1Ye6TjjJwdik5P
+o/bKiIz+Fq8=
+-----END CERTIFICATE-----
+`;
+
+// node-postgres turns ssl-prefixed URL parameters (ssl, sslmode, sslrootcert, sslcert, sslkey,
+// sslnegotiation, ...) into its own `ssl` value and applies the parsed URL over the config object,
+// so any one left in the URL replaces the `ssl` option below. Matched by prefix so a new one in a
+// later pg-connection-string cannot bring the override back.
+const URL_SSL_PARAM = /^ssl/i;
 
 /**
- * Builds the connection options for a raw Postgres connection from a DATABASE_URL.
- * This is the SINGLE SOURCE OF TRUTH for how the panel connects to Postgres.
- * Both the approvals lock (when it lands) and the Prisma driver adapter MUST use
- * this function so there is only one place that decides SSL, host parsing, etc.
+ * The only place that decides how this panel connects to Postgres. Both consumers go through
+ * node-postgres: the approvals advisory lock opens a raw `pg` Client, and `src/client.ts` hands
+ * the same settings to Prisma's `@prisma/adapter-pg`. A Supabase host in the standard URL forms
+ * gets TLS verified against the pinned Supabase root, whatever TLS parameters the URL carries:
+ * node-postgres verifies sslmode=require against the public roots, which Supabase's chain does
+ * not lead to. Other hosts (local, CI) keep the URL as given.
  *
- * The returned object is compatible with node-postgres (pg) and Prisma's
- * PrismaPg adapter.
+ * Returning `ClientConfig` rather than `PoolConfig` on purpose: pool sizing belongs to the
+ * consumer that owns the pool, and `PoolConfig` extends `ClientConfig`, so the adapter spreads
+ * this and adds its own `max`.
  */
-export function pgConnectionConfig(databaseUrl: string): {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-  ssl: { rejectUnauthorized: false } | false;
-  // connectionTimeoutMillis is intentionally NOT included here.
-  // The adapter adds its own 5s timeout (see client.ts).
-} {
-  const url = new URL(databaseUrl);
-
-  // Supabase session pooler requires SSL with rejectUnauthorized: false
-  // because the cert is for *.pooler.supabase.com, not the exact host.
-  const isSupabasePooler = url.hostname.endsWith('.pooler.supabase.com');
-
+export function pgConnectionConfig(databaseUrl: string): ClientConfig {
+  // Parsed the way pg-connection-string parses it, so `host` is the host pg will dial.
+  let url: URL;
+  try {
+    url = new URL(databaseUrl, 'postgres://base');
+  } catch {
+    // Not a URL we can read (a socket form pg rewrites first). pg parses it, and its own
+    // error redacts the string, where this TypeError would carry the password in `input`.
+    return { connectionString: databaseUrl };
+  }
+  // A non-empty `host` query parameter wins over the URL's own host in pg.
+  const hostParam = url.searchParams.get('host');
+  const host = (hostParam?.length ? hostParam : decodeURIComponent(url.hostname))
+    .toLowerCase()
+    .replace(/\.$/, ''); // a fully qualified "host." resolves to the same Supabase host
+  if (!host.endsWith('.supabase.com') && !host.endsWith('.supabase.co')) {
+    return { connectionString: databaseUrl };
+  }
+  for (const param of [...url.searchParams.keys()]) {
+    if (URL_SSL_PARAM.test(param)) url.searchParams.delete(param);
+  }
   return {
-    host: url.hostname,
-    port: parseInt(url.port || '5432', 10),
-    user: url.username,
-    password: url.password,
-    database: url.pathname.slice(1) || 'postgres',
-    ssl: isSupabasePooler ? { rejectUnauthorized: false } : false,
+    connectionString: url.toString(),
+    // No servername: pg sets it to the dialled host itself for any non-IP host.
+    ssl: { ca: SUPABASE_ROOT_2021_CA, rejectUnauthorized: true },
   };
-}
-
-/**
- * Parses the schema parameter from DATABASE_URL if present.
- * Returns 'public' if not specified (matching Prisma default).
- */
-export function parseSchemaFromUrl(databaseUrl: string): string {
-  const url = new URL(databaseUrl);
-  const params = new URLSearchParams(url.search);
-  return params.get('schema') || 'public';
 }

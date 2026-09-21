@@ -24,6 +24,7 @@ jest.mock('@/app/features/invites/store', () => ({
 }));
 
 import SuperTokens from 'supertokens-node';
+import { revalidatePath } from 'next/cache';
 import { requireSuperAdmin } from '@/app/config/backend';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { createInvite, revokeInvite } from '@/app/features/invites/store';
@@ -34,6 +35,7 @@ const mockGetUser = SuperTokens.getUser as jest.MockedFunction<typeof SuperToken
 const mockCreateInvite = createInvite as jest.MockedFunction<typeof createInvite>;
 const mockRevokeInvite = revokeInvite as jest.MockedFunction<typeof revokeInvite>;
 const mockRecordAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockRevalidatePath = revalidatePath as jest.MockedFunction<typeof revalidatePath>;
 
 function formData(fields: Record<string, string>): FormData {
   const fd = new FormData();
@@ -58,11 +60,23 @@ beforeEach(() => {
     createdAt: 1000,
     expiresAt: 2000,
   });
-  mockRevokeInvite.mockResolvedValue(undefined);
+  mockRevokeInvite.mockResolvedValue(true);
   mockRecordAudit.mockResolvedValue(undefined);
 });
 
 describe('createInviteAction', () => {
+  it('does not create or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(createInviteAction(formData({ email: 'new@admin.com' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockGetUser).not.toHaveBeenCalled();
+    expect(mockCreateInvite).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+  });
+
   it('returns error for missing email', async () => {
     const result = await createInviteAction(formData({ email: '' }));
     expect(result.error).toBeTruthy();
@@ -106,6 +120,18 @@ describe('createInviteAction', () => {
 });
 
 describe('revokeInviteAction', () => {
+  it('does not revoke or audit when the caller is not a super admin', async () => {
+    mockRequireSuperAdmin.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+
+    await expect(revokeInviteAction(formData({ inviteId: 'inv-1' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+
+    expect(mockRevokeInvite).not.toHaveBeenCalled();
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
   it('does nothing for missing inviteId', async () => {
     await revokeInviteAction(formData({ inviteId: '' }));
     expect(mockRevokeInvite).not.toHaveBeenCalled();
@@ -117,5 +143,15 @@ describe('revokeInviteAction', () => {
     expect(mockRecordAudit).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'invite.revoke', targetId: 'inv-1' })
     );
+    expect(mockRevalidatePath).toHaveBeenCalledWith('/invites');
+  });
+
+  it('does not audit or revalidate when no invite changed', async () => {
+    mockRevokeInvite.mockResolvedValueOnce(false);
+
+    await revokeInviteAction(formData({ inviteId: 'missing' }));
+
+    expect(mockRecordAudit).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
