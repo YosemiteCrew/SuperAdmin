@@ -41,6 +41,7 @@ describe('Amplify production deployment ordering', () => {
     expect(guard).toHaveLength(1);
     expect(migration).toHaveLength(1);
     expect(guard[0]).toBeLessThan(migration[0]);
+    expect(lines.slice(guard[0], migration[0]).map((line) => line.trim())).not.toContain('else');
     expect(lines.slice(guard[0], migration[0]).map((line) => line.trim())).not.toContain('fi');
   });
 });
