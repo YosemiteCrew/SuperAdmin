@@ -66,9 +66,11 @@ Four variables stop a build, and they stop it at different points, so fix them i
 order:
 
 1. **`DATABASE_URL`** fails first. The `build` phase runs `migrate:deploy` _before_
-   `next build`, so an absent value halts everything with `Validation Error
-Count: 1` on `url = env("DATABASE_URL")`. A build that dies here never even
-   attempted to compile the app.
+   `next build`, so an absent value halts everything where Prisma Migrate reads the
+   datasource from `packages/database/prisma.config.ts`. A build that dies here never
+   even attempted to compile the app. The value is read a second time at the end of
+   the build, by the `/api/health` step that starts the built app and fails the build
+   unless it answers `"database":"up"`.
 2. **`SUPERTOKENS_CONNECTION_URI`**, **`SUPERTOKENS_API_KEY`**, and
    **`SUPERADMIN_BOOTSTRAP_EMAILS`** fail next, while
    Next collects page data - `env.server.ts` throws on module load. The URI has to
@@ -172,8 +174,11 @@ rather than resetting unless you have accounted for the other consumers.
 
 If the password contains special characters, percent-encode it in the URI.
 
-Run migrations from inside `packages/database`. Invoking `npx prisma` elsewhere
-pulls Prisma **7** off the registry against this Prisma **6** project.
+Run migrations from inside `packages/database`, which is where Prisma finds the
+package's `prisma.config.ts` and, through it, the schema and the Migrate connection
+URL. Outside that directory there is no config to find: the datasource block in
+`prisma/schema.prisma` deliberately carries no `url`, because Prisma 7 takes the
+application's connection from the driver adapter in `src/client.ts` instead.
 
 ## The panel must own its database
 
@@ -207,6 +212,16 @@ Two things follow once the panel has its own project:
   consent record and data-subject request invisible. Verify it before assuming a
   clean database is a fresh one - the query is under "Which schema holds the
   data" below.
+
+  Two readers, one parameter, and they no longer read it the same way. Prisma 7's
+  driver adapter does not interpret the URL's `schema` parameter at all: the
+  application's search path comes from `{ schema: 'superadmin' }` passed to
+  `PrismaPg` in `packages/database/src/client.ts`. `?schema=superadmin` is still
+  what Migrate and `scripts/assert-schema.js` read, so it remains required - but
+  the two can now disagree, and a URL whose parameter was dropped would migrate
+  into `public` while the running panel still queried `superadmin`. Changing
+  either one means changing both.
+
 - The **session pooler** requirement does NOT go away. `prisma migrate deploy`
   takes a session-level advisory lock, so the transaction pooler still breaks it
   regardless of which project you are pointed at.
