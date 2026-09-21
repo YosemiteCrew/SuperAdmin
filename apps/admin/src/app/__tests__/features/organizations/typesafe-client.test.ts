@@ -5,6 +5,10 @@ import {
   CORROBORATION_THRESHOLDS,
 } from '@/app/features/organizations/typesafe-client';
 
+// Not a credential: judgeOfficialSite only checks that TYPE_SAFE_API_KEY is set
+// before it calls out, so any non-empty string exercises the same branch.
+const TEST_API_KEY = 'this string stands in for a key, it is not one';
+
 const originalEnv = process.env.TYPE_SAFE_API_KEY;
 const originalFetch = globalThis.fetch;
 
@@ -18,7 +22,7 @@ const mockFetch = jest.fn();
 beforeEach(() => {
   mockFetch.mockReset();
   globalThis.fetch = mockFetch;
-  process.env.TYPE_SAFE_API_KEY = 'test-key';
+  process.env.TYPE_SAFE_API_KEY = TEST_API_KEY;
 });
 
 afterEach(() => {

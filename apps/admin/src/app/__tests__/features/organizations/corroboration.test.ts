@@ -12,6 +12,10 @@ import {
 } from '@/app/features/organizations/corroboration';
 import type { SuperAdminOrganizationDetail } from '@/app/features/organizations/types';
 
+// Not a credential: judgeOfficialSite only checks that TYPE_SAFE_API_KEY is set
+// before it calls out, so any non-empty string exercises the same branch.
+const TEST_API_KEY = 'this string stands in for a key, it is not one';
+
 function fetchReturning(res: Partial<Response> & { text?: () => Promise<string> }): typeof fetch {
   return jest.fn().mockResolvedValue(res) as unknown as typeof fetch;
 }
@@ -248,7 +252,7 @@ describe('checkWebsite', () => {
     let mockFetch: jest.Mock;
 
     beforeEach(() => {
-      process.env.TYPE_SAFE_API_KEY = 'test-key';
+      process.env.TYPE_SAFE_API_KEY = TEST_API_KEY;
       mockFetch = jest.fn();
       globalThis.fetch = mockFetch;
     });
