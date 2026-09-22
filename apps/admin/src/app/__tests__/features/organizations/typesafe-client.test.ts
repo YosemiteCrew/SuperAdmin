@@ -24,7 +24,6 @@ import {
   mapProbabilityToStatus,
   getStatusDetail,
   CORROBORATION_THRESHOLDS,
-  WEBSITE_CACHE_TTL_SECONDS,
 } from '@/app/features/organizations/typesafe-client';
 
 const nextCacheMock = jest.requireMock('next/cache') as {
@@ -172,7 +171,7 @@ describe('judgeOfficialSite', () => {
     expect(nextCacheMock.unstable_cache).toHaveBeenLastCalledWith(
       expect.any(Function),
       ['organization-official-website', 'https://acme.com/', 'acme veterinary'],
-      { revalidate: WEBSITE_CACHE_TTL_SECONDS }
+      { revalidate: 300 }
     );
   });
 
@@ -209,7 +208,7 @@ describe('judgeOfficialSite', () => {
     expect(nextCacheMock.unstable_cache).toHaveBeenLastCalledWith(
       expect.any(Function),
       ['organization-official-website', 'not-a-url', 'acme'],
-      { revalidate: WEBSITE_CACHE_TTL_SECONDS }
+      { revalidate: 300 }
     );
   });
 
@@ -261,9 +260,11 @@ describe('judgeOfficialSite', () => {
 
     const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
     expect(callBody.model).toBe('jev-latest');
-    expect(callBody.state.businessName).toBe('Acme Veterinary');
-    expect(callBody.state.finalUrl).toBe('https://payload-test.com');
-    expect(callBody.state.pageText).toBe('Welcome to Acme');
+    expect(callBody.state).toEqual({
+      businessName: 'Acme Veterinary',
+      finalUrl: 'https://payload-test.com',
+      pageText: 'Welcome to Acme',
+    });
     expect(callBody.questions.is_official_site).toBeDefined();
     expect(callBody.questions.is_official_site.type).toBe('noul');
     expect(callBody.questions.is_official_site.instructions).toBe(
