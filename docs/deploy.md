@@ -89,7 +89,8 @@ rest of the panel working: `PLUNK_API_KEY`,
 `CONTACT_INTAKE_KEY`, and the social poster set (`TIKTOK_CLIENT_KEY`,
 `TIKTOK_CLIENT_SECRET`, `TIKTOK_REDIRECT_URI`, `INSTAGRAM_APP_ID`,
 `INSTAGRAM_APP_SECRET`, `INSTAGRAM_REDIRECT_URI`, `SOCIAL_TOKEN_KEY`,
-`SOCIAL_SCHEDULER_KEY`).
+`SOCIAL_SCHEDULER_KEY`), plus `TYPE_SAFE_API_KEY` for the fail-open organization
+corroboration judgments.
 
 The two OAuth redirect URIs must match what is registered with each provider
 character for character, or the callback fails:

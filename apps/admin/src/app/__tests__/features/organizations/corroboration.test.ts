@@ -1,3 +1,7 @@
+jest.mock('next/cache', () => ({
+  unstable_cache: (read: () => Promise<unknown>) => read,
+}));
+
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 
@@ -287,6 +291,26 @@ describe('checkWebsite', () => {
       expect(callBody.state.businessName).toBe('Acme Veterinary');
       expect(callBody.state.finalUrl).toBe('https://acme-pass.com/');
       expect(callBody.state.pageText).toContain('parked domain');
+    });
+
+    it('sends the final redirect URL to the judgment', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul: 0.9 } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+      const fetchImpl = jest
+        .fn()
+        .mockResolvedValueOnce(redirectTo('https://www.acme-final.com/practice'))
+        .mockResolvedValueOnce(okHtml('<h1>Acme Veterinary</h1>')) as unknown as typeof fetch;
+
+      await checkWebsite('https://acme-start.com', 'Acme Veterinary', fetchImpl, publicResolver);
+
+      const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
+      expect(callBody.state.finalUrl).toBe('https://www.acme-final.com/practice');
     });
 
     it('uses TypeSafe judgment when API key is set and returns warn', async () => {
