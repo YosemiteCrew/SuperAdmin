@@ -45,10 +45,10 @@ updates:
       # eslint-config-next's major.
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
-      # The admin lint stack still rejects TypeScript 7 explicitly through
-      # typescript-eslint, which requires typescript <6.1.0. ts-jest and
-      # ts-node were removed from apps/admin (jest.config is plain ESM,
-      # check-pnpm-overrides is plain ESM), so they no longer bind this hold.
+      # This hold now affects only apps/admin, whose lint stack still rejects
+      # TypeScript 7 through typescript-eslint's typescript <6.1.0 peer range.
+      # packages/types and packages/database are on 7 and continue to receive
+      # TypeScript 7 minor and patch updates.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
       # @types/node tracks the Node runtime major, not the latest release.
