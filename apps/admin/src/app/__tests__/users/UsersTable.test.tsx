@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import type { BulkUserResult } from '@/app/(routes)/(dashboard)/users/bulkActions';
 import { UsersTable, type UserRow } from '@/app/(routes)/(dashboard)/users/UsersTable';
@@ -95,6 +96,10 @@ function renderInBoundary(rows: UserRow[]) {
   );
 }
 
+async function clickAndSettle(element: HTMLElement) {
+  await userEvent.click(element);
+}
+
 const originalConfirm = globalThis.confirm;
 
 beforeEach(() => {
@@ -104,6 +109,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   globalThis.confirm = originalConfirm;
+  jest.restoreAllMocks();
 });
 
 describe('UsersTable', () => {
@@ -137,23 +143,23 @@ describe('UsersTable', () => {
     expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
 
-  it('runs the bulk disable action with the selected ids when confirmed', () => {
+  it('runs the bulk disable action with the selected ids when confirmed', async () => {
     globalThis.confirm = jest.fn(() => true);
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /disable/i }));
     expect(globalThis.confirm).toHaveBeenCalled();
     expect(bulkDisableMock).toHaveBeenCalledWith(['u-1', 'u-2']);
   });
 
-  it('shows the extra-email count and runs the bulk enable action', () => {
+  it('shows the extra-email count and runs the bulk enable action', async () => {
     globalThis.confirm = jest.fn(() => true);
     render(<UsersTable rows={[row({ id: 'u-3', primaryEmail: 'c@x.com', extraEmailCount: 2 })]} />);
     expect(screen.getByText('(+2)')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('checkbox', { name: /select c@x\.com/i }));
     const bar = screen.getByText('1 user selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /enable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /enable/i }));
     expect(bulkEnableMock).toHaveBeenCalledWith(['u-3']);
   });
 
@@ -179,16 +185,16 @@ describe('UsersTable', () => {
     expect(bulkDeleteMock).not.toHaveBeenCalled();
   });
 
-  it('deletes the selected ids when the dialog is confirmed', () => {
+  it('deletes the selected ids when the dialog is confirmed', async () => {
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
     fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    await clickAndSettle(screen.getByRole('button', { name: 'confirm delete' }));
     expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
   });
 
-  it('freezes the confirm on the selection it was opened with', () => {
+  it('freezes the confirm on the selection it was opened with', async () => {
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
@@ -200,11 +206,11 @@ describe('UsersTable', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /select a@x\.com/i }));
     expect(screen.getByText('count 2')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    await clickAndSettle(screen.getByRole('button', { name: 'confirm delete' }));
     expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1', 'u-2']);
   });
 
-  it('excludes protected accounts from row and bulk delete controls', () => {
+  it('excludes protected accounts from row and bulk delete controls', async () => {
     const rows = [
       row({ id: 'u-1', primaryEmail: 'regular@x.com' }),
       row({ id: 'u-2', primaryEmail: 'self@x.com', canDelete: false }),
@@ -229,7 +235,7 @@ describe('UsersTable', () => {
     const bar = screen.getByText('3 users selected').closest('div') as HTMLElement;
     fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
     expect(screen.getByText('count 1')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    await clickAndSettle(screen.getByRole('button', { name: 'confirm delete' }));
     expect(bulkDeleteMock).toHaveBeenCalledWith(['u-1']);
   });
 
@@ -253,7 +259,7 @@ describe('UsersTable', () => {
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /disable/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('2 disabled, 1 skipped');
     expect(screen.getByRole('status')).not.toHaveTextContent('failed');
@@ -267,7 +273,7 @@ describe('UsersTable', () => {
     render(<UsersTable rows={ROWS} />);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /enable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /enable/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('1 re-enabled, 2 failed');
   });
@@ -278,7 +284,7 @@ describe('UsersTable', () => {
     renderInBoundary(ROWS);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /disable/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The disable could not be completed. The selection was kept so you can try again.'
@@ -294,7 +300,7 @@ describe('UsersTable', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
     fireEvent.click(within(bar).getByRole('button', { name: /delete/i }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm delete' }));
+    await clickAndSettle(screen.getByRole('button', { name: 'confirm delete' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'The delete could not be completed. The selection was kept so you can try again.'
@@ -305,17 +311,19 @@ describe('UsersTable', () => {
   });
 
   it('replaces a failure alert with the status line on the next successful sweep', async () => {
+    const consoleError = jest.spyOn(console, 'error').mockImplementation();
     globalThis.confirm = jest.fn(() => true);
     bulkDisableMock.mockRejectedValueOnce(new Error('core unreachable'));
     renderInBoundary(ROWS);
     fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
     const bar = screen.getByText('2 users selected').closest('div') as HTMLElement;
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /disable/i }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    await clickAndSettle(within(bar).getByRole('button', { name: /disable/i }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(screen.getByRole('status')).toHaveTextContent('2 disabled');
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it('closes the dialog without deleting when cancelled', () => {
