@@ -39,11 +39,13 @@ updates:
       dev-dependencies:
         dependency-type: development
     ignore:
-      # eslint 10 remains outside the peer ranges declared by three plugins
+      # eslint 10 and @eslint/js 10 remain outside the peer ranges declared by three plugins
       # bundled with eslint-config-next 16. Keep this hold until that graph is
       # supported; the native flat-config migration no longer couples it to
-      # eslint-config-next's major.
+      # eslint-config-next's major. Lift these two packages together.
       - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
         update-types: ['version-update:semver-major']
       # The admin lint stack still rejects TypeScript 7 explicitly through
       # typescript-eslint, which requires typescript <6.1.0. ts-jest and

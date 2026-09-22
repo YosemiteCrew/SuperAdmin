@@ -29,7 +29,7 @@ module.exports = {
 
     if (otherFiles.length > 0) {
       commands.push(
-        `sh -c 'ESLINT_USE_FLAT_CONFIG=false eslint --fix --max-warnings=0 "$@"' -- ${otherFiles.map(quote).join(' ')}`
+        `sh -c 'eslint --fix --max-warnings=0 "$@"' -- ${otherFiles.map(quote).join(' ')}`
       );
     }
 
