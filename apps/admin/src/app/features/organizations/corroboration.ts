@@ -42,10 +42,22 @@ export interface CorroborationResult {
   checks: CorroborationCheck[];
 }
 
-// 10/8, 127/8, 0/8, 169.254/16 (link-local), 192.168/16, 172.16/12,
-// 100.64/10 (CGNAT), and 224+/multicast+reserved.
-const PRIVATE_IPV4 =
-  /^(?:10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2\d|3[01])\.|100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|(?:22[4-9]|2[3-5]\d)\.)/;
+/** 10/8, 127/8, 0/8, link-local, RFC1918, CGNAT, multicast and reserved IPv4. */
+function isPrivateIpv4(ip: string): boolean {
+  const octets = ip.split('.').map(Number);
+  if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet))) return false;
+  const [first, second] = octets;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 168) ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    first >= 224
+  );
+}
 
 /**
  * Classifies an IP literal (IPv4 dotted, IPv6, or IPv4-mapped IPv6) as private,
@@ -57,8 +69,8 @@ function isPrivateIp(ip: string): boolean {
   const v = ip.replace(/^\[|\]$/g, '').toLowerCase();
   // IPv4-mapped IPv6 in dotted tail form (e.g. ::ffff:127.0.0.1).
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(v);
-  if (mapped) return PRIVATE_IPV4.test(mapped[1]);
-  if (v.includes('.') && !v.includes(':')) return PRIVATE_IPV4.test(v);
+  if (mapped) return isPrivateIpv4(mapped[1]);
+  if (v.includes('.') && !v.includes(':')) return isPrivateIpv4(v);
   // IPv6: loopback, unspecified, ULA (fc/fd), link-local (fe80), and any other
   // IPv4-mapped form (hex tail) are all treated as non-public.
   if (v === '::1' || v === '::') return true;
@@ -268,7 +280,7 @@ async function fetchFollowingSafely(
   start: URL,
   fetchImpl: typeof fetch,
   resolveImpl: HostResolver
-): Promise<Response> {
+): Promise<{ response: Response; finalUrl: string }> {
   let current: URL = start;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     await assertResolvesPublic(current.hostname, resolveImpl);
@@ -277,7 +289,9 @@ async function fetchFollowingSafely(
       redirect: 'manual',
       signal: AbortSignal.timeout?.(FETCH_TIMEOUT_MS),
     });
-    if (res.status < 300 || res.status >= 400) return res;
+    if (res.status < 300 || res.status >= 400) {
+      return { response: res, finalUrl: current.toString() };
+    }
     const location = res.headers.get('location');
     const next = location ? isPublicHttpUrl(new URL(location, current).toString()) : null;
     if (!next) throw new Error('blocked or invalid redirect target');
@@ -307,7 +321,7 @@ export async function checkWebsite(
   }
 
   try {
-    const res = await fetchFollowingSafely(url, fetchImpl, resolveImpl);
+    const { response: res, finalUrl } = await fetchFollowingSafely(url, fetchImpl, resolveImpl);
     if (!res.ok) {
       return {
         id: 'website',
@@ -317,7 +331,6 @@ export async function checkWebsite(
       };
     }
     const text = stripHtml(await res.text());
-    const finalUrl = res.url ?? url.toString();
 
     // Try TypeSafe judgment first; fall back to token overlap on any error.
     const probability = await judgeOfficialSite(name, finalUrl, text);

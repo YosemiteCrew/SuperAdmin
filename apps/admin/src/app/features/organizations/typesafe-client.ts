@@ -29,6 +29,7 @@ interface CorroborationState {
 const TYPE_SAFE_API_URL = 'https://api.typesafe.ai/v1/systemone';
 const TYPE_SAFE_MODEL = 'jev-latest';
 const TYPE_SAFE_TIMEOUT_MS = 1500;
+export const WEBSITE_CACHE_TTL_SECONDS = 5 * 60;
 
 /** Input and output tokens and the round trip that produced one judgment. */
 export interface JudgmentUsage {
@@ -45,15 +46,10 @@ export interface JudgmentUsage {
  */
 const WEBSITE_QUESTION_ID = 'is_official_site';
 
-function buildQuestion(state: CorroborationState): { type: string; instructions: object } {
+function buildQuestion(): { type: string; instructions: string } {
   return {
     type: 'noul',
-    instructions: {
-      business_name: state.businessName,
-      website_url: state.finalUrl,
-      page_text: state.pageText,
-      question: 'Is this web page the official site of the business named `business_name`?',
-    },
+    instructions: 'Is this web page the official site of the business named `businessName`?',
   };
 }
 
@@ -114,12 +110,35 @@ async function postQuestion(
 }
 
 async function callTypeSafe(state: CorroborationState): Promise<number | null> {
-  const result = await postQuestion(WEBSITE_QUESTION_ID, buildQuestion(state), state);
+  const result = await postQuestion(WEBSITE_QUESTION_ID, buildQuestion(), state);
   const answer = result?.answer;
-  if (answer && answer.type === 'noul' && typeof answer.noul === 'number') {
+  if (
+    answer?.type === 'noul' &&
+    typeof answer.noul === 'number' &&
+    Number.isFinite(answer.noul) &&
+    answer.noul >= 0 &&
+    answer.noul <= 1
+  ) {
     return answer.noul;
   }
   return null;
+}
+
+function normaliseWebsiteUrl(raw: string): string {
+  try {
+    const url = new URL(raw);
+    url.hash = '';
+    if (url.pathname === '/') url.pathname = '';
+    return url.toString();
+  } catch {
+    return raw.trim();
+  }
+}
+
+async function requestOfficialSite(state: CorroborationState): Promise<number> {
+  const probability = await callTypeSafe(state);
+  if (probability === null) throw new Error('website judgment unavailable');
+  return probability;
 }
 
 export async function judgeOfficialSite(
@@ -127,6 +146,8 @@ export async function judgeOfficialSite(
   finalUrl: string,
   pageText: string
 ): Promise<number | null> {
+  if (!process.env.TYPE_SAFE_API_KEY) return null;
+
   const truncatedText = pageText.slice(0, 4000);
   const state: CorroborationState = {
     businessName,
@@ -134,7 +155,21 @@ export async function judgeOfficialSite(
     pageText: truncatedText,
   };
 
-  return callTypeSafe(state);
+  try {
+    const { unstable_cache } = await import('next/cache');
+    const readCached = unstable_cache(
+      () => requestOfficialSite(state),
+      [
+        'organization-official-website',
+        normaliseWebsiteUrl(finalUrl),
+        businessName.trim().toLowerCase(),
+      ],
+      { revalidate: WEBSITE_CACHE_TTL_SECONDS }
+    );
+    return await readCached();
+  } catch {
+    return null;
+  }
 }
 
 export function mapProbabilityToStatus(
@@ -232,7 +267,7 @@ const PLAUSIBILITY_QUESTION = {
 
 function emptyToNull(value: string | undefined): string | null {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
+  return trimmed || null;
 }
 
 /** Builds the plausibility payload: exactly the nine identity fields, no more. */

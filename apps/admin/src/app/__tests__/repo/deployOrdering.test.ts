@@ -20,6 +20,15 @@ function matchingLineIndexes(lines: readonly string[], text: string): number[] {
 describe('Amplify production deployment ordering', () => {
   const lines = readFileSync(AMPLIFY_SPEC, 'utf8').split('\n');
 
+  it('copies the TypeSafe credential into the server runtime artifact', () => {
+    const allowlist = lines.filter(
+      (line) => line.includes("env | grep -E '^(") && line.includes('.env.production')
+    );
+
+    expect(allowlist).toHaveLength(1);
+    expect(allowlist[0]).toMatch(/\|TYPE_SAFE_API_KEY(?:\||\))=/);
+  });
+
   it('builds and probes the artifact before running the production migration', () => {
     const build = matchingLineIndexes(lines, BUILD);
     const healthGate = matchingLineIndexes(lines, HEALTH_GATE);

@@ -1,9 +1,35 @@
+jest.mock('next/cache', () => {
+  const values = new Map<string, unknown>();
+  const unstableCache = jest.fn(
+    (read: () => Promise<unknown>, keyParts: string[]) => async (): Promise<unknown> => {
+      const key = JSON.stringify(keyParts);
+      if (values.has(key)) return values.get(key);
+      const value = await read();
+      values.set(key, value);
+      return value;
+    }
+  );
+
+  return {
+    unstable_cache: unstableCache,
+    __clearForTests: () => {
+      values.clear();
+      unstableCache.mockClear();
+    },
+  };
+});
+
 import {
   judgeOfficialSite,
   mapProbabilityToStatus,
   getStatusDetail,
   CORROBORATION_THRESHOLDS,
 } from '@/app/features/organizations/typesafe-client';
+
+const nextCacheMock = jest.requireMock('next/cache') as {
+  unstable_cache: jest.Mock;
+  __clearForTests(): void;
+};
 
 // Not a credential: judgeOfficialSite only checks that TYPE_SAFE_API_KEY is set
 // before it calls out, so any non-empty string exercises the same branch.
@@ -20,6 +46,7 @@ afterAll(() => {
 const mockFetch = jest.fn();
 
 beforeEach(() => {
+  nextCacheMock.__clearForTests();
   mockFetch.mockReset();
   globalThis.fetch = mockFetch;
   process.env.TYPE_SAFE_API_KEY = TEST_API_KEY;
@@ -126,6 +153,82 @@ describe('judgeOfficialSite', () => {
     expect(result).toBe(0.85);
   });
 
+  it('uses a shared five-minute cache keyed by normalised URL and business name', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        model: 'jev-1.13.0',
+        answers: { is_official_site: { type: 'noul', noul: 0.85 } },
+        usage: { input_tokens: 100, output_tokens: 10 },
+      }),
+    });
+
+    const first = await judgeOfficialSite(' Acme Veterinary ', 'HTTPS://ACME.COM/', 'first body');
+    const second = await judgeOfficialSite('acme veterinary', 'https://acme.com', 'changed body');
+
+    expect(second).toBe(first);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(nextCacheMock.unstable_cache).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      ['organization-official-website', 'https://acme.com/', 'acme veterinary'],
+      { revalidate: 300 }
+    );
+  });
+
+  it('does not cache a failed judgment', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500, json: async () => ({}) });
+    await expect(
+      judgeOfficialSite('Acme', 'https://retry.example', 'Acme Veterinary')
+    ).resolves.toBeNull();
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        model: 'jev-1.13.0',
+        answers: { is_official_site: { type: 'noul', noul: 0.9 } },
+        usage: { input_tokens: 100, output_tokens: 10 },
+      }),
+    });
+    await expect(
+      judgeOfficialSite('Acme', 'https://retry.example', 'Acme Veterinary')
+    ).resolves.toBe(0.9);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses a trimmed fallback key for a non-URL and tolerates absent usage', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        model: 'jev-1.13.0',
+        answers: { is_official_site: { type: 'noul', noul: 0.7 } },
+      }),
+    });
+
+    await expect(judgeOfficialSite('Acme', ' not-a-url ', 'Acme Veterinary')).resolves.toBe(0.7);
+    expect(nextCacheMock.unstable_cache).toHaveBeenLastCalledWith(
+      expect.any(Function),
+      ['organization-official-website', 'not-a-url', 'acme'],
+      { revalidate: 300 }
+    );
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -0.1, 1.1])(
+    'rejects an unusable noul probability %s',
+    async (noul) => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          model: 'jev-1.13.0',
+          answers: { is_official_site: { type: 'noul', noul } },
+          usage: { input_tokens: 100, output_tokens: 10 },
+        }),
+      });
+      await expect(
+        judgeOfficialSite(`Acme ${String(noul)}`, 'https://invalid-probability.example', 'text')
+      ).resolves.toBeNull();
+    }
+  );
+
   it('truncates page text to 4000 characters', async () => {
     const longText = 'x'.repeat(5000);
     mockFetch.mockResolvedValue({
@@ -140,7 +243,7 @@ describe('judgeOfficialSite', () => {
     await judgeOfficialSite('Acme', 'https://truncate-test.com', longText);
 
     const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
-    expect(callBody.state.pageText.length).toBe(4000);
+    expect(callBody.state.pageText).toHaveLength(4000);
   });
 
   it('sends correct payload structure', async () => {
@@ -157,16 +260,16 @@ describe('judgeOfficialSite', () => {
 
     const callBody = JSON.parse(mockFetch.mock.calls[0][1]?.body as string);
     expect(callBody.model).toBe('jev-latest');
-    expect(callBody.state.businessName).toBe('Acme Veterinary');
-    expect(callBody.state.finalUrl).toBe('https://payload-test.com');
-    expect(callBody.state.pageText).toBe('Welcome to Acme');
+    expect(callBody.state).toEqual({
+      businessName: 'Acme Veterinary',
+      finalUrl: 'https://payload-test.com',
+      pageText: 'Welcome to Acme',
+    });
     expect(callBody.questions.is_official_site).toBeDefined();
     expect(callBody.questions.is_official_site.type).toBe('noul');
-    expect(callBody.questions.is_official_site.instructions).toMatchObject({
-      business_name: 'Acme Veterinary',
-      website_url: 'https://payload-test.com',
-      question: 'Is this web page the official site of the business named `business_name`?',
-    });
+    expect(callBody.questions.is_official_site.instructions).toBe(
+      'Is this web page the official site of the business named `businessName`?'
+    );
   });
 
   it('times out after 1.5 seconds', async () => {
