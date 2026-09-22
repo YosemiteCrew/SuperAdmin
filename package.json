@@ -105,14 +105,17 @@
   "devDependencies": {
     "@commitlint/cli": "^21.2.2",
     "@commitlint/config-conventional": "^21.2.2",
+    "@eslint/js": "^9.33.0",
     "@secretlint/secretlint-rule-no-dotenv": "^13.0.5",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.5",
     "eslint": "^9.33.0",
+    "globals": "^16.4.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.5.1",
     "prettier": "^3.9.8",
     "secretlint": "^13.0.5",
     "sonarqube-scanner": "^5.0.0",
-    "turbo": "^2.10.13"
+    "turbo": "^2.10.13",
+    "typescript-eslint": "^8.70.0"
   }
 }
