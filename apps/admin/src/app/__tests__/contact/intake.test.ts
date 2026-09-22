@@ -1,17 +1,44 @@
 jest.mock('server-only', () => ({}));
 jest.mock('@superadmin/database', () => ({
-  prisma: { contactLead: { upsert: jest.fn(), updateMany: jest.fn() } },
+  prisma: {
+    contactLead: {
+      upsert: jest.fn(),
+      updateMany: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+    },
+    contactRequest: {
+      findUnique: jest.fn(),
+      findFirst: jest.fn(),
+      update: jest.fn(),
+      create: jest.fn(),
+      createMany: jest.fn(),
+    },
+    $transaction: jest.fn(),
+  },
 }));
 
 import { prisma } from '@superadmin/database';
 import {
+  ContactIntakeConflictError,
   isHoneypotTripped,
+  MAX_SUBMITTED_AT_SKEW_MS,
   parseSubmission,
   recordContactSubmission,
 } from '@/app/features/contact/intake';
 
+const LIMITS_SOURCE_REQUEST_ID = 100;
+
 const mockUpsert = prisma.contactLead.upsert as jest.Mock;
 const mockUpdateMany = prisma.contactLead.updateMany as jest.Mock;
+const mockLeadFindUnique = prisma.contactLead.findUnique as jest.Mock;
+const mockLeadFindUniqueOrThrow = prisma.contactLead.findUniqueOrThrow as jest.Mock;
+const mockRequestFindUnique = prisma.contactRequest.findUnique as jest.Mock;
+const mockRequestFindFirst = prisma.contactRequest.findFirst as jest.Mock;
+const mockRequestUpdate = prisma.contactRequest.update as jest.Mock;
+const mockRequestCreate = prisma.contactRequest.create as jest.Mock;
+const mockRequestCreateMany = prisma.contactRequest.createMany as jest.Mock;
+const mockTransaction = prisma.$transaction as unknown as jest.Mock;
 
 const VALID = {
   email: 'Prospect@Clinic.com',
@@ -27,6 +54,20 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUpsert.mockResolvedValue({});
   mockUpdateMany.mockResolvedValue({ count: 0 });
+  mockLeadFindUnique.mockResolvedValue(null);
+  mockLeadFindUniqueOrThrow.mockResolvedValue({ id: 'lead-1' });
+  mockRequestFindUnique.mockReset();
+  mockRequestFindUnique.mockResolvedValue(null);
+  mockRequestFindFirst.mockResolvedValue(null);
+  mockRequestUpdate.mockResolvedValue({});
+  mockRequestCreate.mockResolvedValue({});
+  mockRequestCreateMany.mockResolvedValue({ count: 1 });
+  // The sourced path runs inside prisma.$transaction; the mock hands the
+  // callback the same mocked client. Rollback itself is Prisma's behaviour and
+  // is NOT asserted here — what these tests pin is that the work happens inside
+  // the transaction callback, which is the part this module controls.
+  mockTransaction.mockImplementation(async (fn: (tx: unknown) => unknown) => fn(prisma));
+  mockUpsert.mockResolvedValue({ id: 'lead-1' });
 });
 
 describe('parseSubmission query-operator payloads', () => {
@@ -307,5 +348,288 @@ describe('recordContactSubmission', () => {
   it('falls back to a contact-us source label when none is given', async () => {
     await recordContactSubmission({ email: 'a@b.com', message: 'hi', newsletterConsent: true });
     expect(mockUpsert.mock.calls[0][0].create.consentSource).toBe('contact-us');
+  });
+});
+
+// The idempotency key and the replayed timestamp both arrive from the public
+// endpoint, and neither went through a bound before. Everything below drives
+// the sourceRequestId branch, which no test reached until the prisma mock above
+// grew a contactRequest: the branch was unreachable, not merely uncovered.
+describe('parseSubmission idempotency inputs', () => {
+  const ID = 'cmf0source0000abcdefghij';
+
+  it('keeps a valid sourceRequestId, trimmed', () => {
+    expect(parseSubmission({ ...VALID, sourceRequestId: `  ${ID}  ` })?.sourceRequestId).toBe(ID);
+  });
+
+  it('treats an absent sourceRequestId as undefined rather than rejecting', () => {
+    expect(parseSubmission({ ...VALID })?.sourceRequestId).toBeUndefined();
+  });
+
+  // Rejected, not dropped. Dropping it would leave a submission that looks
+  // ordinary and stores a SECOND row on the next redelivery.
+  it.each([
+    ['over the length limit', 'x'.repeat(LIMITS_SOURCE_REQUEST_ID + 1)],
+    ['blank', '   '],
+    ['a query operator', { not: 'x' }],
+    ['a number', 5],
+    ['an array', ['a']],
+  ])('rejects the whole submission when sourceRequestId is %s', (_label, sourceRequestId) => {
+    expect(parseSubmission({ ...VALID, sourceRequestId })).toBeNull();
+  });
+
+  it('accepts a sourceRequestId exactly at the limit', () => {
+    const atLimit = 'x'.repeat(LIMITS_SOURCE_REQUEST_ID);
+    expect(parseSubmission({ ...VALID, sourceRequestId: atLimit })?.sourceRequestId).toBe(atLimit);
+  });
+
+  it('accepts a historical submittedAt, which is what a backfill replays', () => {
+    const past = '2024-03-01T10:00:00.000Z';
+    expect(parseSubmission({ ...VALID, submittedAt: past })?.submittedAt).toEqual(new Date(past));
+  });
+
+  it('accepts a submittedAt inside the skew allowance', () => {
+    const nearFuture = new Date(Date.now() + MAX_SUBMITTED_AT_SKEW_MS / 2).toISOString();
+    expect(parseSubmission({ ...VALID, submittedAt: nearFuture })?.submittedAt).toBeInstanceOf(
+      Date
+    );
+  });
+
+  // An unparseable date used to reach prisma as an Invalid Date, and a far-future
+  // one used to be stored verbatim.
+  it.each([
+    ['unparseable', 'not-a-date'],
+    ['an empty string', ''],
+    ['a number', 1_700_000_000_000],
+    ['a Date instance rather than a string', new Date()],
+  ])('rejects the whole submission when submittedAt is %s', (_label, submittedAt) => {
+    expect(parseSubmission({ ...VALID, submittedAt })).toBeNull();
+  });
+
+  it('rejects a submittedAt beyond the skew allowance', () => {
+    const farFuture = new Date(Date.now() + MAX_SUBMITTED_AT_SKEW_MS + 60_000).toISOString();
+    expect(parseSubmission({ ...VALID, submittedAt: farFuture })).toBeNull();
+  });
+});
+
+describe('recordContactSubmission with a sourceRequestId', () => {
+  const ID = 'cmf0source0000abcdefghij';
+  const EMAIL = 'a@b.com';
+  const stored = (over: Record<string, unknown> = {}) => ({
+    subject: null,
+    message: 'hi',
+    lead: { email: EMAIL },
+    ...over,
+  });
+  const submission = (over: Record<string, unknown> = {}) => ({
+    email: EMAIL,
+    message: 'hi',
+    newsletterConsent: false,
+    sourceRequestId: ID,
+    ...over,
+  });
+
+  it('does the whole sourced write inside one transaction', async () => {
+    const tx = {
+      contactLead: {
+        upsert: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      contactRequest: {
+        findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(stored()),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction.mockImplementationOnce(async (fn: (client: unknown) => unknown) => fn(tx));
+
+    await recordContactSubmission(submission());
+
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    expect(tx.contactLead.upsert).toHaveBeenCalledTimes(1);
+    expect(tx.contactRequest.createMany).toHaveBeenCalledTimes(1);
+    expect(mockUpsert).not.toHaveBeenCalled();
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('stores nothing further when the id is already recorded with the same submission', async () => {
+    mockRequestFindUnique.mockResolvedValue(stored());
+
+    await recordContactSubmission(submission());
+
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
+    expect(mockRequestUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses an id already recorded with a different message', async () => {
+    mockRequestFindUnique.mockResolvedValue(stored({ message: 'a DIFFERENT message' }));
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
+    expect(mockRequestUpdate).not.toHaveBeenCalled();
+  });
+
+  it('refuses an id already recorded with a different subject', async () => {
+    mockRequestFindUnique.mockResolvedValue(stored({ subject: 'Old subject' }));
+
+    await expect(
+      recordContactSubmission(submission({ subject: 'New subject' }))
+    ).rejects.toBeInstanceOf(ContactIntakeConflictError);
+  });
+
+  // The lead email is part of the identity. One product id arriving under two
+  // addresses would otherwise file one visitor's message against another's
+  // record and answer 200.
+  it('refuses an id already recorded against a different lead email', async () => {
+    mockRequestFindUnique.mockResolvedValue(stored({ lead: { email: 'someone-else@c.com' } }));
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('claims an unclaimed matching request without requiring its exact createdAt', async () => {
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+
+    await recordContactSubmission(
+      submission({ submittedAt: new Date('2024-03-01T10:00:00.000Z') })
+    );
+
+    const where = mockRequestFindFirst.mock.calls[0][0].where;
+    expect(where).not.toHaveProperty('createdAt');
+    expect(where).toMatchObject({ leadId: 'lead-1', sourceRequestId: null, message: 'hi' });
+    expect(mockRequestCreateMany).not.toHaveBeenCalled();
+  });
+
+  it('claims the OLDEST candidate when several match', async () => {
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+
+    await recordContactSubmission(submission());
+
+    expect(mockRequestFindFirst.mock.calls[0][0].orderBy).toEqual({ createdAt: 'asc' });
+  });
+
+  it('rewrites the claimed row createdAt to the replayed timestamp', async () => {
+    mockRequestFindFirst.mockResolvedValue({ id: 'req-oldest' });
+    const submittedAt = new Date('2024-03-01T10:00:00.000Z');
+
+    await recordContactSubmission(submission({ submittedAt }));
+
+    expect(mockRequestUpdate).toHaveBeenCalledWith({
+      where: { id: 'req-oldest' },
+      data: { sourceRequestId: ID, createdAt: submittedAt },
+    });
+  });
+
+  // ON CONFLICT DO NOTHING, so two concurrent deliveries of one id cannot both
+  // insert - the race is closed by the unique index, not by the read above it.
+  it('inserts with skipDuplicates when nothing is claimable', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(submission());
+
+    const arg = mockRequestCreateMany.mock.calls[0][0];
+    expect(arg.skipDuplicates).toBe(true);
+    expect(arg.data[0]).toMatchObject({ sourceRequestId: ID, leadId: 'lead-1', message: 'hi' });
+  });
+
+  it('accepts a concurrent duplicate that won the unique index', async () => {
+    mockRequestCreateMany.mockResolvedValue({ count: 0 });
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await expect(recordContactSubmission(submission())).resolves.toBeUndefined();
+  });
+
+  it('refuses when the concurrent winner stored a different submission', async () => {
+    mockRequestCreateMany.mockResolvedValue({ count: 0 });
+    mockRequestFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(stored({ message: 'something else' }));
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+  });
+
+  it('refuses when the row vanished between insert and re-read', async () => {
+    mockRequestFindUnique.mockResolvedValue(null);
+
+    await expect(recordContactSubmission(submission())).rejects.toBeInstanceOf(
+      ContactIntakeConflictError
+    );
+  });
+
+  // A replayed submission can predate the lead we already hold. The guard is in
+  // the where clause, so a NEWER submission leaves the lead's date alone.
+  it('moves the lead createdAt back to an older submission time', async () => {
+    const submittedAt = new Date('2024-03-01T10:00:00.000Z');
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(submission({ submittedAt }));
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'lead-1', createdAt: { gt: submittedAt } },
+      data: { createdAt: submittedAt },
+    });
+  });
+
+  // Ported from d551136, which caught a gap this suite had: the sourced path
+  // builds its OWN lead-create object, so the consent branches there are not
+  // the ones the legacy upsert tests cover.
+  it('stamps consent on a brand-new lead created by the sourced path', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(
+      submission({
+        newsletterConsent: true,
+        sourceUrl: 'https://www.yosemitecrew.com/contact-us',
+      })
+    );
+
+    const create = mockUpsert.mock.calls[0][0].create;
+    expect(create.newsletterConsent).toBe(true);
+    expect(create.consentAt).toBeInstanceOf(Date);
+    expect(create.consentSource).toBe('https://www.yosemitecrew.com/contact-us');
+  });
+
+  it('leaves consent unstamped on the sourced path when not opted in', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+
+    await recordContactSubmission(submission());
+
+    const create = mockUpsert.mock.calls[0][0].create;
+    expect(create.consentAt).toBeNull();
+    expect(create.consentSource).toBeNull();
+  });
+
+  it('stamps the request with now() when no submittedAt is given', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+    const before = Date.now();
+
+    await recordContactSubmission(submission());
+
+    const createdAt = mockRequestCreateMany.mock.calls[0][0].data[0].createdAt;
+    expect(createdAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(createdAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('fills only a null name, company and phone', async () => {
+    mockRequestFindUnique.mockResolvedValueOnce(null).mockResolvedValue(stored());
+    await recordContactSubmission(
+      submission({ name: 'jane', company: 'newco', phone: '+49 152 277 63275' })
+    );
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'lead-1', name: null },
+      data: { name: 'jane' },
+    });
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: { id: 'lead-1', phone: null },
+      data: { phone: '+49 152 277 63275' },
+    });
   });
 });
