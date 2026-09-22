@@ -1,5 +1,6 @@
 import { Component, type ReactNode } from 'react';
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import type { BulkUserResult } from '@/app/(routes)/(dashboard)/users/bulkActions';
 import { UsersTable, type UserRow } from '@/app/(routes)/(dashboard)/users/UsersTable';
@@ -96,7 +97,7 @@ function renderInBoundary(rows: UserRow[]) {
 }
 
 async function clickAndSettle(element: HTMLElement) {
-  await act(async () => fireEvent.click(element));
+  await userEvent.click(element);
 }
 
 const originalConfirm = globalThis.confirm;
