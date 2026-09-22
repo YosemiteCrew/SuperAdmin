@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
@@ -35,14 +35,18 @@ jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
   bulkDeleteUsersAction: jest.fn(),
 }));
 
-async function renderPage() {
+async function page(searchParams: Record<string, string> = {}) {
   const mod = await import('@/app/(routes)/(dashboard)/users/page');
-  render(await mod.default({ searchParams: Promise.resolve({}) }));
+  return mod.default({ searchParams: Promise.resolve(searchParams) });
 }
 
-function user(recipeIds: string[]) {
+async function renderPage() {
+  render(await page());
+}
+
+function user(recipeIds: string[], id = 'u-1') {
   return {
-    id: 'u-1',
+    id,
     emails: ['user@example.com'],
     loginMethods: recipeIds.map((recipeId) => ({ recipeId })),
     tenantIds: ['public'],
@@ -55,7 +59,7 @@ beforeEach(() => {
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
 });
 
-describe('UsersPage login methods column', () => {
+describe('UsersPage', () => {
   /**
    * The column joined raw SuperTokens recipe ids, so the directory read
    * `emailpassword` for every business account. The page is where the mapping
@@ -83,5 +87,23 @@ describe('UsersPage login methods column', () => {
     await renderPage();
 
     expect(screen.getByText('webauthn')).toBeInTheDocument();
+  });
+
+  it('clears the selection when navigation changes the result set', async () => {
+    getUsersNewestFirstMock.mockResolvedValueOnce({
+      users: [user(['emailpassword'])],
+      nextPaginationToken: 'next-page',
+    });
+    const view = render(await page());
+    fireEvent.click(screen.getByRole('checkbox', { name: /select all users/i }));
+    expect(screen.getByText('1 user selected')).toBeInTheDocument();
+
+    getUsersNewestFirstMock.mockResolvedValueOnce({
+      users: [user(['emailpassword'], 'u-2')],
+      nextPaginationToken: undefined,
+    });
+    view.rerender(await page({ cursor: 'next-page' }));
+
+    expect(screen.queryByText(/selected/)).not.toBeInTheDocument();
   });
 });

@@ -189,7 +189,10 @@ export default async function UsersPage({
             : `No ${USER_TYPE_META[typeFilter].noun} yet.`}
         </div>
       ) : (
-        <UsersTable rows={userRows} />
+        <UsersTable
+          key={buildHref({ search: trimmedSearch || undefined, cursor, type: typeFilter })}
+          rows={userRows}
+        />
       )}
 
       <nav

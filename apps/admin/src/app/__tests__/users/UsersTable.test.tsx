@@ -313,7 +313,9 @@ describe('UsersTable', () => {
     fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
 
-    fireEvent.click(within(bar).getByRole('button', { name: /disable/i }));
+    const disable = within(bar).getByRole('button', { name: /disable/i });
+    await waitFor(() => expect(disable).not.toBeDisabled());
+    fireEvent.click(disable);
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect(screen.getByRole('status')).toHaveTextContent('2 disabled');
   });
