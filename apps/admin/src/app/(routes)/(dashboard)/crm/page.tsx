@@ -9,6 +9,7 @@ import { getDiscordConfig } from '@/app/features/crm/discord/store';
 import { serverEnv } from '@/app/config/env.server';
 
 import { SyncContactsButton } from './SyncContactsButton';
+import { BackfillContactsButton } from './BackfillContactsButton';
 
 export const metadata: Metadata = { title: 'CRM' };
 
@@ -121,6 +122,7 @@ export default async function CrmPage() {
         </div>
         <div className="flex items-start gap-[10px]">
           <SyncContactsButton />
+          <BackfillContactsButton />
           <Link
             href="/crm/compose"
             className="yc-primary-button inline-flex h-10 items-center justify-center rounded-full bg-[var(--btn)] px-5 text-[13.5px] font-semibold text-[color:var(--btn-ink)]"
