@@ -1,9 +1,7 @@
-import nextVitals from 'eslint-config-next/core-web-vitals';
-import nextTypescript from 'eslint-config-next/typescript';
+import nextConfig from 'eslint-config-next';
 
 const config = [
-  ...nextVitals,
-  ...nextTypescript,
+  ...nextConfig,
   {
     plugins: {
       sonarjs: (await import('eslint-plugin-sonarjs')).default,
