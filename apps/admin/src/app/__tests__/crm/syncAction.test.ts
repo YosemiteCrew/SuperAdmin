@@ -29,6 +29,7 @@ jest.mock('@/app/features/audit/store', () => ({
 }));
 
 import { requireSuperAdmin } from '@/app/config/backend';
+import { serverEnv } from '@/app/config/env.server';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { isPlunkConfigured, syncContacts } from '@/app/features/crm/plunk';
 import { fetchRecipientEmails } from '@/app/features/crm/recipients';
@@ -39,6 +40,10 @@ const mockConfigured = isPlunkConfigured as jest.MockedFunction<typeof isPlunkCo
 const mockFetch = fetchRecipientEmails as jest.MockedFunction<typeof fetchRecipientEmails>;
 const mockSync = syncContacts as jest.MockedFunction<typeof syncContacts>;
 const mockAudit = recordAuditEvent as jest.MockedFunction<typeof recordAuditEvent>;
+const mockServerEnv = serverEnv as typeof serverEnv & {
+  yosemiteBackendUrl: string | null;
+  yosemiteBackfillKey: string | null;
+};
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -113,6 +118,8 @@ describe('backfillContactsAction', () => {
     jest.clearAllMocks();
     mockRequireSuperAdmin.mockResolvedValue({ userId: 'admin-1' });
     mockAudit.mockResolvedValue(undefined);
+    mockServerEnv.yosemiteBackendUrl = 'https://backend.example.com';
+    mockServerEnv.yosemiteBackfillKey = 'test-backfill-key';
     mockFetch = jest.fn();
     global.fetch = mockFetch;
   });
@@ -177,6 +184,34 @@ describe('backfillContactsAction', () => {
     const result = await backfillContactsAction();
 
     expect(result.error).toMatch(/Internal server error/);
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it('refuses when either backend setting is missing', async () => {
+    mockServerEnv.yosemiteBackendUrl = null;
+    await expect(backfillContactsAction()).resolves.toEqual({
+      error: 'Yosemite-Crew backend is not configured for backfill.',
+    });
+
+    mockServerEnv.yosemiteBackendUrl = 'https://backend.example.com';
+    mockServerEnv.yosemiteBackfillKey = null;
+    await expect(backfillContactsAction()).resolves.toEqual({
+      error: 'Yosemite-Crew backend is not configured for backfill.',
+    });
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockAudit).not.toHaveBeenCalled();
+  });
+
+  it('rejects malformed success counts before writing the audit event', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ forwarded: '5', skipped: 2, failed: 0 }),
+    });
+
+    await expect(backfillContactsAction()).resolves.toEqual({
+      error: 'Backfill returned an invalid response.',
+    });
     expect(mockAudit).not.toHaveBeenCalled();
   });
 });

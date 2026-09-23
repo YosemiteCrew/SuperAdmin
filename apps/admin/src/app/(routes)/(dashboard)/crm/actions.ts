@@ -3,10 +3,10 @@
 import { revalidatePath } from 'next/cache';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
+import { serverEnv } from '@/app/config/env.server';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { isPlunkConfigured, syncContacts } from '@/app/features/crm/plunk';
 import { fetchRecipientEmails } from '@/app/features/crm/recipients';
-import { serverEnv } from '@/app/config/env.server';
 
 export interface SyncContactsResult {
   synced?: number;
@@ -57,6 +57,16 @@ export interface BackfillContactsResult {
   error?: string;
 }
 
+function isBackfillCounts(
+  value: unknown
+): value is { forwarded: number; skipped: number; failed: number } {
+  if (!value || typeof value !== 'object') return false;
+  const counts = value as Record<string, unknown>;
+  return [counts.forwarded, counts.skipped, counts.failed].every(
+    (count) => Number.isSafeInteger(count) && Number(count) >= 0
+  );
+}
+
 export async function backfillContactsAction(): Promise<BackfillContactsResult> {
   ensureSuperTokensInit();
   const { userId: actorId } = await requireSuperAdmin();
@@ -79,11 +89,21 @@ export async function backfillContactsAction(): Promise<BackfillContactsResult> 
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { error: errorData.message || `Backfill failed with status ${response.status}` };
+      const errorData: unknown = await response.json().catch(() => null);
+      const message =
+        errorData &&
+        typeof errorData === 'object' &&
+        'message' in errorData &&
+        typeof errorData.message === 'string'
+          ? errorData.message
+          : `Backfill failed with status ${response.status}`;
+      return { error: message };
     }
 
-    const data = await response.json();
+    const data: unknown = await response.json();
+    if (!isBackfillCounts(data)) {
+      return { error: 'Backfill returned an invalid response.' };
+    }
 
     // Bulk import of historical contacts is a privileged action — always audited.
     await recordAuditEvent({
