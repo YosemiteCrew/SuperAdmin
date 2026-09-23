@@ -18,7 +18,6 @@ export type AuditAction =
   | 'user.approve'
   | 'user.reject'
   | 'crm.contact_sync'
-  | 'crm.contact_backfill'
   | 'ap_token.issue'
   | 'ap_token.revoke'
   | 'contact.status_change'

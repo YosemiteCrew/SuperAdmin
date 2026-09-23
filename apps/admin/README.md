@@ -59,16 +59,13 @@ pnpm --filter admin run test:coverage  # coverage report
 
 The contact mirror is best effort. Submissions made while either deployment was
 unconfigured remain only in the product database. They are recovered by a
-sender-side backfill (YosemiteCrew/Yosemite-Crew#3330) that queues historic web
-submissions and drains them through the **same authenticated intake** as live
+one-off command in the Yosemite-Crew repository (YosemiteCrew/Yosemite-Crew#3330).
+Run `pnpm --filter backend run backfill:superadmin-contact` there for a dry-run,
+review the per-day counts, then add `--apply` to queue the rows. The normal
+forward drain delivers them through the **same authenticated intake** as live
 traffic. Each submission keeps its original timestamp as `submittedAt` and its
 product submission id as `sourceRequestId`, so the receiver is idempotent and
 claims rows the current intake already wrote (those with `sourceRequestId: null`).
-
-The offline stdin importer has been removed. The backfill no longer requires a
-direct database connection on the operator's machine; it runs as a scheduled
-job on the product backend, throttled under the intake's rate limit (15/min,
-below the 20/60s ceiling).
 
 ## Verify
 

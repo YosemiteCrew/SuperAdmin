@@ -81,10 +81,6 @@ export const serverEnv = {
   // Those rows stay missing from /crm/requests until the contact backfill
   // import restores them (see apps/admin/README.md).
   contactIntakeKey: process.env.CONTACT_INTAKE_KEY ?? null,
-  // Yosemite-Crew backend URL and shared secret for triggering contact backfill.
-  // Optional — the backfill endpoint refuses all requests when absent.
-  yosemiteBackendUrl: process.env.YOSEMITE_BACKEND_URL ?? null,
-  yosemiteBackfillKey: process.env.YOSEMITE_BACKFILL_KEY ?? null,
   // Social poster (TikTok) credentials. Optional on purpose: the panel must
   // still boot on a host where the poster was never provisioned — the Social
   // page reports exactly which of these are missing rather than the whole app
