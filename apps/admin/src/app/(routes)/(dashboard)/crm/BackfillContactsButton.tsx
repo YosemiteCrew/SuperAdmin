@@ -34,7 +34,9 @@ export function BackfillContactsButton() {
         <p
           role={totalFailure ? 'alert' : 'status'}
           className={`text-[11px] font-semibold ${
-            totalFailure ? 'text-[color:var(--danger-text)]' : 'text-[color:var(--success)]'
+            totalFailure
+              ? 'text-[color:var(--danger-text)]'
+              : 'text-[color:var(--avatar-green-ink)]'
           }`}
         >
           {backfillResult}
