@@ -26,7 +26,7 @@ overrides:
   postcss@<8.5.23: '>=8.5.23 <9'
   fast-uri@>=3.0.0 <3.1.8: '>=3.1.8 <4'
   deepmerge-ts@<8.0.0: '>=8.0.0 <9'
-  adm-zip@<0.6.0: '>=0.6.0 <0.7'
+  adm-zip@<0.6.1: '>=0.6.1 <0.7'
   qs@<6.16.0: '>=6.16.0 <7'
   mysql2@<3.22.0: '>=3.22.0 <4'
 
@@ -3453,8 +3453,8 @@ packages:
     hasBin: true
     dev: true
 
-  /adm-zip@0.6.0:
-    resolution: {integrity: sha512-XleryMhbuksdKtofnWZ9Sk+4CUTbms4Mb/EU32SZwToAyZ5RgVos/ki8n+yr0LWHOGKuakbXTuuYNHLQjhddgg==}
+  /adm-zip@0.6.1:
+    resolution: {integrity: sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ==}
     engines: {node: '>=14.0'}
     dev: true
 
@@ -8014,7 +8014,7 @@ packages:
     engines: {node: '>=22.12.0'}
     hasBin: true
     dependencies:
-      adm-zip: 0.6.0
+      adm-zip: 0.6.1
       axios: 1.20.0(debug@4.4.3)
       commander: 15.0.0
       hpagent: 1.2.0
