@@ -75,6 +75,8 @@ export const backendConfig = (): TypeInput => {
             // Public self-registration is disabled. This is an internal
             // super-admin panel; accounts are provisioned out-of-band.
             signUpPOST: undefined,
+            // Serves both the current and the legacy email-exists route.
+            emailExistsGET: undefined,
             signInPOST: async (input) => {
               if (!originalImplementation.signInPOST) {
                 throw new Error('signInPOST is disabled');
@@ -124,10 +126,10 @@ async function grantSuperAdmin(userId: string): Promise<void> {
 }
 
 /**
- * Whether a user holds the super-admin role, granting it on a first sign-in that
- * matches the bootstrap allowlist. Exported for callers that must answer with a
- * status code instead of a redirect (API route handlers) — page code should use
- * {@link assertSuperAdmin} or {@link requireSuperAdmin}.
+ * Whether a user holds the super-admin role, granting it on a first sign-in by an
+ * account with a confirmed email on the bootstrap allowlist. Exported for callers
+ * that must answer with a status code instead of a redirect (API route handlers) —
+ * page code should use {@link assertSuperAdmin} or {@link requireSuperAdmin}.
  */
 export async function isSuperAdminUser(userId: string): Promise<boolean> {
   const { roles } = await UserRolesNode.getRolesForUser(DEFAULT_TENANT_ID, userId);
@@ -138,12 +140,15 @@ export async function isSuperAdminUser(userId: string): Promise<boolean> {
   const user = await SuperTokens.getUser(userId);
   const email = user?.emails[0]?.toLowerCase();
   if (email && serverEnv.superadminBootstrapEmails.includes(email)) {
-    // Safe because public sign-up is disabled (see the EmailPassword apis
-    // override): an outsider cannot create an account for a bootstrap email, so
-    // matching one here implies an out-of-band-provisioned account. Do NOT
-    // re-enable self-registration without also gating this on a verified email.
-    await grantSuperAdmin(userId);
-    return true;
+    // The allowlist only counts for an account that has confirmed the address.
+    const method = user?.loginMethods.find((m) => m.email?.toLowerCase() === email);
+    if (
+      method &&
+      (await EmailVerificationNode.isEmailVerified(method.recipeUserId, method.email))
+    ) {
+      await grantSuperAdmin(userId);
+      return true;
+    }
   }
 
   return false;
@@ -234,10 +239,11 @@ export async function requireSuperAdmin(
   access: 'mutation' | 'page' = 'mutation'
 ): Promise<{ userId: string }> {
   const { userId, mfaComplete } = await getAuthenticatedSession();
-  await assertSuperAdmin(userId);
+  // Finish both sign-in steps before the role is looked up or granted.
   if (!mfaComplete) {
     redirect('/auth/mfa/totp');
   }
+  await assertSuperAdmin(userId);
   const disabledOrUnknown =
     access === 'page' ? await isConfirmedDisabled(userId) : await isDisabledOrUnknown(userId);
   if (disabledOrUnknown) {

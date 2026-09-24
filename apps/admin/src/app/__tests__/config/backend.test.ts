@@ -19,9 +19,13 @@ jest.mock('supertokens-node/recipe/emailpassword', () => ({
   default: { init: (...args: unknown[]) => epInitMock(...args) },
 }));
 
+const isEmailVerifiedMock = jest.fn();
 jest.mock('supertokens-node/recipe/emailverification', () => ({
   __esModule: true,
-  default: { init: jest.fn(() => 'emailverification-recipe') },
+  default: {
+    init: jest.fn(() => 'emailverification-recipe'),
+    isEmailVerified: (...args: unknown[]) => isEmailVerifiedMock(...args),
+  },
 }));
 
 const revokeAllSessionsForUserMock = jest.fn();
@@ -116,7 +120,11 @@ beforeEach(() => {
     error: null,
   });
   getRolesForUserMock.mockResolvedValue({ roles: ['superadmin'] });
-  getUserMock.mockResolvedValue({ emails: ['admin@example.com'] });
+  getUserMock.mockResolvedValue({
+    emails: ['admin@example.com'],
+    loginMethods: [{ email: 'admin@example.com', recipeUserId: 'recipe-admin-1' }],
+  });
+  isEmailVerifiedMock.mockReset().mockResolvedValue(true);
   createRoleMock.mockResolvedValue(undefined);
   addRoleToUserMock.mockResolvedValue(undefined);
   updateUserMetadataMock.mockResolvedValue(undefined);
@@ -168,14 +176,48 @@ describe('requireSuperAdmin', () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     const result = await requireSuperAdmin();
     expect(result).toEqual({ userId: 'admin-1' });
+    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'admin@example.com');
     expect(createRoleMock).toHaveBeenCalledWith('superadmin', []);
     expect(addRoleToUserMock).toHaveBeenCalledWith('public', 'admin-1', 'superadmin');
   });
 
+  it('does not grant the role to a bootstrap email that is not confirmed', async () => {
+    getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
+    isEmailVerifiedMock.mockResolvedValueOnce(false);
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'admin@example.com');
+    expect(createRoleMock).not.toHaveBeenCalled();
+    expect(addRoleToUserMock).not.toHaveBeenCalled();
+  });
+
+  it('does not grant the role when no sign-in method carries the bootstrap email', async () => {
+    getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
+    getUserMock.mockResolvedValueOnce({ emails: ['admin@example.com'], loginMethods: [] });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
+    expect(isEmailVerifiedMock).not.toHaveBeenCalled();
+    expect(addRoleToUserMock).not.toHaveBeenCalled();
+  });
+
+  it('neither checks nor grants the role before the second step is complete', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: false } },
+      hasToken: true,
+      error: null,
+    });
+    getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth/mfa/totp');
+    expect(getRolesForUserMock).not.toHaveBeenCalled();
+    expect(addRoleToUserMock).not.toHaveBeenCalled();
+  });
+
   it('matches bootstrap emails case-insensitively', async () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
-    getUserMock.mockResolvedValueOnce({ emails: ['Admin@Example.com'] });
+    getUserMock.mockResolvedValueOnce({
+      emails: ['Admin@Example.com'],
+      loginMethods: [{ email: 'Admin@Example.com', recipeUserId: 'recipe-admin-1' }],
+    });
     await expect(requireSuperAdmin()).resolves.toEqual({ userId: 'admin-1' });
+    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'Admin@Example.com');
     expect(addRoleToUserMock).toHaveBeenCalled();
   });
 
@@ -343,6 +385,11 @@ describe('backendConfig sign-in/sign-up overrides', () => {
   it('disables public sign-up by removing the signUpPOST endpoint', () => {
     const apis = getApis({ signUpPOST: jest.fn() });
     expect(apis.signUpPOST).toBeUndefined();
+  });
+
+  it('turns off the email-exists endpoint', () => {
+    const apis = getApis({ emailExistsGET: jest.fn() });
+    expect(apis.emailExistsGET).toBeUndefined();
   });
 
   it('does not record metadata when sign-in is not OK', async () => {
