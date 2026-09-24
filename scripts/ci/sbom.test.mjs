@@ -67,8 +67,16 @@ function fakeRoot({ modules = PROD_MODULES, syft = true, curl = FAILING_CURL } =
   return root;
 }
 
-function cdx(names) {
-  return JSON.stringify({ bomFormat: 'CycloneDX', components: names.map((name) => ({ name })) });
+// The shape syft writes: a library component per package, and a file
+// component per manifest it read, named by path and carrying its hashes.
+function cdx(names, files = names.map((name) => `/node_modules/${name}/package.json`)) {
+  return JSON.stringify({
+    bomFormat: 'CycloneDX',
+    components: [
+      ...names.map((name) => ({ type: 'library', name })),
+      ...files.map((name) => ({ type: 'file', name })),
+    ],
+  });
 }
 
 function run(root, env = {}, args = []) {
@@ -123,7 +131,7 @@ test('a production install writes both formats for the deployed commit', (t) => 
   const spdxFile = path.join(root, 'security', 'sbom', 'superadmin.spdx.json');
   assert.equal(JSON.parse(readFileSync(cdxFile, 'utf8')).bomFormat, 'CycloneDX');
   assert.equal(JSON.parse(readFileSync(spdxFile, 'utf8')).spdxVersion, 'SPDX-2.3');
-  assert.match(stdout, /SBOM lists 3 components/);
+  assert.match(stdout, /SBOM lists 3 packages,/);
   assert.match(stdout, new RegExp(`SBOMs written for ${SHA}`));
 
   const args = readFileSync(path.join(root, '.security-tools', 'syft-args'), 'utf8').split('\n');
@@ -141,7 +149,11 @@ test('a scoped runtime dependency encoded as group and name still counts', (t) =
   const root = fakeRoot();
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const FAKE_CDX = JSON.stringify({
-    components: [{ name: 'next' }, { group: '@prisma', name: 'client' }, { name: 'pg' }],
+    components: [
+      { type: 'library', name: 'next' },
+      { type: 'library', group: '@prisma', name: 'client' },
+      { type: 'library', name: 'pg' },
+    ],
   });
   const { status, output } = run(root, { FAKE_CDX });
   assert.equal(status, 0, output);
@@ -150,7 +162,10 @@ test('a scoped runtime dependency encoded as group and name still counts', (t) =
 test('a runtime dependency missing from the SBOM is exit 1 and is named', (t) => {
   const root = fakeRoot();
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  const { status, stderr } = run(root, { FAKE_CDX: cdx(['next', '@prisma/client']) });
+  // A file component is a manifest, not a package, so one named pg does not
+  // stand in for the package.
+  const FAKE_CDX = cdx(['next', '@prisma/client'], ['pg']);
+  const { status, stderr } = run(root, { FAKE_CDX });
   assert.equal(status, 1);
   assert.match(stderr, /SBOM is missing runtime dependencies: pg$/m);
   assert.doesNotMatch(stderr, /next/);

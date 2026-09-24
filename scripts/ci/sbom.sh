@@ -133,10 +133,12 @@ check_runtime_dependencies() {
     const fs = require("node:fs");
     const path = require("node:path");
     const { CDX_SBOM, REPO_ROOT } = process.env;
+    // File components are the hashed manifests the packages were read from,
+    // not packages, so they neither count nor satisfy a dependency.
     const listed = new Set(
-      (JSON.parse(fs.readFileSync(CDX_SBOM, "utf8")).components ?? []).map((c) =>
-        c.group ? `${c.group}/${c.name}` : c.name
-      )
+      (JSON.parse(fs.readFileSync(CDX_SBOM, "utf8")).components ?? [])
+        .filter((c) => c.type !== "file")
+        .map((c) => (c.group ? `${c.group}/${c.name}` : c.name))
     );
     const missing = new Set();
     for (const dir of ["apps", "packages"]) {
@@ -155,7 +157,7 @@ check_runtime_dependencies() {
       console.error(`SBOM is missing runtime dependencies: ${[...missing].sort().join(", ")}`);
       process.exit(1);
     }
-    console.log(`SBOM lists ${listed.size} components, every declared runtime dependency included`);
+    console.log(`SBOM lists ${listed.size} packages, every declared runtime dependency included`);
   '
 }
 
