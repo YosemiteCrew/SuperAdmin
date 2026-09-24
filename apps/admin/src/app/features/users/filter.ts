@@ -64,10 +64,9 @@ const RECIPE_IDS: Readonly<Record<UserTypeFilter, readonly string[] | undefined>
 };
 
 /** Narrows an untrusted query-string value, falling back to "all". */
-export function parseUserTypeFilter(value: string | string[] | undefined): UserTypeFilter {
-  const raw = Array.isArray(value) ? value[0] : value;
-  return USER_TYPE_FILTERS.includes(raw as UserTypeFilter)
-    ? (raw as UserTypeFilter)
+export function parseUserTypeFilter(value: string | undefined): UserTypeFilter {
+  return USER_TYPE_FILTERS.includes(value as UserTypeFilter)
+    ? (value as UserTypeFilter)
     : DEFAULT_USER_TYPE_FILTER;
 }
 
