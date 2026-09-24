@@ -7,8 +7,7 @@ changing the repository:
 1. `AGENTS.md`, `CLAUDE.md`, and `apps/admin/AGENTS.md` for working rules.
 2. `README.md` for setup and the current workspace list.
 3. `docs/deploy.md` for deployment, database, and environment requirements.
-4. `apps/admin/SECURITY-PENTEST.md` and `apps/admin/SMOKE-TESTS.md` for security history and live
-   checks.
+4. `apps/admin/SMOKE-TESTS.md` for live checks.
 5. [Open GitHub issues](https://github.com/YosemiteCrew/SuperAdmin/issues) for current work.
 
 The rule files win if this document conflicts with them.
