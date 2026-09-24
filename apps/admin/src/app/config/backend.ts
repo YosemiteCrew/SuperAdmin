@@ -73,10 +73,7 @@ export const backendConfig = (): TypeInput => {
           apis: (originalImplementation) => ({
             ...originalImplementation,
             // Public self-registration is disabled. This is an internal
-            // super-admin panel; accounts are provisioned out-of-band. Removing
-            // the endpoint also closes the bootstrap-email takeover vector — an
-            // outsider can no longer create an account for an unclaimed
-            // bootstrap email and self-elevate. See SECURITY-PENTEST.md #0.
+            // super-admin panel; accounts are provisioned out-of-band.
             signUpPOST: undefined,
             signInPOST: async (input) => {
               if (!originalImplementation.signInPOST) {
