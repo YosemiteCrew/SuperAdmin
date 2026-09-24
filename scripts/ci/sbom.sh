@@ -140,19 +140,17 @@ check_runtime_dependencies() {
         .filter((c) => c.type !== "file")
         .map((c) => (c.group ? `${c.group}/${c.name}` : c.name))
     );
-    const missing = new Set();
-    for (const dir of ["apps", "packages"]) {
-      const base = path.join(REPO_ROOT, dir);
-      if (!fs.existsSync(base)) continue;
-      for (const entry of fs.readdirSync(base)) {
-        const manifest = path.join(base, entry, "package.json");
-        if (!fs.existsSync(manifest)) continue;
-        const deps = JSON.parse(fs.readFileSync(manifest, "utf8")).dependencies ?? {};
-        for (const [name, range] of Object.entries(deps)) {
-          if (!range.startsWith("workspace:") && !listed.has(name)) missing.add(name);
-        }
-      }
-    }
+    const manifests = ["apps", "packages"]
+      .map((dir) => path.join(REPO_ROOT, dir))
+      .filter((base) => fs.existsSync(base))
+      .flatMap((base) => fs.readdirSync(base).map((entry) => path.join(base, entry, "package.json")))
+      .filter((manifest) => fs.existsSync(manifest));
+    const missing = new Set(
+      manifests
+        .flatMap((manifest) => Object.entries(JSON.parse(fs.readFileSync(manifest, "utf8")).dependencies ?? {}))
+        .filter(([name, range]) => !range.startsWith("workspace:") && !listed.has(name))
+        .map(([name]) => name)
+    );
     if (missing.size > 0) {
       console.error(`SBOM is missing runtime dependencies: ${[...missing].sort().join(", ")}`);
       process.exit(1);

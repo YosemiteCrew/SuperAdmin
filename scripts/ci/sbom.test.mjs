@@ -64,6 +64,8 @@ function fakeRoot({ modules = PROD_MODULES, syft = true, curl = FAILING_CURL } =
   };
   manifest('apps/admin', { '@superadmin/database': 'workspace:^', next: '16.3.5' });
   manifest('packages/database', { '@prisma/client': '^7.10.0', pg: '^8.16.3' });
+  // A directory with no package.json is not a workspace package and is skipped.
+  mkdirSync(path.join(root, 'packages', 'no-manifest'));
   return root;
 }
 
@@ -169,6 +171,15 @@ test('a runtime dependency missing from the SBOM is exit 1 and is named', (t) =>
   assert.equal(status, 1);
   assert.match(stderr, /SBOM is missing runtime dependencies: pg$/m);
   assert.doesNotMatch(stderr, /next/);
+});
+
+test('a repository without a packages directory still checks the apps', (t) => {
+  const root = fakeRoot();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  rmSync(path.join(root, 'packages'), { recursive: true });
+  const { status, stderr } = run(root, { FAKE_CDX: cdx(['@prisma/client', 'pg']) });
+  assert.equal(status, 1);
+  assert.match(stderr, /SBOM is missing runtime dependencies: next$/m);
 });
 
 test('an SBOM with no components fails and lists every runtime dependency', (t) => {
