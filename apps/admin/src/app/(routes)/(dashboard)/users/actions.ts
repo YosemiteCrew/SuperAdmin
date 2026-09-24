@@ -73,5 +73,7 @@ export async function exportUsersAction(): Promise<string> {
     pages += 1;
   } while (cursor && pages < EXPORT_MAX_PAGES);
 
+  if (cursor) throw new Error('User export exceeded its pagination safety limit');
+
   return usersToCsv(rows);
 }
