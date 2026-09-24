@@ -74,6 +74,17 @@ jest.mock('supertokens-node/recipe/multifactorauth', () => ({
   },
 }));
 
+const PANEL_ISSUER = 'https://admin.test/api/auth';
+jest.mock('supertokens-node/recipe/openid', () => ({
+  __esModule: true,
+  default: {
+    getOpenIdDiscoveryConfiguration: jest.fn(async () => ({
+      status: 'OK',
+      issuer: PANEL_ISSUER,
+    })),
+  },
+}));
+
 jest.mock('next/headers', () => ({
   cookies: jest.fn(async () => ({ getAll: () => [] })),
 }));
@@ -105,6 +116,7 @@ import {
   getAuthenticatedSession,
   requireSuperAdmin,
   isDisabledOrUnknown,
+  isPanelSession,
 } from '@/app/config/backend';
 
 const redirectMock = redirect as unknown as jest.Mock;
@@ -115,7 +127,7 @@ beforeEach(() => {
     throw new Error(`NEXT_REDIRECT:${path}`);
   });
   getSSRSessionMock.mockResolvedValue({
-    accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: true } },
+    accessTokenPayload: { sub: 'admin-1', iss: PANEL_ISSUER, 'st-mfa': { v: true } },
     hasToken: true,
     error: null,
   });
@@ -198,9 +210,35 @@ describe('requireSuperAdmin', () => {
     expect(addRoleToUserMock).not.toHaveBeenCalled();
   });
 
+  it('treats a session started elsewhere as signed out, before any role lookup', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: {
+        sub: 'admin-1',
+        iss: 'https://api.other.test/auth',
+        'st-mfa': { v: true },
+      },
+      hasToken: true,
+      error: null,
+    });
+    getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+    expect(getRolesForUserMock).not.toHaveBeenCalled();
+    expect(addRoleToUserMock).not.toHaveBeenCalled();
+  });
+
+  it('treats a session with no issuer as signed out', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: true } },
+      hasToken: true,
+      error: null,
+    });
+    await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/auth');
+    expect(getRolesForUserMock).not.toHaveBeenCalled();
+  });
+
   it('neither checks nor grants the role before the second step is complete', async () => {
     getSSRSessionMock.mockResolvedValueOnce({
-      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: false } },
+      accessTokenPayload: { sub: 'admin-1', iss: PANEL_ISSUER, 'st-mfa': { v: false } },
       hasToken: true,
       error: null,
     });
@@ -223,7 +261,7 @@ describe('requireSuperAdmin', () => {
 
   it('redirects to the TOTP screen when MFA is not complete', async () => {
     getSSRSessionMock.mockResolvedValueOnce({
-      accessTokenPayload: { sub: 'admin-1', 'st-mfa': { v: false } },
+      accessTokenPayload: { sub: 'admin-1', iss: PANEL_ISSUER, 'st-mfa': { v: false } },
       hasToken: true,
       error: null,
     });
@@ -232,7 +270,7 @@ describe('requireSuperAdmin', () => {
 
   it('redirects to the TOTP screen when the MFA claim is absent', async () => {
     getSSRSessionMock.mockResolvedValueOnce({
-      accessTokenPayload: { sub: 'admin-1' },
+      accessTokenPayload: { sub: 'admin-1', iss: PANEL_ISSUER },
       hasToken: true,
       error: null,
     });
@@ -324,6 +362,24 @@ describe('getAuthenticatedSession', () => {
     });
   });
 
+  it('sends a session started elsewhere back to sign-in, keeping the invitation', async () => {
+    getSSRSessionMock.mockResolvedValueOnce({
+      accessTokenPayload: { sub: 'user-2', iss: 'https://api.other.test/auth' },
+      hasToken: true,
+      error: null,
+    });
+    await expect(getAuthenticatedSession('/accept-invite?token=tok-1')).rejects.toThrow(
+      'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1'
+    );
+  });
+
+  it('returns the user and second-step state for a session started here', async () => {
+    await expect(getAuthenticatedSession()).resolves.toEqual({
+      userId: 'admin-1',
+      mfaComplete: true,
+    });
+  });
+
   it('reconstructs the invitation destination without unrelated parameters', async () => {
     getSSRSessionMock.mockResolvedValueOnce({
       accessTokenPayload: null,
@@ -335,6 +391,20 @@ describe('getAuthenticatedSession', () => {
     ).rejects.toMatchObject({
       message: 'NEXT_REDIRECT:/auth?returnTo=%2Faccept-invite%3Ftoken%3Dtok-1',
     });
+  });
+});
+
+describe('isPanelSession', () => {
+  it('accepts a session issued by this panel', async () => {
+    await expect(isPanelSession({ iss: PANEL_ISSUER })).resolves.toBe(true);
+  });
+
+  it('rejects a session issued elsewhere', async () => {
+    await expect(isPanelSession({ iss: 'https://api.other.test/auth' })).resolves.toBe(false);
+  });
+
+  it('rejects a session with no issuer', async () => {
+    await expect(isPanelSession({})).resolves.toBe(false);
   });
 });
 

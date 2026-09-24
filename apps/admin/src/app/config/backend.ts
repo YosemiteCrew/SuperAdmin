@@ -8,6 +8,7 @@ import SessionNode from 'supertokens-node/recipe/session';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 import UserRolesNode from 'supertokens-node/recipe/userroles';
 import MultiFactorAuthNode from 'supertokens-node/recipe/multifactorauth';
+import OpenIdNode from 'supertokens-node/recipe/openid';
 import TOTPNode from 'supertokens-node/recipe/totp';
 import { TypeInput } from 'supertokens-node/types';
 import { getSSRSession } from 'supertokens-node/nextjs';
@@ -154,6 +155,12 @@ export async function isSuperAdminUser(userId: string): Promise<boolean> {
   return false;
 }
 
+/** Whether the session was started on this panel. */
+export async function isPanelSession(payload: Record<string, unknown>): Promise<boolean> {
+  const { issuer } = await OpenIdNode.getOpenIdDiscoveryConfiguration();
+  return payload.iss === issuer;
+}
+
 function isMfaComplete(payload: Record<string, unknown>): boolean {
   const mfa = payload['st-mfa'];
   return typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;
@@ -184,7 +191,13 @@ export async function getAuthenticatedSession(
   const cookieStore = await cookies();
   const cookieArray = cookieStore.getAll().map(({ name, value }) => ({ name, value }));
   const { accessTokenPayload, hasToken, error } = await getSSRSession(cookieArray);
-  if (error || !hasToken || !accessTokenPayload || typeof accessTokenPayload.sub !== 'string') {
+  if (
+    error ||
+    !hasToken ||
+    !accessTokenPayload ||
+    typeof accessTokenPayload.sub !== 'string' ||
+    !(await isPanelSession(accessTokenPayload))
+  ) {
     const safeReturnTo = inviteReturnTo(returnTo);
     if (!safeReturnTo) redirect('/auth');
     const query = new URLSearchParams({ returnTo: safeReturnTo });
