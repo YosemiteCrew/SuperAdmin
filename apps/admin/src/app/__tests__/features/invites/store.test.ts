@@ -348,10 +348,18 @@ describe('createInvite', () => {
 });
 
 describe('markInviteUsed', () => {
-  it('conditions the transition on the row still being unused and unrevoked', async () => {
-    await markInviteUsed({ token: 'tok1', usedBy: 'u2', usedByEmail: 'b@b.com' });
+  it('returns true when the pending invite is marked used', async () => {
+    updateManyMock.mockResolvedValue({ count: 1 });
+    await expect(
+      markInviteUsed({ token: 'tok1', usedBy: 'u2', usedByEmail: 'b@b.com' })
+    ).resolves.toBe(true);
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: { token: { equals: 'tok1' }, usedAt: null, revokedAt: null },
+      where: {
+        token: { equals: 'tok1' },
+        usedAt: null,
+        revokedAt: null,
+        expiresAt: { gt: expect.any(Date) },
+      },
       data: {
         usedAt: expect.any(Date),
         usedBy: 'u2',
@@ -360,19 +368,11 @@ describe('markInviteUsed', () => {
     });
   });
 
-  it('is a no-op at the database level when a concurrent revoke already landed (0 rows matched)', async () => {
-    // A revoke that completed first turns `revokedAt` non-null, so this
-    // WHERE clause matches 0 rows and updateMany reports count 0 — the used
-    // state that would have overwritten it never gets written. Removing the
-    // `revokedAt: null` predicate is exactly the regression #469 describes:
-    // this call would then match and silently un-revoke the invite.
+  it('returns false when the pending-state transition matches no row', async () => {
     updateManyMock.mockResolvedValue({ count: 0 });
     await expect(
       markInviteUsed({ token: 'tok1', usedBy: 'u2', usedByEmail: 'b@b.com' })
-    ).resolves.toBeUndefined();
-    expect(updateManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ revokedAt: null }) })
-    );
+    ).resolves.toBe(false);
   });
 });
 

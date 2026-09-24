@@ -180,22 +180,24 @@ export async function createInvite(params: {
 }
 
 /**
- * Marks an invite used. Conditioned on `usedAt`/`revokedAt` both still being
- * null in the same statement that sets them, so a concurrent revoke and a
- * concurrent use cannot overwrite each other: whichever transition's WHERE
- * clause still matches when it reaches Postgres wins, and the other becomes a
- * no-op update (0 rows) instead of a second writer clobbering the first.
+ * Marks a pending invite used and reports whether its status changed.
  */
 export async function markInviteUsed(params: {
   token: string;
   usedBy: string;
   usedByEmail: string;
-}): Promise<void> {
+}): Promise<boolean> {
   await importLegacyInvites();
-  await prisma.invite.updateMany({
-    where: { token: { equals: params.token }, usedAt: null, revokedAt: null },
+  const result = await prisma.invite.updateMany({
+    where: {
+      token: { equals: params.token },
+      usedAt: null,
+      revokedAt: null,
+      expiresAt: { gt: new Date() },
+    },
     data: { usedAt: new Date(), usedBy: params.usedBy, usedByEmail: params.usedByEmail },
   });
+  return result.count > 0;
 }
 
 export async function revokeInvite(params: {

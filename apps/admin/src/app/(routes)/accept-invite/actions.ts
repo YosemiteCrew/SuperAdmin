@@ -13,7 +13,7 @@ import {
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
-import { inviteStatus, type InviteStatus } from '@/app/features/invites/types';
+import { inviteStatus, type InviteRecord, type InviteStatus } from '@/app/features/invites/types';
 
 export interface AcceptInviteResult {
   error?: string;
@@ -29,6 +29,32 @@ const NOT_PENDING_MESSAGE: Record<Exclude<InviteStatus, 'pending'>, string> = {
   revoked: 'This invite has been revoked.',
   used: 'This invite has already been used.',
 };
+
+function canResumeInvite(invite: InviteRecord, userId: string): boolean {
+  return (
+    inviteStatus(invite) === 'used' && invite.usedBy === userId && Date.now() < invite.expiresAt
+  );
+}
+
+async function markInviteForAccount(
+  token: string,
+  userId: string,
+  userEmail: string
+): Promise<AcceptInviteResult | null> {
+  if (await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail })) return null;
+
+  const latest = await getInviteByToken(token);
+  if (!latest) return { error: 'Invite not found or already used.' };
+
+  const latestStatus = inviteStatus(latest);
+  if (canResumeInvite(latest, userId)) return null;
+  return {
+    error:
+      latestStatus === 'pending'
+        ? 'The invite status changed. Try again.'
+        : NOT_PENDING_MESSAGE[latestStatus],
+  };
+}
 
 export async function acceptInviteAction(formData: FormData): Promise<AcceptInviteResult> {
   ensureSuperTokensInit();
@@ -47,7 +73,8 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
   if (!invite) return { error: 'Invite not found or already used.' };
 
   const status = inviteStatus(invite);
-  if (status !== 'pending') {
+  const resuming = canResumeInvite(invite, userId);
+  if (status !== 'pending' && !resuming) {
     return { error: NOT_PENDING_MESSAGE[status] };
   }
 
@@ -85,13 +112,13 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
     return { error: 'Complete your second factor before accepting this invitation.' };
   }
 
+  if (!resuming) {
+    const result = await markInviteForAccount(token, userId, userEmail);
+    if (result) return result;
+  }
+
   const grant = await UserRolesNode.addRoleToUser(DEFAULT_TENANT_ID, userId, SUPERADMIN_ROLE);
   if (grant.status !== 'OK') throw new Error('The super-admin role is unavailable.');
-
-  // Keep the role if the second store fails. A retry sees addRoleToUser's existing
-  // role as a no-op, then completes the invite and audit records. Removing it here
-  // can race a concurrent successful retry and revoke the role that retry owns.
-  await markInviteUsed({ token, usedBy: userId, usedByEmail: userEmail });
   // The actor is whoever accepted and thereby gained super-admin, not the
   // inviter: this is the event that records a privilege escalation, so it has to
   // show up in the new admin's own activity and name them as the one who acted.
