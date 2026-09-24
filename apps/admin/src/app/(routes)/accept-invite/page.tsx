@@ -44,13 +44,13 @@ function formatDate(ms: number): string {
 export default async function AcceptInvitePage({
   searchParams,
 }: Readonly<{
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<{ token?: string | string[] }>;
 }>) {
   ensureSuperTokensInit();
 
   const { token } = await searchParams;
 
-  if (!token?.trim()) {
+  if (typeof token !== 'string' || !token.trim()) {
     redirect('/dashboard');
   }
 
