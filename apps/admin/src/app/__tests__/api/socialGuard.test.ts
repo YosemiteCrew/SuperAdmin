@@ -19,18 +19,20 @@ jest.mock('supertokens-node', () => ({
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
   isDisabledOrUnknown: jest.fn(),
+  isPanelSession: jest.fn(),
   isSuperAdminUser: jest.fn(),
 }));
 
 import SuperTokens from 'supertokens-node';
 import { withSession } from 'supertokens-node/nextjs';
 
-import { isDisabledOrUnknown, isSuperAdminUser } from '@/app/config/backend';
+import { isDisabledOrUnknown, isPanelSession, isSuperAdminUser } from '@/app/config/backend';
 import { isSameOrigin, withSuperAdmin } from '@/app/features/social/guard';
 
 const withSessionMock = withSession as jest.Mock;
 const isDisabledOrUnknownMock = isDisabledOrUnknown as jest.Mock;
 const isSuperAdminUserMock = isSuperAdminUser as jest.Mock;
+const isPanelSessionMock = isPanelSession as jest.Mock;
 const getUserMock = SuperTokens.getUser as jest.Mock;
 
 /** Drives the real handler with a fake session, the way withSession would. */
@@ -54,6 +56,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   isDisabledOrUnknownMock.mockResolvedValue(false);
   isSuperAdminUserMock.mockResolvedValue(true);
+  isPanelSessionMock.mockResolvedValue(true);
   getUserMock.mockResolvedValue({ emails: ['admin@example.com'] });
   withSessionMock.mockImplementation((_req, cb) => cb(undefined, session()));
 });
@@ -74,6 +77,14 @@ describe('withSuperAdmin', () => {
   it('returns 401 when there is no session', async () => {
     withSessionMock.mockImplementation((_req, cb) => cb(undefined, undefined));
     expect((await withSuperAdmin(request(), handler)).status).toBe(401);
+  });
+
+  it('returns 401 for a session started elsewhere, before any role check', async () => {
+    isPanelSessionMock.mockResolvedValue(false);
+    const response = await withSuperAdmin(request(), handler);
+    expect(response.status).toBe(401);
+    expect(isSuperAdminUserMock).not.toHaveBeenCalled();
+    expect(handler).not.toHaveBeenCalled();
   });
 
   it('returns 403 when the second factor is incomplete', async () => {

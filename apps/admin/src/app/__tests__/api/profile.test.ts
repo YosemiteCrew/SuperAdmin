@@ -19,8 +19,10 @@ jest.mock('supertokens-node/nextjs', () => ({
   ) => withSessionMock(req, handler),
 }));
 
+const isPanelSessionMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
+  isPanelSession: (...args: unknown[]) => isPanelSessionMock(...args),
 }));
 
 function makeRequest(body: unknown): NextRequest {
@@ -35,6 +37,7 @@ describe('POST /api/profile', () => {
   beforeEach(() => {
     updateUserMetadataMock.mockReset();
     withSessionMock.mockReset();
+    isPanelSessionMock.mockReset().mockResolvedValue(true);
   });
 
   it('returns 400 on missing firstName', async () => {
@@ -62,6 +65,21 @@ describe('POST /api/profile', () => {
     expect(res.status).toBe(401);
   });
 
+  it('returns 401 for a session started elsewhere, without writing', async () => {
+    const { POST } = await import('@/app/api/profile/route');
+    isPanelSessionMock.mockResolvedValueOnce(false);
+    withSessionMock.mockImplementationOnce(async (_req, handler) => {
+      return handler(undefined, {
+        getUserId: () => 'user-123',
+        getAccessTokenPayload: () => ({ iss: 'https://api.other.test/auth' }),
+      });
+    });
+    const res = await POST(makeRequest({ firstName: 'Jane' }));
+    expect(res.status).toBe(401);
+    expect(isPanelSessionMock).toHaveBeenCalledWith({ iss: 'https://api.other.test/auth' });
+    expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
   it('returns 500 when session-resolver errors', async () => {
     const { POST } = await import('@/app/api/profile/route');
     withSessionMock.mockImplementationOnce(async (_req, handler) => {
@@ -74,7 +92,7 @@ describe('POST /api/profile', () => {
   it('updates metadata and returns OK when authenticated', async () => {
     const { POST } = await import('@/app/api/profile/route');
     withSessionMock.mockImplementationOnce(async (_req, handler) => {
-      return handler(undefined, { getUserId: () => 'user-123' });
+      return handler(undefined, { getUserId: () => 'user-123', getAccessTokenPayload: () => ({}) });
     });
     updateUserMetadataMock.mockResolvedValueOnce({ status: 'OK' });
     const res = await POST(makeRequest({ firstName: 'Jane', lastName: 'Doe' }));
@@ -88,7 +106,7 @@ describe('POST /api/profile', () => {
   it('caps over-long names at 100 characters', async () => {
     const { POST } = await import('@/app/api/profile/route');
     withSessionMock.mockImplementationOnce(async (_req, handler) => {
-      return handler(undefined, { getUserId: () => 'user-123' });
+      return handler(undefined, { getUserId: () => 'user-123', getAccessTokenPayload: () => ({}) });
     });
     updateUserMetadataMock.mockResolvedValueOnce({ status: 'OK' });
     const res = await POST(makeRequest({ firstName: 'a'.repeat(250), lastName: 'b'.repeat(250) }));

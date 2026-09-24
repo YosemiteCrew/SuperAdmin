@@ -5,7 +5,12 @@ import { NextResponse } from 'next/server';
 import SuperTokens from 'supertokens-node';
 import { withSession } from 'supertokens-node/nextjs';
 
-import { ensureSuperTokensInit, isDisabledOrUnknown, isSuperAdminUser } from '@/app/config/backend';
+import {
+  ensureSuperTokensInit,
+  isDisabledOrUnknown,
+  isPanelSession,
+  isSuperAdminUser,
+} from '@/app/config/backend';
 import { publicEnv } from '@/app/config/env.public';
 
 export interface AdminActor {
@@ -28,6 +33,9 @@ export function withSuperAdmin(
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const payload = session.getAccessTokenPayload() as Record<string, unknown>;
+    if (!(await isPanelSession(payload))) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const mfa = payload['st-mfa'];
     const mfaComplete =
       typeof mfa === 'object' && mfa !== null && (mfa as { v?: boolean }).v === true;

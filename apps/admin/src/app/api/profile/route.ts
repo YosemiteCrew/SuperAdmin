@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withSession } from 'supertokens-node/nextjs';
 import UserMetadataNode from 'supertokens-node/recipe/usermetadata';
 
-import { ensureSuperTokensInit } from '@/app/config/backend';
+import { ensureSuperTokensInit, isPanelSession } from '@/app/config/backend';
 
 ensureSuperTokensInit();
 
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: 'Session error' }, { status: 500 });
     }
-    if (!session) {
+    if (!session || !(await isPanelSession(session.getAccessTokenPayload()))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

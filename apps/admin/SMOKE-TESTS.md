@@ -17,8 +17,8 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
       is complete.
 - [ ] 🔴 **MFA-incomplete session**: a signed-in-but-MFA-incomplete session can reach
       `/auth/mfa*` but is redirected away from every dashboard route.
-- [ ] 🟡 **Bootstrap allowlist**: an email in `superadminBootstrapEmails` is auto-granted the
-      `superadmin` role on first authorized visit.
+- [ ] 🟡 **Bootstrap allowlist**: a confirmed email in `superadminBootstrapEmails` is auto-granted
+      the `superadmin` role on first authorized visit; an unconfirmed one is not.
 - [ ] 🟡 **Non-admin**: a standard user who signs in lands on `/forbidden`, and its "Sign out"
       button returns them to `/auth`.
 - [ ] ⚪ **lastSignInAt**: after a fresh sign-in, the user's "Last seen" updates on the users
