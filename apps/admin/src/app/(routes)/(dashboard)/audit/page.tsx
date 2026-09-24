@@ -15,6 +15,7 @@ import {
   parsePage,
 } from '@/app/features/audit/filter';
 import { getRecentAuditEvents, verifyAuditChain } from '@/app/features/audit/store';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 import { ExportAuditButton } from './ExportAuditButton';
 
@@ -22,18 +23,13 @@ export const metadata: Metadata = {
   title: 'Audit log',
 };
 
-type QueryParam = string | string[] | undefined;
 type SearchParams = {
-  action?: QueryParam;
-  q?: QueryParam;
-  from?: QueryParam;
-  to?: QueryParam;
-  page?: QueryParam;
+  action?: SearchParam;
+  q?: SearchParam;
+  from?: SearchParam;
+  to?: SearchParam;
+  page?: SearchParam;
 };
-
-function scalar(value: QueryParam): string | undefined {
-  return typeof value === 'string' ? value : undefined;
-}
 
 const ACTION_OPTIONS = Object.entries(AUDIT_META).map(([value, meta]) => ({
   value,
@@ -101,10 +97,10 @@ export default async function AuditLogPage({
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   await requireSuperAdmin('page');
   const { action, q, from, to, page } = await searchParams;
-  const activeAction = parseAuditActionFilter(scalar(action));
-  const searchTerm = (scalar(q) ?? '').trim();
-  const fromRaw = (scalar(from) ?? '').trim();
-  const toRaw = (scalar(to) ?? '').trim();
+  const activeAction = parseAuditActionFilter(scalarSearchParam(action));
+  const searchTerm = (scalarSearchParam(q) ?? '').trim();
+  const fromRaw = (scalarSearchParam(from) ?? '').trim();
+  const toRaw = (scalarSearchParam(to) ?? '').trim();
 
   // verifyAuditChain reads the raw stored log (with chain fields); the public
   // reader returns projected events. Run both reads concurrently.
@@ -118,7 +114,7 @@ export default async function AuditLogPage({
     from: parseAuditDate(fromRaw, 'start'),
     to: parseAuditDate(toRaw, 'end'),
   });
-  const paged = paginate(filtered, parsePage(scalar(page)));
+  const paged = paginate(filtered, parsePage(scalarSearchParam(page)));
   const hrefBase = { action: activeAction, search: searchTerm, from: fromRaw, to: toRaw };
 
   return (
