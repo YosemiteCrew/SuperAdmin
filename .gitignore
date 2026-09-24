@@ -59,3 +59,7 @@ test-results/
 playwright-report/
 blob-report/
 playwright/.cache/
+
+# SBOM output and the pinned tool that writes it (scripts/ci/sbom.sh)
+.security-tools/
+security/sbom/
