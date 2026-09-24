@@ -68,6 +68,15 @@ describe('exportUsersAction', () => {
     expect(csv.split('\n')[1]).toBe(',emailpassword,public,2026-01-02T00:00:00.000Z,u-1');
   });
 
+  it('refuses to return a partial CSV when the pagination safety limit is reached', async () => {
+    getUsersNewestFirstMock.mockResolvedValue({ users: [], nextPaginationToken: 'more' });
+
+    await expect(exportUsersAction()).rejects.toThrow(
+      'User export exceeded its pagination safety limit'
+    );
+    expect(getUsersNewestFirstMock).toHaveBeenCalledTimes(200);
+  });
+
   it('does nothing when the caller is not a super admin', async () => {
     requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
     await expect(exportUsersAction()).rejects.toThrow('NEXT_REDIRECT');
