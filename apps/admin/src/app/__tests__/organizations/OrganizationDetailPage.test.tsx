@@ -54,7 +54,7 @@ const ORG = {
   createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-const renderPage = async (env?: string) =>
+const renderPage = async (env?: string | string[]) =>
   render(
     await OrganizationDetailPage({
       params: Promise.resolve({ id: 'org-1' }),
@@ -99,6 +99,20 @@ describe('OrganizationDetailPage members section', () => {
       '/organizations/org-1/activity?env=development'
     );
   });
+
+  it('rejects a repeated environment parameter', async () => {
+    listOrganizationMembers.mockResolvedValue([]);
+    await renderPage(['development', 'production']);
+
+    expect(getOrganization).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ baseUrl: 'https://api.example.com' })
+    );
+    expect(screen.getByRole('link', { name: 'Activity →' })).toHaveAttribute(
+      'href',
+      '/organizations/org-1/activity'
+    );
+  });
 });
 
 describe('generateMetadata', () => {
@@ -126,6 +140,19 @@ describe('generateMetadata', () => {
     expect(getOrganization).toHaveBeenCalledWith('org-1', {
       headers: { cookie: '' },
       baseUrl: 'https://api-dev.example.com',
+    });
+  });
+
+  it('rejects a repeated metadata environment parameter', async () => {
+    await expect(
+      generateMetadata({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ env: ['development', 'production'] }),
+      })
+    ).resolves.toEqual({ title: 'Acme Vet' });
+    expect(getOrganization).toHaveBeenCalledWith('org-1', {
+      headers: { cookie: '' },
+      baseUrl: 'https://api.example.com',
     });
   });
 });

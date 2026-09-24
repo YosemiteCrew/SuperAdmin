@@ -1,3 +1,5 @@
+import { render } from '@testing-library/react';
+
 jest.mock('server-only', () => ({}));
 
 const ensureSuperTokensInitMock = jest.fn();
@@ -20,8 +22,9 @@ const refreshApprovalStatusIndexMock = jest.fn();
 jest.mock('@/app/features/approvals/store', () => ({
   refreshApprovalStatusIndex: (...args: unknown[]) => refreshApprovalStatusIndexMock(...args),
 }));
+const approvalsTableMock = jest.fn<null, [unknown]>(() => null);
 jest.mock('@/app/(routes)/(dashboard)/approvals/ApprovalsTable', () => ({
-  ApprovalsTable: () => null,
+  ApprovalsTable: (props: unknown) => approvalsTableMock(props),
 }));
 
 const CANDIDATES = [
@@ -53,5 +56,14 @@ describe('ApprovalsPage', () => {
     expect(fetchApprovalCandidatesMock).toHaveBeenCalledWith(100);
     expect(scanApprovalStatusesMock).toHaveBeenCalledWith(CANDIDATES);
     expect(refreshApprovalStatusIndexMock).toHaveBeenCalledWith(ROWS);
+  });
+
+  it('falls back to pending for a repeated status parameter', async () => {
+    const mod = await import('@/app/(routes)/(dashboard)/approvals/page');
+    render(await mod.default({ searchParams: Promise.resolve({ status: ['approved', 'all'] }) }));
+
+    expect(approvalsTableMock).toHaveBeenCalledWith(
+      expect.objectContaining({ rows: ROWS, emptyMessage: 'No accounts waiting for approval.' })
+    );
   });
 });

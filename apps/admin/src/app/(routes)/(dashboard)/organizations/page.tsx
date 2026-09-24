@@ -23,6 +23,7 @@ import {
 import { listOrganizations } from '@/app/features/organizations/services/organizationsService';
 import type { SuperAdminOrganization } from '@/app/features/organizations/types';
 import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 import { OrganizationAvatar } from './OrganizationAvatar';
 import { OrganizationRowActions } from './OrganizationRowActions';
@@ -31,7 +32,12 @@ export const metadata: Metadata = {
   title: 'Organizations',
 };
 
-type SearchParams = { status?: string; search?: string; demo?: string; env?: string };
+type SearchParams = {
+  status?: SearchParam;
+  search?: SearchParam;
+  demo?: SearchParam;
+  env?: SearchParam;
+};
 
 const FILTER_TABS: ReadonlyArray<{ key: OrgFilter; label: string }> = [
   { key: 'all', label: 'All' },
@@ -366,10 +372,10 @@ export default async function OrganizationsPage({
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   await requireSuperAdmin('page');
   const { status, search, demo: demoRaw, env } = await searchParams;
-  const activeFilter = parseOrgFilter(status);
-  const searchTerm = (search ?? '').trim();
-  const demo = demoRaw === '1';
-  const environment = parseApiEnvironment(env);
+  const activeFilter = parseOrgFilter(scalarSearchParam(status));
+  const searchTerm = (scalarSearchParam(search) ?? '').trim();
+  const demo = scalarSearchParam(demoRaw) === '1';
+  const environment = parseApiEnvironment(scalarSearchParam(env));
 
   const { organizations, loadError, loadErrorDetail } = await loadOrganizations(demo, environment);
 
