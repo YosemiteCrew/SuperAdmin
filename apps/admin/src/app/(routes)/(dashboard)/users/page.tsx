@@ -132,7 +132,7 @@ export default async function UsersPage({
           ? 'Last sign-in'
           : 'Has not signed in since lastSignInAt tracking was enabled — falling back to account creation time',
         disabled,
-        canDelete: canOfferUserDeletion(user.id, primaryEmail, callerId),
+        canDelete: canOfferUserDeletion(user, callerId),
       };
     })
   );

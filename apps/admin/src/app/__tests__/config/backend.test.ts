@@ -19,13 +19,9 @@ jest.mock('supertokens-node/recipe/emailpassword', () => ({
   default: { init: (...args: unknown[]) => epInitMock(...args) },
 }));
 
-const isEmailVerifiedMock = jest.fn();
 jest.mock('supertokens-node/recipe/emailverification', () => ({
   __esModule: true,
-  default: {
-    init: jest.fn(() => 'emailverification-recipe'),
-    isEmailVerified: (...args: unknown[]) => isEmailVerifiedMock(...args),
-  },
+  default: { init: jest.fn(() => 'emailverification-recipe') },
 }));
 
 const revokeAllSessionsForUserMock = jest.fn();
@@ -134,9 +130,8 @@ beforeEach(() => {
   getRolesForUserMock.mockResolvedValue({ roles: ['superadmin'] });
   getUserMock.mockResolvedValue({
     emails: ['admin@example.com'],
-    loginMethods: [{ email: 'admin@example.com', recipeUserId: 'recipe-admin-1' }],
+    loginMethods: [{ email: 'admin@example.com', verified: true }],
   });
-  isEmailVerifiedMock.mockReset().mockResolvedValue(true);
   createRoleMock.mockResolvedValue(undefined);
   addRoleToUserMock.mockResolvedValue(undefined);
   updateUserMetadataMock.mockResolvedValue(undefined);
@@ -188,16 +183,17 @@ describe('requireSuperAdmin', () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     const result = await requireSuperAdmin();
     expect(result).toEqual({ userId: 'admin-1' });
-    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'admin@example.com');
     expect(createRoleMock).toHaveBeenCalledWith('superadmin', []);
     expect(addRoleToUserMock).toHaveBeenCalledWith('public', 'admin-1', 'superadmin');
   });
 
   it('does not grant the role to a bootstrap email that is not confirmed', async () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
-    isEmailVerifiedMock.mockResolvedValueOnce(false);
+    getUserMock.mockResolvedValueOnce({
+      emails: ['admin@example.com'],
+      loginMethods: [{ email: 'admin@example.com', verified: false }],
+    });
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
-    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'admin@example.com');
     expect(createRoleMock).not.toHaveBeenCalled();
     expect(addRoleToUserMock).not.toHaveBeenCalled();
   });
@@ -206,7 +202,6 @@ describe('requireSuperAdmin', () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     getUserMock.mockResolvedValueOnce({ emails: ['admin@example.com'], loginMethods: [] });
     await expect(requireSuperAdmin()).rejects.toThrow('NEXT_REDIRECT:/forbidden');
-    expect(isEmailVerifiedMock).not.toHaveBeenCalled();
     expect(addRoleToUserMock).not.toHaveBeenCalled();
   });
 
@@ -252,10 +247,9 @@ describe('requireSuperAdmin', () => {
     getRolesForUserMock.mockResolvedValueOnce({ roles: [] });
     getUserMock.mockResolvedValueOnce({
       emails: ['Admin@Example.com'],
-      loginMethods: [{ email: 'Admin@Example.com', recipeUserId: 'recipe-admin-1' }],
+      loginMethods: [{ email: 'Admin@Example.com', verified: true }],
     });
     await expect(requireSuperAdmin()).resolves.toEqual({ userId: 'admin-1' });
-    expect(isEmailVerifiedMock).toHaveBeenCalledWith('recipe-admin-1', 'Admin@Example.com');
     expect(addRoleToUserMock).toHaveBeenCalled();
   });
 
@@ -460,6 +454,16 @@ describe('backendConfig sign-in/sign-up overrides', () => {
   it('turns off the email-exists endpoint', () => {
     const apis = getApis({ emailExistsGET: jest.fn() });
     expect(apis.emailExistsGET).toBeUndefined();
+  });
+
+  it('turns off the password-reset email endpoint', () => {
+    const apis = getApis({ generatePasswordResetTokenPOST: jest.fn() });
+    expect(apis.generatePasswordResetTokenPOST).toBeUndefined();
+  });
+
+  it('turns off the new-password endpoint', () => {
+    const apis = getApis({ passwordResetPOST: jest.fn() });
+    expect(apis.passwordResetPOST).toBeUndefined();
   });
 
   it('does not record metadata when sign-in is not OK', async () => {

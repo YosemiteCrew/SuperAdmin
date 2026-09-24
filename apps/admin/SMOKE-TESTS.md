@@ -84,8 +84,8 @@ Legend: 🔴 = highest risk (touches the live auth flow — validate first) · �
       reflect the real core.
 - [ ] 🟡 **Analytics** (totals, 7/30-day signups, 14-day trend, sign-in-method breakdown).
 - [ ] 🟡 **Users list**: search by email + pagination (Next / First page) against the core.
-- [ ] 🟡 **Settings**: profile editor saves first/last name; password reset; sign-out-
-      everywhere; Appearance theme section.
+- [ ] 🟡 **Settings**: profile editor saves first/last name; sign-out-everywhere; Appearance
+      theme section.
 
 ## Design system / UX ⚪
 

@@ -1,16 +1,11 @@
 'use client';
 
-import { Suspense, useReducer, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useState } from 'react';
 import { redirect, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { canHandleRoute, getRoutingComponent } from 'supertokens-auth-react/ui';
 import { MultiFactorAuthPreBuiltUI } from 'supertokens-auth-react/recipe/multifactorauth/prebuiltui';
 import { TOTPPreBuiltUI } from 'supertokens-auth-react/recipe/totp/prebuiltui';
-import {
-  signIn,
-  sendPasswordResetEmail,
-  submitNewPassword,
-} from 'supertokens-auth-react/recipe/emailpassword';
+import { signIn } from 'supertokens-auth-react/recipe/emailpassword';
 
 import { Button } from '@/app/ui/components/Button';
 
@@ -27,14 +22,10 @@ function AuthCard({ children }: Readonly<{ children: React.ReactNode }>) {
   );
 }
 
-function AuthHeading({
-  title,
-  subtitle,
-  compact = false,
-}: Readonly<{ title: string; subtitle: string; compact?: boolean }>) {
+function AuthHeading({ title, subtitle }: Readonly<{ title: string; subtitle: string }>) {
   return (
     <div className={styles.heading}>
-      <h1 className={`yc-auth-title ${styles.title} ${compact ? styles.titleSm : ''}`}>{title}</h1>
+      <h1 className={`yc-auth-title ${styles.title}`}>{title}</h1>
       <p className={styles.subtitle}>{subtitle}</p>
     </div>
   );
@@ -223,11 +214,6 @@ function SignInForm({ returnTo = DEFAULT_AUTH_DESTINATION }: Readonly<{ returnTo
             autoComplete="current-password"
             id="auth-signin-password"
           />
-          <div className="yc-auth-links">
-            <Link href="/auth/reset-password" className={`yc-auth-link ${styles.link}`}>
-              Forgot password?
-            </Link>
-          </div>
         </div>
 
         <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
@@ -238,183 +224,6 @@ function SignInForm({ returnTo = DEFAULT_AUTH_DESTINATION }: Readonly<{ returnTo
       <p className={styles.foot}>
         Public sign-up is disabled. Access is granted by an existing super admin.
       </p>
-    </AuthCard>
-  );
-}
-
-function ForgotPasswordForm() {
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-  const [sent, setSent] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    try {
-      const res = await sendPasswordResetEmail({
-        formFields: [{ id: 'email', value: email }],
-      });
-      if (res.status === 'OK') {
-        setSent(true);
-      } else {
-        setError('Could not send reset email. Please try again.');
-      }
-    } catch {
-      setError(GENERIC_ERROR);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <AuthCard>
-      <AuthHeading
-        title="Reset password"
-        subtitle="We will email you a link to choose a new one."
-        compact
-      />
-
-      {sent ? (
-        <p className={`yc-auth-success ${styles.success}`}>
-          If an account exists for {email}, a reset link is on its way.
-        </p>
-      ) : (
-        <>
-          {error ? <p className={`yc-auth-error ${styles.error}`}>{error}</p> : null}
-          <form onSubmit={handleSubmit} className="yc-auth-form">
-            <div className={`yc-auth-fields ${styles.fields}`}>
-              <EmailField value={email} onChange={setEmail} id="auth-forgot-email" />
-            </div>
-            <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
-              {loading ? 'Sending...' : 'Email me a reset link'}
-            </Button>
-          </form>
-        </>
-      )}
-
-      <div className="yc-auth-links yc-auth-links-center">
-        <Link href="/auth" className={`yc-auth-link ${styles.link}`}>
-          Back to sign in
-        </Link>
-      </div>
-    </AuthCard>
-  );
-}
-
-type ResetState = {
-  password: string;
-  confirm: string;
-  error: string;
-  done: boolean;
-  loading: boolean;
-};
-type ResetAction =
-  | { type: 'field'; name: 'password' | 'confirm'; value: string }
-  | { type: 'submit_start' }
-  | { type: 'submit_ok' }
-  | { type: 'submit_error'; error: string };
-
-const resetInitial: ResetState = {
-  password: '',
-  confirm: '',
-  error: '',
-  done: false,
-  loading: false,
-};
-
-function resetReducer(state: ResetState, action: ResetAction): ResetState {
-  switch (action.type) {
-    case 'field':
-      return { ...state, [action.name]: action.value };
-    case 'submit_start':
-      return { ...state, error: '', loading: true };
-    case 'submit_ok':
-      return { ...state, loading: false, done: true };
-    case 'submit_error':
-      return { ...state, loading: false, error: action.error };
-  }
-}
-
-function ResetPasswordForm() {
-  const router = useRouter();
-  const [{ password, confirm, error, done, loading }, dispatch] = useReducer(
-    resetReducer,
-    resetInitial
-  );
-
-  async function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (password !== confirm) {
-      dispatch({ type: 'submit_error', error: 'Passwords do not match.' });
-      return;
-    }
-    dispatch({ type: 'submit_start' });
-    try {
-      const res = await submitNewPassword({
-        formFields: [{ id: 'password', value: password }],
-      });
-      if (res.status === 'OK') {
-        dispatch({ type: 'submit_ok' });
-      } else if (res.status === 'RESET_PASSWORD_INVALID_TOKEN_ERROR') {
-        dispatch({
-          type: 'submit_error',
-          error: 'This reset link has expired. Please request a new one.',
-        });
-      } else {
-        dispatch({ type: 'submit_error', error: 'Could not reset password. Please try again.' });
-      }
-    } catch {
-      dispatch({ type: 'submit_error', error: GENERIC_ERROR });
-    }
-  }
-
-  return (
-    <AuthCard>
-      <AuthHeading
-        title="New password"
-        subtitle="Choose a new password for your account."
-        compact
-      />
-
-      {done ? (
-        <>
-          <p className={`yc-auth-success ${styles.success}`}>Your password has been updated.</p>
-          <Button
-            type="button"
-            onClick={() => router.push('/auth')}
-            className={`yc-auth-submit ${styles.submit}`}
-          >
-            Continue to sign in
-          </Button>
-        </>
-      ) : (
-        <>
-          {error ? <p className={`yc-auth-error ${styles.error}`}>{error}</p> : null}
-          <form onSubmit={handleSubmit} className="yc-auth-form">
-            <div className={`yc-auth-fields ${styles.fields}`}>
-              <PasswordField
-                value={password}
-                onChange={(v) => dispatch({ type: 'field', name: 'password', value: v })}
-                label="New password"
-                autoComplete="new-password"
-                id="auth-reset-new"
-              />
-              <PasswordField
-                value={confirm}
-                onChange={(v) => dispatch({ type: 'field', name: 'confirm', value: v })}
-                label="Confirm new password"
-                autoComplete="new-password"
-                id="auth-reset-confirm"
-              />
-            </div>
-            <Button type="submit" disabled={loading} className={`yc-auth-submit ${styles.submit}`}>
-              {loading ? 'Updating...' : 'Update password'}
-            </Button>
-          </form>
-        </>
-      )}
     </AuthCard>
   );
 }
@@ -460,24 +269,9 @@ function AuthContent() {
     redirect('/auth');
   }
 
-  const token = searchParams.get('token') ?? '';
-  const returnTo = inviteReturnTo(searchParams.get('returnTo'));
-
-  // Public sign-up is disabled (see backend EmailPassword apis override), so
-  // /auth/signup is no longer a screen — it falls through to the /auth redirect.
-  let screen: 'signin' | 'forgot' | 'reset' | 'unknown';
-  if (normalizedPath === '/auth') {
-    screen = 'signin';
-  } else if (normalizedPath === '/auth/reset-password') {
-    screen = token ? 'reset' : 'forgot';
-  } else {
-    screen = 'unknown';
-  }
-
-  if (screen === 'unknown') redirect('/auth');
-  if (screen === 'signin') return <SignInForm returnTo={returnTo} />;
-  if (screen === 'forgot') return <ForgotPasswordForm />;
-  return <ResetPasswordForm />;
+  // Sign-in is the only screen here; any other /auth path goes back to it.
+  if (normalizedPath !== '/auth') redirect('/auth');
+  return <SignInForm returnTo={inviteReturnTo(searchParams.get('returnTo'))} />;
 }
 
 export default function Auth() {

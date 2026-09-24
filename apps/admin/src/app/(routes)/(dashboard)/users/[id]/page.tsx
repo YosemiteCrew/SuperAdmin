@@ -10,9 +10,9 @@ import UserRolesNode from 'supertokens-node/recipe/userroles';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
-import { serverEnv } from '@/app/config/env.server';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForTarget } from '@/app/features/audit/store';
+import { hasVerifiedBootstrapEmail } from '@/app/features/users/bootstrap';
 import { describeRecipeId } from '@/app/features/users/filter';
 
 import { DeleteUserButton } from '../DeleteUserButton';
@@ -248,7 +248,7 @@ export default async function UserDetailPage({
     verifiedDeviceCount > 0
       ? `TOTP active (${verifiedDeviceCount} ${deviceWord})`
       : 'No verified TOTP device';
-  const isBootstrapAdmin = serverEnv.superadminBootstrapEmails.includes(primaryEmail.toLowerCase());
+  const isBootstrapAdmin = hasVerifiedBootstrapEmail(user);
   const isSelf = callerId === user.id;
   const hasSuperAdmin = isAdmin || isBootstrapAdmin;
   const roleHint = accessHint({ isBootstrapAdmin, isSelf, isAdmin });

@@ -109,6 +109,10 @@ beforeEach(() => {
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
 });
 
+function bootstrapLogin(verified: boolean) {
+  return [{ recipeId: 'emailpassword', email: 'boot@example.com', verified }];
+}
+
 describe('UserDetailPage', () => {
   it('calls notFound when the user does not exist', async () => {
     getUserMock.mockResolvedValueOnce(undefined);
@@ -149,7 +153,9 @@ describe('UserDetailPage', () => {
   });
 
   it('marks a bootstrap-allowlisted user as Bootstrap and hides the role button', async () => {
-    getUserMock.mockResolvedValue(makeUser({ emails: ['boot@example.com'] }));
+    getUserMock.mockResolvedValue(
+      makeUser({ emails: ['boot@example.com'], loginMethods: bootstrapLogin(true) })
+    );
     listDevicesMock.mockResolvedValue({
       status: 'OK',
       devices: [
@@ -168,7 +174,21 @@ describe('UserDetailPage', () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('disable-user')).not.toBeInTheDocument();
     expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
+  });
+
+  it('manages an unconfirmed account on a bootstrap email like any other user', async () => {
+    getUserMock.mockResolvedValue(
+      makeUser({ emails: ['boot@example.com'], loginMethods: bootstrapLogin(false) })
+    );
+
+    await renderPage();
+    expect(screen.getByText('Standard user')).toBeInTheDocument();
+    expect(screen.queryByText('Bootstrap')).not.toBeInTheDocument();
+    expect(screen.getByTestId('role-button')).toBeInTheDocument();
+    expect(screen.getByTestId('disable-user')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-user')).toBeInTheDocument();
   });
 
   it('blocks self-management when the caller views their own account', async () => {

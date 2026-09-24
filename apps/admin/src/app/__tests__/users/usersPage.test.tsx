@@ -18,7 +18,7 @@ jest.mock('supertokens-node/recipe/usermetadata', () => ({
 }));
 
 jest.mock('@/app/features/users/bootstrap', () => ({
-  canOfferUserDeletion: jest.fn(async () => false),
+  canOfferUserDeletion: jest.fn(() => false),
 }));
 
 // The export button and the table each import a server-action module, and those
@@ -34,6 +34,8 @@ jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
   bulkEnableUsersAction: jest.fn(),
   bulkDeleteUsersAction: jest.fn(),
 }));
+
+import { canOfferUserDeletion } from '@/app/features/users/bootstrap';
 
 async function renderPage(searchParams: Record<string, string | string[] | undefined> = {}) {
   const mod = await import('@/app/(routes)/(dashboard)/users/page');
@@ -102,6 +104,15 @@ describe('UsersPage login methods column', () => {
       })
     );
     expect(screen.queryByRole('link', { name: '← First page' })).not.toBeInTheDocument();
+  });
+
+  it('checks each listed account before offering deletion', async () => {
+    const listed = user(['emailpassword']);
+    getUsersNewestFirstMock.mockResolvedValue({ users: [listed], nextPaginationToken: undefined });
+
+    await renderPage();
+
+    expect(canOfferUserDeletion).toHaveBeenCalledWith(listed, 'admin-1');
   });
 
   it('does not show first-page navigation for an empty cursor', async () => {

@@ -14,6 +14,7 @@ import { TypeInput } from 'supertokens-node/types';
 import { getSSRSession } from 'supertokens-node/nextjs';
 
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
+import { hasVerifiedBootstrapEmail } from '@/app/features/users/bootstrap';
 
 import { appInfo } from './appInfo';
 import { serverEnv } from './env.server';
@@ -78,6 +79,9 @@ export const backendConfig = (): TypeInput => {
             signUpPOST: undefined,
             // Serves both the current and the legacy email-exists route.
             emailExistsGET: undefined,
+            // Password reset is turned off for this panel.
+            generatePasswordResetTokenPOST: undefined,
+            passwordResetPOST: undefined,
             signInPOST: async (input) => {
               if (!originalImplementation.signInPOST) {
                 throw new Error('signInPOST is disabled');
@@ -138,18 +142,9 @@ export async function isSuperAdminUser(userId: string): Promise<boolean> {
     return true;
   }
 
-  const user = await SuperTokens.getUser(userId);
-  const email = user?.emails[0]?.toLowerCase();
-  if (email && serverEnv.superadminBootstrapEmails.includes(email)) {
-    // The allowlist only counts for an account that has confirmed the address.
-    const method = user?.loginMethods.find((m) => m.email?.toLowerCase() === email);
-    if (
-      method &&
-      (await EmailVerificationNode.isEmailVerified(method.recipeUserId, method.email))
-    ) {
-      await grantSuperAdmin(userId);
-      return true;
-    }
+  if (hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId))) {
+    await grantSuperAdmin(userId);
+    return true;
   }
 
   return false;

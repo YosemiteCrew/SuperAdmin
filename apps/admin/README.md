@@ -153,7 +153,7 @@ src/
 │  │  ├─ health/                   # deployment and service health dashboard
 │  │  ├─ ap/                       # ActivityPub federation instances
 │  │  └─ settings/                 # profile, session and appearance settings
-│  ├─ auth/                        # custom sign-in / sign-up / reset password
+│  ├─ auth/                        # custom sign-in screen
 │  ├─ api/
 │  │  ├─ auth/[[...path]]/         # SuperTokens-managed
 │  │  ├─ profile/                  # save first/last name to user metadata

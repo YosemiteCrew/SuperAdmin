@@ -1,13 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AuthPage from '@/app/auth/[[...path]]/page';
 import AuthLayout from '@/app/auth/layout';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { redirect, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'supertokens-auth-react/recipe/emailpassword';
 
 jest.mock('supertokens-auth-react/recipe/emailpassword', () => ({
   signIn: jest.fn(),
-  sendPasswordResetEmail: jest.fn(),
-  submitNewPassword: jest.fn(),
 }));
 
 describe('Auth sign-in page', () => {
@@ -29,7 +27,18 @@ describe('Auth sign-in page', () => {
 
     expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign in' })).toHaveClass('yc-primary-button');
-    expect(screen.getByRole('link', { name: 'Forgot password?' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it('sends the old password-reset address back to sign-in', () => {
+    (usePathname as jest.Mock).mockReturnValue('/auth/reset-password');
+    (useSearchParams as jest.Mock).mockReturnValue(new URLSearchParams({ token: 'tok-1' }));
+
+    render(<AuthPage />);
+
+    expect(redirect).toHaveBeenCalledWith('/auth');
+    expect(screen.queryByRole('heading', { name: 'New password' })).not.toBeInTheDocument();
   });
 
   it('returns an invite recipient to the acceptance page after sign-in', async () => {

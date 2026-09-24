@@ -122,11 +122,8 @@ export function proxy(request: NextRequest) {
   }
 
   // Authenticated users are bounced away from auth screens — except the MFA
-  // screens (a signed-in-but-MFA-incomplete user still needs them) and the
-  // password-reset screen (linked from Settings for a signed-in admin).
-  const authScreenAllowed =
-    pathname.startsWith('/auth/mfa') || pathname.startsWith('/auth/reset-password');
-  if (isAuthenticated && pathname.startsWith('/auth') && !authScreenAllowed) {
+  // screens (a signed-in-but-MFA-incomplete user still needs them).
+  if (isAuthenticated && pathname.startsWith('/auth') && !pathname.startsWith('/auth/mfa')) {
     return withCsp(NextResponse.redirect(new URL('/dashboard', request.url)), nonce);
   }
 
