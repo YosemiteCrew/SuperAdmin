@@ -22,9 +22,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: sbom-${{ github.ref }}
-  # Never cancel a branch build: every commit on main is a deploy and needs its
-  # own SBOM. Superseded pull request runs can go.
+  # A pull request shares one group, so a superseded run is cancelled. Anything
+  # else gets a group of its own commit: in a shared group a newer run still
+  # replaces one that is waiting, and every commit on main is a deploy that
+  # needs its own SBOM.
+  group: sbom-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -41,10 +43,12 @@ jobs:
         with:
           run_install: false
 
+      # No pnpm cache here: this job fetches only the production packages, and
+      # saving that store under the key the other workflows share would leave
+      # their restored cache without the development tools.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
-          cache: 'pnpm'
 
       - name: Test the SBOM script
         run: node --test scripts/ci/sbom.test.mjs
