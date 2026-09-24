@@ -8,6 +8,7 @@ import {
   scanApprovalStatuses,
 } from '@/app/features/approvals/queue';
 import { refreshApprovalStatusIndex, type ApprovalStatus } from '@/app/features/approvals/store';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 import { ApprovalsTable } from './ApprovalsTable';
 
@@ -32,13 +33,14 @@ const FILTER_PILL_OFF =
 
 export default async function ApprovalsPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ status?: string }> }>) {
+}: Readonly<{ searchParams: Promise<{ status?: SearchParam }> }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
 
   const { status } = await searchParams;
-  const filter: StatusFilter = FILTERS.some((f) => f.key === status)
-    ? (status as StatusFilter)
+  const statusValue = scalarSearchParam(status);
+  const filter: StatusFilter = FILTERS.some((f) => f.key === statusValue)
+    ? (statusValue as StatusFilter)
     : 'pending';
 
   const users = await fetchApprovalCandidates(SCAN_LIMIT);

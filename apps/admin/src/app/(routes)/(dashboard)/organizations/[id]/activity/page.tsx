@@ -14,6 +14,7 @@ import { getAuditEventsForTarget } from '@/app/features/audit/store';
 import type { AuditAction } from '@/app/features/audit/types';
 import { getOrganizationMetadataName } from '@/app/features/organizations/metadata';
 import { getOrganization } from '@/app/features/organizations/services/organizationsService';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 const ACTIVITY_LIMIT = 50;
 
@@ -29,11 +30,11 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ env?: string }>;
+  searchParams: Promise<{ env?: SearchParam }>;
 }): Promise<Metadata> {
   const { id } = await params;
   const { env } = await searchParams;
-  const organizationName = await getOrganizationMetadataName(id, env);
+  const organizationName = await getOrganizationMetadataName(id, scalarSearchParam(env));
   return { title: organizationName ? `${organizationName} - Activity` : 'Organization Activity' };
 }
 
@@ -51,14 +52,14 @@ export default async function OrgActivityPage({
   searchParams,
 }: Readonly<{
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ env?: string }>;
+  searchParams: Promise<{ env?: SearchParam }>;
 }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
 
   const { id } = await params;
   const { env } = await searchParams;
-  const environment = parseApiEnvironment(env);
+  const environment = parseApiEnvironment(scalarSearchParam(env));
   const backHref =
     environment === DEFAULT_API_ENVIRONMENT
       ? `/organizations/${encodeURIComponent(id)}`

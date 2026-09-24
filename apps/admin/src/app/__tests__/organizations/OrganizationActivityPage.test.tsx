@@ -62,6 +62,24 @@ describe('OrgActivityPage', () => {
     );
   });
 
+  it('rejects a repeated environment parameter', async () => {
+    render(
+      await OrgActivityPage({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ env: ['development', 'production'] }),
+      })
+    );
+
+    expect(getOrganization).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ baseUrl: 'https://api.example.com' })
+    );
+    expect(screen.getByRole('link', { name: '← Back to Development Vet' })).toHaveAttribute(
+      'href',
+      '/organizations/org-1'
+    );
+  });
+
   it('loads metadata from the selected backend environment', async () => {
     await expect(
       generateMetadata({
@@ -75,6 +93,19 @@ describe('OrgActivityPage', () => {
         headers: { cookie: 'session=present' },
         baseUrl: 'https://api-dev.example.com',
       })
+    );
+  });
+
+  it('rejects a repeated metadata environment parameter', async () => {
+    await expect(
+      generateMetadata({
+        params: Promise.resolve({ id: 'org-1' }),
+        searchParams: Promise.resolve({ env: ['development', 'production'] }),
+      })
+    ).resolves.toEqual({ title: 'Development Vet - Activity' });
+    expect(getOrganization).toHaveBeenCalledWith(
+      'org-1',
+      expect.objectContaining({ baseUrl: 'https://api.example.com' })
     );
   });
 

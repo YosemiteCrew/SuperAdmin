@@ -22,6 +22,7 @@ import type {
   SuperAdminOrganizationMember,
 } from '@/app/features/organizations/types';
 import { VERIFICATION_META, verificationState } from '@/app/features/organizations/verification';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 import { CorroborationFlag, CorroborationPanel } from '../CorroborationPanel';
 import { OrganizationAvatar } from '../OrganizationAvatar';
@@ -42,11 +43,13 @@ export async function generateMetadata({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ env?: string }>;
+  searchParams: Promise<{ env?: SearchParam }>;
 }): Promise<Metadata> {
   const { id } = await params;
   const { env } = await searchParams;
-  return { title: (await getOrganizationMetadataName(id, env)) ?? 'Organization' };
+  return {
+    title: (await getOrganizationMetadataName(id, scalarSearchParam(env))) ?? 'Organization',
+  };
 }
 
 function formatDate(iso?: string): string {
@@ -104,14 +107,16 @@ export default async function OrganizationDetailPage({
   searchParams,
 }: Readonly<{
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ demo?: string; checks?: string; env?: string }>;
+  searchParams: Promise<{ demo?: SearchParam; checks?: SearchParam; env?: SearchParam }>;
 }>) {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
 
   const { id } = await params;
-  const { demo, checks, env } = await searchParams;
-  const environment = parseApiEnvironment(env);
+  const { demo: demoRaw, checks: checksRaw, env } = await searchParams;
+  const demo = scalarSearchParam(demoRaw);
+  const checks = scalarSearchParam(checksRaw);
+  const environment = parseApiEnvironment(scalarSearchParam(env));
   // Both the not-found and the loaded view link back to the list the row came
   // from, so returning does not silently drop the reader onto production.
   const backHref =
