@@ -35,9 +35,9 @@ jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
   bulkDeleteUsersAction: jest.fn(),
 }));
 
-async function renderPage() {
+async function renderPage(searchParams: Record<string, string | string[] | undefined> = {}) {
   const mod = await import('@/app/(routes)/(dashboard)/users/page');
-  render(await mod.default({ searchParams: Promise.resolve({}) }));
+  render(await mod.default({ searchParams: Promise.resolve(searchParams) }));
 }
 
 function user(recipeIds: string[]) {
@@ -83,5 +83,23 @@ describe('UsersPage login methods column', () => {
     await renderPage();
 
     expect(screen.getByText('webauthn')).toBeInTheDocument();
+  });
+
+  it('normalizes repeated query parameters before requesting users', async () => {
+    getUsersNewestFirstMock.mockResolvedValue({ users: [], nextPaginationToken: undefined });
+
+    await renderPage({
+      search: ['first', 'second'],
+      cursor: ['one', 'two'],
+      type: ['business', 'mobile'],
+    });
+
+    expect(getUsersNewestFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paginationToken: undefined,
+        includeRecipeIds: ['emailpassword'],
+        query: undefined,
+      })
+    );
   });
 });

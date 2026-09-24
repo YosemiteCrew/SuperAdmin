@@ -26,9 +26,9 @@ export const metadata: Metadata = {
 const DEFAULT_TENANT = 'public';
 
 type SearchParams = {
-  search?: string;
-  cursor?: string;
-  type?: string;
+  search?: string | string[];
+  cursor?: string | string[];
+  type?: string | string[];
 };
 
 function formatDateTime(ms: number): string {
@@ -91,13 +91,13 @@ export default async function UsersPage({
   const { userId: callerId } = await requireSuperAdmin('page');
 
   const { search, cursor, type } = await searchParams;
-  const trimmedSearch = search?.trim() ?? '';
+  const trimmedSearch = typeof search === 'string' ? search.trim() : '';
   const typeFilter = parseUserTypeFilter(type);
 
   const { users, nextPaginationToken } = await supertokens.getUsersNewestFirst({
     tenantId: DEFAULT_TENANT,
     limit: DEFAULT_PAGE_SIZE,
-    paginationToken: cursor,
+    paginationToken: typeof cursor === 'string' ? cursor : undefined,
     includeRecipeIds: recipeIdsForUserType(typeFilter),
     query: trimmedSearch ? { email: trimmedSearch } : undefined,
   });
