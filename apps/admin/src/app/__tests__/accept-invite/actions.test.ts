@@ -97,7 +97,7 @@ beforeEach(() => {
   mockGetUser.mockResolvedValue({ emails: ['new@x.com'] } as Awaited<
     ReturnType<typeof SuperTokens.getUser>
   >);
-  mockMarkUsed.mockResolvedValue();
+  mockMarkUsed.mockResolvedValue(true);
   mockAddRole.mockResolvedValue({ status: 'OK', didUserAlreadyHaveRole: false });
   mockRemoveRole.mockResolvedValue({ status: 'OK', didUserHaveRole: true });
 });
@@ -114,7 +114,7 @@ function expectNoGrant() {
 }
 
 describe('acceptInviteAction', () => {
-  it('grants the role, marks the invite used, audits it, and redirects', async () => {
+  it('marks the invite used, grants the role, audits it, and redirects', async () => {
     await acceptInviteAction(formData({ token: 'tok-1' }));
 
     expect(mockGetSession).toHaveBeenCalledWith('/accept-invite?token=tok-1');
@@ -124,6 +124,9 @@ describe('acceptInviteAction', () => {
       usedBy: 'u-9',
       usedByEmail: 'new@x.com',
     });
+    expect(mockMarkUsed.mock.invocationCallOrder[0]).toBeLessThan(
+      mockAddRole.mock.invocationCallOrder[0]
+    );
     expect(mockRecordAudit).toHaveBeenCalledWith({
       action: 'invite.use',
       actorId: 'u-9',
@@ -152,37 +155,75 @@ describe('acceptInviteAction', () => {
       'The super-admin role is unavailable.'
     );
 
-    expect(mockMarkUsed).not.toHaveBeenCalled();
+    expect(mockMarkUsed).toHaveBeenCalledTimes(1);
     expect(mockRecordAudit).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  it('keeps the grant retryable when marking the invite used fails', async () => {
+  it('does not grant the role when marking the invite used fails', async () => {
     const failure = new Error('invite store unavailable');
-    let hasRole = false;
-    mockMarkUsed.mockRejectedValueOnce(failure).mockResolvedValueOnce();
-    mockAddRole.mockImplementation(async () => {
-      const didUserAlreadyHaveRole = hasRole;
-      hasRole = true;
-      return { status: 'OK', didUserAlreadyHaveRole };
-    });
-    mockRemoveRole.mockImplementation(async () => {
-      const didUserHaveRole = hasRole;
-      hasRole = false;
-      return { status: 'OK', didUserHaveRole };
-    });
+    mockMarkUsed.mockRejectedValueOnce(failure);
 
     await expect(acceptInviteAction(formData({ token: 'tok-1' }))).rejects.toBe(failure);
 
-    expect(hasRole).toBe(true);
+    expect(mockAddRole).not.toHaveBeenCalled();
     expect(mockRemoveRole).not.toHaveBeenCalled();
     expect(mockRecordAudit).not.toHaveBeenCalled();
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [invite({ revokedAt: NOW - 1 }), 'This invite has been revoked.'],
+    [
+      invite({ expiresAt: NOW - 1 }),
+      'This invite link has expired. Ask a super-admin to generate a new one.',
+    ],
+    [invite({ usedAt: NOW - 1, usedBy: 'someone-else' }), 'This invite has already been used.'],
+    [invite(), 'The invite status changed. Try again.'],
+  ])(
+    'returns the latest status when the invite can no longer be marked used',
+    async (latest, error) => {
+      mockMarkUsed.mockResolvedValue(false);
+      mockGetInvite.mockResolvedValueOnce(invite()).mockResolvedValueOnce(latest);
+
+      await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({ error });
+
+      expect(mockGetInvite).toHaveBeenCalledTimes(2);
+      expect(mockAddRole).not.toHaveBeenCalled();
+      expect(mockRecordAudit).not.toHaveBeenCalled();
+    }
+  );
+
+  it('stops when the invite no longer exists after validation', async () => {
+    mockMarkUsed.mockResolvedValue(false);
+    mockGetInvite.mockResolvedValueOnce(invite()).mockResolvedValueOnce(null);
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'Invite not found or already used.',
+    });
+    expect(mockAddRole).not.toHaveBeenCalled();
+  });
+
+  it('resumes an invite already marked used by the same account', async () => {
+    mockGetInvite.mockResolvedValue(invite({ usedAt: NOW - 1, usedBy: 'u-9' }));
 
     await acceptInviteAction(formData({ token: 'tok-1' }));
 
-    expect(mockAddRole).toHaveBeenCalledTimes(2);
-    expect(mockMarkUsed).toHaveBeenCalledTimes(2);
+    expect(mockMarkUsed).not.toHaveBeenCalled();
+    expect(mockAddRole).toHaveBeenCalledTimes(1);
+    expect(mockRecordAudit).toHaveBeenCalledTimes(1);
+    expect(redirectMock).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('resumes when another request marked the invite used for the same account', async () => {
+    mockMarkUsed.mockResolvedValue(false);
+    mockGetInvite
+      .mockResolvedValueOnce(invite())
+      .mockResolvedValueOnce(invite({ usedAt: NOW - 1, usedBy: 'u-9' }));
+
+    await acceptInviteAction(formData({ token: 'tok-1' }));
+
+    expect(mockAddRole).toHaveBeenCalledTimes(1);
     expect(mockRecordAudit).toHaveBeenCalledTimes(1);
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
