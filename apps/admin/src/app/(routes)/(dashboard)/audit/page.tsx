@@ -22,7 +22,18 @@ export const metadata: Metadata = {
   title: 'Audit log',
 };
 
-type SearchParams = { action?: string; q?: string; from?: string; to?: string; page?: string };
+type QueryParam = string | string[] | undefined;
+type SearchParams = {
+  action?: QueryParam;
+  q?: QueryParam;
+  from?: QueryParam;
+  to?: QueryParam;
+  page?: QueryParam;
+};
+
+function scalar(value: QueryParam): string | undefined {
+  return typeof value === 'string' ? value : undefined;
+}
 
 const ACTION_OPTIONS = Object.entries(AUDIT_META).map(([value, meta]) => ({
   value,
@@ -90,10 +101,10 @@ export default async function AuditLogPage({
 }: Readonly<{ searchParams: Promise<SearchParams> }>) {
   await requireSuperAdmin('page');
   const { action, q, from, to, page } = await searchParams;
-  const activeAction = parseAuditActionFilter(action);
-  const searchTerm = (q ?? '').trim();
-  const fromRaw = (from ?? '').trim();
-  const toRaw = (to ?? '').trim();
+  const activeAction = parseAuditActionFilter(scalar(action));
+  const searchTerm = (scalar(q) ?? '').trim();
+  const fromRaw = (scalar(from) ?? '').trim();
+  const toRaw = (scalar(to) ?? '').trim();
 
   // verifyAuditChain reads the raw stored log (with chain fields); the public
   // reader returns projected events. Run both reads concurrently.
@@ -107,7 +118,7 @@ export default async function AuditLogPage({
     from: parseAuditDate(fromRaw, 'start'),
     to: parseAuditDate(toRaw, 'end'),
   });
-  const paged = paginate(filtered, parsePage(page));
+  const paged = paginate(filtered, parsePage(scalar(page)));
   const hrefBase = { action: activeAction, search: searchTerm, from: fromRaw, to: toRaw };
 
   return (
