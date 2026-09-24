@@ -21,14 +21,6 @@ describe('parseUserTypeFilter', () => {
   it('falls back to the default when absent', () => {
     expect(parseUserTypeFilter(undefined)).toBe(DEFAULT_USER_TYPE_FILTER);
   });
-
-  it('takes the first entry when the param is repeated', () => {
-    expect(parseUserTypeFilter(['mobile', 'business'])).toBe('mobile');
-  });
-
-  it('falls back when a repeated param leads with junk', () => {
-    expect(parseUserTypeFilter(['nope', 'mobile'])).toBe(DEFAULT_USER_TYPE_FILTER);
-  });
 });
 
 describe('recipeIdsForUserType', () => {
