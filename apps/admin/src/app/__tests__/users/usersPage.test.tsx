@@ -103,4 +103,12 @@ describe('UsersPage login methods column', () => {
     );
     expect(screen.queryByRole('link', { name: '← First page' })).not.toBeInTheDocument();
   });
+
+  it('does not show first-page navigation for an empty cursor', async () => {
+    getUsersNewestFirstMock.mockResolvedValue({ users: [], nextPaginationToken: undefined });
+
+    await renderPage({ cursor: '' });
+
+    expect(screen.queryByRole('link', { name: '← First page' })).not.toBeInTheDocument();
+  });
 });
