@@ -101,5 +101,6 @@ describe('UsersPage login methods column', () => {
         query: undefined,
       })
     );
+    expect(screen.queryByRole('link', { name: '← First page' })).not.toBeInTheDocument();
   });
 });

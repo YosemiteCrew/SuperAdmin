@@ -200,7 +200,7 @@ export default async function UsersPage({
           Showing {users.length} {users.length === 1 ? 'user' : 'users'}
         </span>
         <div className="flex items-center gap-[10px]">
-          {cursor ? (
+          {typeof cursor === 'string' ? (
             <Link
               href={buildHref({ search: trimmedSearch || undefined, type: typeFilter })}
               className="inline-flex h-8 items-center rounded-full border border-[color:var(--divider)] px-[14px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
