@@ -1,3 +1,5 @@
+import { render, screen } from '@testing-library/react';
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   requireSuperAdmin: (...args: unknown[]) => requireSuperAdminMock(...args),
@@ -30,25 +32,39 @@ jest.mock('@/app/(routes)/(dashboard)/organizations/OrganizationRowActions', () 
 beforeEach(() => {
   jest.clearAllMocks();
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
-  listOrganizationsMock.mockResolvedValue([]);
+  listOrganizationsMock.mockResolvedValue([
+    {
+      id: 'org-1',
+      name: 'Acme Vet',
+      type: 'HOSPITAL',
+      isVerified: true,
+      isActive: true,
+      memberCount: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
 });
 
 describe('OrganizationsPage', () => {
   it('rejects repeated query parameters and loads the safe default view', async () => {
     const mod = await import('@/app/(routes)/(dashboard)/organizations/page');
 
-    await mod.default({
-      searchParams: Promise.resolve({
-        status: ['verified', 'suspended'],
-        search: ['first', 'second'],
-        demo: ['1', '0'],
-        env: ['development', 'production'],
-      }),
-    });
+    render(
+      await mod.default({
+        searchParams: Promise.resolve({
+          status: ['verified', 'suspended'],
+          search: ['first', 'second'],
+          demo: ['1', '0'],
+          env: ['development', 'production'],
+        }),
+      })
+    );
 
     expect(listOrganizationsMock).toHaveBeenCalledWith({
       headers: { cookie: 'session=present' },
       baseUrl: 'https://api.example.com',
     });
+    expect(screen.getByRole('link', { name: /^All 1$/ })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('searchbox', { name: 'Search organizations by name' })).toHaveValue('');
   });
 });

@@ -97,7 +97,7 @@ describe('UsersPage login methods column', () => {
     expect(getUsersNewestFirstMock).toHaveBeenCalledWith(
       expect.objectContaining({
         paginationToken: undefined,
-        includeRecipeIds: ['emailpassword'],
+        includeRecipeIds: undefined,
         query: undefined,
       })
     );

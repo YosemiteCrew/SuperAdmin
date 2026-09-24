@@ -15,6 +15,7 @@ import {
   parseUserTypeFilter,
   recipeIdsForUserType,
 } from '@/app/features/users/filter';
+import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
 
 import { ExportUsersButton } from './ExportUsersButton';
 import { UsersTable, type UserRow } from './UsersTable';
@@ -26,9 +27,9 @@ export const metadata: Metadata = {
 const DEFAULT_TENANT = 'public';
 
 type SearchParams = {
-  search?: string | string[];
-  cursor?: string | string[];
-  type?: string | string[];
+  search?: SearchParam;
+  cursor?: SearchParam;
+  type?: SearchParam;
 };
 
 function formatDateTime(ms: number): string {
@@ -91,13 +92,14 @@ export default async function UsersPage({
   const { userId: callerId } = await requireSuperAdmin('page');
 
   const { search, cursor, type } = await searchParams;
-  const trimmedSearch = typeof search === 'string' ? search.trim() : '';
-  const typeFilter = parseUserTypeFilter(type);
+  const trimmedSearch = (scalarSearchParam(search) ?? '').trim();
+  const cursorValue = scalarSearchParam(cursor);
+  const typeFilter = parseUserTypeFilter(scalarSearchParam(type));
 
   const { users, nextPaginationToken } = await supertokens.getUsersNewestFirst({
     tenantId: DEFAULT_TENANT,
     limit: DEFAULT_PAGE_SIZE,
-    paginationToken: typeof cursor === 'string' ? cursor : undefined,
+    paginationToken: cursorValue,
     includeRecipeIds: recipeIdsForUserType(typeFilter),
     query: trimmedSearch ? { email: trimmedSearch } : undefined,
   });
@@ -200,7 +202,7 @@ export default async function UsersPage({
           Showing {users.length} {users.length === 1 ? 'user' : 'users'}
         </span>
         <div className="flex items-center gap-[10px]">
-          {typeof cursor === 'string' && cursor ? (
+          {cursorValue ? (
             <Link
               href={buildHref({ search: trimmedSearch || undefined, type: typeFilter })}
               className="inline-flex h-8 items-center rounded-full border border-[color:var(--divider)] px-[14px] font-semibold text-[color:var(--ink)] transition-colors hover:bg-[var(--surface-soft)]"
