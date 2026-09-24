@@ -8,7 +8,7 @@ import UserRolesNode from 'supertokens-node/recipe/userroles';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
-import { serverEnv } from '@/app/config/env.server';
+import { hasVerifiedBootstrapEmail } from '@/app/features/users/bootstrap';
 
 import { AdminsTable, type AdminRow } from './AdminsTable';
 
@@ -19,7 +19,6 @@ export const metadata: Metadata = {
 async function loadAdminRow(
   userId: string,
   callerId: string,
-  bootstrapEmails: string[],
   totalCount: number
 ): Promise<AdminRow | null> {
   const [userResult, metaResult, totpResult] = await Promise.allSettled([
@@ -46,7 +45,7 @@ async function loadAdminRow(
     lastSignInAt: typeof meta.lastSignInAt === 'number' ? meta.lastSignInAt : null,
     disabled: typeof meta.disabledAt === 'number',
     totpEnrolled: devices.some((d) => d.verified),
-    isBootstrap: bootstrapEmails.includes(email.toLowerCase()),
+    isBootstrap: hasVerifiedBootstrapEmail(user),
     isSelf: userId === callerId,
     isLastAdmin: totalCount <= 1,
   };
@@ -58,14 +57,8 @@ export default async function AdminsPage() {
 
   const roleHolders = await UserRolesNode.getUsersThatHaveRole(DEFAULT_TENANT_ID, SUPERADMIN_ROLE);
   const adminIds = roleHolders.status === 'OK' ? roleHolders.users : [];
-  const bootstrapEmails = (serverEnv.superadminBootstrapEmails ?? []).map((e: string) =>
-    e.toLowerCase()
-  );
-
   const rows = (
-    await Promise.all(
-      adminIds.map((id) => loadAdminRow(id, callerId, bootstrapEmails, adminIds.length))
-    )
+    await Promise.all(adminIds.map((id) => loadAdminRow(id, callerId, adminIds.length)))
   ).filter((r): r is AdminRow => r !== null);
 
   rows.sort((a, b) => {
