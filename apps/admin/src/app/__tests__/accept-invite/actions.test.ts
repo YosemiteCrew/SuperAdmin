@@ -215,6 +215,18 @@ describe('acceptInviteAction', () => {
     expect(redirectMock).toHaveBeenCalledWith('/dashboard');
   });
 
+  it('does not restore the role from an expired invite used by the same account', async () => {
+    mockGetInvite.mockResolvedValue(
+      invite({ usedAt: NOW - 86_400_000, usedBy: 'u-9', expiresAt: NOW - 1 })
+    );
+
+    await expect(acceptInviteAction(formData({ token: 'tok-1' }))).resolves.toEqual({
+      error: 'This invite has already been used.',
+    });
+
+    expectNoGrant();
+  });
+
   it('resumes when another request marked the invite used for the same account', async () => {
     mockMarkUsed.mockResolvedValue(false);
     mockGetInvite

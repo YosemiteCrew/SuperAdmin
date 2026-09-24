@@ -13,7 +13,7 @@ import {
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getInviteByToken, markInviteUsed } from '@/app/features/invites/store';
-import { inviteStatus, type InviteStatus } from '@/app/features/invites/types';
+import { inviteStatus, type InviteRecord, type InviteStatus } from '@/app/features/invites/types';
 
 export interface AcceptInviteResult {
   error?: string;
@@ -30,6 +30,12 @@ const NOT_PENDING_MESSAGE: Record<Exclude<InviteStatus, 'pending'>, string> = {
   used: 'This invite has already been used.',
 };
 
+function canResumeInvite(invite: InviteRecord, userId: string): boolean {
+  return (
+    inviteStatus(invite) === 'used' && invite.usedBy === userId && Date.now() < invite.expiresAt
+  );
+}
+
 async function markInviteForAccount(
   token: string,
   userId: string,
@@ -41,7 +47,7 @@ async function markInviteForAccount(
   if (!latest) return { error: 'Invite not found or already used.' };
 
   const latestStatus = inviteStatus(latest);
-  if (latestStatus === 'used' && latest.usedBy === userId) return null;
+  if (canResumeInvite(latest, userId)) return null;
   return {
     error:
       latestStatus === 'pending'
@@ -67,7 +73,7 @@ export async function acceptInviteAction(formData: FormData): Promise<AcceptInvi
   if (!invite) return { error: 'Invite not found or already used.' };
 
   const status = inviteStatus(invite);
-  const resuming = status === 'used' && invite.usedBy === userId;
+  const resuming = canResumeInvite(invite, userId);
   if (status !== 'pending' && !resuming) {
     return { error: NOT_PENDING_MESSAGE[status] };
   }
