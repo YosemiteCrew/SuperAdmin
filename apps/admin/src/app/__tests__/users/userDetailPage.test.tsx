@@ -34,6 +34,12 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
   default: { getRolesForUser: (...a: unknown[]) => getRolesForUserMock(...a) },
 }));
 
+const isEmailVerifiedMock = jest.fn();
+jest.mock('supertokens-node/recipe/emailverification', () => ({
+  __esModule: true,
+  default: { isEmailVerified: (...a: unknown[]) => isEmailVerifiedMock(...a) },
+}));
+
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -107,7 +113,10 @@ beforeEach(() => {
   listDevicesMock.mockResolvedValue({ status: 'OK', devices: [] });
   getRolesForUserMock.mockResolvedValue({ roles: [] });
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
+  isEmailVerifiedMock.mockResolvedValue(true);
 });
+
+const BOOTSTRAP_LOGIN = [{ recipeId: 'emailpassword', email: 'boot@example.com' }];
 
 describe('UserDetailPage', () => {
   it('calls notFound when the user does not exist', async () => {
@@ -149,7 +158,9 @@ describe('UserDetailPage', () => {
   });
 
   it('marks a bootstrap-allowlisted user as Bootstrap and hides the role button', async () => {
-    getUserMock.mockResolvedValue(makeUser({ emails: ['boot@example.com'] }));
+    getUserMock.mockResolvedValue(
+      makeUser({ emails: ['boot@example.com'], loginMethods: BOOTSTRAP_LOGIN })
+    );
     listDevicesMock.mockResolvedValue({
       status: 'OK',
       devices: [
@@ -168,7 +179,22 @@ describe('UserDetailPage', () => {
       )
     ).toBeInTheDocument();
     expect(screen.queryByTestId('role-button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('disable-user')).not.toBeInTheDocument();
     expect(screen.queryByTestId('delete-user')).not.toBeInTheDocument();
+  });
+
+  it('manages an unconfirmed account on a bootstrap email like any other user', async () => {
+    getUserMock.mockResolvedValue(
+      makeUser({ emails: ['boot@example.com'], loginMethods: BOOTSTRAP_LOGIN })
+    );
+    isEmailVerifiedMock.mockResolvedValue(false);
+
+    await renderPage();
+    expect(screen.getByText('Standard user')).toBeInTheDocument();
+    expect(screen.queryByText('Bootstrap')).not.toBeInTheDocument();
+    expect(screen.getByTestId('role-button')).toBeInTheDocument();
+    expect(screen.getByTestId('disable-user')).toBeInTheDocument();
+    expect(screen.getByTestId('delete-user')).toBeInTheDocument();
   });
 
   it('blocks self-management when the caller views their own account', async () => {

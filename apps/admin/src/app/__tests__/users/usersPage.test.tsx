@@ -35,6 +35,8 @@ jest.mock('@/app/(routes)/(dashboard)/users/bulkActions', () => ({
   bulkDeleteUsersAction: jest.fn(),
 }));
 
+import { canOfferUserDeletion } from '@/app/features/users/bootstrap';
+
 async function renderPage(searchParams: Record<string, string | string[] | undefined> = {}) {
   const mod = await import('@/app/(routes)/(dashboard)/users/page');
   render(await mod.default({ searchParams: Promise.resolve(searchParams) }));
@@ -102,6 +104,15 @@ describe('UsersPage login methods column', () => {
       })
     );
     expect(screen.queryByRole('link', { name: '← First page' })).not.toBeInTheDocument();
+  });
+
+  it('checks each listed account before offering deletion', async () => {
+    const listed = user(['emailpassword']);
+    getUsersNewestFirstMock.mockResolvedValue({ users: [listed], nextPaginationToken: undefined });
+
+    await renderPage();
+
+    expect(canOfferUserDeletion).toHaveBeenCalledWith(listed, 'admin-1');
   });
 
   it('does not show first-page navigation for an empty cursor', async () => {

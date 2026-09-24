@@ -462,6 +462,16 @@ describe('backendConfig sign-in/sign-up overrides', () => {
     expect(apis.emailExistsGET).toBeUndefined();
   });
 
+  it('turns off the password-reset email endpoint', () => {
+    const apis = getApis({ generatePasswordResetTokenPOST: jest.fn() });
+    expect(apis.generatePasswordResetTokenPOST).toBeUndefined();
+  });
+
+  it('turns off the new-password endpoint', () => {
+    const apis = getApis({ passwordResetPOST: jest.fn() });
+    expect(apis.passwordResetPOST).toBeUndefined();
+  });
+
   it('does not record metadata when sign-in is not OK', async () => {
     const signInPOST = jest.fn(async () => ({ status: 'WRONG_CREDENTIALS_ERROR' }));
     const apis = getApis({ signInPOST });

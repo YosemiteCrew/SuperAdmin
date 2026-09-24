@@ -10,9 +10,9 @@ import UserRolesNode from 'supertokens-node/recipe/userroles';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
 import { DEFAULT_TENANT_ID, SUPERADMIN_ROLE } from '@/app/constants';
-import { serverEnv } from '@/app/config/env.server';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getAuditEventsForTarget } from '@/app/features/audit/store';
+import { isBootstrapAdmin as loadIsBootstrapAdmin } from '@/app/features/users/bootstrap';
 import { describeRecipeId } from '@/app/features/users/filter';
 
 import { DeleteUserButton } from '../DeleteUserButton';
@@ -229,13 +229,15 @@ export default async function UserDetailPage({
   const user = await supertokens.getUser(id);
   if (!user) notFound();
 
-  const [sessions, accountMeta, totpDevices, isAdmin, auditEvents] = await Promise.all([
-    loadSessions(id),
-    loadAccountMeta(id),
-    loadTotpDevices(id),
-    loadIsSuperAdmin(id),
-    getAuditEventsForTarget(id),
-  ]);
+  const [sessions, accountMeta, totpDevices, isAdmin, isBootstrapAdmin, auditEvents] =
+    await Promise.all([
+      loadSessions(id),
+      loadAccountMeta(id),
+      loadTotpDevices(id),
+      loadIsSuperAdmin(id),
+      loadIsBootstrapAdmin(id),
+      getAuditEventsForTarget(id),
+    ]);
   const { lastSignInAt, disabledAt } = accountMeta;
 
   const primaryEmail = user.emails[0] ?? '—';
@@ -248,7 +250,6 @@ export default async function UserDetailPage({
     verifiedDeviceCount > 0
       ? `TOTP active (${verifiedDeviceCount} ${deviceWord})`
       : 'No verified TOTP device';
-  const isBootstrapAdmin = serverEnv.superadminBootstrapEmails.includes(primaryEmail.toLowerCase());
   const isSelf = callerId === user.id;
   const hasSuperAdmin = isAdmin || isBootstrapAdmin;
   const roleHint = accessHint({ isBootstrapAdmin, isSelf, isAdmin });

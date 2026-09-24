@@ -1,5 +1,5 @@
 /* ============================================================
-   Warm-bone auth screens — sign in, reset password, new password.
+   Warm-bone auth screen — sign in.
 
    Scoped to the auth catch-all page. These rules layer on top of the
    .yc-auth-* base classes in globals.css, so class names are doubled
@@ -44,11 +44,6 @@
   letter-spacing: -0.02em;
   line-height: 1.15;
   text-align: center;
-}
-
-.titleSm.titleSm {
-  font-size: 27px;
-  letter-spacing: -0.015em;
 }
 
 .subtitle {
@@ -122,16 +117,6 @@
 
 /* ---------- Links, actions, footnote ---------- */
 
-.link.link {
-  color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.link.link:hover {
-  color: var(--blue-text);
-}
-
 .submit.submit {
   min-height: 52px;
   border-radius: 16px;
@@ -155,14 +140,6 @@
   border-radius: 14px;
   background: var(--danger-bg);
   color: var(--danger-text);
-  font-size: 13px;
-}
-
-.success.success {
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  background: var(--inset);
-  color: var(--ink-body);
   font-size: 13px;
 }
 

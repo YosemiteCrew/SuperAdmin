@@ -10,6 +10,12 @@ jest.mock('supertokens-node', () => ({
   },
 }));
 
+const isEmailVerifiedMock = jest.fn();
+jest.mock('supertokens-node/recipe/emailverification', () => ({
+  __esModule: true,
+  default: { isEmailVerified: (...a: unknown[]) => isEmailVerifiedMock(...a) },
+}));
+
 const revokeAllSessionsForUserMock = jest.fn();
 jest.mock('supertokens-node/recipe/session', () => ({
   __esModule: true,
@@ -46,6 +52,10 @@ import {
   bulkEnableUsersAction,
 } from '@/app/(routes)/(dashboard)/users/bulkActions';
 
+function account(email: string) {
+  return { emails: [email], loginMethods: [{ email, recipeUserId: `recipe-${email}` }] };
+}
+
 beforeEach(() => {
   const { revalidatePath } = jest.requireMock('next/cache') as { revalidatePath: jest.Mock };
   revalidatePath.mockClear();
@@ -56,6 +66,7 @@ beforeEach(() => {
   getUserMetadataMock.mockReset().mockResolvedValue({ metadata: { disabledAt: 1 } });
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
+  isEmailVerifiedMock.mockReset().mockResolvedValue(true);
 });
 
 describe('bulkDisableUsersAction', () => {
@@ -101,7 +112,7 @@ describe('bulkDisableUsersAction', () => {
 
   it('skips bootstrap-allowlisted admins so they cannot be locked out', async () => {
     getUserMock.mockImplementation((id: string) =>
-      Promise.resolve({ emails: [id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'] })
+      Promise.resolve(account(id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'))
     );
     await bulkDisableUsersAction(['u-1', 'boot-1']);
     expect(updateUserMetadataMock).toHaveBeenCalledTimes(1);
@@ -116,6 +127,20 @@ describe('bulkDisableUsersAction', () => {
     getUserMock.mockRejectedValueOnce(new Error('down'));
     await bulkDisableUsersAction(['u-9']);
     expect(updateUserMetadataMock).not.toHaveBeenCalled();
+  });
+
+  it('disables an unconfirmed account on a bootstrap email', async () => {
+    getUserMock.mockResolvedValue(account('boot@x.com'));
+    isEmailVerifiedMock.mockResolvedValue(false);
+
+    const result = await bulkDisableUsersAction(['boot-1']);
+
+    expect(result).toEqual({ done: 1, skipped: 0, failed: 0 });
+    expect(updateUserMetadataMock).toHaveBeenCalledWith(
+      'boot-1',
+      expect.objectContaining({ disabledAt: expect.any(Number) })
+    );
+    expect(revokeAllSessionsForUserMock).toHaveBeenCalledWith('boot-1');
   });
 
   it('does nothing for a non-array argument', async () => {
@@ -163,7 +188,7 @@ describe('bulkDisableUsersAction', () => {
 
   it('counts the caller and a bootstrap admin as skipped, not done', async () => {
     getUserMock.mockImplementation((id: string) =>
-      Promise.resolve({ emails: [id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'] })
+      Promise.resolve(account(id === 'boot-1' ? 'boot@x.com' : 'victim@x.com'))
     );
 
     const result = await bulkDisableUsersAction(['u-1', 'admin-1', 'boot-1']);
@@ -299,9 +324,19 @@ describe('bulkDeleteUsersAction', () => {
   });
 
   it('skips bootstrap-allowlisted admins', async () => {
-    getUserMock.mockResolvedValue({ emails: ['boot@x.com'] });
+    getUserMock.mockResolvedValue(account('boot@x.com'));
     await bulkDeleteUsersAction(['boot-1']);
     expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  it('deletes an unconfirmed account on a bootstrap email', async () => {
+    getUserMock.mockResolvedValue(account('boot@x.com'));
+    isEmailVerifiedMock.mockResolvedValue(false);
+
+    const result = await bulkDeleteUsersAction(['boot-1']);
+
+    expect(result).toEqual({ done: 1, skipped: 0, failed: 0 });
+    expect(deleteUserMock).toHaveBeenCalledWith('boot-1');
   });
 
   it('counts an absent account as skipped and a failing delete as failed', async () => {

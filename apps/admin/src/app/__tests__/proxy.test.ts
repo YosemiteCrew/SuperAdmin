@@ -146,10 +146,10 @@ describe('proxy', () => {
     expect(res.headers.get('Location')).toBeNull();
   });
 
-  it('lets an authenticated admin reach /auth/reset-password (linked from Settings)', () => {
+  it('sends an authenticated admin at /auth/reset-password to /dashboard', () => {
     const validToken = makeJwt(Date.now() + 60 * 60 * 1000);
     const res = proxy(makeRequest('/auth/reset-password', validToken));
-    expect(res.headers.get('Location')).toBeNull();
+    expect(res.headers.get('Location')).toContain('/dashboard');
   });
 
   it('redirects authenticated visitor at / to /dashboard', () => {

@@ -160,16 +160,6 @@ export default async function SettingsPage() {
             <dl className="mt-[13px] flex flex-col gap-[13px]">
               <div className="flex items-center justify-between gap-[14px]">
                 <div className="flex flex-col gap-px">
-                  <dt className={ROW_LABEL}>Password</dt>
-                  <dd className={ROW_SUB}>Change the password for this account.</dd>
-                </div>
-                <Link href="/auth/reset-password" className={`yc-auth-link-brand ${LINK_ACTION}`}>
-                  Reset password
-                </Link>
-              </div>
-
-              <div className="flex items-center justify-between gap-[14px]">
-                <div className="flex flex-col gap-px">
                   <dt className={ROW_LABEL}>Two-factor authentication</dt>
                   <dd className={ROW_SUB}>{totpLabel} · TOTP is required for all super admins.</dd>
                 </div>
