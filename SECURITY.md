@@ -4,7 +4,10 @@
 
 Please do **not** open a public GitHub issue for security vulnerabilities.
 
-Report a suspected vulnerability privately through private vulnerability reporting on this repository: open the **Security** tab and choose **Report a vulnerability**, or go straight to the [private report form](https://github.com/YosemiteCrew/SuperAdmin/security/advisories/new).
+Report a suspected vulnerability privately:
+
+- **Preferred:** use private vulnerability reporting on this repository. Open the **Security** tab and choose **Report a vulnerability**, or go straight to the [private report form](https://github.com/YosemiteCrew/SuperAdmin/security/advisories/new).
+- **Email:** `security at yosemitecrew.com`, if you cannot use the form.
 
 Include what you can: a description of the issue and steps to reproduce it. A partial report is welcome.
 
