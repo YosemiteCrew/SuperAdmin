@@ -1,7 +1,6 @@
 import 'server-only';
 
 import SuperTokens from 'supertokens-node';
-import EmailVerificationNode from 'supertokens-node/recipe/emailverification';
 import type { User } from 'supertokens-node/types';
 
 import { serverEnv } from '@/app/config/env.server';
@@ -14,29 +13,19 @@ export function isBootstrapAdminEmail(email: string | undefined): boolean {
  * Whether the account's first email is on the bootstrap allowlist and has been
  * confirmed on the sign-in method that carries it.
  */
-export async function hasVerifiedBootstrapEmail(
+export function hasVerifiedBootstrapEmail(
   user: Pick<User, 'emails' | 'loginMethods'> | undefined
-): Promise<boolean> {
+): boolean {
   const email = user?.emails[0]?.toLowerCase();
   if (!isBootstrapAdminEmail(email)) return false;
-  const method = user?.loginMethods.find((m) => m.email?.toLowerCase() === email);
-  return (
-    method !== undefined &&
-    (await EmailVerificationNode.isEmailVerified(method.recipeUserId, method.email))
-  );
+  return user?.loginMethods.find((m) => m.email?.toLowerCase() === email)?.verified === true;
 }
 
-/** Offers deletion unless the account is the actor's own or a bootstrap admin. */
-export async function canOfferUserDeletion(
+export function canOfferUserDeletion(
   user: Pick<User, 'id' | 'emails' | 'loginMethods'>,
   actorId: string
-): Promise<boolean> {
-  if (user.id === actorId) return false;
-  try {
-    return !(await hasVerifiedBootstrapEmail(user));
-  } catch {
-    return false;
-  }
+): boolean {
+  return user.id !== actorId && !hasVerifiedBootstrapEmail(user);
 }
 
 /**
@@ -47,7 +36,7 @@ export async function canOfferUserDeletion(
  */
 export async function isBootstrapAdmin(userId: string): Promise<boolean> {
   try {
-    return await hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId));
+    return hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId));
   } catch {
     return true;
   }
@@ -60,7 +49,7 @@ export async function isBootstrapAdmin(userId: string): Promise<boolean> {
  */
 export async function isConfirmedBootstrapAdmin(userId: string): Promise<boolean> {
   try {
-    return await hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId));
+    return hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId));
   } catch {
     return false;
   }

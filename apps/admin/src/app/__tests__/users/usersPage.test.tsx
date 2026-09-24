@@ -18,7 +18,7 @@ jest.mock('supertokens-node/recipe/usermetadata', () => ({
 }));
 
 jest.mock('@/app/features/users/bootstrap', () => ({
-  canOfferUserDeletion: jest.fn(async () => false),
+  canOfferUserDeletion: jest.fn(() => false),
 }));
 
 // The export button and the table each import a server-action module, and those

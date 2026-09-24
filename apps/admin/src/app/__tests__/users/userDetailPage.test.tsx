@@ -34,12 +34,6 @@ jest.mock('supertokens-node/recipe/userroles', () => ({
   default: { getRolesForUser: (...a: unknown[]) => getRolesForUserMock(...a) },
 }));
 
-const isEmailVerifiedMock = jest.fn();
-jest.mock('supertokens-node/recipe/emailverification', () => ({
-  __esModule: true,
-  default: { isEmailVerified: (...a: unknown[]) => isEmailVerifiedMock(...a) },
-}));
-
 const requireSuperAdminMock = jest.fn();
 jest.mock('@/app/config/backend', () => ({
   ensureSuperTokensInit: jest.fn(),
@@ -113,10 +107,11 @@ beforeEach(() => {
   listDevicesMock.mockResolvedValue({ status: 'OK', devices: [] });
   getRolesForUserMock.mockResolvedValue({ roles: [] });
   requireSuperAdminMock.mockResolvedValue({ userId: 'admin-1' });
-  isEmailVerifiedMock.mockResolvedValue(true);
 });
 
-const BOOTSTRAP_LOGIN = [{ recipeId: 'emailpassword', email: 'boot@example.com' }];
+function bootstrapLogin(verified: boolean) {
+  return [{ recipeId: 'emailpassword', email: 'boot@example.com', verified }];
+}
 
 describe('UserDetailPage', () => {
   it('calls notFound when the user does not exist', async () => {
@@ -159,7 +154,7 @@ describe('UserDetailPage', () => {
 
   it('marks a bootstrap-allowlisted user as Bootstrap and hides the role button', async () => {
     getUserMock.mockResolvedValue(
-      makeUser({ emails: ['boot@example.com'], loginMethods: BOOTSTRAP_LOGIN })
+      makeUser({ emails: ['boot@example.com'], loginMethods: bootstrapLogin(true) })
     );
     listDevicesMock.mockResolvedValue({
       status: 'OK',
@@ -185,9 +180,8 @@ describe('UserDetailPage', () => {
 
   it('manages an unconfirmed account on a bootstrap email like any other user', async () => {
     getUserMock.mockResolvedValue(
-      makeUser({ emails: ['boot@example.com'], loginMethods: BOOTSTRAP_LOGIN })
+      makeUser({ emails: ['boot@example.com'], loginMethods: bootstrapLogin(false) })
     );
-    isEmailVerifiedMock.mockResolvedValue(false);
 
     await renderPage();
     expect(screen.getByText('Standard user')).toBeInTheDocument();

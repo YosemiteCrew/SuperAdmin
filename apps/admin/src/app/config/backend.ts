@@ -142,7 +142,7 @@ export async function isSuperAdminUser(userId: string): Promise<boolean> {
     return true;
   }
 
-  if (await hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId))) {
+  if (hasVerifiedBootstrapEmail(await SuperTokens.getUser(userId))) {
     await grantSuperAdmin(userId);
     return true;
   }

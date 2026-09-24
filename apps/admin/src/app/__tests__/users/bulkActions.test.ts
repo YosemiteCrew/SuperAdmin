@@ -10,12 +10,6 @@ jest.mock('supertokens-node', () => ({
   },
 }));
 
-const isEmailVerifiedMock = jest.fn();
-jest.mock('supertokens-node/recipe/emailverification', () => ({
-  __esModule: true,
-  default: { isEmailVerified: (...a: unknown[]) => isEmailVerifiedMock(...a) },
-}));
-
 const revokeAllSessionsForUserMock = jest.fn();
 jest.mock('supertokens-node/recipe/session', () => ({
   __esModule: true,
@@ -52,8 +46,8 @@ import {
   bulkEnableUsersAction,
 } from '@/app/(routes)/(dashboard)/users/bulkActions';
 
-function account(email: string) {
-  return { emails: [email], loginMethods: [{ email, recipeUserId: `recipe-${email}` }] };
+function account(email: string, verified = true) {
+  return { emails: [email], loginMethods: [{ email, verified }] };
 }
 
 beforeEach(() => {
@@ -66,7 +60,6 @@ beforeEach(() => {
   getUserMetadataMock.mockReset().mockResolvedValue({ metadata: { disabledAt: 1 } });
   updateUserMetadataMock.mockReset().mockResolvedValue(undefined);
   recordAuditEventMock.mockReset();
-  isEmailVerifiedMock.mockReset().mockResolvedValue(true);
 });
 
 describe('bulkDisableUsersAction', () => {
@@ -130,8 +123,7 @@ describe('bulkDisableUsersAction', () => {
   });
 
   it('disables an unconfirmed account on a bootstrap email', async () => {
-    getUserMock.mockResolvedValue(account('boot@x.com'));
-    isEmailVerifiedMock.mockResolvedValue(false);
+    getUserMock.mockResolvedValue(account('boot@x.com', false));
 
     const result = await bulkDisableUsersAction(['boot-1']);
 
@@ -330,8 +322,7 @@ describe('bulkDeleteUsersAction', () => {
   });
 
   it('deletes an unconfirmed account on a bootstrap email', async () => {
-    getUserMock.mockResolvedValue(account('boot@x.com'));
-    isEmailVerifiedMock.mockResolvedValue(false);
+    getUserMock.mockResolvedValue(account('boot@x.com', false));
 
     const result = await bulkDeleteUsersAction(['boot-1']);
 
