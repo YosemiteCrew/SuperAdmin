@@ -3,31 +3,10 @@
 /**
  * Assert that a specific commit is the one the deployed app is serving.
  *
- * Nothing in this repository observed whether a merge to `main` actually
- * shipped. The panel deploys through the Amplify GitHub app, so there is no CD
- * workflow to fail and no webhook response to check - a merge either becomes a
- * build or does not, and the only signal was the Amplify console. On
- * 2026-09-06 a `DATABASE_URL` edit broke `migrate:deploy` and `main` stopped
- * deploying entirely; the repository stayed green, the site stayed up serving
- * the previous artifact, and the break was found by someone reading the job
- * list on a hunch.
- *
- * The deployed artifact can answer the question itself. `/api/health` publishes
- * the commit it was built from, and its own comment says why: so an assertion
- * can be tied to the artifact it was made against. This is that assertion.
- *
- * No AWS API call: the IAM principal available to this fleet is under an
- * explicit deny for Amplify configuration, and a check nobody can run is not a
- * check. One HTTP request is the whole dependency.
- *
- * `/api/health` is one of the named `BASIC_AUTH_EXEMPTIONS` the app's own gate
- * carries (`apps/admin/src/proxy.ts`, landed in #377) - a route called by
- * machines that cannot complete a browser Basic Auth challenge is exempt from
- * the panel-wide layer by design. So this request is unauthenticated on
- * purpose, not because a credential is missing. If a 401 with a Basic
- * challenge ever comes back from this URL, that exemption has been removed or
- * narrowed; treat it as terminal rather than retrying, since no credential
- * this script could supply would fix a routing decision.
+ * `/api/health` publishes the commit the running build was made from, so one
+ * HTTP request can tie an assertion to the build it was made against. The route
+ * answers without authentication. A 401 with a Basic challenge is treated as
+ * terminal rather than retried, since waiting longer does not change it.
  *
  *   node apps/admin/src/ci/assert-deployed.js --url <health-url> --sha <commit>
  *
@@ -74,17 +53,14 @@ async function readDeployedSha(url) {
     return { sha: null, reason: `unreachable (${code})` };
   }
   if (!response.ok) {
-    // `/api/health` is a named exemption from the app's own Basic Auth gate
-    // (see the file header). A 401 with a Basic challenge means that
-    // exemption is gone, not that this run is missing a credential - there is
-    // no credential to supply, so polling for the full timeout only delays
-    // the answer.
+    // A 401 with a Basic challenge does not change by waiting, so polling for
+    // the full timeout would only delay the answer.
     const challenge = response.headers.get('www-authenticate');
     if (response.status === 401 && challenge?.toLowerCase().startsWith('basic')) {
       return {
         sha: null,
         terminal: true,
-        reason: 'HTTP 401 with a Basic challenge - the /api/health exemption appears to be gone',
+        reason: 'HTTP 401 with a Basic challenge - the health route requires authentication',
       };
     }
     return { sha: null, reason: `HTTP ${response.status}` };
@@ -165,20 +141,13 @@ async function main(argv = process.argv.slice(2)) {
       ...(gated
         ? [
             'This says NOTHING about whether the deploy succeeded - the sha was',
-            'never read. `GET /api/health` is supposed to be exempt from the',
-            "panel's Basic Auth gate (`BASIC_AUTH_EXEMPTIONS` in",
-            '`apps/admin/src/proxy.ts`). A 401 here means that exemption has been',
-            'removed or the route renamed - fix the exemption list, there is no',
-            'credential this workflow can add to work around it.',
-            '',
-            'Do not switch this workflow off to make the red go away. It is',
-            'reporting that it cannot see production, which is the state it exists',
-            'to make visible.',
+            'never read. `GET /api/health` is expected to answer without',
+            'authentication.',
           ]
         : [
-            'This does not mean the site is down - it usually means the build never',
-            'produced an artifact. Check the Amplify job list for this branch; the',
-            'previous artifact keeps serving, which is why nothing else goes red.',
+            'This does not mean the site is down - it usually means the build for',
+            'this commit did not finish, and the previous build keeps serving.',
+            'Check the build log for this branch.',
           ]),
     ].join('\n')
   );

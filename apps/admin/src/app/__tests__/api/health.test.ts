@@ -134,7 +134,7 @@ describe('GET /api/health', () => {
     // reach the response body.
     it('never leaks the error message', async () => {
       mockQueryRaw.mockRejectedValue(
-        new Error("Can't reach database server at aws-1-eu-central-1.pooler.supabase.com:5432")
+        new Error("Can't reach database server at aws-0-example.pooler.supabase.com:5432")
       );
       const body = await (await GET()).text();
       expect(body).not.toContain('pooler.supabase.com');

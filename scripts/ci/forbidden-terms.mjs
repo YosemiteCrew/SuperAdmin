@@ -1,13 +1,8 @@
 #!/usr/bin/env node
 // Forbidden-terms gate.
 //
-// Both repositories are public. Prior art may be studied freely; the source may
-// never be NAMED - not in code, comments, tests, fixtures, docs, commit
-// messages, branch names, or pull-request text. Until this script existed the
-// rule was enforced by a git hook on three laptops, and a hook is a reminder
-// rather than a gate: `pnpm install` runs husky's `prepare`, which rewrites
-// `core.hooksPath` for the whole clone, and the guard is disarmed until somebody
-// notices. That happened seven times in one day and reached a commit once.
+// Blocks a pull request that names a third-party product on any of its
+// surfaces: diff, file names, commit messages, branch name, title and body.
 //
 // WHAT THIS SCRIPT MUST NEVER DO
 //
@@ -15,35 +10,28 @@
 //   * print the pattern, decoded or encoded
 //   * write either to a file, an output, or a job summary
 //
-// A guard whose failure output is the list of terms is worse than no guard: the
-// run log of a public repository is a published artifact in a way a terminal is
-// not. Findings therefore carry a SURFACE, a FILE and a LINE and nothing else.
-// That is enough to act on, because the author knows what they wrote.
+// The run log of a public repository is public, so findings carry a SURFACE, a
+// FILE and a LINE and nothing else. That is enough to act on, because the
+// author knows what they wrote.
 //
-// WHY THE PATTERN IS AN ENVIRONMENT VARIABLE AND NOT A FILE
-//
-// The pattern is the term list. Committing it to a public repository publishes
-// exactly what it exists to withhold, so it arrives as a base64 blob in a
-// repository secret and is decoded here. The must-block corpus is a second blob
-// for the same reason. The must-PASS corpus is checked in
-// (forbidden-terms-allowed-prose.txt) because it names nothing.
+// The pattern and the must-block corpus arrive base64-encoded through the
+// environment. The must-PASS corpus is checked in
+// (forbidden-terms-allowed-prose.txt).
 //
 // ERRORING IS NOT FINDING. Exit 2 means the guard could not run - no pattern, a
 // pattern that will not compile, a corpus that came back short, a self-test that
 // failed. Exit 1 means it ran and found something. Exit 0 means it ran and did
-// not. A caller that treats 2 as clean has reintroduced the failure this whole
-// script exists to remove.
+// not. A caller must never treat 2 as clean.
 //
 // Usage:
 //   node scripts/ci/forbidden-terms.mjs selftest --min-corpus <n>
 //   node scripts/ci/forbidden-terms.mjs scan --dir <directory>
 //
 // The directory holds one file per surface, named for it: diff, names,
-// messages, branch, title, body. ALL SIX are read and a missing one is exit 2 -
-// the caller does not get to choose which surfaces are checked, because a
-// caller that can omit one is a caller that will. `diff` expects unified diff
-// text and reports the file and line of the ADDED line, which is why it is a
-// surface of its own rather than another blob of text.
+// messages, branch, title, body. ALL SIX are read and a missing one is exit 2,
+// so the caller cannot choose which surfaces are checked. `diff` expects unified
+// diff text and reports the file and line of the ADDED line, which is why it is
+// a surface of its own rather than another blob of text.
 
 import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
@@ -71,10 +59,8 @@ class GuardError extends Error {}
  * Decodes a base64 blob from the environment.
  *
  * An absent or empty value is an ERROR and not an empty pattern. `new
- * RegExp('')` matches every line and `grep -E ''` matches every line, while
- * some formulations match nothing: one fails every pull request and the other
- * passes every pull request silently. Both are wrong, and the silent one is the
- * failure mode this script was written to end.
+ * RegExp('')` matches every line while some formulations match nothing: one
+ * fails every pull request and the other passes every pull request silently.
  */
 function decodeRequired(name) {
   const raw = process.env[name];
@@ -98,26 +84,12 @@ function decodeRequired(name) {
  *
  * Deliberately NOT global. `RegExp.prototype.test` on a `g` regex carries
  * `lastIndex` between calls, so adding `g` here would make every other entry in
- * `scanSurface`'s filter invisible - a guard that checks half its input and says
- * nothing about the half it skipped.
- */
-/**
- * The pattern, compiled case-insensitively because the terms are words.
+ * `scanSurface`'s filter invisible.
  *
- * `'i'` AND NOT `'iu'`, and the absence is load-bearing rather than an
- * oversight. The `u` flag changes case folding on the HAYSTACK, so
- * `PATTERN_SHAPE` cannot see it - it constrains the pattern, and this is the one
- * axis that is not about the pattern at all. Under `iu`, `k` matches U+212A
- * KELVIN SIGN; under `i` it does not, and neither does the machine-local hook's
- * POSIX `grep -inE`. So the missing `u` is what makes "one value used twice"
- * true rather than "two implementations that agree on ASCII".
- *
- * Driven with the haystack asserted by its bytes: `61e284aa62`, `/k/i` false,
- * `/k/iu` true, `/usr/bin/grep -inE k` no match, and both controls (`aKb`
- * matching everywhere, `azb` nowhere). Raised in review. `PATTERN_SHAPE` two
- * dozen lines below carries `/u` legitimately - it has no haystack of untrusted
- * text - so harmonising the two reads like tidying up, which is why there is a
- * behavioural case pinning this one.
+ * `'i'` AND NOT `'iu'`. The `u` flag changes case folding on the HAYSTACK, which
+ * `PATTERN_SHAPE` cannot constrain: under `iu`, `k` matches U+212A KELVIN SIGN;
+ * under `i` it does not. A behavioural case pins this, because `PATTERN_SHAPE`
+ * below carries `/u` legitimately and harmonising the two reads like tidying up.
  */
 export function compilePattern(source) {
   try {
@@ -133,36 +105,11 @@ export function compilePattern(source) {
  * The only pattern shape this guard accepts: a `|` alternation of literal words
  * over `[A-Za-z0-9 -]`.
  *
- * Two separate jobs, one predicate, and it is not a coincidence that the same
- * character set answers both.
- *
- * FIRST, the two implementations agree ON CONSTRUCTS. This pattern is consumed
- * twice - here through `new RegExp(source, 'i')`, and by the machine-local hook
- * through `grep -inE`, which is POSIX ERE. `\b`, `\d`, a quantifier or a class
- * can mean different things in the two dialects, and then the value is a
- * TRANSLATION between them rather than one value used twice. Inside this
- * alphabet there is no construct they can disagree about.
- *
- * BE PRECISE ABOUT WHAT THAT DOES NOT COVER, because the narrower statement is
- * the true one and the wider one was written here first. Removing construct
- * disagreement does not make the two implementations identical: they can still
- * differ on the SAME in-shape value, because case folding is a property of the
- * engine and the locale rather than of the pattern. Measured - `s` against
- * U+017F LATIN SMALL LETTER LONG S is no match for `new RegExp(s,'i')` and for
- * BSD grep in every locale (this is what our machines have, bytes `61c5bf62`
- * verified by `od`, with `aSb`/`azb` controls on both sides), and a MATCH for
- * GNU grep 3.8 under `LC_ALL=C.UTF-8`. Reported by another machine; not
- * reproducible here, where there is no GNU grep.
- *
- * So the agreement rests partly on which `grep` is on `PATH`, and
- * `PATTERN_SHAPE` cannot reach that. It is not pinned by a test because a CI
- * test would assert GNU grep's behaviour, which is not the implementation the
- * claim is about. The direction is harmless: grep matching MORE means a local
- * hook false-positives, never that something CI would block gets through.
- *
- * SECOND, `alternativesIn` below is exact. Counting by splitting on `|` is
- * right for a plain alternation and wrong the moment a group, an escaped pipe
- * or a class containing one appears.
+ * Inside this alphabet there are no constructs (`\b`, `\d`, quantifiers,
+ * classes, groups) whose meaning can differ between regular-expression dialects,
+ * nothing can backtrack pathologically, and `alternativesIn` below is exact:
+ * counting by splitting on `|` is right for a plain alternation and wrong the
+ * moment a group, an escaped pipe or a class containing one appears.
  *
  * It fails CLOSED: a pattern outside this shape is a red self-test with an
  * explanation, never a silently weaker check. If a future pattern genuinely
@@ -202,20 +149,14 @@ export function corpusLines(text) {
  * `+++ b/path` is the header rather than an addition, and it is told apart from
  * an addition BY POSITION, not by content: git writes an added line whose text
  * begins `++ ` as `+++ `, which `startsWith('+++ ')` cannot distinguish from a
- * header. The first version of this function did exactly that, and it failed in
- * both directions at once - the line carrying the term was never scanned, and
- * `file` became a line of the pull request's own diff, which the report then
- * PRINTED. A guard that publishes diff content into a public log on an unusual
- * input is worse than one that misses, because the miss is at least silent.
+ * header. Getting that wrong fails in both directions at once - the line is
+ * never scanned, and `file` becomes a line of the diff, which the report would
+ * then print.
  *
  * Position is taken from the hunk header's own declared counts rather than from
  * `diff --git`, which needs no assumption about which optional lines git chose
  * to emit: `@@ -a,b +c,d @@` says how many lines the hunk owns, so a `+++ `
  * inside that debt is an addition and one after it is discharged is a header.
- *
- * Found in review by Claude L2, against real `git diff --unified=0` output
- * rather than a fixture - which is also why the fixtures here are approximations
- * that the naive positional fix appears to fail.
  */
 export function addedLines(diff) {
   const out = [];
@@ -299,8 +240,7 @@ function scanAttribution(surface, text) {
 
 /**
  * Proves the guard is armed. Without this an empty, rotated or truncated secret
- * is a silently green pull request, which is failure mode six of the six this
- * gate replaces - the fix having the same defect as the thing it fixed.
+ * would be a silently green pull request.
  *
  * `minCorpus` is written in the workflow IN THE CLEAR. A number is not a term
  * list, and it turns "the secret lost half its entries" from silent into red.
@@ -335,15 +275,9 @@ export function selfTest({ pattern, blockCorpus, passCorpus, minCorpus }) {
     );
   } else {
     // Every alternative must be exercised by SOME corpus entry, reported by
-    // index. This is the check that answers the question; the count below is a
-    // weaker proxy for it.
-    //
-    // A count is green on a corpus that piles up on one alternative - three
-    // spellings of one term and none of another satisfies `3 >= 3` while two
-    // alternatives are checked by nothing, which is precisely the state a typo
-    // in a new alternative produces. Raised in review, driven, and it is the
-    // per-pattern-versus-per-part distinction one level down: one hit satisfies
-    // the whole and hides the parts.
+    // index. A count alone is green on a corpus that piles up on one
+    // alternative while another is checked by nothing, which is exactly the
+    // state a typo in a new alternative produces.
     //
     // `compilePattern` rather than a second `new RegExp(...)`, so the flags can
     // never drift from the ones the real pattern is built with - and it is safe
@@ -443,13 +377,6 @@ function runSelfTest(argv) {
 /**
  * Reads a DIRECTORY and scans every surface in SURFACES, by fixed name.
  *
- * It took a list of `<surface>=<file>` pairs first, and that was the same
- * defect as the ones this repository spent the day finding: the caller decided
- * what got checked, nothing asserted the caller passed them all, and dropping
- * `body=` from the workflow left the scan reporting
- * "clean - no named external product on any checked surface" while the pull
- * request body carried one. The word "checked" was doing silent work.
- *
  * A directory of fixed names cannot be short-passed. There is no argument to
  * omit, so the coverage is a property of this file rather than of the workflow
  * that calls it - and a surface the collector failed to write is an unreadable
@@ -467,16 +394,9 @@ function runScan(argv) {
   //
   // `PATTERN_SHAPE` is what keeps this regular expression free of the nested
   // quantifiers and ambiguous groups that backtrack exponentially, and every
-  // string it is about to run against - the diff, the branch name, the title,
-  // the body - comes from the pull request. In the workflow the self-test runs
-  // first, so a pathological pattern is already red before this line is
-  // reached; but that is an ORDER OF STEPS in another file, which is the same
-  // kind of guarantee this commit exists to stop relying on. A caller that runs
-  // `scan` without `selftest` gets the check anyway.
-  //
-  // Deliberate divergence from the sibling repository, whose copy has this
-  // predicate only in `selfTest`. It belongs in both; the sibling should take
-  // it rather than this one give it back.
+  // string it is about to run against comes from the pull request. The workflow
+  // runs the self-test first, but a caller that runs `scan` without `selftest`
+  // gets the check anyway.
   if (!PATTERN_SHAPE.test(pattern.source)) {
     throw new GuardError(
       'the pattern is not a plain alternation of literal words over [A-Za-z0-9 -], ' +
@@ -485,15 +405,9 @@ function runScan(argv) {
   }
 
   // RESOLVE ONCE, THEN CHANGE INTO IT, so the six reads below take the SURFACES
-  // constants themselves and nothing built from `--dir`. The docstring above
-  // says the coverage is a property of this file rather than of the caller, and
-  // until now that was true of the LOOP while the read still took a path joined
-  // from the caller's argument. Both are constants now.
-  //
-  // A missing directory is reported as a missing DIRECTORY. It used to surface
-  // as `Cannot read the 'diff' surface` - the first thing the loop happened to
-  // touch - which is the same defect the workflow's Preconditions step was
-  // rewritten to remove: a guard that cannot run should say what it needs.
+  // constants themselves and nothing built from `--dir`. A missing directory is
+  // reported as a missing DIRECTORY rather than as the first surface the loop
+  // happened to touch.
   let root;
   try {
     root = realpathSync(dir);
@@ -507,20 +421,10 @@ function runScan(argv) {
     let text;
     let fd;
     try {
-      // ONE handle, opened once, checked and read through the same descriptor.
-      //
-      // This used to be `lstatSync(surface).isFile()` followed by
-      // `readFileSync(surface)`, which is two resolutions of one name: the
-      // check answers about whatever the path meant then, the read about
-      // whatever it means now, and a surface swapped for a symlink in between
-      // is read as its target while the guard believes it checked a plain file.
-      // `js/file-system-race`, and the window is real rather than theoretical -
-      // the surfaces live in a directory this process chdir'd into.
-      //
-      // `O_NOFOLLOW` is also STRICTER than the lstat it replaces: the kernel
-      // refuses the open rather than this code refusing the result, so there is
-      // no window at all. ELOOP is that refusal and keeps the message the lstat
-      // check gave, because it means the same thing to whoever reads it.
+      // ONE handle, opened once, checked and read through the same descriptor,
+      // so the check and the read cannot resolve the name to different files.
+      // `O_NOFOLLOW` makes the kernel refuse a symlink outright; ELOOP is that
+      // refusal.
       try {
         fd = openSync(surface, constants.O_RDONLY | constants.O_NOFOLLOW);
       } catch (error) {
@@ -572,7 +476,7 @@ function runScan(argv) {
     process.stderr.write(`  [${finding.surface}] ${where}\n`);
   }
   process.stderr.write(
-    '\nThese repositories are public. Draw on prior art freely; never name the source in code,\n' +
+    '\nThese repositories are public. Keep third-party product names out of code,\n' +
       'comments, tests, fixtures, docs, commit messages, branch names or pull-request text.\n' +
       'Describe the behaviour and the clinical need instead.\n\n' +
       'The match itself is deliberately not printed: this log is public.\n'
@@ -600,35 +504,15 @@ function main(argv) {
 
 // Compared by REAL path, both sides. Node resolves the ESM main entry to its
 // realpath while `process.argv[1]` keeps the path as it was typed, so invoked
-// through a symlink the two disagree, `main` never runs, and the process exits
-// 0 having done nothing. Measured on node v22.23.2: direct invocation runs and
-// the same file reached through a link is silent with status 0.
+// through a symlink (the script itself or any parent directory) a lexical
+// comparison disagrees, `main` never runs, and the process exits 0 having done
+// nothing. The workflow's `scanned` receipt keys on the scan's own output for
+// the same reason: a clean exit is not a scan.
 //
-// That is the one exit code the workflow's `scanned` receipt cannot interpret -
-// a clean exit is not a scan - so the receipt no longer keys on it either. Both
-// halves are needed: this one stops the no-op, and the receipt stops the NEXT
-// way a no-op exits 0.
-//
-// BOTH sides, and any symlinked COMPONENT counts - the script does not have to
-// be the link. `path.resolve` is purely lexical and never touches the
-// filesystem, so a real script reached through a linked parent directory fails
-// the comparison exactly as a linked script does, with nothing linked inside
-// the repository and nothing in the diff. There is a live instance of that on
-// every machine here: `$TMPDIR` sits behind `/var -> /private/var`.
-//
-// Falls back to the lexical pair rather than throwing. A realpath that fails
-// means the entry has gone missing under us, which is not a reason to make
-// importing this module for its pure helpers fail at load.
-//
-// Written inline rather than as a `realOrLexical(candidate)` helper on purpose,
-// and measured rather than assumed: the helper form scores an
-// AIK_ts_generic_path_traversal on its `path.resolve(candidate)`, because that
-// rule counts parameter hops into a path operation rather than where the value
-// came from. Same reason the surface loop above reads constants after a chdir.
-//
-// Both or neither. Assigning the two separately would leave one real and one
-// lexical if the first call threw, which is the mismatch this whole comparison
-// exists to avoid.
+// Falls back to the lexical pair rather than throwing: a realpath that fails
+// means the entry has gone missing, which is not a reason to make importing
+// this module for its pure helpers fail at load. Both or neither, so the two
+// sides are never one real and one lexical.
 const entryPoint = process.argv[1];
 if (entryPoint) {
   let entryId = path.resolve(entryPoint);

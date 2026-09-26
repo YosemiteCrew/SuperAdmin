@@ -13,7 +13,7 @@
 NOT request.url: on the Amplify SSR runtime that is the internal origin
 
 # .github/workflows/forbidden-terms.yml
-nothing from the head - and CodeQL was right that a convention is not a
+refs/pull/<n>/head and is never merged, built, installed or executed.
 
 # AGENTS.md
 Use `pnpm`. Always scope with `--filter`. Never run bare `pnpm install` in an app directory — run from root.

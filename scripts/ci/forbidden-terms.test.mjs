@@ -1,14 +1,9 @@
 // Tests for the forbidden-terms gate.
 //
-// The real pattern is a repository secret and is deliberately not available
-// here. That is not a gap: these tests pin the MACHINERY with a synthetic
-// pattern, in the open, where the assertions can be read. The real pattern's
-// behaviour is pinned by the `selftest` command, which runs in CI where the
-// secret exists and asserts the pattern against both corpora before the job
-// looks at a single line of the pull request.
-//
-// Splitting it that way is the point: everything testable without the secret is
-// tested without the secret.
+// These tests pin the MACHINERY with a synthetic pattern, in the open, where the
+// assertions can be read. The real pattern's behaviour is pinned by the
+// `selftest` command, which asserts it against both corpora before the job looks
+// at a single line of the pull request.
 
 import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
@@ -397,26 +392,11 @@ test('a clean run says how many surfaces it read', () => {
 });
 
 test('every surface is a bare filename', () => {
-  // `runScan` builds each path as path.join(dir, surface), so an entry carrying
-  // a separator or a `..` reads a file the collector never wrote. Cardinality
-  // pins WHICH surfaces are read; nothing above pins their SHAPE. `../body` is
-  // caught several other ways because the file does not exist under the fixture
-  // root - a fact about where the test writes its files, not about this set.
-  // `./title` is the case that shows what this assertion is for: it resolves to
-  // the SAME file, every other test stays green (28 / 1), and only a statement
-  // about the shape of the entry sees it at all. NOT `./body`, which is 27 / 2
-  // because it also trips the exit-2 test - and that one matches
-  // `Cannot read the 'body' surface`, a hardcoded name in an error message
-  // rather than anything about containment.
-  //
-  // HALF of the argument that the file-inclusion finding on that join is
-  // unreachable, and the half that is checked. The join has two operands. This
-  // pins the set: every entry is a bare name, so no entry can escape `dir`. It
-  // says NOTHING about the call site - a second caller-controlled operand added
-  // to the same `path.join` leaves this suite at 29/0. No assertion here can
-  // reach that: a dormant variable has no behaviour to observe, and a source
-  // regex over `path.join(dir, surface)` goes red on renaming the loop variable,
-  // which is a legal edit. That half is held by review and by nothing else.
+  // `runScan` reads each surface by name from the surface directory, so an entry
+  // carrying a separator or a `..` would read a file the collector never wrote.
+  // Cardinality pins WHICH surfaces are read; this pins their SHAPE. `./title`
+  // shows why: it resolves to the SAME file and every other test stays green,
+  // so only a statement about the shape of the entry sees it at all.
   assert.notEqual(SURFACES.size, 0, 'no surfaces: this test is reading nothing');
   for (const surface of SURFACES) {
     assert.equal(path.basename(surface), surface, `'${surface}' is not a bare filename`);
@@ -430,7 +410,7 @@ test('every surface is a bare filename', () => {
 
 test('a pattern that does not compile is reported without quoting the pattern', () => {
   // The RegExp constructor's own message quotes the source. Letting it out
-  // would publish the term list on the one run where the secret is malformed.
+  // would publish the pattern on the one run where it is malformed.
   assert.throws(
     () => compilePattern('acme(health'),
     (error) =>
@@ -444,8 +424,7 @@ test('a pattern that does not compile is reported without quoting the pattern', 
 //
 // The shape predicate constrains the PATTERN. `compilePattern`'s flags are the
 // other half of what the guard matches with, and one of them acts on the
-// HAYSTACK, where no constraint on the pattern can reach it. Found by mutating
-// the module against this file: `'i'` -> `'iu'` was green on all 47 tests.
+// HAYSTACK, where no constraint on the pattern can reach it.
 //
 // `g` and `y` are already pinned, because both carry `lastIndex` between calls
 // and the surface tests go red. `s`, `m` and `d` are invisible and that is
@@ -477,9 +456,7 @@ for (const [name, char, ascii] of FOLD_ONLY_TO_ASCII) {
     assert.equal(p.test(`ACME${ascii.toUpperCase()}ARE`), true, 'upper case must match');
 
     // The assertion. `u` folds this code point onto its ASCII letter, and the
-    // guard would then match a string the machine-local `grep -inE` does not -
-    // making the secret a TRANSLATION between the two implementations rather
-    // than one value used twice, which is the whole argument for PATTERN_SHAPE.
+    // guard would then match more than the plain reading of the pattern.
     assert.equal(p.test(`acme${char}are`), false, `${name} must not fold onto '${ascii}'`);
 
     // ...and the control that earns that `false`. Built from a literal `'iu'`
@@ -544,7 +521,7 @@ test('a known positive the pattern misses is a problem, reported by position', (
 });
 
 test('a corpus shorter than the declared minimum is a problem', () => {
-  // The truncated-secret case. Nothing else notices it: a short corpus still
+  // The truncated-corpus case. Nothing else notices it: a short corpus still
   // passes every entry it has.
   //
   // The corpus is long enough for the ARITY check on purpose - one entry per
@@ -581,21 +558,17 @@ test('a pattern that matches this repository own prose is a problem', () => {
   assert.doesNotMatch(problems[0], /plain alternation/u, 'this case must not be a shape failure');
 });
 
-test('the compiled pattern folds case the way the other implementation does', () => {
+test('the compiled pattern folds case only across ASCII', () => {
   // `'i'` and NOT `'iu'`, pinned behaviourally rather than by reading the flags
   // string - the flags are two characters that read like a tidy-up next to the
-  // `/u` on PATTERN_SHAPE twenty lines away, and PATTERN_SHAPE cannot see this
-  // because `u` changes folding on the HAYSTACK rather than on the pattern.
+  // `/u` on PATTERN_SHAPE, and PATTERN_SHAPE cannot see this because `u`
+  // changes folding on the HAYSTACK rather than on the pattern.
   //
-  // Under `iu`, `k` matches U+212A KELVIN SIGN. Under `i` it does not, and
-  // neither does the machine-local hook's POSIX `grep -inE`. So the missing `u`
-  // is what makes "one secret used in two implementations" true rather than
-  // "two implementations that agree on ASCII". Raised in review.
+  // Under `iu`, `k` matches U+212A KELVIN SIGN. Under `i` it does not.
   const kelvin = 'a\u212Ab';
 
   // The haystack asserted by its BYTES. A literal that silently degraded to
-  // ASCII would make every row below pass for the wrong reason - which is how
-  // this was first measured wrongly.
+  // ASCII would make every row below pass for the wrong reason.
   assert.equal(Buffer.from(kelvin, 'utf8').toString('hex'), '61e284aa62');
 
   assert.equal(compilePattern('k').test(kelvin), false, 'the u flag has been added');
@@ -615,7 +588,6 @@ test('an alternative no corpus entry exercises is a problem, reported by positio
   // Three entries against three alternatives satisfies `3 >= 3` while two
   // alternatives are matched by nothing - three spellings of one term and none
   // of another, which is what a corpus of variants naturally drifts into.
-  // Raised in review after the count shipped.
   const problems = selfTest({
     pattern,
     blockCorpus: ['acmehealth', 'acmehealth ltd', 'a acmehealth thing'],
@@ -642,8 +614,7 @@ test('an alternative is exercised only if the pattern MATCHES the entry, not if 
   // matches it.
   //
   // Without this the substitution is still caught, but by a case about the
-  // ACCEPTED ALPHABET, which names the wrong cause. Raised against my own
-  // matrix.
+  // ACCEPTED ALPHABET, which names the wrong cause.
   const problems = selfTest({
     pattern: compilePattern('acmehealth'),
     blockCorpus: ['ACMEHEALTH'],
@@ -669,10 +640,8 @@ test('a corpus shorter than the alternation is a problem even when all of it is 
 });
 
 test('a corpus ONE short of the alternation fires, which is the boundary itself', () => {
-  // Weakening the count to `< claimed - 1` was green on everything until this
-  // existed: the two-short case below still fires under that mutation, and the
-  // equal case is silent under both, so nothing sat on the boundary. Two
-  // entries covering all three alternatives keeps the per-alternative check
+  // Pins the boundary: weakening the count to `< claimed - 1` must go red here.
+  // Two entries covering all three alternatives keeps the per-alternative check
   // quiet, so the single problem is the count and only the count.
   const problems = selfTest({
     pattern,
@@ -686,9 +655,8 @@ test('a corpus ONE short of the alternation fires, which is the boundary itself'
 
 test('a corpus two short of the alternation still fires, which separates removed from off-by-one', () => {
   // Every other fixture is exactly one short, so deleting the count and
-  // weakening it to `< claimed - 1` redden an identical set and the two are
-  // indistinguishable. At two short the weakened form still fires and the
-  // deleted one does not. Raised in review; six lines of fixture.
+  // weakening it to `< claimed - 1` would redden an identical set. At two short
+  // the weakened form still fires and the deleted one does not.
   const problems = selfTest({
     pattern: compilePattern('acmehealth|acme health|acme-health|acme  health'),
     blockCorpus: ['acmehealth and acme health and acme-health and acme  health'],
@@ -701,10 +669,9 @@ test('a corpus two short of the alternation still fires, which separates removed
 
 test('the floor, the count and the per-alternative check are three checks, not one', () => {
   // Each fires alone on an input the other two are silent on. Without this the
-  // three could be one check wearing three messages, which is what the count
-  // alone looked like until the per-alternative check was driven.
+  // three could be one check wearing three messages.
 
-  // BOTH secrets truncating together: a pattern cut to one alternative against
+  // BOTH inputs truncating together: a pattern cut to one alternative against
   // a corpus cut to one entry satisfies `1 >= 1` and exercises that
   // alternative, so only the literal floor in the workflow sees the shrink.
   const bothShrank = selfTest({
@@ -831,9 +798,8 @@ test('a corpus with more entries than alternatives is fine', () => {
 test('a pattern outside the accepted shape is refused, and says why without quoting it', () => {
   // Fails CLOSED. Counting alternatives by splitting on `|` is exact for a plain
   // alternation and wrong for a group, an escaped pipe or a class containing
-  // one - and the same alphabet is what lets one value serve both this
-  // `new RegExp(source, 'i')` and the machine-local hook's POSIX `grep -inE`.
-  // So the shape carries two jobs and a pattern outside it makes neither sound.
+  // one, and the same alphabet keeps the pattern free of dialect-specific
+  // constructs. A pattern outside the shape makes neither sound.
   const problems = selfTest({
     pattern: compilePattern('(acmehealth|acme health)'),
     blockCorpus: ['acmehealth', 'acme health'],
@@ -888,9 +854,8 @@ test('a directory that does not exist exits 2 and names the DIRECTORY', () => {
 test('scan refuses a pattern outside PATTERN_SHAPE, without needing selftest first', () => {
   // The shape is what keeps this expression free of the nested quantifiers that
   // backtrack exponentially over pull-request text. In the workflow `selftest`
-  // runs first and would already be red - but that is an ORDER OF STEPS in
-  // another file, and a property held by step order is held by nothing this
-  // file can assert. So `scan` refuses on its own.
+  // runs first and would already be red, but `scan` refuses on its own so the
+  // property does not depend on step order in another file.
   //
   // The surfaces are clean and would scan to exit 0, so a green here would mean
   // the unconstrained pattern RAN. The control below is the same directory with
@@ -994,9 +959,8 @@ test('invoked through a symlinked PARENT DIRECTORY the CLI still runs', () => {
   // resolves only the script's own last component passes the case above and
   // still no-ops here.
   //
-  // There is a live instance of this layout on every machine here, which is how
-  // it was found: `$TMPDIR` sits behind `/var -> /private/var` on macOS, so a
-  // rig placed there reproduces the bug with nothing linked at all.
+  // `$TMPDIR` sits behind `/var -> /private/var` on macOS, so a rig placed there
+  // reproduces the bug with nothing linked at all.
   const linkedParent = path.join(mkdtempSync(path.join(os.tmpdir(), 'ft-dir-')), 'ci');
   symlinkSync(path.dirname(SCRIPT), linkedParent);
   const viaParent = path.join(linkedParent, path.basename(SCRIPT));
@@ -1031,8 +995,8 @@ test('scan without --dir exits 2', () => {
 });
 
 test('selftest without --min-corpus exits 2', () => {
-  // The number is the only thing standing between a truncated secret and a
-  // green run, so it is required rather than defaulted.
+  // The number is what turns a truncated corpus into a red run, so it is
+  // required rather than defaulted.
   const result = run(['selftest'], {
     FORBIDDEN_TERMS_PATTERN_B64: b64(SYNTHETIC),
     FORBIDDEN_TERMS_CORPUS_B64: b64('acmehealth'),
@@ -1054,15 +1018,9 @@ test("this repository's own prose passes every surface", () => {
 // ---------------------------------------------------------------------------
 
 test('the job is unprivileged and runs nothing the head can choose', () => {
-  // The workflow header argues that this job runs no install, no build, no
-  // head-provided script and no action pinned by the head. That argument IS the
-  // control, and until this case existed it was a paragraph: the next person
-  // adding a step reads it, agrees, and is still the only thing enforcing it.
-  //
-  // An exemption is the cheapest place to put an unchecked claim, because the
-  // claim is the reason you are allowed to skip the check. Half of this one is
-  // a fact a machine can settle, so it is settled here - with no dependency,
-  // because the job's own test step deliberately runs before any install.
+  // The job must run no install, no build, no head-provided script and no
+  // action pinned by the head. Settled here with no dependency, because the
+  // job's own test step deliberately runs before any install.
   const workflow = readFileSync(WORKFLOW, 'utf8');
 
   // Comments stripped first, so the header may keep DISCUSSING `set -x` without
@@ -1082,12 +1040,9 @@ test('the job is unprivileged and runs nothing the head can choose', () => {
     /^\s*pull_request:$/mu,
     'the job body does not declare pull_request: this test is reading the wrong thing'
   );
-  // The regression this whole change exists to prevent. `pull_request_target`
-  // runs in the base context WITH secrets on a fork, which is why it was here -
-  // and why CodeQL called it `actions/untrusted-checkout/high`. Reinstating it
-  // hands a fork the pattern the moment any step touches head-provided code,
-  // and the assertion above cannot see it: `pull_request_target:` does not match
-  // `pull_request:$`, so without this line a revert is silently green.
+  // `pull_request_target` runs in the base context with repository secrets on
+  // a fork, so it must not come back. The assertion above cannot see it:
+  // `pull_request_target:` does not match `pull_request:$`.
   assert.doesNotMatch(
     body,
     /^\s*pull_request_target:/mu,
@@ -1109,11 +1064,9 @@ test('the job is unprivileged and runs nothing the head can choose', () => {
     );
   }
 
-  // INVERTED by the move off `pull_request_target`, and the inversion is the
-  // point. That trigger checks out the base by default, so a bare checkout was
-  // correct and a `ref:` was the hazard. `pull_request` checks out the MERGE
-  // ref by default - the head's version of this guard and of this very test -
-  // so here the bare checkout is the hazard and the pin is the control.
+  // `pull_request` checks out the MERGE ref by default - the head's version of
+  // this guard and of this very test - so a bare checkout is the hazard and the
+  // pin to the base commit is the control.
   assert.match(
     body,
     /^\s*ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\b/mu,
@@ -1130,9 +1083,6 @@ test('the job is unprivileged and runs nothing the head can choose', () => {
 test('every diff the job collects passes a filter that includes type changes', () => {
   // The symlink case above proves what `T` buys, against real git - but it
   // hardcodes the filter, so reverting the workflow to `ACMR` leaves it green.
-  // That is the same shape as a guard that enumerates only the doors it already
-  // knows about: the behaviour is pinned and the USE of it is not.
-  //
   // So this reads the filter the job actually passes. Keyed on `--diff-filter=`
   // rather than on the exact string, because the set may legitimately grow -
   // what may not happen is `T` leaving it.
@@ -1165,13 +1115,10 @@ test('every diff the job collects passes a filter that includes type changes', (
 });
 
 test('the step that refuses a run which scanned nothing is not itself skippable', () => {
-  // `No `if:`, deliberately` is the enforcement, and it is a paragraph three
-  // lines above the fact it asserts. Adding that one line is the likeliest edit
-  // in the file rather than a contrived one: every other step concerning the
-  // pull request carries exactly that `if:`, the refusal is the single step
-  // without one, and adding it makes the job MORE internally consistent. The
-  // job then checks out, arms, self-tests, skips all three scan steps, skips
-  // the refusal, and reports clean having read nothing.
+  // Every other step concerning the pull request carries an `if:`, so adding
+  // one to the refusal looks consistent. The job would then check out, arm,
+  // self-test, skip all three scan steps, skip the refusal, and report clean
+  // having read nothing.
   //
   // Keyed on the marker rather than on the step's name: the name is prose and
   // can be reworded, the marker is the mechanism.
@@ -1189,17 +1136,9 @@ test('the step that refuses a run which scanned nothing is not itself skippable'
   // that names the cause.
   assert.notEqual(steps.length, 0, 'no steps parsed out of the job: this test is reading nothing');
 
-  // The same defect one scope out, and the one this file could not previously
-  // see. Everything below reasons about STEPS; a job-level `if:` skips all of
-  // them at once, and a SKIPPED job SATISFIES a required status check - only a
-  // context that never reports blocks. So the check goes green having run
-  // nothing, which is strictly worse than the step-level version below because
-  // there is not even a red step to notice.
-  //
-  // It is also the likeliest edit for a good reason rather than a contrived
-  // one: this gate is red on every fork pull request by design, and
-  // `if: github.event.pull_request.head.repo.fork == false` is what somebody
-  // reaches for to make that stop. It will look like tidying up.
+  // The same defect one scope out. A job-level `if:` skips every step at once,
+  // and a SKIPPED job satisfies a status check, so the check goes green having
+  // run nothing.
   //
   // Job keys sit at four spaces here; a step's own `if:` is at eight, so this
   // cannot fire on the three that legitimately carry one.
@@ -1264,19 +1203,9 @@ test('the step that refuses a run which scanned nothing is not itself skippable'
       'a run reached that line rather than that a scan succeeded, and the refusal below passes'
   );
 
-  // The comment beside the `touch` makes two claims and the assertion above
-  // pins only the first. `Written only after a clean exit, so it records a scan
-  // rather than an attempt` is the second, and it is the ORDER of two lines in
-  // one step - the cheapest thing in this file to change by accident.
-  //
-  // Neither half is a defect alone. `touch` above the scan is still red today,
-  // because a failing scan fails the step and the refusal never gets to decide;
-  // `continue-on-error: true` on the scan step is still red today, because
-  // `set -e` skips the `touch` and the refusal turns the job red on the missing
-  // marker. Together they are fail-open: the marker is already written, the
-  // failure is swallowed, and the job reports CLEAN on a run that found a term.
-  // The order is the half that is free to move, which is why it must not be the
-  // unchecked one.
+  // The marker must be written AFTER the scan, so it records a scan rather than
+  // an attempt. The order of two lines in one step is the cheapest thing in
+  // this file to change by accident, so it is pinned.
   assert.ok(
     invocation.index < writes[0].indexOf(`touch ${MARKER}`),
     'the scanned marker is written before the scan runs, so it records an attempt rather than ' +
@@ -1351,8 +1280,7 @@ test('every must-pass line is real prose from a tracked file', () => {
       // EXCLUDING the corpus itself. Without the pathspec this file is a tracked
       // file, so every line in it proves its own presence and an invented
       // sentence passes - the assertion satisfied by the very document it is
-      // meant to be checking. Found by mutation: appending a sentence that
-      // appears nowhere else left all 26 cases green.
+      // meant to be checking.
       execFileSync('git', ['grep', '-qF', '--', line, PROSE_PATHSPEC], {
         cwd: ROOT,
         stdio: 'ignore',

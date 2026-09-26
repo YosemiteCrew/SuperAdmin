@@ -355,8 +355,7 @@ describe('rejectAccount', () => {
   });
 
   it('opens the lock connection over verified TLS for the Supabase pooler', async () => {
-    const pooler =
-      'postgresql://USER:PASSWORD@aws-1-eu-central-1.pooler.supabase.com:5432/postgres';
+    const pooler = 'postgresql://USER:PASSWORD@aws-0-example.pooler.supabase.com:5432/postgres';
     process.env.DATABASE_URL = `${pooler}?schema=superadmin&sslmode=require`;
 
     try {
