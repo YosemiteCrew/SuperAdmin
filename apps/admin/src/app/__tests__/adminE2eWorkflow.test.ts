@@ -82,7 +82,7 @@ describe('admin-e2e workflow: deployed leg', () => {
     expect(wait.block).toContain('          EXPECTED_SHA: ${{ github.sha }}');
     expect(runBody(wait.block)).toContain('bash scripts/ci/wait-for-deployed-main.sh');
     expect(wait.block).toContain(`          ADMIN_ORIGIN: ${ORIGIN_SECRET}`);
-    expect(runBody(wait.block)).toContain('"$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA"');
+    expect(runBody(wait.block)).toContain('"${ADMIN_ORIGIN%/}/api/health" "$EXPECTED_SHA"');
     expect(Number(field(wait.block, 'timeout-minutes', 8))).toBeGreaterThan(0);
   });
 
@@ -100,19 +100,20 @@ describe('admin-e2e workflow: deployed leg', () => {
       SA_E2E_TOTP_SECRET: 'placeholder',
     };
 
+    const CHECK_STEP = 'Fail early if the deployed leg is unprovisioned';
+
     function check(overrides: Record<string, string>) {
-      return spawnSync(
-        '/bin/bash',
-        [
-          '-c',
-          runBody(stepNamed(deployed, 'Fail early if the deployed leg is unprovisioned').block),
-        ],
-        {
-          encoding: 'utf8',
-          env: { NODE_ENV: 'test', PATH: process.env.PATH ?? '', ...provisioned, ...overrides },
-        }
-      );
+      return spawnSync('/bin/bash', ['-c', runBody(stepNamed(deployed, CHECK_STEP).block)], {
+        encoding: 'utf8',
+        env: { NODE_ENV: 'test', PATH: process.env.PATH ?? '', ...provisioned, ...overrides },
+      });
     }
+
+    it('reads the deployed origin from its repository secret', () => {
+      expect(stepNamed(deployed, CHECK_STEP).block).toContain(
+        `          ADMIN_ORIGIN: ${ORIGIN_SECRET}`
+      );
+    });
 
     it('passes when every secret is present', () => {
       expect(check({}).status).toBe(0);
@@ -167,7 +168,7 @@ describe('admin-e2e workflow: deployed leg', () => {
       rmSync(stubDirectory, { force: true, recursive: true });
     });
 
-    function runWait(deployCheckExit: number, tipOutput: string) {
+    function runWait(deployCheckExit: number, tipOutput: string, origin = ADMIN_ORIGIN) {
       const outputFile = path.join(stubDirectory, 'github-output');
       writeFileSync(outputFile, '');
       const result = spawnSync('/bin/bash', ['-c', runBody(stepNamed(deployed, WAIT_STEP).block)], {
@@ -177,7 +178,7 @@ describe('admin-e2e workflow: deployed leg', () => {
           ...process.env,
           PATH: `${stubDirectory}:${process.env.PATH ?? ''}`,
           EXPECTED_SHA,
-          ADMIN_ORIGIN,
+          ADMIN_ORIGIN: origin,
           STUB_URL: `${ADMIN_ORIGIN}/api/health`,
           TIMEOUT_SECONDS: '1',
           INTERVAL_SECONDS: '1',
@@ -192,6 +193,10 @@ describe('admin-e2e workflow: deployed leg', () => {
 
     it('marks the commit served when the panel reports it', () => {
       expect(runWait(0, '')).toEqual({ status: 0, output: 'served=true\n' });
+    });
+
+    it('polls the same health URL when the origin ends with a slash', () => {
+      expect(runWait(0, '', `${ADMIN_ORIGIN}/`)).toEqual({ status: 0, output: 'served=true\n' });
     });
 
     it('passes without running the specs when a newer commit replaced the build', () => {

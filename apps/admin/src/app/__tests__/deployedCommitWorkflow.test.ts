@@ -147,6 +147,10 @@ describe('wait-for-deployed-main', () => {
       expect(runWorkflowStep(1, '', 2).status).toBe(1);
     });
 
+    it('polls the same health URL when the origin ends with a slash', () => {
+      expect(run(['-c', workflowScript()], 0, '', 99, `${ADMIN_ORIGIN}/`).status).toBe(0);
+    });
+
     it('fails before polling when the deployed origin secret is missing', () => {
       const result = run(['-c', workflowScript()], 0, EXPECTED_SHA, 0, '');
 
@@ -164,7 +168,7 @@ describe('wait-for-deployed-main', () => {
     it('delegates to the script instead of carrying its own copy of the poll', () => {
       const step = workflowScript();
 
-      expect(step).toContain(`bash ${SCRIPT} "$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA"`);
+      expect(step).toContain(`bash ${SCRIPT} "\${ADMIN_ORIGIN%/}/api/health" "$EXPECTED_SHA"`);
       expect(step).not.toContain('assert-deployed.js');
       expect(step).not.toContain('gh api');
     });

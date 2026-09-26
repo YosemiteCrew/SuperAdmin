@@ -197,7 +197,7 @@ jobs:
           set -uo pipefail
           status=0
           bash scripts/ci/wait-for-deployed-main.sh \
-            "$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA" || status=$?
+            "${ADMIN_ORIGIN%/}/api/health" "$EXPECTED_SHA" || status=$?
           case "$status" in
             0) echo "served=true" >> "$GITHUB_OUTPUT" ;;
             3) echo "Skipping the deployed specs: a newer commit replaced this build." ;;
