@@ -7,7 +7,7 @@ import { Client } from 'pg';
 
 import { pgConnectionConfig, SUPABASE_ROOT_2021_CA } from '@superadmin/database/pgConnectionConfig';
 
-const POOLER = 'aws-1-eu-central-1.pooler.supabase.com';
+const POOLER = 'aws-0-example.pooler.supabase.com';
 const poolerUrl = (query: string) => `postgresql://USER:PASSWORD@${POOLER}:5432/postgres${query}`;
 const verifiedTls = () => ({ ca: SUPABASE_ROOT_2021_CA, rejectUnauthorized: true });
 

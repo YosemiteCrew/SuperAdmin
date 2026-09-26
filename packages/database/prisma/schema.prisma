@@ -35,7 +35,7 @@ enum CrmCampaignAudience {
 // requests, and the database-side trigger that would normally do it is scoped to
 // the `public` schema, so it never fires for ours. Miss it and
 // apps/admin/src/app/__tests__/database/rowLevelSecurity.test.ts fails, naming
-// the table. See docs/deploy.md, "Row level security".
+// the table.
 
 // Rebuildable status index for the dashboard's pending-approval count. Approval
 // state and rejection enforcement remain authoritative in UserMetadata.

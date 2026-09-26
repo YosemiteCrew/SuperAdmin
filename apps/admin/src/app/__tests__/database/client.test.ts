@@ -43,7 +43,7 @@ jest.mock('../../../../../../packages/database/src/generated/client', () => ({
 const CLIENT_MODULE = '../../../../../../packages/database/src/client';
 
 const POOLER_URL =
-  'postgresql://USER:PASSWORD@aws-0-eu-central-1.pooler.supabase.com:5432/postgres?schema=superadmin';
+  'postgresql://USER:PASSWORD@aws-0-example.pooler.supabase.com:5432/postgres?schema=superadmin';
 
 const originalDatabaseUrl = process.env.DATABASE_URL;
 

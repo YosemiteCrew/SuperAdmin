@@ -101,8 +101,7 @@ function schemaProblem(databaseUrl) {
     `DATABASE_URL ${found}; this project's tables live in "${REQUIRED_SCHEMA}".\n` +
     `Migrating without it would create a second, empty set of tables and the panel\n` +
     `would come up with no leads, no consent records and no privacy requests, without\n` +
-    `reporting an error. Append ?schema=${REQUIRED_SCHEMA} and run this again.\n` +
-    `See docs/deploy.md, "The panel must own its database".`
+    `reporting an error. Append ?schema=${REQUIRED_SCHEMA} and run this again.`
   );
 }
 

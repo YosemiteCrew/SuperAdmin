@@ -1,13 +1,9 @@
-# AWS Amplify Hosting build spec for the Superadmin panel.
+# Build spec for the Superadmin panel.
 #
-# This is a pnpm workspace monorepo, so the `applications` form is required:
-# the working directory starts at `appRoot`, and the install has to happen at
-# the repo root for the workspace links to resolve.
-#
-# Every `cd` is wrapped in a subshell. Amplify runs all phases in ONE shell, so
-# a bare `cd ../..` in preBuild leaks into build and the next `cd ../..`
-# overshoots the repo entirely (ERR_PNPM_NO_IMPORTER_MANIFEST_FOUND). Subshells
-# keep each command anchored at `appRoot` no matter what ran before it.
+# This is a pnpm workspace monorepo, so the `applications` form is used: each
+# command starts in `appRoot`, and the install runs at the repo root so the
+# workspace links resolve. Every `cd` is wrapped in a subshell so each command
+# stays anchored at `appRoot`.
 version: 1
 applications:
   - appRoot: apps/admin
@@ -15,10 +11,7 @@ applications:
       phases:
         preBuild:
           commands:
-            # Next 16 needs Node >= 20, and CI builds on 22 - keep them matched
-            # so a green CI build cannot mean a red Amplify build. Node 20 went
-            # end of life on 2026-04-30 and secretlint, lint-staged and
-            # commitlint all declare engines that exclude it.
+            # Keep the Node major matched with CI.
             - nvm use 22 || nvm install 22
             # pnpm 8: pnpm-lock.yaml is lockfileVersion 6.0 and pnpm 9+ rejects
             # it under --frozen-lockfile.
@@ -27,81 +20,16 @@ applications:
             - (cd ../.. && pnpm install --frozen-lockfile)
         build:
           commands:
-            # Amplify does NOT pass environment variables to the Next SSR
-            # runtime. That is deliberate on AWS's part - "a Next.js server
-            # component doesn't have access to those environment variables by
-            # default ... intentional to protect any secrets stored in
-            # environment variables" - so a server var set in the console is
-            # present during the build and absent when a request arrives.
+            # Server-side variables are written into .env.production before
+            # `next build` so the runtime can read them. Only the names in the
+            # allowlist below are written.
             #
-            # The documented remedy is to write them into .env.production
-            # before `next build`. cwd is appRoot, so this lands in
-            # apps/admin/.env.production, which is what the monorepo form
-            # requires.
+            # A build command must not begin with a comment line.
             #
-            # ALLOWLIST, never a blanket `env`. The build environment also holds
-            # AWS credentials and Amplify internals, and this file ships inside
-            # the deployment artifact.
-            #
-            # NOTE: the command below must NOT begin with a comment line.
-            # Amplify silently SKIPS any build command whose first line starts
-            # with '#' - no warning, no log entry, the step simply never runs.
-            # That cost a full deploy cycle. Keep prose in YAML comments here,
-            # outside the block scalar.
-            #
-            # Exact-anchored allowlist. `env | grep` is the form AWS's own docs
-            # use and is POSIX, unlike ${!VAR} indirect expansion - the build
-            # shell is not guaranteed to be bash.
-            #
-            # The build sha is RENAMED on the way in rather than allowlisted.
-            # `AWS_COMMIT_ID` cannot be added to the pattern below: the leak
-            # guard fails the build on any `^AWS_` line in the artifact, so
-            # allowlisting it writes the variable and then aborts.
-            # Written only when it LOOKS LIKE A COMMIT, not merely when it is
-            # non-empty. `NEXT_PUBLIC_*` is inlined at build time, so an empty
-            # value would be inlined as `''` and read as a present-but-blank sha
-            # rather than an absent one - but a non-empty non-sha is worse,
-            # because it reads as a correctly populated field. A manually started
-            # job (`amplify start-job`) supplies AWS_COMMIT_ID as the literal
-            # string `HEAD`, which a presence test accepts and publishes; a
-            # webhook build supplies a real sha. So the presence test was right
-            # every ordinary day and wrong during a hand-run recovery deploy,
-            # which is exactly when "which commit is live" is the question being
-            # asked. Anything that is not a hex sha yields an absent buildSha,
-            # which is honest, instead of one that identifies nothing.
-            #
-            # `case` rather than `grep -qE '^...$'`, because grep anchors PER
-            # LINE and `printf '%s'` preserves embedded newlines: a value of
-            # "HEAD\ndeadbeef1234" has a matching line and `grep -q` succeeds,
-            # so a validity check written to reject an invalid value accepted
-            # one. Nothing today can reach it - AWS_COMMIT_ID is platform-set
-            # and `git rev-parse HEAD` emits one line - but it is the same class
-            # this change exists to close, one layer out. `case` is whole-string
-            # by construction and needs no external command.
-            # Both cases are accepted deliberately. Git emits lowercase, so
-            # uppercase has no known source - but narrowing the predicate to
-            # lowercase could only ever turn a WORKING sha into an absent one,
-            # and no non-sha this is guarding against is hex in any case.
-            #
-            # The git fallback is what makes a hand-run deploy report a real
-            # commit rather than nothing: Amplify clones the repository, so the
-            # checkout is authoritative for what was built even when the platform
-            # declines to name it.
-            #
-            # The success line prints the VALUE and the source, not just that a
-            # branch was taken. Job 64 wrote `HEAD` and job 65 wrote a real sha
-            # and the old line was byte-identical in both, so it carried no
-            # information. The log is not blind - a manual job omits `Switching
-            # to commit` entirely, and that absence is readable - but an absence
-            # establishes only that no sha was REQUESTED; it never names the
-            # commit that arrived. Printing the value answers that directly
-            # rather than by inference from an omission and a clone timestamp.
-            # A commit sha is not a secret and is already inlined into the
-            # artifact.
-            # It is written BEFORE the names listing and the leak guard on
-            # purpose: the listing is the build log's record of what shipped, and
-            # the guard exists to catch a mistake in exactly this kind of write.
-            # A write placed after them is in neither.
+            # NEXT_PUBLIC_BUILD_SHA is written only when the value looks like a
+            # commit (7 to 40 hex characters), falling back to
+            # `git rev-parse HEAD`; otherwise /api/health reports buildSha as
+            # absent. `case` checks the whole value rather than one line of it.
             - |
               : > .env.production
               env | grep -E '^(DATABASE_URL|SUPERTOKENS_CONNECTION_URI|SUPERTOKENS_API_KEY|NEXT_PUBLIC_APP_ORIGIN|PANEL_BASIC_AUTH_CREDENTIALS|SUPERADMIN_BOOTSTRAP_EMAILS|PLUNK_API_KEY|PLUNK_API_ENDPOINT|AP_SIGNING_KEY|AP_SIGNING_KEY_ID|CONSENT_INTAKE_KEY|CONTACT_INTAKE_KEY|TIKTOK_CLIENT_KEY|TIKTOK_CLIENT_SECRET|TIKTOK_REDIRECT_URI|INSTAGRAM_APP_ID|INSTAGRAM_APP_SECRET|INSTAGRAM_REDIRECT_URI|SOCIAL_TOKEN_KEY|SOCIAL_SCHEDULER_KEY)=' >> .env.production || true
@@ -142,23 +70,9 @@ applications:
               done
               echo "OK: required runtime vars present"
             - (cd ../.. && pnpm run build --filter admin)
-            # There is no query-engine copy step any more. Prisma 7 queries
-            # through @prisma/adapter-pg, so nothing outside .next has to reach
-            # the compute bundle - which is also why the assertion that used to
-            # guard that copy is gone rather than weakened.
-            #
-            # Start the artifact and make it query the database before it is
-            # deployed. Nothing before this step opens a connection from the
-            # application: `next build` compiles without querying. The failure
-            # this exists for is the one that reverted the first Prisma 7 attempt
-            # (03218f5) - the driver adapter's TLS against the Supabase pooler
-            # either works or does not, and until now nothing before deploy would
-            # say which.
-            #
-            # Runs on every branch, main included. DATABASE_URL is asserted
-            # present above, and /api/health is public (src/proxy.ts) so basic
-            # auth does not intercept the probe. It is a read of SELECT 1; it
-            # writes nothing and needs no migration.
+            # Start the built app and require /api/health to report the database
+            # as up before the build is accepted. It runs a read-only query and
+            # needs no migration.
             - |
               PORT=3001
               HEALTH_URL="http://127.0.0.1:$PORT/api/health"
@@ -203,13 +117,8 @@ applications:
                 exit 1
               fi
               echo "OK: the built artifact reached Postgres through the pg driver adapter"
-            # Migrations run on the production branch only. Amplify builds every
-            # branch, and a preview build must never migrate the live database.
-            # This is what stops a repeat of the 2026-08-11 outage, where code
-            # shipped ahead of the schema because nothing ran migrate deploy.
-            # It deliberately runs last: the schema-independent health gate above
-            # must accept the built artifact before production can be migrated,
-            # so a rejected build leaves the previous artifact and schema paired.
+            # Migrations run on main only, and only after the check above has
+            # accepted the build.
             - |
               if [ "$AWS_BRANCH" = "main" ]; then
                 (cd ../.. && pnpm run migrate:deploy)

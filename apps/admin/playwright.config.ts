@@ -6,12 +6,7 @@ const baseURL = process.env.E2E_BASE_URL?.trim() || LOCAL_URL;
 /** Loopback only. Anything else is a deployed environment we must not try to serve. */
 const isLocalTarget = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(baseURL);
 
-/**
- * The deployed panel sits behind Amplify branch password protection, which answers
- * at the CloudFront edge with HTTP Basic before the app runs at all. Without this
- * every request - including the public /api/health - is a 401 the app never sees.
- * Supplied as user:password via the environment so it is never committed.
- */
+/** Optional HTTP Basic credentials for a deployed target, supplied as user:password. */
 const edgeGate = process.env.SA_EDGE_GATE_CREDENTIALS?.trim();
 const [edgeUser, ...edgeRest] = edgeGate ? edgeGate.split(':') : [];
 const httpCredentials =
@@ -34,7 +29,7 @@ export default defineConfig({
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
   ],
   // A deployed target must never start a local server: the run would be reported
-  // against admin.yosemitecrew.com while actually exercising localhost.
+  // against the deployed panel while actually exercising localhost.
   // The served URL is derived from baseURL rather than hardcoded - it was pinned
   // to :3001 while baseURL was :3000, so the server that started was never the
   // server under test.

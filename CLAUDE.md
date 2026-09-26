@@ -45,7 +45,7 @@ Never let SonarCloud issues or **security hotspots** be discovered only after co
 
 1. `pnpm --filter admin run lint` must be clean with **zero warnings** (the pre-commit hook runs `--max-warnings=0`). ESLint mirrors the key Sonar security-hotspot rules locally: `sonarjs/pseudo-random` (S2245), `sonarjs/slow-regex` (S5852), plus cognitive-complexity and others. Keep these enabled.
 2. Run the local SonarCloud scan and read the results **before** pushing, whenever the environment can reach sonarcloud.io:
-   - `./apps/admin/sonar-local.sh` (or double-click `apps/admin/fetch-sonar-issues.command`) runs the analysis and writes `apps/admin/sonar-issues.json`.
+   - `./apps/admin/sonar-local.sh` runs the analysis and writes `apps/admin/sonar-issues.json`.
    - Read `apps/admin/sonar-issues.json` and fix **every** issue and **every** security hotspot it lists before committing/pushing.
 3. Treat Sonar security hotspots (S2245, S5852, S7761, prefer-optional-chain, prefer-Set, negated-condition, etc.) as must-fix at the root — never suppress, never defer to the post-push PR scan.
 4. When introducing a new API/pattern, assume Sonar has a rule for it and check locally first. If a new hotspot rule type gets caught only on the server, add its ESLint equivalent to `apps/admin/eslint.config.mjs` so it surfaces locally next time.

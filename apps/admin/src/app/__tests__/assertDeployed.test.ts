@@ -96,7 +96,7 @@ describe('assert-deployed', () => {
     await expect(readDeployedSha('https://example.test/health')).resolves.toEqual({
       sha: null,
       terminal: true,
-      reason: 'HTTP 401 with a Basic challenge - the /api/health exemption appears to be gone',
+      reason: 'HTTP 401 with a Basic challenge - the health route requires authentication',
     });
   });
 
@@ -181,7 +181,7 @@ describe('assert-deployed', () => {
     expect(output).toContain('ENOTFOUND_FORGED');
   });
 
-  it('stops immediately when the Basic Auth exemption is gone', async () => {
+  it('stops immediately on a Basic Auth challenge', async () => {
     fetchSpy.mockResolvedValue(response(401, null, { 'www-authenticate': 'Basic realm="Login"' }));
 
     await expect(

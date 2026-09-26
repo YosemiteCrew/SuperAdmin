@@ -12,6 +12,8 @@ const MOVED_SHA = 'b'.repeat(40);
 const REPO_ROOT = path.resolve(__dirname, '../../../../..');
 const WORKFLOW = path.join(REPO_ROOT, '.github/workflows/deployed-commit.yml');
 const SCRIPT = 'scripts/ci/wait-for-deployed-main.sh';
+const ADMIN_ORIGIN = 'https://example.test';
+const HEALTH_URL = `${ADMIN_ORIGIN}/api/health`;
 
 function workflowScript(): string {
   const lines = readFileSync(WORKFLOW, 'utf8').split('\n');
@@ -31,13 +33,14 @@ describe('wait-for-deployed-main', () => {
     const nodeStub = path.join(stubDirectory, 'node');
     const ghStub = path.join(stubDirectory, 'gh');
     // Stands in for assert-deployed.js, and refuses to answer unless it was
-    // asked about the expected commit through the real script path.
+    // asked about the expected commit and health URL through the real script path.
     writeFileSync(
       nodeStub,
       `#!${process.execPath}\n` +
         `const [script, ...args] = process.argv.slice(2);\n` +
         `if (!script.endsWith('/apps/admin/src/ci/assert-deployed.js')) process.exit(9);\n` +
         `if (args[args.indexOf('--sha') + 1] !== process.env.STUB_SHA) process.exit(9);\n` +
+        `if (args[args.indexOf('--url') + 1] !== process.env.STUB_URL) process.exit(8);\n` +
         `process.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n`
     );
     // Answers only the lookup of main's tip in this repository.
@@ -60,7 +63,8 @@ describe('wait-for-deployed-main', () => {
     args: string[],
     deployCheckExit: number,
     tipOutput = EXPECTED_SHA,
-    tipExit = 0
+    tipExit = 0,
+    adminOrigin = ADMIN_ORIGIN
   ): { status: number | null; stdout: string } {
     const result = spawnSync('/bin/bash', args, {
       encoding: 'utf8',
@@ -68,9 +72,10 @@ describe('wait-for-deployed-main', () => {
       env: {
         ...process.env,
         PATH: `${stubDirectory}:${process.env.PATH ?? ''}`,
-        HEALTH_URL: 'https://example.test/health',
+        ADMIN_ORIGIN: adminOrigin,
         EXPECTED_SHA,
         STUB_SHA: EXPECTED_SHA,
+        STUB_URL: HEALTH_URL,
         TIMEOUT_SECONDS: '1',
         INTERVAL_SECONDS: '1',
         GITHUB_REPOSITORY: 'example/repository',
@@ -83,7 +88,7 @@ describe('wait-for-deployed-main', () => {
   }
 
   const runScript = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
-    run([SCRIPT, 'https://example.test/health', EXPECTED_SHA], deployCheckExit, tipOutput, tipExit);
+    run([SCRIPT, HEALTH_URL, EXPECTED_SHA], deployCheckExit, tipOutput, tipExit);
 
   const runWorkflowStep = (deployCheckExit: number, tipOutput?: string, tipExit?: number) =>
     run(['-c', workflowScript()], deployCheckExit, tipOutput, tipExit);
@@ -118,7 +123,7 @@ describe('wait-for-deployed-main', () => {
     });
 
     it('refuses to run without both a health URL and a sha', () => {
-      expect(run([SCRIPT, 'https://example.test/health'], 0).status).toBe(1);
+      expect(run([SCRIPT, HEALTH_URL], 0).status).toBe(1);
     });
   });
 
@@ -142,10 +147,24 @@ describe('wait-for-deployed-main', () => {
       expect(runWorkflowStep(1, '', 2).status).toBe(1);
     });
 
+    it('fails before polling when the deployed origin secret is missing', () => {
+      const result = run(['-c', workflowScript()], 0, EXPECTED_SHA, 0, '');
+
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain('Missing repository secret: ADMIN_ORIGIN');
+    });
+
+    it('reads the deployed origin from a repository secret, never a literal', () => {
+      const workflow = readFileSync(WORKFLOW, 'utf8');
+
+      expect(workflow).toContain('          ADMIN_ORIGIN: ${{ secrets.ADMIN_ORIGIN }}\n');
+      expect(workflow).not.toMatch(/https?:\/\//);
+    });
+
     it('delegates to the script instead of carrying its own copy of the poll', () => {
       const step = workflowScript();
 
-      expect(step).toContain(`bash ${SCRIPT} "$HEALTH_URL" "$EXPECTED_SHA"`);
+      expect(step).toContain(`bash ${SCRIPT} "$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA"`);
       expect(step).not.toContain('assert-deployed.js');
       expect(step).not.toContain('gh api');
     });

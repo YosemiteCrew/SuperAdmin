@@ -27,19 +27,15 @@ pnpm dev
 
 ## Apps & Packages
 
-| Path                | Description                                    |
-| ------------------- | ----------------------------------------------- |
-| `apps/admin`        | Next.js superadmin dashboard                   |
-| `packages/types`    | Shared TypeScript domain types                 |
+| Path                | Description                                        |
+| ------------------- | -------------------------------------------------- |
+| `apps/admin`        | Next.js superadmin dashboard                       |
+| `packages/types`    | Shared TypeScript domain types                     |
 | `packages/database` | Prisma schema, migrations, RLS policies (Postgres) |
 
 ## Documentation
 
-- [`HANDOVER.md`](./HANDOVER.md) - architecture, conventions, the quality gate, and the open
-  backlog. Start here.
 - [`docs/adr/`](./docs/adr/) - architecture decision records.
-- [`docs/deploy.md`](./docs/deploy.md) - deployment.
-- [`apps/admin/SMOKE-TESTS.md`](./apps/admin/SMOKE-TESTS.md) - manual smoke-test checklist.
 
 ## Scripts
 

@@ -97,12 +97,10 @@ jobs:
       SUPERTOKENS_CONNECTION_URI: http://localhost:3567
       SUPERTOKENS_API_KEY: ci-core-key-not-a-secret
       NEXT_PUBLIC_APP_ORIGIN: http://localhost:3000
-      # Build-blocking on main since the bootstrap-admin guard: without it `next build`
-      # fails collecting page data for /api/approvals/reconcile. Same placeholder as ci-affected.
+      # Required by `next build`. Same placeholder as ci-affected.
       SUPERADMIN_BOOTSTRAP_EMAILS: admin@example.com
-      # main's application-level gate fails closed in production builds. The
-      # local Playwright client must present the same synthetic credential or
-      # its webServer readiness probe sees 503 until the 60-second timeout.
+      # Production builds require the panel's Basic Auth setting, and the local
+      # Playwright client presents the same placeholder credential.
       PANEL_BASIC_AUTH_CREDENTIALS: ci-gate:ci-gate-placeholder
       SA_EDGE_GATE_CREDENTIALS: ci-gate:ci-gate-placeholder
 
@@ -140,10 +138,7 @@ jobs:
         run: pnpm --filter admin exec playwright test --project=chromium
 
   # Runs only for main, the branch the deployed origin serves, and only on a push
-  # or a manual dispatch, where secrets resolve. This is the leg that can
-  # observe the panel real users hit - the deployed origin has been returning 401
-  # at the CloudFront edge to every request, including the public /api/health,
-  # with the whole suite green, because nothing had ever pointed at it.
+  # or a manual dispatch, where secrets resolve.
   # `admin-e2e-required` repeats this condition as DEPLOYED_EXPECTED; keep the
   # two identical.
   deployed:
@@ -163,19 +158,18 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter admin exec playwright install --with-deps chromium
-      # Every one of these is consumed by a spec, so a missing one is a run that
-      # silently proves less than it appears to. The edge gate gets past Amplify
-      # branch password protection, which answers at the CloudFront edge before
-      # the app sees a request; the other three complete a sign-in, which is
-      # mandatory-TOTP for every super admin.
+      # Every one of these is consumed by this job, so a missing one is a run
+      # that silently proves less than it appears to.
       - name: Fail early if the deployed leg is unprovisioned
         env:
+          ADMIN_ORIGIN: ${{ secrets.ADMIN_ORIGIN }}
           SA_EDGE_GATE_CREDENTIALS: ${{ secrets.SA_EDGE_GATE_CREDENTIALS }}
           SA_E2E_EMAIL: ${{ secrets.SA_E2E_EMAIL }}
           SA_E2E_PASSWORD: ${{ secrets.SA_E2E_PASSWORD }}
           SA_E2E_TOTP_SECRET: ${{ secrets.SA_E2E_TOTP_SECRET }}
         run: |
           missing=""
+          [ -n "$ADMIN_ORIGIN" ]             || missing="$missing ADMIN_ORIGIN"
           [ -n "$SA_EDGE_GATE_CREDENTIALS" ] || missing="$missing SA_EDGE_GATE_CREDENTIALS"
           [ -n "$SA_E2E_EMAIL" ]             || missing="$missing SA_E2E_EMAIL"
           [ -n "$SA_E2E_PASSWORD" ]          || missing="$missing SA_E2E_PASSWORD"
@@ -196,13 +190,14 @@ jobs:
         shell: bash
         timeout-minutes: 15
         env:
+          ADMIN_ORIGIN: ${{ secrets.ADMIN_ORIGIN }}
           EXPECTED_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -uo pipefail
           status=0
           bash scripts/ci/wait-for-deployed-main.sh \
-            https://admin.yosemitecrew.com/api/health "$EXPECTED_SHA" || status=$?
+            "$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA" || status=$?
           case "$status" in
             0) echo "served=true" >> "$GITHUB_OUTPUT" ;;
             3) echo "Skipping the deployed specs: a newer commit replaced this build." ;;
@@ -211,17 +206,15 @@ jobs:
       - name: Run specs against the deployed panel
         if: steps.deployed_build.outputs.served == 'true'
         env:
-          E2E_BASE_URL: https://admin.yosemitecrew.com
+          E2E_BASE_URL: ${{ secrets.ADMIN_ORIGIN }}
           SA_EDGE_GATE_CREDENTIALS: ${{ secrets.SA_EDGE_GATE_CREDENTIALS }}
-          # Every super admin is required to hold a TOTP device, so an
-          # authenticated spec needs all three, not just email and password.
+          # An authenticated spec signs in with all three.
           SA_E2E_EMAIL: ${{ secrets.SA_E2E_EMAIL }}
           SA_E2E_PASSWORD: ${{ secrets.SA_E2E_PASSWORD }}
           SA_E2E_TOTP_SECRET: ${{ secrets.SA_E2E_TOTP_SECRET }}
-          # The auth spec disables trace/screenshot/video itself, but the AI
-          # error-context snapshot is a separate on-failure sink that only this
-          # variable turns off. Without it a failed sign-in writes the filled
-          # fields to the runner.
+          # The auth spec disables trace, screenshot and video itself; this turns
+          # off the separate on-failure error-context snapshot, so a failed
+          # sign-in does not write the filled fields to the runner.
           PLAYWRIGHT_NO_COPY_PROMPT: '1'
         run: pnpm --filter admin exec playwright test --project=chromium
 
