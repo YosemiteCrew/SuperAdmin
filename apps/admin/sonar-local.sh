@@ -43,4 +43,4 @@ fi
 step "[5/5] SonarCloud scan"
 pnpm run sonar
 
-printf '\nDone. Quality gate: https://sonarcloud.io/project/overview?id=YosemiteCrew_SuperAdmin\n'
+printf '\nDone. Quality gate: https://sonarcloud.io/project/overview?id=YosemiteCrew_Super-Admin\n'

@@ -240,9 +240,9 @@ pnpm --filter admin run test:coverage
 
 Static analysis, code smells, security hotspots, coverage tracking.
 
-- Project key: `YosemiteCrew_SuperAdmin`
+- Project key: `YosemiteCrew_Super-Admin`
 - Organization: `yosemitecrew`
-- Dashboard: <https://sonarcloud.io/project/overview?id=YosemiteCrew_SuperAdmin>
+- Dashboard: <https://sonarcloud.io/project/overview?id=YosemiteCrew_Super-Admin>
 
 Configuration lives in [`apps/admin/sonar-project.properties`](sonar-project.properties).
 
@@ -269,7 +269,7 @@ The runner ([`scripts/sonar.mjs`](scripts/sonar.mjs)) fails fast with a clear me
 
 ### Generating a token
 
-Visit <https://sonarcloud.io/account/security>, generate a project analysis token scoped to `YosemiteCrew_SuperAdmin`, and add it as `SONAR_TOKEN` in your local shell (or `~/.zshrc` / `~/.bashrc` for persistence — but never check the dotfile change into a public repo).
+Visit <https://sonarcloud.io/account/security>, generate a project analysis token scoped to `YosemiteCrew_Super-Admin`, and add it as `SONAR_TOKEN` in your local shell (or `~/.zshrc` / `~/.bashrc` for persistence — but never check the dotfile change into a public repo).
 
 ## Contributing
 

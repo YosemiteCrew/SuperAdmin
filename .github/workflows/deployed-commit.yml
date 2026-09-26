@@ -55,7 +55,7 @@ jobs:
           # replaced this deploy and its own run asserts that one, so it is not
           # a failure of this commit. Every other non-zero exit is.
           status=0
-          bash scripts/ci/wait-for-deployed-main.sh "$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA" || status=$?
+          bash scripts/ci/wait-for-deployed-main.sh "${ADMIN_ORIGIN%/}/api/health" "$EXPECTED_SHA" || status=$?
           if [ "$status" -eq 3 ]; then
             exit 0
           fi

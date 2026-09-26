@@ -15,6 +15,9 @@ NOT request.url: on the Amplify SSR runtime that is the internal origin
 # .github/workflows/forbidden-terms.yml
 refs/pull/<n>/head and is never merged, built, installed or executed.
 
+# .github/workflows/codeql.yml
+code scanning. This repo has CodeQL *default setup* configured, which runs
+
 # AGENTS.md
 Use `pnpm`. Always scope with `--filter`. Never run bare `pnpm install` in an app directory — run from root.
 `turbo run <task> --filter=admin` for scoped tasks.
