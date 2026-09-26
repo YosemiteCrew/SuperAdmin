@@ -3,8 +3,7 @@
 # sonar-local.sh — local pre-PR quality pipeline for apps/admin.
 #
 # Runs the full gate and, only if every step passes, submits a SonarCloud scan.
-# The token is read by sonar-token.sh (env var, then login Keychain, then a
-# gitignored file) — it is NEVER hardcoded (this repo is public).
+# The token is read from the SONAR_TOKEN environment variable only.
 #
 #   ./sonar-local.sh            # full run (incl. build)
 #   ./sonar-local.sh --no-build # skip the build step (faster)
@@ -13,12 +12,9 @@ set -euo pipefail
 
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# shellcheck source=./sonar-token.sh
-. "$(dirname "${BASH_SOURCE[0]}")/sonar-token.sh"
-SONAR_TOKEN="$(sonar_token)"
-[ -n "$SONAR_TOKEN" ] || {
-  echo "SONAR_TOKEN is empty. Set it, or add it to the login Keychain with:" >&2
-  echo "  security add-generic-password -a \"$USER\" -s $SONAR_KEYCHAIN_SERVICE -w <your-token> -U" >&2
+[ -n "${SONAR_TOKEN:-}" ] || {
+  echo "SONAR_TOKEN is empty. Export it before running this script:" >&2
+  echo "  export SONAR_TOKEN=<your-token>" >&2
   exit 1
 }
 export SONAR_TOKEN
