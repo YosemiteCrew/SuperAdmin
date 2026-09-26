@@ -53,8 +53,7 @@ BEGIN
   IF unguarded IS NOT NULL THEN
     RAISE EXCEPTION
       'Row level security is not enabled on: %. Every table in "superadmin" '
-      'needs an ALTER TABLE ... ENABLE ROW LEVEL SECURITY in its migration. '
-      'See docs/deploy.md, "Row level security".',
+      'needs an ALTER TABLE ... ENABLE ROW LEVEL SECURITY in its migration.',
       array_to_string(unguarded, ', ');
   END IF;
 
