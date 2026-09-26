@@ -11,6 +11,8 @@ const REPO_ROOT = path.resolve(__dirname, '../../../../..');
 const WORKFLOW = readFileSync(path.join(REPO_ROOT, '.github/workflows/admin-e2e.yml'), 'utf8');
 const EXPECTED_SHA = 'c'.repeat(40);
 const MOVED_SHA = 'd'.repeat(40);
+const ORIGIN_SECRET = '${{ secrets.ADMIN_ORIGIN }}';
+const ADMIN_ORIGIN = 'https://admin.example.com';
 const MAIN_ONLY =
   "github.ref == 'refs/heads/main' && " +
   "(github.event_name == 'push' || github.event_name == 'workflow_dispatch')";
@@ -79,10 +81,48 @@ describe('admin-e2e workflow: deployed leg', () => {
     expect(wait.index).toBeLessThan(specs.index);
     expect(wait.block).toContain('          EXPECTED_SHA: ${{ github.sha }}');
     expect(runBody(wait.block)).toContain('bash scripts/ci/wait-for-deployed-main.sh');
-    expect(runBody(wait.block)).toContain(
-      'https://admin.yosemitecrew.com/api/health "$EXPECTED_SHA"'
-    );
+    expect(wait.block).toContain(`          ADMIN_ORIGIN: ${ORIGIN_SECRET}`);
+    expect(runBody(wait.block)).toContain('"$ADMIN_ORIGIN/api/health" "$EXPECTED_SHA"');
     expect(Number(field(wait.block, 'timeout-minutes', 8))).toBeGreaterThan(0);
+  });
+
+  it('reads the deployed origin from a repository secret, never a literal', () => {
+    expect(field(stepNamed(deployed, SPECS_STEP).block, 'E2E_BASE_URL', 10)).toBe(ORIGIN_SECRET);
+    expect(deployed.join('\n')).not.toMatch(/https?:\/\//);
+  });
+
+  describe('unprovisioned check', () => {
+    const provisioned = {
+      ADMIN_ORIGIN,
+      SA_EDGE_GATE_CREDENTIALS: 'gate:placeholder',
+      SA_E2E_EMAIL: 'e2e@example.com',
+      SA_E2E_PASSWORD: 'placeholder',
+      SA_E2E_TOTP_SECRET: 'placeholder',
+    };
+
+    function check(overrides: Record<string, string>) {
+      return spawnSync(
+        '/bin/bash',
+        [
+          '-c',
+          runBody(stepNamed(deployed, 'Fail early if the deployed leg is unprovisioned').block),
+        ],
+        {
+          encoding: 'utf8',
+          env: { NODE_ENV: 'test', PATH: process.env.PATH ?? '', ...provisioned, ...overrides },
+        }
+      );
+    }
+
+    it('passes when every secret is present', () => {
+      expect(check({}).status).toBe(0);
+    });
+
+    it('fails and names the deployed origin when its secret is missing', () => {
+      const result = check({ ADMIN_ORIGIN: '' });
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain('Missing repository secrets: ADMIN_ORIGIN');
+    });
   });
 
   it('runs the specs only when the wait step reported this commit served', () => {
@@ -112,6 +152,7 @@ describe('admin-e2e workflow: deployed leg', () => {
         `#!${process.execPath}\n` +
           `const args = process.argv.slice(3);\n` +
           `if (args[args.indexOf('--sha') + 1] !== process.env.EXPECTED_SHA) process.exit(9);\n` +
+          `if (args[args.indexOf('--url') + 1] !== process.env.STUB_URL) process.exit(8);\n` +
           `process.exit(Number(process.env.DEPLOY_CHECK_EXIT));\n`
       );
       writeFileSync(
@@ -136,6 +177,8 @@ describe('admin-e2e workflow: deployed leg', () => {
           ...process.env,
           PATH: `${stubDirectory}:${process.env.PATH ?? ''}`,
           EXPECTED_SHA,
+          ADMIN_ORIGIN,
+          STUB_URL: `${ADMIN_ORIGIN}/api/health`,
           TIMEOUT_SECONDS: '1',
           INTERVAL_SECONDS: '1',
           GITHUB_REPOSITORY: 'example/repository',

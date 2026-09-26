@@ -147,9 +147,7 @@ describe('isSameOrigin behind a reverse proxy', () => {
    * The Amplify SSR runtime hands the handler an INTERNAL url
    * (http://localhost:3000/...) while the browser still sends its real Origin.
    * Comparing the two rejected every genuine browser POST with 403 and let an
-   * Origin-less request through - the protection exactly inverted. Verified live
-   * against production before the fix: Origin admin.yosemitecrew.com -> 403
-   * "Cross-origin request refused"; no Origin -> 401 (past the guard).
+   * Origin-less request through - the protection exactly inverted.
    */
   function internalRequest(headers: Record<string, string> = {}): NextRequest {
     return new NextRequest('http://localhost:3000/api/social/tiktok/post', {
