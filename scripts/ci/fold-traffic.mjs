@@ -50,11 +50,18 @@ function parseEnv(name) {
   }
 }
 
-function readJson(file, fallback) {
+/**
+ * The stored history, or an empty one if it is absent or unreadable.
+ *
+ * Takes a reader rather than a path so every read in this file names its file
+ * as a literal at the call site: nothing a caller or the environment supplies
+ * can reach `readFileSync`.
+ */
+function readHistory(read) {
   try {
-    return JSON.parse(readFileSync(file, 'utf8'));
+    return JSON.parse(read());
   } catch {
-    return fallback;
+    return {};
   }
 }
 
@@ -121,8 +128,8 @@ const out = 'traffic-data';
 const historyDir = path.join(out, 'history');
 const badgeDir = path.join(out, 'badges');
 
-const clonesHistory = readJson(path.join(historyDir, 'clones.json'), {});
-const viewsHistory = readJson(path.join(historyDir, 'views.json'), {});
+const clonesHistory = readHistory(() => readFileSync('traffic-data/history/clones.json', 'utf8'));
+const viewsHistory = readHistory(() => readFileSync('traffic-data/history/views.json', 'utf8'));
 
 // The snapshots come through the environment rather than as file paths.
 // The workflow has already fetched them, so writing them to disk only to read
@@ -171,8 +178,8 @@ writeFileSync(
 );
 
 process.stdout.write(
-  `clones: ${String(clones.count)} total over ${String(clones.days)} day(s), ${String(clonesChanged)} updated\n` +
-    `views:  ${String(views.count)} total over ${String(views.days)} day(s), ${String(viewsChanged)} updated\n`
+  `clones: ${clones.count} total over ${clones.days} day(s), ${clonesChanged} updated\n` +
+    `views:  ${views.count} total over ${views.days} day(s), ${viewsChanged} updated\n`
 );
 
 /**
