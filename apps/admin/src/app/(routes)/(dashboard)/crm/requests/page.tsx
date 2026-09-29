@@ -21,9 +21,14 @@ export const metadata: Metadata = { title: 'Contact requests' };
 
 type Filter = RequestStatus | 'all';
 
+// Spam sits after All: it is a place to check, not a queue to work.
 const FILTERS: { key: Filter; label: string }[] = [
-  ...REQUEST_STATUSES.map((key) => ({ key, label: CONTACT_REQUEST_STATUS_LABELS[key] })),
+  ...REQUEST_STATUSES.filter((key) => key !== 'spam').map((key) => ({
+    key,
+    label: CONTACT_REQUEST_STATUS_LABELS[key],
+  })),
   { key: 'all' as const, label: 'All' },
+  { key: 'spam' as const, label: CONTACT_REQUEST_STATUS_LABELS.spam },
 ];
 
 const STATUS_STYLE: Record<RequestStatus, string> = {
@@ -31,6 +36,7 @@ const STATUS_STYLE: Record<RequestStatus, string> = {
   in_progress:
     'border-[color:var(--blue-soft)] bg-[var(--blue-soft)] text-[color:var(--blue-text)]',
   closed: 'border-[color:var(--hairline)] bg-[var(--inset)] text-[color:var(--ink-faint)]',
+  spam: 'border-[color:var(--danger-border)] bg-[var(--danger-bg)] text-[color:var(--danger-text)]',
 };
 
 const CARD =
@@ -185,7 +191,8 @@ export default async function ContactRequestsPage({
         </h1>
         <p className="text-[13.5px] text-[color:var(--ink-muted)]">
           Every submission from the yosemitecrew.com contact form. Each person becomes a contact
-          card; requests from the same email are grouped.
+          card; requests from the same email are grouped. Set a request to Spam to move it out of
+          the other views.
         </p>
       </header>
 
