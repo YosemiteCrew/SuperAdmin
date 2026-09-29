@@ -18,6 +18,15 @@ import {
 } from '@/app/features/organizations/services/organizationsService';
 import type { OrganizationStatusPatch } from '@/app/features/organizations/types';
 
+/** Every view that lists a business's verification state, including the
+ *  approvals queue and the dashboard count it feeds. */
+function revalidateOrganizationViews(id: string): void {
+  revalidatePath('/organizations');
+  revalidatePath(`/organizations/${id}`);
+  revalidatePath('/approvals');
+  revalidatePath('/dashboard');
+}
+
 async function patchOrganization(
   formData: FormData,
   patch: OrganizationStatusPatch,
@@ -43,8 +52,7 @@ async function patchOrganization(
     (patch.isVerified === undefined || organization.isVerified === patch.isVerified) &&
     (patch.isActive === undefined || organization.isActive === patch.isActive);
   if (alreadyApplied) {
-    revalidatePath('/organizations');
-    revalidatePath(`/organizations/${id}`);
+    revalidateOrganizationViews(id);
     return;
   }
   await updateOrganization(id, patch, requestConfig);
@@ -65,8 +73,7 @@ async function patchOrganization(
     targetId: id,
     targetLabel,
   });
-  revalidatePath('/organizations');
-  revalidatePath(`/organizations/${id}`);
+  revalidateOrganizationViews(id);
 }
 
 /** Verify a business — makes it visible to pet parents in the mobile app. */
