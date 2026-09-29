@@ -44,10 +44,11 @@ describe('waitingLabel', () => {
   const now = Date.parse('2026-09-29T12:00:00.000Z');
 
   it.each([
-    ['2026-09-29T08:00:00.000Z', 'Waiting since today'],
+    ['2026-09-29T08:00:00.000Z', 'Waiting less than a day'],
+    ['2026-09-28T16:40:00.000Z', 'Waiting less than a day'],
     ['2026-09-28T11:00:00.000Z', 'Waiting 1 day'],
     ['2026-09-12T12:00:00.000Z', 'Waiting 17 days'],
-    ['2026-10-01T00:00:00.000Z', 'Waiting since today'],
+    ['2026-10-01T00:00:00.000Z', 'Waiting less than a day'],
     ['not a date', 'Waiting'],
   ])('reads %s as "%s"', (createdAt, expected) => {
     expect(waitingLabel(createdAt, now)).toBe(expected);

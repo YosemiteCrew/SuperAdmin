@@ -24,6 +24,6 @@ export function waitingLabel(createdAt: string, now: number): string {
   const ms = Date.parse(createdAt);
   if (Number.isNaN(ms)) return 'Waiting';
   const days = Math.max(0, Math.floor((now - ms) / DAY_MS));
-  if (days === 0) return 'Waiting since today';
+  if (days === 0) return 'Waiting less than a day';
   return `Waiting ${days} ${days === 1 ? 'day' : 'days'}`;
 }
