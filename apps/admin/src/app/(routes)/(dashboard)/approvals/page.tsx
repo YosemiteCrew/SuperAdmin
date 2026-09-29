@@ -12,7 +12,7 @@ import { requireSuperAdmin } from '@/app/config/backend';
 import { approvalQueue, waitingLabel } from '@/app/features/organizations/approvals';
 import { buildLoadErrorMessage, loadOrganizations } from '@/app/features/organizations/load';
 import type { SuperAdminOrganization } from '@/app/features/organizations/types';
-import { scalarSearchParam, type SearchParam } from '@/app/lib/searchParams';
+import { scalarSearchParam } from '@/app/lib/searchParams';
 import { getServerTimestamp } from '@/app/lib/serverTime';
 
 import { EnvironmentTabs } from '../organizations/EnvironmentTabs';
@@ -125,7 +125,7 @@ function EmptyState({ message, display }: Readonly<{ message: string; display: b
 
 export default async function ApprovalsPage({
   searchParams,
-}: Readonly<{ searchParams: Promise<{ demo?: SearchParam; env?: SearchParam }> }>) {
+}: Readonly<{ searchParams: Promise<{ demo?: string | string[]; env?: string | string[] }> }>) {
   await requireSuperAdmin('page');
   const { demo: demoRaw, env } = await searchParams;
   const demo = scalarSearchParam(demoRaw) === '1';
