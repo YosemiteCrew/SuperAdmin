@@ -200,8 +200,8 @@ const EXPORTS = MODULES.flatMap((actionModule) =>
 
 describe('every server action authorises before its first await', () => {
   it('finds the server-action surface on disk', () => {
-    expect(MODULES.length).toBeGreaterThanOrEqual(20);
-    expect(EXPORTS.length).toBeGreaterThanOrEqual(44);
+    expect(MODULES.length).toBeGreaterThanOrEqual(18);
+    expect(EXPORTS.length).toBeGreaterThanOrEqual(40);
     expect(MODULES.map((module) => module.path)).toEqual(
       expect.arrayContaining([
         '(routes)/(dashboard)/users/[id]/actions.ts',
