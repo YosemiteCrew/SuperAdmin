@@ -1,0 +1,192 @@
+name: Traffic
+
+# Keeps a permanent record of repository traffic.
+#
+# GitHub's traffic API serves a rolling 14-day window and discards everything
+# older, and no setting changes that. So "how many clones since we opened the
+# repository" is a question neither the API nor the Insights graphs can answer -
+# by the time anyone thinks to ask, the data is gone.
+#
+# This job answers it by snapshotting the window daily and folding each snapshot
+# into a history keyed by DATE. Keying by date is what makes overlapping windows
+# safe: today's run and yesterday's report thirteen days in common, and summing
+# snapshots would count those twice. Re-recording a date overwrites it with the
+# later, more complete figure instead.
+#
+# The history and the badge payloads live on the `traffic-data` branch, so this
+# never writes to `main`. Two checkouts, not one: the script comes from
+# the code branch, the history from the data branch, because a single checkout
+# of `traffic-data` would not contain the script that maintains it.
+#
+# The traffic API needs a credential a workflow's own token cannot be granted,
+# so the read uses the `TRAFFIC_READ_TOKEN` secret while the data branch is
+# still written with the built-in token. Until that secret exists this job
+# records nothing and says so on the run summary, rather than either failing
+# every morning or pretending it worked.
+
+on:
+  schedule:
+    # Daily, well inside the 14-day window. A missed day costs nothing; only
+    # fifteen consecutive misses could lose data, and the symptom would be a
+    # visibly stale badge.
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+  # Pull requests only run the fold tests, and only when the fold changes. They
+  # never collect: the collect job is skipped for them.
+  pull_request:
+    paths:
+      - .github/workflows/traffic.yml
+      - scripts/ci/fold-traffic.mjs
+      - scripts/ci/fold-traffic.test.mjs
+
+concurrency:
+  # Two runs appending to one branch would race, and the loser's push is
+  # rejected. Queue them rather than cancel: each run carries real data. A pull
+  # request gets its own group so it never waits behind, or delays, a collection.
+  group: traffic-${{ github.event_name == 'pull_request' && github.ref || 'collect' }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  test:
+    name: Test the fold
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Test the fold script
+        run: node --test scripts/ci/fold-traffic.test.mjs
+
+  collect:
+    name: Collect traffic
+    # A fold that fails its tests must not touch the history.
+    needs: test
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # This is here for the data branch push and nothing else. It buys no
+      # access to the traffic API, which needs Administration: read - a scope a
+      # workflow `permissions:` block cannot express at all. See the header for
+      # the credential that read actually uses.
+      contents: write # push the snapshot to the `traffic-data` branch
+    steps:
+      - name: Checkout the code branch for the script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out the data branch beside it, creating it if new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" traffic-data >/dev/null 2>&1; then
+            git clone --quiet --depth 1 --branch traffic-data "$REMOTE" traffic-data
+          else
+            # First run. An orphan branch, so the history carries no application
+            # code and cannot be confused for a fork of it.
+            mkdir traffic-data
+            git -C traffic-data init -q
+            git -C traffic-data checkout -q --orphan traffic-data
+            git -C traffic-data remote add origin "$REMOTE"
+          fi
+          mkdir -p traffic-data/history traffic-data/badges
+
+      - name: Fetch the window and fold it into the history
+        env:
+          # Falls back to the built-in token so that a genuine misconfiguration
+          # is a real 403 from a real request, naming the endpoint that refused,
+          # rather than an empty `gh` invocation before any request is made.
+          GH_TOKEN: ${{ secrets.TRAFFIC_READ_TOKEN || github.token }}
+          # Whether the secret exists at all, which is a different question from
+          # whether the request worked. See the guard immediately below.
+          HAS_TRAFFIC_TOKEN: ${{ secrets.TRAFFIC_READ_TOKEN != '' && 'yes' || 'no' }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # NOT CONFIGURED and BROKEN must not look the same, and neither may
+          # look like SUCCESS.
+          #
+          # These endpoints need Administration: read, which GITHUB_TOKEN cannot
+          # be granted, so without the secret this job can never work. Failing
+          # red every morning for a setting nobody has made yet teaches everyone
+          # to ignore a red traffic run, and the day it breaks for a real reason
+          # nobody looks. So an absent secret stops here, green, and says so
+          # loudly in the run summary.
+          #
+          # That is not the bug this job used to have. The old failure recorded
+          # nothing while reporting success and explaining nothing; this records
+          # nothing, reports success, and puts the reason and the fix on the
+          # summary page. Once the secret exists, any failure past this point is
+          # a real one and goes red.
+          if [ "$HAS_TRAFFIC_TOKEN" != 'yes' ]; then
+            {
+              echo '### Traffic history not recorded'
+              echo
+              echo 'The TRAFFIC_READ_TOKEN secret is not set, so no snapshot was taken.'
+              echo
+              echo 'GitHub traffic endpoints require the Administration: read permission,'
+              echo 'which the built-in GITHUB_TOKEN cannot hold. Create a fine-grained'
+              echo 'personal access token with that permission on this repository and save'
+              echo 'it as the TRAFFIC_READ_TOKEN secret. Until then the 14-day'
+              echo 'window keeps rolling, and each day older than fourteen is gone for good.'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo '::notice::TRAFFIC_READ_TOKEN is not set, so no traffic snapshot was taken. See the run summary.'
+            exit 0
+          fi
+          # Each window is fetched into a plain assignment on its own line and
+          # exported afterwards. A failed plain assignment aborts under `set -e`;
+          # an assignment prefixed to a command takes that command's status, so
+          # a failed fetch would pass as an empty window.
+          #
+          # fold-traffic.mjs reads an unparseable payload as an empty window, so
+          # a bad response cannot overwrite real figures with zeroes. An empty
+          # window and a quiet day look the same downstream, so the payload shape
+          # is checked here, where a failure can still be reported.
+          fetch_window() {
+            local endpoint="$1" payload
+            if ! payload="$(gh api "repos/${REPO}/traffic/${endpoint}")"; then
+              echo "::error::GET repos/${REPO}/traffic/${endpoint} failed. These endpoints need Administration: read, which GITHUB_TOKEN cannot be granted - set the TRAFFIC_READ_TOKEN secret to a fine-grained token that holds it." >&2
+              return 1
+            fi
+            if ! printf '%s' "$payload" | jq -e 'has("days") and (.days | type == "array")' >/dev/null; then
+              echo "::error::repos/${REPO}/traffic/${endpoint} answered without a day-by-day window. Refusing to fold a response this job cannot read, which would silently record nothing." >&2
+              return 1
+            fi
+            printf '%s' "$payload"
+          }
+
+          # Handed to the script in the environment rather than through temporary
+          # files: it already has the payload, and a file would only add a path
+          # for the script to be trusted with. Both responses are a few KB.
+          CLONES_JSON="$(fetch_window clones)"
+          VIEWS_JSON="$(fetch_window views)"
+          export CLONES_JSON VIEWS_JSON
+          node scripts/ci/fold-traffic.mjs
+
+      - name: Commit only when something changed
+        working-directory: traffic-data
+        run: |
+          set -euo pipefail
+          git add history badges
+          if git diff --cached --quiet; then
+            echo "Nothing new to record."
+            exit 0
+          fi
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -qm "chore(repo): record traffic through $(date -u +%Y-%m-%d)"
+          git push -q origin HEAD:traffic-data
