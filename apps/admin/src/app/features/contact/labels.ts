@@ -12,6 +12,7 @@ export const CONTACT_REQUEST_STATUS_LABELS: Readonly<Record<RequestStatus, strin
   new: 'New',
   in_progress: 'In progress',
   closed: 'Closed',
+  spam: 'Spam',
 };
 
 /** The status in words, or the raw value if it is one this panel does not know. */

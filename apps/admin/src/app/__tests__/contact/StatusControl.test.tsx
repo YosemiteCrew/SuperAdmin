@@ -25,6 +25,17 @@ describe('StatusControl', () => {
     expect(screen.getByRole('combobox')).toHaveValue('in_progress');
   });
 
+  it('offers Spam, so a bot submission can be moved out of the inbox', async () => {
+    updateMock.mockResolvedValue({ status: 'spam' });
+    render(<StatusControl requestId="request-1" status="new" />);
+
+    expect(screen.getByRole('option', { name: 'Spam' })).toBeInTheDocument();
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'spam' } });
+
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    expect((updateMock.mock.calls[0][0] as FormData).get('status')).toBe('spam');
+  });
+
   it('submits the loaded status as expectedStatus, not the newly chosen one', async () => {
     render(<StatusControl requestId="request-1" status="in_progress" />);
 

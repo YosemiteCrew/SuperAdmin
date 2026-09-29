@@ -56,6 +56,7 @@ describe('isRequestStatus', () => {
     expect(isRequestStatus('new')).toBe(true);
     expect(isRequestStatus('in_progress')).toBe(true);
     expect(isRequestStatus('closed')).toBe(true);
+    expect(isRequestStatus('spam')).toBe(true);
     expect(isRequestStatus('deleted')).toBe(false);
     expect(isRequestStatus(42)).toBe(false);
   });
@@ -159,7 +160,9 @@ describe('listContactRequests', () => {
     // An unresolved cursor contributes no bound, so the first query already IS
     // the first page - re-running it would only cost a second round trip.
     expect(mockFind).toHaveBeenCalledTimes(1);
-    expect(mockFind.mock.calls[0][0].where).toEqual({ AND: [{}, {}] });
+    expect(mockFind.mock.calls[0][0].where).toEqual({
+      AND: [{ status: { not: 'spam' } }, {}],
+    });
   });
 
   it('falls back to the first page when a resolved cursor lands past the end', async () => {
@@ -186,6 +189,18 @@ describe('listContactRequests', () => {
     const { requests } = await listContactRequests({});
     expect(requests).toEqual([]);
     expect(mockFind).toHaveBeenCalledTimes(1);
+  });
+
+  it('leaves spam out of the unfiltered view', async () => {
+    await listContactRequests({});
+    expect(mockFind.mock.calls[0][0].where.AND[0]).toEqual({ status: { not: 'spam' } });
+  });
+
+  it('lists spam under its own filter', async () => {
+    mockFind.mockResolvedValue([row('r1', { status: 'spam' })]);
+    const { requests } = await listContactRequests({ status: 'spam' });
+    expect(mockFind.mock.calls[0][0].where.AND[0]).toEqual({ status: 'spam' });
+    expect(requests[0].status).toBe('spam');
   });
 
   it('does not look a cursor up when none was given', async () => {
@@ -223,7 +238,20 @@ describe('countRequestsByStatus', () => {
       { status: 'closed', _count: { _all: 5 } },
       { status: 'bogus', _count: { _all: 9 } },
     ]);
-    expect(await countRequestsByStatus()).toEqual({ new: 3, in_progress: 0, closed: 5 });
+    expect(await countRequestsByStatus()).toEqual({
+      new: 3,
+      in_progress: 0,
+      closed: 5,
+      spam: 0,
+    });
+  });
+
+  it('counts spam under its own key', async () => {
+    mockGroup.mockResolvedValue([
+      { status: 'new', _count: { _all: 1 } },
+      { status: 'spam', _count: { _all: 442 } },
+    ]);
+    expect(await countRequestsByStatus()).toMatchObject({ new: 1, spam: 442 });
   });
 });
 

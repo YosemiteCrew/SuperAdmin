@@ -2,9 +2,9 @@ import 'server-only';
 
 import { prisma } from '@superadmin/database';
 
-export type RequestStatus = 'new' | 'in_progress' | 'closed';
+export type RequestStatus = 'new' | 'in_progress' | 'closed' | 'spam';
 
-export const REQUEST_STATUSES: RequestStatus[] = ['new', 'in_progress', 'closed'];
+export const REQUEST_STATUSES: RequestStatus[] = ['new', 'in_progress', 'closed', 'spam'];
 
 export function isRequestStatus(value: unknown): value is RequestStatus {
   return typeof value === 'string' && (REQUEST_STATUSES as string[]).includes(value);
@@ -45,7 +45,11 @@ export async function listContactRequests(params: {
   status?: RequestStatus;
   cursor?: string;
 }): Promise<{ requests: ContactRequestView[]; nextCursor: string | null }> {
-  const statusFilter = params.status ? { status: params.status } : {};
+  // "All" means every request a person sent: spam is kept, but only under its
+  // own filter, so it never crowds out the people who wrote in.
+  const statusFilter = params.status
+    ? { status: params.status }
+    : { status: { not: 'spam' as RequestStatus } };
 
   // The cursor row is looked up WITHOUT the status filter. Prisma's own
   // `cursor`/`skip: 1` pagination assumes the cursor row is the first row of
@@ -127,7 +131,7 @@ export async function countRequestsByStatus(): Promise<Record<RequestStatus, num
     by: ['status'],
     _count: { _all: true },
   });
-  const counts: Record<RequestStatus, number> = { new: 0, in_progress: 0, closed: 0 };
+  const counts: Record<RequestStatus, number> = { new: 0, in_progress: 0, closed: 0, spam: 0 };
   for (const g of grouped) {
     if (isRequestStatus(g.status)) counts[g.status] = g._count._all;
   }
