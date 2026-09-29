@@ -70,6 +70,9 @@ describe('verifyOrganizationAction', () => {
       expect.objectContaining({ action: 'org.verify', targetId: 'o1', targetLabel: 'Acme Vet' })
     );
     expect(revalidatePath).toHaveBeenCalledWith('/organizations');
+    // The approvals queue and the dashboard count read the same state.
+    expect(revalidatePath).toHaveBeenCalledWith('/approvals');
+    expect(revalidatePath).toHaveBeenCalledWith('/dashboard');
   });
 
   it('skips when the organizationId is missing', async () => {

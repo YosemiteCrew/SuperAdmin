@@ -12,12 +12,9 @@ jest.mock('supertokens-node', () => ({
   },
 }));
 
-const countPendingApprovalCandidatesMock = jest.fn();
-const fetchApprovalCandidatesMock = jest.fn();
-jest.mock('@/app/features/approvals/queue', () => ({
-  countPendingApprovalCandidates: (...args: unknown[]) =>
-    countPendingApprovalCandidatesMock(...args),
-  fetchApprovalCandidates: (...args: unknown[]) => fetchApprovalCandidatesMock(...args),
+const loadOrganizationsMock = jest.fn();
+jest.mock('@/app/features/organizations/load', () => ({
+  loadOrganizations: (...args: unknown[]) => loadOrganizationsMock(...args),
 }));
 
 const requireSuperAdminMock = jest.fn();
@@ -30,26 +27,62 @@ jest.mock('@/app/features/audit/AuditTimeline', () => ({
   AuditTimeline: () => <div data-testid="audit-timeline" />,
 }));
 
-const CANDIDATES = [
-  { id: 'business-1', emails: ['business@example.com'], timeJoined: 1_700_000_000_000 },
-];
+function business(id: string, isVerified: boolean, isActive = true) {
+  return {
+    id,
+    name: id,
+    type: 'HOSPITAL',
+    isVerified,
+    isActive,
+    memberCount: 1,
+    createdAt: '2026-09-01T00:00:00.000Z',
+  };
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
   getUserCountMock.mockResolvedValue(42);
   getUsersNewestFirstMock.mockResolvedValue({ users: [], nextPaginationToken: undefined });
-  fetchApprovalCandidatesMock.mockResolvedValue(CANDIDATES);
-  countPendingApprovalCandidatesMock.mockResolvedValue(7);
+  loadOrganizationsMock.mockResolvedValue({
+    organizations: [
+      business('waiting-1', false),
+      business('waiting-2', false),
+      business('verified', true),
+      business('suspended', false, false),
+    ],
+    loadError: false,
+  });
 });
 
 describe('DashboardPage', () => {
-  it('renders the pending count from the derived-index helper', async () => {
+  it('counts the businesses waiting for approval on the production backend', async () => {
     const mod = await import('@/app/(routes)/(dashboard)/dashboard/page');
     render(await mod.default());
 
-    expect(countPendingApprovalCandidatesMock).toHaveBeenCalledWith(CANDIDATES);
-    expect(screen.getByText('Pending approvals')).toBeInTheDocument();
-    expect(screen.getByText('7')).toBeInTheDocument();
+    expect(loadOrganizationsMock).toHaveBeenCalledWith(false, 'production');
+    expect(screen.getByText('Businesses awaiting approval')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Review queue →')).toBeInTheDocument();
+  });
+
+  it('reads the queue as clear when no business is waiting', async () => {
+    loadOrganizationsMock.mockResolvedValue({
+      organizations: [business('verified', true)],
+      loadError: false,
+    });
+    const mod = await import('@/app/(routes)/(dashboard)/dashboard/page');
+    render(await mod.default());
+
+    expect(screen.getByText('Queue is clear')).toBeInTheDocument();
+  });
+
+  it('shows no count when the platform backend cannot be reached', async () => {
+    loadOrganizationsMock.mockResolvedValue({ organizations: [], loadError: true });
+    const mod = await import('@/app/(routes)/(dashboard)/dashboard/page');
+    render(await mod.default());
+
+    expect(screen.getByText('Could not reach the platform backend')).toBeInTheDocument();
+    expect(screen.queryByText('Queue is clear')).not.toBeInTheDocument();
   });
 
   /**
@@ -69,6 +102,6 @@ describe('DashboardPage', () => {
     expect(requireSuperAdminMock).toHaveBeenCalledWith('page');
     expect(getUserCountMock).not.toHaveBeenCalled();
     expect(getUsersNewestFirstMock).not.toHaveBeenCalled();
-    expect(fetchApprovalCandidatesMock).not.toHaveBeenCalled();
+    expect(loadOrganizationsMock).not.toHaveBeenCalled();
   });
 });

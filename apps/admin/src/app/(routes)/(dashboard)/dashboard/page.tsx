@@ -3,12 +3,11 @@ import Link from 'next/link';
 import supertokens from 'supertokens-node';
 
 import { ensureSuperTokensInit, requireSuperAdmin } from '@/app/config/backend';
-import {
-  countPendingApprovalCandidates,
-  fetchApprovalCandidates,
-} from '@/app/features/approvals/queue';
+import { DEFAULT_API_ENVIRONMENT } from '@/app/config/apiEnvironment';
 import { AuditTimeline } from '@/app/features/audit/AuditTimeline';
 import { getRecentAuditEvents } from '@/app/features/audit/store';
+import { approvalQueue } from '@/app/features/organizations/approvals';
+import { loadOrganizations } from '@/app/features/organizations/load';
 import { getServerTimestamp } from '@/app/lib/serverTime';
 
 export const metadata: Metadata = {
@@ -84,25 +83,31 @@ function Stat({ label, value, hint }: Readonly<{ label: string; value: string; h
   );
 }
 
+function approvalsHint(pending: number | null): string {
+  if (pending === null) return 'Could not reach the platform backend';
+  return pending > 0 ? 'Review queue →' : 'Queue is clear';
+}
+
 export default async function DashboardPage() {
   ensureSuperTokensInit();
   await requireSuperAdmin('page');
 
-  const [totalUsers, newest, approvalCandidates, auditEvents] = await Promise.all([
+  const [totalUsers, newest, businesses, auditEvents] = await Promise.all([
     supertokens.getUserCount(),
     supertokens.getUsersNewestFirst({
       tenantId: 'public',
       limit: ROLLING_FETCH_CAP,
     }),
-    // A separate, business-only window - the same one /approvals scans - so a
-    // run of mobile-app signups can neither inflate this count nor push real
-    // business accounts out of it.
-    fetchApprovalCandidates(ROLLING_FETCH_CAP),
+    // Approvals are decisions about businesses, so the count is the production
+    // queue /approvals opens on.
+    loadOrganizations(false, DEFAULT_API_ENVIRONMENT),
     getRecentAuditEvents(8),
   ]);
 
   const recent = newest.users.slice(0, RECENT_LIMIT);
-  const pendingApprovals = await countPendingApprovalCandidates(approvalCandidates);
+  const pendingApprovals = businesses.loadError
+    ? null
+    : approvalQueue(businesses.organizations).length;
   const cutoff = getServerTimestamp() - ROLLING_WINDOW_DAYS * 24 * 60 * 60 * 1000;
   const newThisWeekSample = newest.users.filter((u) => u.timeJoined >= cutoff).length;
   const newThisWeekDisplay =
@@ -141,9 +146,9 @@ export default async function DashboardPage() {
         />
         <Link href="/approvals" className="group">
           <Stat
-            label="Pending approvals"
-            value={String(pendingApprovals)}
-            hint={pendingApprovals > 0 ? 'Review queue →' : 'Queue is clear'}
+            label="Businesses awaiting approval"
+            value={pendingApprovals === null ? '—' : String(pendingApprovals)}
+            hint={approvalsHint(pendingApprovals)}
           />
         </Link>
       </section>
