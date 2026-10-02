@@ -1,0 +1,90 @@
+name: React Doctor
+
+# Holds the admin panel's component health score to a minimum on every pull
+# request. No path filter: the job name `react-doctor` is meant to be a required
+# check, and a required check must report on every pull request.
+on:
+  pull_request: {}
+  push:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: react-doctor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  react-doctor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Runs a third-party action against pull-request code; do not leave
+          # the default token in git config for it to read.
+          persist-credentials: false
+
+      - name: Run React Doctor
+        id: react-doctor
+        uses: millionco/react-doctor@013f7373f91a3b9e68bd1dc7d4d354f4b041b117 # v2.2.9
+        with:
+          directory: apps/admin
+          blocking: error
+          node-version: '22'
+          # Score the whole app, not only what the pull request touched.
+          scope: full
+          # Results go to the job summary only, so the token stays read-only.
+          comment: 'false'
+          review-comments: 'false'
+          commit-status: 'false'
+          # Pinned CLI. react-doctor@0.7.5+ emits report schemaVersion 3, which
+          # the pinned action rejects ("Scan could not complete"); 0.7.4 emits schema 1.
+          version: 0.7.4
+
+      - name: Enforce React Doctor score
+        env:
+          REACT_DOCTOR_SCORE: ${{ steps.react-doctor.outputs.score }}
+          REACT_DOCTOR_DIRECTORY: apps/admin
+          REACT_DOCTOR_VERSION: 0.7.4
+          # Raise it as the app improves; never lower it to land a change.
+          REACT_DOCTOR_MIN_SCORE: '95'
+        run: |
+          set -euo pipefail
+
+          score="${REACT_DOCTOR_SCORE:-}"
+
+          # The score comes from a remote scoring service. When it does not
+          # answer, scan again once; if there is still no score, fail rather
+          # than pass a check that measured nothing.
+          if [ -z "$score" ]; then
+            echo "::warning::React Doctor returned no score for $REACT_DOCTOR_DIRECTORY. Scanning once more."
+            sleep 30
+            report="${RUNNER_TEMP:-/tmp}/react-doctor-score-retry.json"
+            npm exec --yes --package "react-doctor@${REACT_DOCTOR_VERSION}" -- \
+              react-doctor "$REACT_DOCTOR_DIRECTORY" --json --json-compact --blocking none --project '*' --scope full \
+              > "$report" || true
+            score="$(node -e '
+              try {
+                const value = JSON.parse(require("node:fs").readFileSync(process.argv[1], "utf8")).summary?.score;
+                if (typeof value === "number") process.stdout.write(String(value));
+              } catch {}
+            ' "$report")"
+          fi
+
+          if [ -z "$score" ]; then
+            echo "::error::React Doctor returned no score for $REACT_DOCTOR_DIRECTORY on two attempts, so the minimum of $REACT_DOCTOR_MIN_SCORE could not be checked. The scoring service may be unavailable; re-run this job. The check fails instead of passing unchecked."
+            exit 1
+          fi
+
+          if ! [[ "$score" =~ ^[0-9]+$ ]]; then
+            echo "::error::React Doctor returned an unexpected score '$score' for $REACT_DOCTOR_DIRECTORY."
+            exit 1
+          fi
+
+          echo "React Doctor score for $REACT_DOCTOR_DIRECTORY: $score (minimum $REACT_DOCTOR_MIN_SCORE)"
+          if [ "$score" -lt "$REACT_DOCTOR_MIN_SCORE" ]; then
+            echo "::error::React Doctor score $score for $REACT_DOCTOR_DIRECTORY is below the required $REACT_DOCTOR_MIN_SCORE. The scan summary above lists the findings to fix."
+            exit 1
+          fi
