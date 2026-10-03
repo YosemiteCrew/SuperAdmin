@@ -142,6 +142,20 @@ export async function getInviteByToken(token: string): Promise<InviteRecord | nu
   return match ? toInviteRecord(match) : null;
 }
 
+/** Deletes every invite past the newest {@link MAX_INVITES}. */
+async function pruneInvitesBeyondCap(tx: {
+  invite: Pick<typeof prisma.invite, 'findMany' | 'deleteMany'>;
+}): Promise<void> {
+  const stale = await tx.invite.findMany({
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    skip: MAX_INVITES,
+    select: { id: true },
+  });
+  if (stale.length > 0) {
+    await tx.invite.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } });
+  }
+}
+
 export async function createInvite(params: {
   email: string;
   createdBy: string;
@@ -165,14 +179,8 @@ export async function createInvite(params: {
       },
     });
 
-    const stale = await tx.invite.findMany({
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      skip: MAX_INVITES,
-      select: { id: true },
-    });
-    if (stale.length > 0) {
-      await tx.invite.deleteMany({ where: { id: { in: stale.map(({ id }) => id) } } });
-    }
+    // After the create, so the new invite counts towards the cap.
+    await pruneInvitesBeyondCap(tx);
     return created;
   });
 

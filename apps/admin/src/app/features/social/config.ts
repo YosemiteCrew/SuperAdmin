@@ -39,7 +39,7 @@ function tokenKeyProblem(): string | null {
 }
 
 function collectMissing(required: Array<[string, string | null]>): string[] {
-  const missing = required.filter(([, value]) => !value).map(([name]) => name);
+  const missing = required.flatMap(([name, value]) => (value ? [] : [name]));
   const keyProblem = tokenKeyProblem();
   if (keyProblem) missing.push(keyProblem);
   return missing;

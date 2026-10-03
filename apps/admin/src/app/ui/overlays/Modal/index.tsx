@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 
 /**
  * The panel's one modal overlay.
@@ -52,17 +52,19 @@ export function Modal({
   // the dialog element itself is a click outside its content. Registered here
   // rather than as a JSX `onClick`, which puts a mouse-only handler on a
   // non-interactive element (sonar S1082/S6847); Escape is the keyboard route
-  // out and the platform supplies it. Its own effect so that a fresh `onClose`
-  // closure re-binds the listener without closing and reopening the dialog.
+  // out and the platform supplies it. The listener reads the latest `onClose`
+  // through an effect event, so a fresh closure neither re-binds it nor closes
+  // and reopens the dialog.
+  const closeFromBackdrop = useEffectEvent(() => onClose?.());
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog || !isOpen) return;
     const onBackdropClick = (event: MouseEvent) => {
-      if (event.target === dialog) onClose?.();
+      if (event.target === dialog) closeFromBackdrop();
     };
     dialog.addEventListener('click', onBackdropClick);
     return () => dialog.removeEventListener('click', onBackdropClick);
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   return (
     <dialog

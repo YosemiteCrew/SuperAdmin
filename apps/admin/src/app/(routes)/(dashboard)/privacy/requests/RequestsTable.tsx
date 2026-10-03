@@ -290,7 +290,7 @@ export function RequestsTable({
                     </td>
                     <td className={TD}>{describeDataRequestType(request.type)}</td>
                     <td className={TD}>
-                      {request.receivedAt.toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                      {request.receivedAt.toLocaleDateString('en-US', { timeZone: 'UTC' })}
                     </td>
                     <td className="px-[18px] py-3">
                       <DeadlineBadge dueAt={request.dueAt} status={status} nowMs={nowMs} />

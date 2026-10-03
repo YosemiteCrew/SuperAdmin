@@ -45,6 +45,10 @@ const AVATAR_PALETTE = [
   'bg-[var(--avatar-amber-bg)] text-[color:var(--avatar-amber-ink)]',
 ];
 
+function filterHref(key: Filter): string {
+  return key === 'new' ? '/crm/requests' : `/crm/requests?status=${key}`;
+}
+
 function initialsFor(name: string | null | undefined, email: string): string {
   const source = name?.trim() || (email.split('@')[0] ?? '');
   const parts = source.split(/[\s._-]+/).filter(Boolean);
@@ -178,9 +182,6 @@ export default async function ContactRequestsPage({
   ]);
 
   const accounts = await linkEmailsToAccounts(requests.map((r) => r.email));
-
-  const filterHref = (key: Filter) =>
-    key === 'new' ? '/crm/requests' : `/crm/requests?status=${key}`;
 
   return (
     <div className="flex flex-col gap-[22px]">

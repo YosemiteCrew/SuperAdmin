@@ -123,11 +123,10 @@ export async function resetMfaAction(formData: FormData) {
   if (typeof userId !== 'string' || userId.length === 0) return;
 
   const { devices } = await TotpNode.listDevices(userId);
-  const removedDevices = await Promise.all(
-    devices.map((device) => TotpNode.removeDevice(userId, device.name))
-  );
-
-  const revokedSessions = await SessionNode.revokeAllSessionsForUser(userId);
+  const [removedDevices, revokedSessions] = await Promise.all([
+    Promise.all(devices.map((device) => TotpNode.removeDevice(userId, device.name))),
+    SessionNode.revokeAllSessionsForUser(userId),
+  ]);
   if (removedDevices.some(({ didDeviceExist }) => didDeviceExist) || revokedSessions.length > 0) {
     await auditUser('user.mfa_reset', actorId, userId);
   }

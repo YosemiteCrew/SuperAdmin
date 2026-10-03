@@ -1,9 +1,7 @@
 import { render } from '@testing-library/react';
 
-import {
-  OrganizationAvatar,
-  organizationVisual,
-} from '@/app/(routes)/(dashboard)/organizations/OrganizationAvatar';
+import { OrganizationAvatar } from '@/app/(routes)/(dashboard)/organizations/OrganizationAvatar';
+import { organizationVisual } from '@/app/(routes)/(dashboard)/organizations/organizationVisual';
 import type { BusinessType } from '@/app/features/organizations/types';
 
 const TYPES: BusinessType[] = ['HOSPITAL', 'GROOMER', 'BOARDER', 'BREEDER'];

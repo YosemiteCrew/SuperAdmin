@@ -1,6 +1,6 @@
 'use client';
 
-import { useId, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { finishReel, submitReel } from '@/app/features/social/instagramClient';
 import { MAX_CAPTION_LENGTH } from '@/app/features/social/postRequest';
@@ -16,8 +16,11 @@ type Status =
   | { kind: 'error'; message: string };
 
 export function InstagramComposer() {
-  const ids = { video: useId(), caption: useId(), feed: useId() };
-  const [video, setVideo] = useState<File | null>(null);
+  const videoId = useId();
+  const captionId = useId();
+  const feedId = useId();
+  // Read on submit only, so picking a file does not re-render the form.
+  const videoInput = useRef<HTMLInputElement>(null);
   const [caption, setCaption] = useState('');
   const [shareToFeed, setShareToFeed] = useState(true);
   const [status, setStatus] = useState<Status>({ kind: 'idle' });
@@ -41,6 +44,7 @@ export function InstagramComposer() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const video = videoInput.current?.files?.[0];
     if (!video) {
       setStatus({ kind: 'error', message: 'Choose an MP4 to post.' });
       return;
@@ -59,27 +63,21 @@ export function InstagramComposer() {
   return (
     <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
       <div>
-        <label htmlFor={ids.video} className="mb-1.5 block text-sm font-medium text-ink">
+        <label htmlFor={videoId} className="mb-1.5 block text-sm font-medium text-ink">
           Reel video
         </label>
-        <input
-          id={ids.video}
-          type="file"
-          accept="video/mp4"
-          onChange={(event) => setVideo(event.target.files?.[0] ?? null)}
-          className={FIELD}
-        />
+        <input id={videoId} ref={videoInput} type="file" accept="video/mp4" className={FIELD} />
         <p className="mt-1 text-xs text-ink-3">
           MP4, up to 64MB. Vertical 1080x1920, 3 seconds to 15 minutes.
         </p>
       </div>
 
       <div>
-        <label htmlFor={ids.caption} className="mb-1.5 block text-sm font-medium text-ink">
+        <label htmlFor={captionId} className="mb-1.5 block text-sm font-medium text-ink">
           Caption
         </label>
         <textarea
-          id={ids.caption}
+          id={captionId}
           value={caption}
           onChange={(event) => setCaption(event.target.value)}
           rows={3}
@@ -91,13 +89,13 @@ export function InstagramComposer() {
 
       <span className="inline-flex items-center gap-2">
         <input
-          id={ids.feed}
+          id={feedId}
           type="checkbox"
           checked={shareToFeed}
           onChange={(event) => setShareToFeed(event.target.checked)}
           className="size-4 rounded border-line accent-[var(--color-btn)]"
         />
-        <label htmlFor={ids.feed} className="text-sm text-ink-2">
+        <label htmlFor={feedId} className="text-sm text-ink-2">
           Also show on the profile grid
         </label>
       </span>

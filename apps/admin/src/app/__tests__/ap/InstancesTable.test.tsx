@@ -191,8 +191,22 @@ describe('InstancesTable', () => {
 
     await waitFor(() => expect(mockIssue).toHaveBeenCalled());
     expect(await screen.findByText(/Token issued/i)).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Issued token' })).toHaveValue('issued.token');
     expect(screen.getByLabelText(/Org ID/i)).toHaveValue('');
     expect(screen.getByLabelText(/Instance domain/i)).toHaveValue('');
     expect(screen.getByLabelText(/Tier/i)).toHaveValue('free');
+  });
+
+  it('formats the issued and expiry days in UTC so server and browser agree', () => {
+    const formatDate = jest.spyOn(Date.prototype, 'toLocaleDateString');
+    try {
+      render(<InstancesTable tokens={[makeToken()]} />);
+      expect(formatDate).toHaveBeenCalledTimes(2);
+      for (const call of formatDate.mock.calls) {
+        expect(call).toEqual(['en-US', { timeZone: 'UTC' }]);
+      }
+    } finally {
+      formatDate.mockRestore();
+    }
   });
 });

@@ -6,6 +6,7 @@ import { MAX_NOTE_CHARS, type OrgNote } from '@/app/features/organizations/notes
 
 import { type NoteActionResult, addNoteAction } from './noteActions';
 
+// Pinned to UTC so the server render and the browser hydration agree.
 function formatNoteDate(at: number): string {
   return new Date(at).toLocaleString('en-US', {
     month: 'short',
@@ -13,6 +14,7 @@ function formatNoteDate(at: number): string {
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
+    timeZone: 'UTC',
   });
 }
 

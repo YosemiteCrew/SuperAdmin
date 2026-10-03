@@ -22,7 +22,7 @@ export function DataRequestFlag({
   if (signals.length === 0) return null;
 
   const kinds = signals.map((s) => REQUEST_TYPE_LABELS[s.type]).join(', ');
-  const phrases = signals.flatMap((s) => s.phrases).map((p) => `"${p}"`);
+  const phrases = signals.flatMap((s) => s.phrases.map((p) => `"${p}"`));
   // The link carries this request's own id, never the sender's address: a URL
   // is written into the operator's browser history and the deployment's access
   // logs, and neither has an erasure path. The form resolves the address from

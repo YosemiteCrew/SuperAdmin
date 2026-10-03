@@ -133,39 +133,37 @@ const SECTION_HINT = 'text-[12px] leading-[1.5] text-[color:var(--ink-faint)] te
 const DT_CLASS = 'text-[10px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 const DD_CLASS = 'mt-[3px] text-[13.5px] font-medium text-[color:var(--ink)]';
 
+/** Where an account's super-admin access comes from, if it has any. */
+type AccessSource = 'bootstrap' | 'role' | 'none';
+
+function accessSource(isBootstrapAdmin: boolean, isAdmin: boolean): AccessSource {
+  if (isBootstrapAdmin) return 'bootstrap';
+  return isAdmin ? 'role' : 'none';
+}
+
 function AccessSection({
-  userId,
-  email,
-  isAdmin,
-  hasSuperAdmin,
-  isBootstrapAdmin,
+  access,
   roleHint,
-  canManageRole,
-}: Readonly<{
-  userId: string;
-  email: string;
-  isAdmin: boolean;
-  hasSuperAdmin: boolean;
-  isBootstrapAdmin: boolean;
-  roleHint: string;
-  canManageRole: boolean;
-}>) {
+  action,
+}: Readonly<{ access: AccessSource; roleHint: string; action: React.ReactNode }>) {
   return (
     <section className={SECTION_CLASS}>
       <h2 className={SECTION_HEAD}>Access</h2>
       <div className={SECTION_BODY}>
         <div className="flex flex-col gap-[3px]">
           <div className="flex items-center gap-2">
-            <span className={SECTION_STATE}>{hasSuperAdmin ? 'Super admin' : 'Standard user'}</span>
-            {hasSuperAdmin ? (
+            <span className={SECTION_STATE}>
+              {access === 'none' ? 'Standard user' : 'Super admin'}
+            </span>
+            {access === 'none' ? null : (
               <span className="rounded-full bg-[var(--blue-soft)] px-[9px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em] text-[color:var(--blue-text)]">
-                {isBootstrapAdmin ? 'Bootstrap' : 'Role'}
+                {access === 'bootstrap' ? 'Bootstrap' : 'Role'}
               </span>
-            ) : null}
+            )}
           </div>
           <p className={SECTION_HINT}>{roleHint}</p>
         </div>
-        {canManageRole ? <RoleButton userId={userId} email={email} isAdmin={isAdmin} /> : null}
+        {action}
       </div>
     </section>
   );
@@ -250,7 +248,6 @@ export default async function UserDetailPage({
       : 'No verified TOTP device';
   const isBootstrapAdmin = serverEnv.superadminBootstrapEmails.includes(primaryEmail.toLowerCase());
   const isSelf = callerId === user.id;
-  const hasSuperAdmin = isAdmin || isBootstrapAdmin;
   const roleHint = accessHint({ isBootstrapAdmin, isSelf, isAdmin });
   const canManageRole = !isBootstrapAdmin && !isSelf;
   const isDisabled = disabledAt !== null;
@@ -346,13 +343,13 @@ export default async function UserDetailPage({
       </section>
 
       <AccessSection
-        userId={user.id}
-        email={primaryEmail}
-        isAdmin={isAdmin}
-        hasSuperAdmin={hasSuperAdmin}
-        isBootstrapAdmin={isBootstrapAdmin}
+        access={accessSource(isBootstrapAdmin, isAdmin)}
         roleHint={roleHint}
-        canManageRole={canManageRole}
+        action={
+          canManageRole ? (
+            <RoleButton userId={user.id} email={primaryEmail} isAdmin={isAdmin} />
+          ) : null
+        }
       />
 
       <AccountStatusSection

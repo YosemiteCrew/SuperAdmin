@@ -30,6 +30,11 @@ const CARD =
 const TH =
   'px-5 py-[11px] text-[10.5px] font-bold uppercase tracking-[0.1em] text-[color:var(--ink-faint)]';
 const TD = 'px-5 py-[13px] text-[13px] text-[color:var(--ink-muted)]';
+
+// Pinned to UTC so the server render and the browser hydration agree.
+function formatDay(date: Date): string {
+  return date.toLocaleDateString('en-US', { timeZone: 'UTC' });
+}
 const BADGE =
   'inline-flex items-center rounded-full border px-[10px] py-[3px] text-[10px] font-bold uppercase tracking-[0.08em]';
 const FIELD_LABEL = 'text-[11px] font-semibold text-[color:var(--ink-soft)]';
@@ -169,6 +174,7 @@ function IssuedTokenPanel({ token }: { readonly token: string }) {
       </div>
       <textarea
         readOnly
+        aria-label="Issued token"
         rows={4}
         defaultValue={token}
         className="mt-2.5 w-full resize-none rounded-[10px] border border-[var(--hairline)] bg-[var(--field-bg)] p-2.5 font-mono text-[11px] leading-relaxed text-[color:var(--ink-2)] outline-none"
@@ -271,8 +277,8 @@ function TokenRow({ token }: { readonly token: LicenseTokenRow }) {
       <td className="px-5 py-[13px]">
         <TierBadge tier={token.tier} />
       </td>
-      <td className={TD}>{token.issuedAt.toLocaleDateString()}</td>
-      <td className={TD}>{token.expiresAt.toLocaleDateString()}</td>
+      <td className={TD}>{formatDay(token.issuedAt)}</td>
+      <td className={TD}>{formatDay(token.expiresAt)}</td>
       <td className="px-5 py-[13px]">
         <StatusBadge status={status} />
       </td>

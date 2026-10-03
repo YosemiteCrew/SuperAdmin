@@ -78,7 +78,7 @@ describe('RequestsTable', () => {
       );
       expect(screen.getByText('3/1/2026')).toBeInTheDocument();
       expect(screen.queryByText('2/28/2026')).not.toBeInTheDocument();
-      expect(formatDate).toHaveBeenCalledWith(undefined, { timeZone: 'UTC' });
+      expect(formatDate).toHaveBeenCalledWith('en-US', { timeZone: 'UTC' });
     } finally {
       formatDate.mockRestore();
     }

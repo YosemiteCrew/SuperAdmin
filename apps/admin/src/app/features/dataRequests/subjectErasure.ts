@@ -85,21 +85,16 @@ export async function eraseSubjectData(rawEmail: string): Promise<SubjectErasure
   const { deleted, retained } = await prisma.$transaction(async (tx) => {
     // Counted before the delete and before the nulling, because both make the
     // rows unreachable by the address that identified them.
-    const contactRequests = await tx.contactRequest.count({
-      where: { lead: { email: { equals: subjectEmail } } },
-    });
-    const consentSubjectIds = (
-      await tx.consentSubject.findMany({
+    const [contactRequests, consentSubjects, consentEvents, dataRequests] = await Promise.all([
+      tx.contactRequest.count({ where: { lead: { email: { equals: subjectEmail } } } }),
+      tx.consentSubject.findMany({
         where: { email: { equals: subjectEmail } },
         select: { id: true },
-      })
-    ).map((s) => s.id);
-    const consentEvents = await tx.consentEvent.count({
-      where: { subjectId: { in: consentSubjectIds } },
-    });
-    const dataRequests = await tx.dataRequest.count({
-      where: { subjectEmail: { equals: subjectEmail } },
-    });
+      }),
+      tx.consentEvent.count({ where: { subject: { email: { equals: subjectEmail } } } }),
+      tx.dataRequest.count({ where: { subjectEmail: { equals: subjectEmail } } }),
+    ]);
+    const consentSubjectIds = consentSubjects.map((s) => s.id);
 
     const lead = await tx.contactLead.deleteMany({ where: { email: { equals: subjectEmail } } });
 
@@ -116,12 +111,15 @@ export async function eraseSubjectData(rawEmail: string): Promise<SubjectErasure
     // collision-free without deriving anything from the value being erased.
     // ponytail: one statement per subject; a subject has a handful of these, and
     // `updateMany` cannot write a distinct value per row.
-    for (const id of consentSubjectIds) {
-      await tx.consentSubject.update({
-        where: { id },
-        data: { email: null, userId: null, consentId: `${ERASED_SUBJECT}:${id}` },
-      });
-    }
+    // Inside the transaction, so one failed update rolls every one of them back.
+    await Promise.all(
+      consentSubjectIds.map((id) =>
+        tx.consentSubject.update({
+          where: { id },
+          data: { email: null, userId: null, consentId: `${ERASED_SUBJECT}:${id}` },
+        })
+      )
+    );
 
     // The row is the proof a request of this type was answered in time. The
     // address and the controller's free-text notes about the person are not

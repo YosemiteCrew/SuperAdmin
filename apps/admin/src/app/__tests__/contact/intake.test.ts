@@ -453,6 +453,32 @@ describe('recordContactSubmission with a sourceRequestId', () => {
     expect(mockRequestCreateMany).not.toHaveBeenCalled();
   });
 
+  it('fills only the empty lead fields it was given, inside the transaction', async () => {
+    const tx = {
+      contactLead: {
+        upsert: jest.fn().mockResolvedValue({ id: 'lead-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 0 }),
+      },
+      contactRequest: {
+        findUnique: jest.fn().mockResolvedValueOnce(null).mockResolvedValue(stored()),
+        findFirst: jest.fn().mockResolvedValue(null),
+        update: jest.fn(),
+        createMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    mockTransaction.mockImplementationOnce(async (fn: (client: unknown) => unknown) => fn(tx));
+
+    await recordContactSubmission(submission({ name: 'Ada', company: 'Happy Paws' }));
+
+    const fills = tx.contactLead.updateMany.mock.calls
+      .map(([arg]) => arg as { where: Record<string, unknown>; data: Record<string, unknown> })
+      .filter(({ where }) => !('createdAt' in where));
+    expect(fills).toEqual([
+      { where: { id: 'lead-1', name: null }, data: { name: 'Ada' } },
+      { where: { id: 'lead-1', company: null }, data: { company: 'Happy Paws' } },
+    ]);
+  });
+
   it('stores nothing further when the id is already recorded with the same submission', async () => {
     mockRequestFindUnique.mockResolvedValue(stored());
 

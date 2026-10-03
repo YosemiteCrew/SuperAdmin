@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { ensureSuperTokensInit } from '@/app/config/backend';
 import { getInviteByToken } from '@/app/features/invites/store';
-import { inviteStatus } from '@/app/features/invites/types';
+import { type InviteStatus, inviteStatus } from '@/app/features/invites/types';
 
 import { AcceptButton } from './AcceptButton';
 
@@ -16,6 +16,12 @@ const CARD =
 const CARD_TITLE =
   'font-[family-name:var(--font-serif-display)] text-[20px] font-normal leading-tight tracking-[-0.015em] text-[color:var(--ink)]';
 const BODY_COPY = 'text-[13.5px] text-[color:var(--ink-muted)]';
+
+const CLOSED_INVITE_MESSAGES: Record<Exclude<InviteStatus, 'pending'>, string> = {
+  expired: 'This invite link has expired. Ask a super-admin to generate a new one.',
+  revoked: 'This invite link has been revoked.',
+  used: 'This invite has already been accepted.',
+};
 
 /** Terminal states (not found / expired / revoked / used) share one centred card. */
 function StatusCard({
@@ -68,12 +74,7 @@ export default async function AcceptInvitePage({
   const status = inviteStatus(invite);
 
   if (status !== 'pending') {
-    const messages: Record<Exclude<typeof status, 'pending'>, string> = {
-      expired: 'This invite link has expired. Ask a super-admin to generate a new one.',
-      revoked: 'This invite link has been revoked.',
-      used: 'This invite has already been accepted.',
-    };
-    return <StatusCard title={status} message={messages[status]} capitalizeTitle />;
+    return <StatusCard title={status} message={CLOSED_INVITE_MESSAGES[status]} capitalizeTitle />;
   }
 
   return (

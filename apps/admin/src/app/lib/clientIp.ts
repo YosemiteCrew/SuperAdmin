@@ -25,10 +25,7 @@ export function clientIp(request: NextRequest): string {
   if (forwarded) {
     // Trailing empty entries ("1.2.3.4, ") must not be selected as the address;
     // an empty bucket key would collapse unrelated callers into one bucket.
-    const hops = forwarded
-      .split(',')
-      .map((hop) => hop.trim())
-      .filter(Boolean);
+    const hops = forwarded.split(',').flatMap((hop) => hop.trim() || []);
     const nearest = hops.at(-1);
     if (nearest) return nearest;
   }

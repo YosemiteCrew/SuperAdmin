@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 
 import { Modal } from '@/app/ui/overlays/Modal';
 
@@ -23,5 +23,27 @@ describe('Modal', () => {
     expect(container.querySelector('dialog')?.hasAttribute('open')).toBe(true);
     rerender(<Modal isOpen={false}>x</Modal>);
     expect(container.querySelector('dialog')?.hasAttribute('open')).toBe(false);
+  });
+
+  it('closes on a backdrop click with the latest onClose, not on a click inside', () => {
+    const first = jest.fn();
+    const latest = jest.fn();
+    const { container, getByText, rerender } = render(
+      <Modal isOpen onClose={first}>
+        <p>inside</p>
+      </Modal>
+    );
+    rerender(
+      <Modal isOpen onClose={latest}>
+        <p>inside</p>
+      </Modal>
+    );
+
+    fireEvent.click(getByText('inside'));
+    expect(latest).not.toHaveBeenCalled();
+
+    fireEvent.click(container.querySelector('dialog')!);
+    expect(latest).toHaveBeenCalledTimes(1);
+    expect(first).not.toHaveBeenCalled();
   });
 });

@@ -49,6 +49,21 @@ describe('setEmailVerified', () => {
     expect(verifyUsingTokenMock).toHaveBeenCalledWith('public', 'tok');
   });
 
+  it('reports a change when any one of several email methods changed', async () => {
+    getUserMock.mockResolvedValue(
+      userWith([
+        { email: 'a@x.com', recipeUserId: 'r1', tenantIds: ['public'] },
+        { email: 'b@x.com', recipeUserId: 'r2', tenantIds: ['public'] },
+      ])
+    );
+    createTokenMock
+      .mockResolvedValueOnce({ status: 'EMAIL_ALREADY_VERIFIED_ERROR' })
+      .mockResolvedValueOnce({ status: 'OK', token: 'tok-2' });
+    await expect(setEmailVerified('u-1', true)).resolves.toBe(true);
+    expect(verifyUsingTokenMock).toHaveBeenCalledTimes(1);
+    expect(verifyUsingTokenMock).toHaveBeenCalledWith('public', 'tok-2');
+  });
+
   it('skips verifying when the email is already verified', async () => {
     createTokenMock.mockResolvedValue({ status: 'EMAIL_ALREADY_VERIFIED_ERROR' });
     getUserMock.mockResolvedValue(
