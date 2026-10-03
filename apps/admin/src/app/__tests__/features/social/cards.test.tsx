@@ -77,12 +77,10 @@ describe('TikTok card', () => {
     expect(screen.getByText(/the TikTok account/)).toBeInTheDocument();
   });
 
-  it('offers a connect link when disconnected', () => {
+  it('offers a connect button, not a link, when disconnected', () => {
     render(<TikTokDisconnected />);
-    expect(screen.getByRole('link', { name: 'Connect TikTok' })).toHaveAttribute(
-      'href',
-      '/api/social/tiktok/connect'
-    );
+    expect(screen.getByRole('button', { name: 'Connect TikTok' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connect TikTok' })).not.toBeInTheDocument();
   });
 
   it('lists exactly the missing variables when unconfigured', () => {
@@ -110,12 +108,10 @@ describe('Instagram card', () => {
     expect(screen.getByText(/the Instagram account/)).toBeInTheDocument();
   });
 
-  it('offers a connect link when disconnected', () => {
+  it('offers a connect button, not a link, when disconnected', () => {
     render(<InstagramDisconnected />);
-    expect(screen.getByRole('link', { name: 'Connect Instagram' })).toHaveAttribute(
-      'href',
-      '/api/social/instagram/connect'
-    );
+    expect(screen.getByRole('button', { name: 'Connect Instagram' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Connect Instagram' })).not.toBeInTheDocument();
   });
 
   it('lists the missing variables and explains which app id is meant', () => {
