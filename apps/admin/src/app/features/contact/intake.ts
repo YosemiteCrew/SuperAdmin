@@ -257,18 +257,18 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
       ['company', safeCompany],
       ['phone', safePhone],
     ] as const;
-    await Promise.all(
-      fills.flatMap(([field, value]) =>
-        value
-          ? [
-              tx.contactLead.updateMany({
-                where: { id: lead.id, [field]: null },
-                data: { [field]: value },
-              }),
-            ]
-          : []
-      )
-    );
+    const updates: Promise<unknown>[] = [];
+    for (const [field, value] of fills) {
+      if (value) {
+        updates.push(
+          tx.contactLead.updateMany({
+            where: { id: lead.id, [field]: null },
+            data: { [field]: value },
+          })
+        );
+      }
+    }
+    await Promise.all(updates);
 
     const existing = await tx.contactRequest.findUnique({
       where: { sourceRequestId: id },
