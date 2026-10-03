@@ -1,7 +1,6 @@
-import Link from 'next/link';
-
 import type { TikTokConnectionSummary, TikTokCreatorInfo } from '@/app/features/social/types';
 
+import { ConnectButton } from './ConnectButton';
 import { CARD, formatDate } from './cardStyles';
 import { DisconnectButton } from './DisconnectButton';
 import { PostComposer } from './PostComposer';
@@ -60,14 +59,7 @@ export function TikTokDisconnected() {
         Not connected. Authorize the Yosemite Crew TikTok account to post from here. The credentials
         are encrypted before they are stored and never leave the server.
       </p>
-      {/* A plain link, not fetch: the flow ends in a redirect to tiktok.com. */}
-      <Link
-        href="/api/social/tiktok/connect"
-        prefetch={false}
-        className="yc-primary-button inline-flex items-center justify-center rounded-xl border-[1.5px] border-btn bg-btn px-5 py-2.5 text-sm font-medium text-btn-ink transition-opacity hover:opacity-90"
-      >
-        Connect TikTok
-      </Link>
+      <ConnectButton endpoint="/api/social/tiktok/connect" network="TikTok" />
     </section>
   );
 }

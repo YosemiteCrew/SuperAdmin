@@ -1,3 +1,6 @@
+/**
+ * @jest-environment node
+ */
 jest.mock('server-only', () => ({}));
 
 jest.mock('supertokens-node', () => ({
@@ -238,7 +241,7 @@ describe('collectAccountData', () => {
         nested: { disabledBy: ADMIN_ID },
         list: [{ rejectedBy: ADMIN_ID }],
       };
-      const snapshot = JSON.parse(JSON.stringify(stored)) as typeof stored;
+      const snapshot = structuredClone(stored);
       mockMeta.mockResolvedValue({ status: 'OK', metadata: stored });
 
       await collectAccountData('u1');

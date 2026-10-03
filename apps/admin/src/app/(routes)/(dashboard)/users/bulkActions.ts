@@ -44,23 +44,24 @@ async function auditEach(action: AuditAction, actorId: string, userId: string, l
 type Outcome = 'done' | 'skipped';
 
 /**
- * Runs one id's work inside its own boundary so a single failing account is
- * counted and the rest of the sweep still runs.
+ * Runs every id's work at once, each inside its own boundary, so a single
+ * failing account is counted and the rest of the sweep still runs.
  */
 async function sweep(
   userIds: string[],
   path: string,
   each: (id: string) => Promise<Outcome>
 ): Promise<BulkUserResult> {
+  const outcomes = await Promise.all(
+    cleanIds(userIds).map((id) =>
+      each(id).catch((err: unknown): keyof BulkUserResult => {
+        console.error('[users] bulk action failed for one account', { err });
+        return 'failed';
+      })
+    )
+  );
   const result: BulkUserResult = { done: 0, skipped: 0, failed: 0 };
-  for (const id of cleanIds(userIds)) {
-    try {
-      result[await each(id)] += 1;
-    } catch (err) {
-      result.failed += 1;
-      console.error('[users] bulk action failed for one account', { err });
-    }
-  }
+  for (const outcome of outcomes) result[outcome] += 1;
   revalidatePath(path);
   return result;
 }

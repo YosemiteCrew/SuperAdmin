@@ -89,9 +89,9 @@ export function UsersTable({ rows }: Readonly<{ rows: UserRow[] }>) {
 
   const allSelected = rows.length > 0 && rows.every((row) => selected.has(row.id));
   const someSelected = selected.size > 0;
-  const deletableSelectedIds = rows
-    .filter((row) => row.canDelete && selected.has(row.id))
-    .map((row) => row.id);
+  const deletableSelectedIds = rows.flatMap((row) =>
+    row.canDelete && selected.has(row.id) ? [row.id] : []
+  );
 
   function toggle(id: string) {
     setSelected((prev) => {

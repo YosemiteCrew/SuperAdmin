@@ -296,7 +296,7 @@ export async function getAuditEventPage(
       take: AUDIT_PAGE_SIZE,
     });
     return {
-      items: rows.map(fromRow).map(toPublicEvent),
+      items: rows.map((row) => toPublicEvent(fromRow(row))),
       page,
       totalPages,
       total,
@@ -311,7 +311,7 @@ export async function getAuditEventPage(
 export async function getFilteredAuditEvents(options: AuditFilterOptions): Promise<AuditEvent[]> {
   const where = buildAuditWhere(options);
   const rows = await prisma.auditEvent.findMany({ where, orderBy: { seq: 'desc' } });
-  if (rows.length > 0) return rows.map(fromRow).map(toPublicEvent);
+  if (rows.length > 0) return rows.map((row) => toPublicEvent(fromRow(row)));
   if (await prisma.auditEvent.findFirst({ select: { id: true } })) return [];
   return filterAuditEvents((await readLegacyLog()).map(toPublicEvent), options);
 }

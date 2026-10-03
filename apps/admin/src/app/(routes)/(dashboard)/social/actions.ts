@@ -26,16 +26,17 @@ interface DisconnectSpec<TConfig> {
   clear: () => Promise<boolean>;
 }
 
-async function disconnect<TConfig>(spec: DisconnectSpec<TConfig>): Promise<DisconnectResult> {
-  const { userId } = await requireSuperAdmin();
+async function disconnect<TConfig>(
+  userId: string,
+  spec: DisconnectSpec<TConfig>
+): Promise<DisconnectResult> {
   const config = spec.loadConfig();
   if (!config) {
     return { ok: false, message: `${spec.network} posting is not configured on this host.` };
   }
 
   const existing = await spec.read(config);
-  const cleared = await spec.clear();
-  if (!cleared) {
+  if (!(await spec.clear())) {
     revalidatePath('/social');
     return { ok: false, message: `${spec.network} is not connected.` };
   }
@@ -58,7 +59,8 @@ async function disconnect<TConfig>(spec: DisconnectSpec<TConfig>): Promise<Disco
  * the account owner in TikTok's own settings. The same is true of Instagram.
  */
 export async function disconnectTikTokAction(): Promise<DisconnectResult> {
-  return disconnect({
+  const { userId } = await requireSuperAdmin();
+  return disconnect(userId, {
     network: 'TikTok',
     loadConfig: getTikTokConfig,
     read: async (config) => {
@@ -70,7 +72,8 @@ export async function disconnectTikTokAction(): Promise<DisconnectResult> {
 }
 
 export async function disconnectInstagramAction(): Promise<DisconnectResult> {
-  return disconnect({
+  const { userId } = await requireSuperAdmin();
+  return disconnect(userId, {
     network: 'Instagram',
     loadConfig: getInstagramConfig,
     read: async (config) => {

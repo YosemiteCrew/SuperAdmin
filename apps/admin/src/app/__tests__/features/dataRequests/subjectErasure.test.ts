@@ -81,6 +81,14 @@ describe('eraseSubjectData', () => {
     expect(Object.keys(prisma)).toEqual(['$transaction']);
   });
 
+  it('counts the consent events of the subjects matched by the normalized address', async () => {
+    await eraseSubjectData('person@example.com');
+
+    expect(tx.consentEvent.count).toHaveBeenCalledWith({
+      where: { subject: { email: { equals: 'person@example.com' } } },
+    });
+  });
+
   it('deletes the lead and nulls the consent identifiers, keyed by the normalized address', async () => {
     await eraseSubjectData('  Person@Example.COM ');
 

@@ -144,7 +144,9 @@ describe('isValidAuditEvent', () => {
       targetLabel: 'Plunk (2 synced, 0 failed)',
     });
     const [stored] = prependCapped([], event);
-    expect(isValidAuditEvent(JSON.parse(JSON.stringify(stored)))).toBe(true);
+    // Validated as it is read back: from the JSON it is stored as.
+    const persisted = JSON.stringify(stored);
+    expect(isValidAuditEvent(JSON.parse(persisted))).toBe(true);
   });
 
   it.each([

@@ -87,7 +87,7 @@ export async function scanApprovalStatuses(users: QueueUser[]): Promise<Approval
   );
   return {
     rows: results.map(({ row }) => row),
-    indexableRows: results.filter(({ known }) => known).map(({ row }) => row),
+    indexableRows: results.flatMap(({ known, row }) => (known ? [row] : [])),
   };
 }
 

@@ -45,8 +45,9 @@ export async function exportSubjectDataAction(
   const request = await getDataRequest(id);
   if (!request) return null;
 
-  const data = await collectSubjectData(request.subjectEmail);
+  const json = JSON.stringify(await collectSubjectData(request.subjectEmail), null, 2);
 
+  // Recorded only once the export is in hand, so a failed collection is never logged as an export.
   const auditRecorded = await tryRecordAuditEvent({
     action: 'privacy.subject_export',
     actorId,
@@ -55,7 +56,7 @@ export async function exportSubjectDataAction(
     targetLabel: request.type,
   });
 
-  return { json: JSON.stringify(data, null, 2), auditRecorded };
+  return { json, auditRecorded };
 }
 
 /**

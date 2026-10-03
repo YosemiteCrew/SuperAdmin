@@ -27,8 +27,7 @@
     "react-dom": "^19.3.0",
     "react-icons": "5.7.0",
     "supertokens-auth-react": "^0.51.3",
-    "supertokens-node": "^24.0.3",
-    "supertokens-web-js": "^0.16.0"
+    "supertokens-node": "^24.0.3"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

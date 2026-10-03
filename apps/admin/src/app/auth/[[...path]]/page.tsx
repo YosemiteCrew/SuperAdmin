@@ -429,7 +429,7 @@ function stripTrailingSlashes(path: string): string {
   return path.slice(0, end);
 }
 
-function inviteReturnTo(value: string | null): string {
+function safeInviteReturnTo(value: string | null): string {
   if (!value) return DEFAULT_AUTH_DESTINATION;
   try {
     const parsed = new URL(value, 'https://internal.invalid');
@@ -461,7 +461,7 @@ function AuthContent() {
   }
 
   const token = searchParams.get('token') ?? '';
-  const returnTo = inviteReturnTo(searchParams.get('returnTo'));
+  const returnTo = safeInviteReturnTo(searchParams.get('returnTo'));
 
   // Public sign-up is disabled (see backend EmailPassword apis override), so
   // /auth/signup is no longer a screen — it falls through to the /auth redirect.

@@ -25,14 +25,11 @@ async function searchUsers(q: string): Promise<DirectoryHit[]> {
       limit: MAX_HITS_PER_KIND,
       query: { email: q },
     });
-    return users
-      .filter((u) => u.emails[0])
-      .map((u) => ({
-        id: u.id,
-        kind: 'user' as const,
-        title: u.emails[0],
-        href: `/users/${u.id}`,
-      }));
+    return users.flatMap((u) =>
+      u.emails[0]
+        ? [{ id: u.id, kind: 'user' as const, title: u.emails[0], href: `/users/${u.id}` }]
+        : []
+    );
   } catch {
     return [];
   }

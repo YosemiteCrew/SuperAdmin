@@ -252,18 +252,23 @@ async function handleWithSourceRequestId(input: ContactSubmission): Promise<void
     });
 
     // Fill only what is still null, so a replay never overwrites better data.
-    for (const [field, value] of [
+    const fills = [
       ['name', safeName],
       ['company', safeCompany],
       ['phone', safePhone],
-    ] as const) {
+    ] as const;
+    const updates: Promise<unknown>[] = [];
+    for (const [field, value] of fills) {
       if (value) {
-        await tx.contactLead.updateMany({
-          where: { id: lead.id, [field]: null },
-          data: { [field]: value },
-        });
+        updates.push(
+          tx.contactLead.updateMany({
+            where: { id: lead.id, [field]: null },
+            data: { [field]: value },
+          })
+        );
       }
     }
+    await Promise.all(updates);
 
     const existing = await tx.contactRequest.findUnique({
       where: { sourceRequestId: id },

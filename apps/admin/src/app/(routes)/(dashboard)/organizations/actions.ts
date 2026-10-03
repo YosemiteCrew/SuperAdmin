@@ -19,12 +19,11 @@ import {
 import type { OrganizationStatusPatch } from '@/app/features/organizations/types';
 
 async function patchOrganization(
+  actorId: string,
   formData: FormData,
   patch: OrganizationStatusPatch,
   action: AuditAction
 ): Promise<void> {
-  const { userId: actorId } = await requireSuperAdmin();
-
   const id = formData.get('organizationId');
   if (typeof id !== 'string' || id.length === 0) return;
 
@@ -71,15 +70,18 @@ async function patchOrganization(
 
 /** Verify a business — makes it visible to pet parents in the mobile app. */
 export async function verifyOrganizationAction(formData: FormData): Promise<void> {
-  await patchOrganization(formData, { isVerified: true }, 'org.verify');
+  const { userId } = await requireSuperAdmin();
+  await patchOrganization(userId, formData, { isVerified: true }, 'org.verify');
 }
 
 /** Suspend a business — hides it from pet parents without deleting it. */
 export async function suspendOrganizationAction(formData: FormData): Promise<void> {
-  await patchOrganization(formData, { isActive: false }, 'org.suspend');
+  const { userId } = await requireSuperAdmin();
+  await patchOrganization(userId, formData, { isActive: false }, 'org.suspend');
 }
 
 /** Re-activate a previously suspended business. */
 export async function reactivateOrganizationAction(formData: FormData): Promise<void> {
-  await patchOrganization(formData, { isActive: true }, 'org.reactivate');
+  const { userId } = await requireSuperAdmin();
+  await patchOrganization(userId, formData, { isActive: true }, 'org.reactivate');
 }

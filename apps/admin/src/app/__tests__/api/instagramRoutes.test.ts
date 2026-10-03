@@ -50,7 +50,8 @@ import { parseKey, seal } from '@/app/features/social/secrets';
 import { writeInstagramConnection } from '@/app/features/social/store';
 
 import { GET as callback } from '@/app/api/social/instagram/callback/route';
-import { GET as connect } from '@/app/api/social/instagram/connect/route';
+import * as connectRoute from '@/app/api/social/instagram/connect/route';
+import { POST as connect } from '@/app/api/social/instagram/connect/route';
 import { POST as finish } from '@/app/api/social/instagram/finish/route';
 import { POST as post } from '@/app/api/social/instagram/post/route';
 import { POST as scheduled } from '@/app/api/social/instagram/scheduled/route';
@@ -104,32 +105,47 @@ beforeEach(() => {
   finishReelMock.mockResolvedValue({ ok: true, state: 'published', mediaId: 'm1' });
 });
 
-describe('GET /api/social/instagram/connect', () => {
-  it('redirects to Instagram and stashes the sealed state', async () => {
-    const response = await connect(
-      new NextRequest('https://admin.example.com/api/social/instagram/connect')
-    );
-    const target = location(response);
+describe('POST /api/social/instagram/connect', () => {
+  const connectRequest = () =>
+    new NextRequest('https://admin.example.com/api/social/instagram/connect', { method: 'POST' });
+
+  it('returns the Instagram URL and stashes the sealed state', async () => {
+    const response = await connect(connectRequest());
+    expect(response.status).toBe(200);
+    const { authorizeUrl } = (await response.json()) as { authorizeUrl: string };
+    const target = new URL(authorizeUrl);
     expect(target.origin).toBe('https://www.instagram.com');
     expect(target.searchParams.get('client_id')).toBe(CONFIG.appId);
 
     const cookie = (
       response as unknown as {
         cookies: {
-          get: (n: string) => { value: string; httpOnly: boolean; sameSite: string } | undefined;
+          get: (
+            n: string
+          ) => { value: string; httpOnly: boolean; sameSite: string; path: string } | undefined;
         };
       }
     ).cookies.get(INSTAGRAM_OAUTH_COOKIE);
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe('lax');
+    expect(cookie?.path).toBe('/api/social/instagram');
     expect(cookie?.value).toMatch(/^v1\./);
+  });
+
+  it('refuses a cross-origin request without setting the cookie', async () => {
+    isSameOriginMock.mockReturnValue(false);
+    const response = await connect(connectRequest());
+    expect(response.status).toBe(403);
+    expect(response.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('does not answer GET, so a link or prefetch cannot start the flow', () => {
+    expect(connectRoute).not.toHaveProperty('GET');
   });
 
   it('returns 503 when unconfigured', async () => {
     getInstagramConfigMock.mockReturnValue(null);
-    const response = await connect(
-      new NextRequest('https://admin.example.com/api/social/instagram/connect')
-    );
+    const response = await connect(connectRequest());
     expect(response.status).toBe(503);
   });
 });

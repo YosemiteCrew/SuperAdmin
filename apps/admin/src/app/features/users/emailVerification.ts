@@ -13,29 +13,29 @@ export async function setEmailVerified(userId: string, verified: boolean): Promi
   const user = await SuperTokens.getUser(userId);
   if (!user) return false;
 
-  let changed = false;
+  // Each login method is its own record, so they are updated together.
+  const changes = await Promise.all(
+    user.loginMethods.map(async (method) => {
+      if (!method.email) return false;
+      const tenantId = method.tenantIds[0] ?? DEFAULT_TENANT_ID;
 
-  for (const method of user.loginMethods) {
-    if (!method.email) continue;
-    const tenantId = method.tenantIds[0] ?? DEFAULT_TENANT_ID;
-
-    if (verified) {
+      if (!verified) {
+        if (!(await EmailVerificationNode.isEmailVerified(method.recipeUserId, method.email))) {
+          return false;
+        }
+        await EmailVerificationNode.unverifyEmail(method.recipeUserId, method.email);
+        return true;
+      }
       const token = await EmailVerificationNode.createEmailVerificationToken(
         tenantId,
         method.recipeUserId,
         method.email
       );
-      if (token.status === 'OK') {
-        const result = await EmailVerificationNode.verifyEmailUsingToken(tenantId, token.token);
-        changed ||= result.status === 'OK';
-      }
-    } else {
-      if (!(await EmailVerificationNode.isEmailVerified(method.recipeUserId, method.email)))
-        continue;
-      await EmailVerificationNode.unverifyEmail(method.recipeUserId, method.email);
-      changed = true;
-    }
-  }
+      if (token.status !== 'OK') return false;
+      const result = await EmailVerificationNode.verifyEmailUsingToken(tenantId, token.token);
+      return result.status === 'OK';
+    })
+  );
 
-  return changed;
+  return changes.includes(true);
 }

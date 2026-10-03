@@ -84,4 +84,17 @@ describe('OrgNotes', () => {
     await waitFor(() => expect(mockAddNote).toHaveBeenCalled());
     await waitFor(() => expect(textarea).toHaveValue(''));
   });
+
+  it('formats note times in UTC so server and browser agree', () => {
+    const formatDate = jest.spyOn(Date.prototype, 'toLocaleString');
+    try {
+      render(<OrgNotes orgId="org1" notes={[makeNote()]} />);
+      expect(formatDate).toHaveBeenCalledWith(
+        'en-US',
+        expect.objectContaining({ timeZone: 'UTC' })
+      );
+    } finally {
+      formatDate.mockRestore();
+    }
+  });
 });

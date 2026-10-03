@@ -11,13 +11,14 @@ export function ProfileForm({
   firstName,
   lastName,
 }: Readonly<{ firstName: string; lastName: string }>) {
-  const [first, setFirst] = useState(firstName);
-  const [last, setLast] = useState(lastName);
   const [status, setStatus] = useState<SaveStatus>('idle');
   const [message, setMessage] = useState('');
 
   async function handleSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
+    const fields = event.currentTarget.elements;
+    const first = (fields.namedItem('firstName') as HTMLInputElement).value;
+    const last = (fields.namedItem('lastName') as HTMLInputElement).value;
     setStatus('saving');
     setMessage('');
     try {
@@ -47,17 +48,10 @@ export function ProfileForm({
           label="First name"
           id="firstName"
           name="firstName"
-          value={first}
-          onChange={(e) => setFirst(e.target.value)}
+          defaultValue={firstName}
           required
         />
-        <Input
-          label="Last name"
-          id="lastName"
-          name="lastName"
-          value={last}
-          onChange={(e) => setLast(e.target.value)}
-        />
+        <Input label="Last name" id="lastName" name="lastName" defaultValue={lastName} />
       </div>
       <div className="flex items-center gap-3">
         <Button type="submit" size="sm" disabled={status === 'saving'}>

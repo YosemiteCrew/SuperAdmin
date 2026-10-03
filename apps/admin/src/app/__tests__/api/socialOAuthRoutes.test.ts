@@ -14,6 +14,7 @@ jest.mock('@/app/features/social/guard', () => ({
   // admin", so these tests exercise the OAuth logic rather than re-testing auth.
   withSuperAdmin: (_req: unknown, handler: (actor: unknown) => Promise<Response>) =>
     handler({ userId: 'user-1', email: 'admin@example.com' }),
+  isSameOrigin: jest.fn(() => true),
 }));
 
 jest.mock('@/app/features/social/config', () => ({
@@ -30,15 +31,18 @@ jest.mock('@/app/features/social/tiktok', () => ({
 
 import { recordAuditEvent } from '@/app/features/audit/store';
 import { getTikTokConfig } from '@/app/features/social/config';
+import { isSameOrigin } from '@/app/features/social/guard';
 import { OAUTH_COOKIE } from '@/app/features/social/oauthCookie';
 import { parseKey, seal } from '@/app/features/social/secrets';
 import { writeConnection } from '@/app/features/social/store';
 import { exchangeCode, fetchDisplayName } from '@/app/features/social/tiktok';
 
-import { GET as connect } from '@/app/api/social/tiktok/connect/route';
+import * as connectRoute from '@/app/api/social/tiktok/connect/route';
+import { POST as connect } from '@/app/api/social/tiktok/connect/route';
 import { GET as callback } from '@/app/api/social/tiktok/callback/route';
 
 const getTikTokConfigMock = getTikTokConfig as jest.Mock;
+const isSameOriginMock = isSameOrigin as jest.Mock;
 const exchangeCodeMock = exchangeCode as jest.Mock;
 const fetchDisplayNameMock = fetchDisplayName as jest.Mock;
 const writeConnectionMock = writeConnection as jest.Mock;
@@ -72,16 +76,19 @@ function location(response: Response): URL {
 beforeEach(() => {
   jest.clearAllMocks();
   getTikTokConfigMock.mockReturnValue(CONFIG);
+  isSameOriginMock.mockReturnValue(true);
 });
 
-describe('GET /api/social/tiktok/connect', () => {
-  it('redirects to TikTok and stashes the sealed verifier in an httpOnly cookie', async () => {
-    const response = await connect(
-      new NextRequest('https://admin.example.com/api/social/tiktok/connect')
-    );
-    expect(response.status).toBe(307);
+describe('POST /api/social/tiktok/connect', () => {
+  const connectRequest = () =>
+    new NextRequest('https://admin.example.com/api/social/tiktok/connect', { method: 'POST' });
 
-    const target = location(response);
+  it('returns the TikTok URL and stashes the sealed verifier in an httpOnly cookie', async () => {
+    const response = await connect(connectRequest());
+    expect(response.status).toBe(200);
+
+    const { authorizeUrl } = (await response.json()) as { authorizeUrl: string };
+    const target = new URL(authorizeUrl);
     expect(target.origin).toBe('https://www.tiktok.com');
     expect(target.searchParams.get('code_challenge_method')).toBe('S256');
     expect(target.searchParams.get('redirect_uri')).toBe(CONFIG.redirectUri);
@@ -102,11 +109,20 @@ describe('GET /api/social/tiktok/connect', () => {
     expect(cookie?.value).toMatch(/^v1\./);
   });
 
+  it('refuses a cross-origin request without setting the cookie', async () => {
+    isSameOriginMock.mockReturnValue(false);
+    const response = await connect(connectRequest());
+    expect(response.status).toBe(403);
+    expect(response.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('does not answer GET, so a link or prefetch cannot start the flow', () => {
+    expect(connectRoute).not.toHaveProperty('GET');
+  });
+
   it('returns 503 listing what is missing when unconfigured', async () => {
     getTikTokConfigMock.mockReturnValue(null);
-    const response = await connect(
-      new NextRequest('https://admin.example.com/api/social/tiktok/connect')
-    );
+    const response = await connect(connectRequest());
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ missing: ['TIKTOK_CLIENT_KEY'] });
   });

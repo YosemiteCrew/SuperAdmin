@@ -1,7 +1,6 @@
-import Link from 'next/link';
-
 import type { InstagramConnectionSummary } from '@/app/features/social/types';
 
+import { ConnectButton } from './ConnectButton';
 import { CARD, formatDate } from './cardStyles';
 import { DisconnectButton } from './DisconnectButton';
 import { InstagramComposer } from './InstagramComposer';
@@ -56,13 +55,7 @@ export function InstagramDisconnected() {
         Not connected. Authorize the Yosemite Crew Instagram account to post Reels from here. The
         credentials are encrypted before they are stored and never leave the server.
       </p>
-      <Link
-        href="/api/social/instagram/connect"
-        prefetch={false}
-        className="yc-primary-button inline-flex items-center justify-center rounded-xl border-[1.5px] border-btn bg-btn px-5 py-2.5 text-sm font-medium text-btn-ink transition-opacity hover:opacity-90"
-      >
-        Connect Instagram
-      </Link>
+      <ConnectButton endpoint="/api/social/instagram/connect" network="Instagram" />
     </section>
   );
 }

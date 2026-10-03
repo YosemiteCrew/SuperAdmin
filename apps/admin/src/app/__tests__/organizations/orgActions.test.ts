@@ -231,3 +231,20 @@ describe('environment routing', () => {
     );
   });
 });
+
+describe.each([
+  'verifyOrganizationAction',
+  'suspendOrganizationAction',
+  'reactivateOrganizationAction',
+] as const)('%s without a super-admin session', (name) => {
+  it('is refused before the business is read, changed or audited', async () => {
+    requireSuperAdminMock.mockRejectedValueOnce(new Error('NEXT_REDIRECT'));
+    const actions = (await import(ACTIONS)) as Record<typeof name, (f: FormData) => Promise<void>>;
+    await expect(actions[name](makeForm({ organizationId: 'o1' }))).rejects.toThrow(
+      'NEXT_REDIRECT'
+    );
+    expect(getOrganizationMock).not.toHaveBeenCalled();
+    expect(updateOrganizationMock).not.toHaveBeenCalled();
+    expect(recordAuditEventMock).not.toHaveBeenCalled();
+  });
+});

@@ -106,9 +106,6 @@ importers:
       supertokens-node:
         specifier: ^24.0.3
         version: 24.0.3
-      supertokens-web-js:
-        specifier: ^0.16.0
-        version: 0.16.0
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.13.0
